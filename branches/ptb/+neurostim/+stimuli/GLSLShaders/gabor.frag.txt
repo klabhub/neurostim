@@ -1,0 +1,44 @@
+/*
+ * File: BasicGaborShader.frag.txt
+ * Shader for drawing of xyL Gabor patches.
+ * Adapted from PTB.
+ * BK  April 2014
+ */
+
+varying float orientation;
+varying float peakLuminance;
+varying float phase;
+varying float freqTwoPi;
+varying float expMultiplier;
+varying vec4  color; 
+varying float meanLuminance; 
+uniform int useRGB;
+
+
+void main()
+{
+    /* Query current output texel position wrt. to Center of Gabor: */
+    vec2 pos = gl_TexCoord[0].xy;
+
+    /* Compute (x,y) distance weighting coefficients, based on rotation angle: */
+    /* Note that this is a constant for all fragments, but we can not do it in */
+    /* the vertex shader, because the vertex shader does not have sufficient   */
+    /* numeric precision on some common hardware out there. */
+    vec2 coeff = vec2(cos(orientation), sin(orientation)) * freqTwoPi;
+
+    /* Evaluate sine grating at requested position, angle and phase: */
+    float sv = sin(dot(coeff, pos) + phase);
+
+    /* Compute exponential hull for the gabor: */
+    float ev = exp(dot(pos, pos) * expMultiplier);
+
+    if (useRGB){
+        gl_FragColor[0] = color[0]+(peakLuminance-color[0]) * ( ev * sv );
+        gl_FragColor[1] = color[1]+(peakLuminance-color[1]) * ( ev * sv );
+        gl_FragColor[2] = color[2]+(peakLuminance-color[2]) * ( ev * sv );
+    }else{
+        gl_FragColor[0] = color[0];
+        gl_FragColor[1] = color[1];
+        gl_FragColor[2] = color[2] + (peakLuminance-color[2]) * ( ev * sv );
+    }
+}

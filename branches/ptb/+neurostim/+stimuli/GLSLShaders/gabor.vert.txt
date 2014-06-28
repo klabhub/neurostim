@@ -1,0 +1,49 @@
+/*
+ * File: gabor.vert.txt
+ * Shader for drawing of basic parameterized gabor patches using xyL color
+ * coordinates. Based on PTB basic gabor shader.
+ *
+ * BK - April 2014	 
+ */
+
+const float twopi     = 2.0 * 3.141592654;
+const float sqrtof2pi = 2.5066282746;
+const float deg2rad = 3.141592654 / 180.0;
+
+/* Set from Matlab when texture is created */
+uniform vec2  center; 
+uniform int rgbColor;
+
+/* Attributes passed from Screen(): See the ProceduralShadingAPI.m file for infos: */
+attribute vec4 sizeAngleFilterMode;
+attribute vec4 modulateColor;
+attribute vec4 auxParameters0;
+
+/* Information passed to the fragment shader: Attributes and precalculated per patch constants: */
+varying float orientation;
+varying float peakLuminance;
+varying float phase;
+varying float freqTwoPi;
+varying float expMultiplier;
+varying vec4 color; 
+varying int useRGB;
+void main()
+{
+    /* Apply standard geometric transformations to patch: */
+    gl_Position = ftransform();
+
+    /* Don't pass real texture coordinates, but ones corrected for hardware offsets (-0.5,0.5) */
+    /* and so that the center of the gabor patch has coordinate (0,0): */
+    gl_TexCoord[0] = gl_MultiTexCoord0 - vec4(center, 0.0, 0.0) + vec4(-0.5, 0.5, 0.0, 0.0);
+
+    /* auxParameters0   = [o.phase, o.frequency, o.sigma, o.peakLuminance] */
+
+    phase               = deg2rad * auxParameters0[0];
+    freqTwoPi           = auxParameters0[1] * twopi;
+    float sigma         = auxParameters0[2];
+    peakLuminance       = auxParameters0[3];
+    orientation         = deg2rad * sizeAngleFilterMode.z;
+    expMultiplier       = -0.5 / (sigma * sigma);
+    color               = modulateColor;
+    useRGB              = rgbColor;
+}
