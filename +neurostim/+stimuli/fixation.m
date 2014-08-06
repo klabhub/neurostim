@@ -68,24 +68,14 @@ classdef fixation < neurostim.stimulus
                 case 'OVAL'     
                     rct = CenterRect([0 0 100 100], o.cic.position);
                     Screen('FillOval', o.cic.window, [o.color o.luminance], rct);
-                    
-                    
-                    
-                    %{             
-                case 'TRIA2' 
+                             
+                                
+                case 'STAR' 
                     rct = CenterRect([0 0 100 100], o.cic.position);
-                    numSides = 3; %Determine number of sides for polygon
-                    [xCenter, yCenter] = RectCenter(rct); %Find the center of rct
-                    anglesDeg = linspace(0, 360, numSides + 1); %Determine the angles at which the polygons vertices will be
-                    anglesRad = anglesDeg*(pi / 180);
-                    radius = 50;
-                    xPosVector = sin(anglesRad) .* radius + yCenter; % X and Y coordinates of polygon
-                    xPosVector = cos(anglesRad) .* radius + xCenter;
-                    isConvex = 1; %The polygon is convex
-                    
-                    Screen('FillPoly',o.cic.window,[o.color o.luminance],[xPosVector; yPosVector]',isConvex);  %This should create a triangle facing upwards
+                    isConvex = 0; %The polygon is concave                    
+                    Screen('FillPoly',o.cic.window,[o.color o.luminance],[0,100; 0,35; 50,0; 100,35; 100,100;],isConvex);  %This should create a star
                                   
-                %}
+                
                     
                     
                     
