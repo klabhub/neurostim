@@ -29,7 +29,7 @@ classdef fixation < neurostim.stimulus
                 case 'CIRC'
                     Screen('glLoadIdentity',o.cic.window);
                     Screen('glTranslate',o.cic.window,o.cic.position(3)/2,o.cic.position(4)/2);
-                    Screen('glPoint',o.cic.window,[o.color o.luminance],o.X,o.Y,o.size);
+                    Screen('glPoint',o.cic.window,[o.color o.luminance],o.X,o.Y,o.sizelarge);
                     Screen('glLoadIdentity',o.cic.window);
                     
                 case 'CONCIRC'
@@ -40,56 +40,50 @@ classdef fixation < neurostim.stimulus
                     Screen('glLoadIdentity', o.cic.window);
                     
                 case 'TRIA'
-                    isConvex = 1;
-                    Screen('FillPoly',o.cic.window,[o.color o.luminance],[650,500; 625,525; 675,525;],isConvex);
+                   isConvex = 1;
+                   Screen('FillPoly',o.cic.window,[o.color o.luminance],[650,500; 625,525; 675,525;],isConvex);
                         
                 case 'TRIAR'
-                  
-                    isConvex = 1;
-                   
-                    Screen('FillPoly',o.cic.window,[o.color o.luminance],[660,512.5; 625,525; 625,500;],isConvex);
+                   Screen('glPushMatrix', o.cic.window);
+                   Screen('glTranslate', o.cic.window, o.cic.position(3)/2, o.cic.position(4)/2);
+                   Screen('glRotate', o.cic.window, o.angle, 0, 0, 1) ;
+                   isConvex = 1;
+                   Screen('glTranslate', o.cic.window, -o.cic.position(3)/2, -o.cic.position(4)/2);
+                   Screen('FillPoly',o.cic.window,[o.color o.luminance],[650,500; 625,525; 675,525;],isConvex);
+                   Screen('glPopmatrix', o.cic.window);
                
                    
                                 
                 case 'TRIAD'
-                    isConvex = 1;
-                    Screen('FillPoly',o.cic.window,[o.color o.luminance],[642.5,525; 625,500; 660,500],isConvex);
+                   Screen('glPushMatrix', o.cic.window);
+                   Screen('glTranslate', o.cic.window, o.cic.position(3)/2, o.cic.position(4)/2);
+                   Screen('glRotate', o.cic.window, o.angle, 0, 0, 1) ;
+                   Screen('glRotate', o.cic.window, o.angle, 0, 0, 1) ;
+                   isConvex = 1;
+                   Screen('glTranslate', o.cic.window, -o.cic.position(3)/2, -o.cic.position(4)/2);
+                   Screen('FillPoly',o.cic.window,[o.color o.luminance],[650,500; 625,525; 675,525;],isConvex);
+                   Screen('glPopmatrix', o.cic.window);
                    
                                 
-                case 'TRIAL'
-                    isConvex = 1;
-                    Screen('FillPoly',o.cic.window,[o.color o.luminance],[625,512.5; 660,500; 660,525],isConvex);
-                              
+                case 'TRIAL'       
+                   Screen('glPushMatrix', o.cic.window);
+                   Screen('glTranslate', o.cic.window, o.cic.position(3)/2, o.cic.position(4)/2);
+                   Screen('glRotate', o.cic.window, o.angle, 0, 0, 1) ;
+                   Screen('glRotate', o.cic.window, o.angle, 0, 0, 1) ;
+                   Screen('glRotate', o.cic.window, o.angle, 0, 0, 1) ;
+                   isConvex = 1;
+                   Screen('glTranslate', o.cic.window, -o.cic.position(3)/2, -o.cic.position(4)/2);
+                   Screen('FillPoly',o.cic.window,[o.color o.luminance],[650,500; 625,525; 675,525;],isConvex);
+                   Screen('glPopmatrix', o.cic.window);
                                                                       
                 case 'OVAL'     
-                    rct = CenterRect([0 0 100 100], o.cic.position);
-                    Screen('FillOval', o.cic.window, [o.color o.luminance], rct);
+                   rct = CenterRect([0 0 100 100], o.cic.position);
+                   Screen('FillOval', o.cic.window, [o.color o.luminance], rct);
                              
                                 
-                case 'STAR' 
-                                   
-                    Screen('FramePoly',o.cic.window,[o.color o.luminance],[625,525; 642.5,490; 660,525; 620,505; 665,505;]);  %This should create a star
-                
-                %{    
-                case 'TRIA2'
-                    posXs = [screenXpixels * 0.25 screenXpixels * 0.5 screenXpixels * 0.75];
-                    posYs = ones(1, numRects) .* (screenYpixels / 2);
-                    posX = posXs(i);
-                    posY = posYs(i);
-                    
-                    while ~kbCheck
-                        
-                        Screen('glPushMatrix', o.cic.window)
-                        Screen('glTranslate', o.cic.window, posX, posY)
-                        Screen('glRotate', o.cic.window, o.angle, 0, 0);
-                        Screen('glTranslate', o.cic.window, -posX, -posY)
-                         isConvex = 1;
-                        Screen('FillPoly',o.cic.window,[o.color o.luminance],[650,500; 625,525; 675,525;],isConvex);
-                        Screen('glPopMatrix', o.cic.window)
-                        
-                    end 
-                    
-                    %}
+                case 'STAR'                 
+                   Screen('FramePoly',o.cic.window,[o.color o.luminance],[625,525; 642.5,490; 660,525; 620,505; 665,505;], [3]);  %This should create a star
+                      
                     
                     
             end
