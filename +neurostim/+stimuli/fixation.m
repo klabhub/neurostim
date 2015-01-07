@@ -38,7 +38,7 @@ classdef fixation < neurostim.stimulus
                 case 'CONCIRC'
                     Screen('glLoadIdentity', o.cic.window);
                     Screen('glPoint',o.cic.window,[o.color o.luminance],o.CC(1),o.CC(2),o.size(4));
-                    Screen('glPoint',o.cic.window,[0 1 0], o.CC(1), o.CC(2), o.size(2));
+                    Screen('glPoint',o.cic.window,[1 1 1], o.CC(1), o.CC(2), o.size(2));
                     Screen('glLoadIdentity', o.cic.window);
                               
                 case 'TRIA'  %Creates an upward facing triangle, rotated to the right by 90 deg
