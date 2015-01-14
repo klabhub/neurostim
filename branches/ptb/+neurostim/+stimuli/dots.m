@@ -1,108 +1,101 @@
 classdef dots < neurostim.stimulus
-    
-properties 
-
-end 
-
-methods (Access = public) 
-    function d = dots(name) 
-        d = d@neurostim.stimulus(name);
-        d.listenToEvent({'BEFOREFRAME','AFTERFRAME'});
-        d.addProperty('ndots',100);
-        d.color = [255,255,255];
-        d.addProperty('size',10);
-        d.addProperty('center',[0,0]);
-        d.addProperty('apertureSize',[12,12]);
-        d.addProperty('speed',.5); %degrees/second
-        d.duration = 20; %seconds
-        d.addProperty('direction',30); %deg 
-        d.addProperty('x',(rand(1,d.ndots)-.5)*d.apertureSize(1) + d.center(1));
-        d.addProperty('y',(rand(1,d.ndots)-.5)*d.apertureSize(2) + d.center(2));
-        tmp = Screen('Resolution',0);
-        d.addProperty('resolution',[tmp.width,tmp.height]);
-        d.addProperty('dist',32);  %cm
-        d.addProperty('width',42); %cm
-        d.addProperty('RandomDots','NoMotion'); 
-        d.addProperty('coherence',[0,.25,.5,.75,1]);
-        d.addProperty('pixposx',0);
-        d.addProperty('pixposy',0);
-        
-    end 
-    
-    
-
-function afterFrame(d,c,evt)
-end 
-
-
-
-function beforeFrame(d,c,evt)
-   
- d.pixposx = angle2pix(d.cic.window,d.x);
- d.pixposy = angle2pix(d.cic.window,d.y);
- 
- 
-   
-  switch upper(d.RandomDots)
-        
-      case 'NOMOTION'
-           Screen('DrawDots',d.cic.window,[d.pixposx;d.pixposy],d.size,[1,1,1],d.cic.center);
-           pause(5);
-        
-      
-      case 'MOTION'
-          
-          
-         
-          
-          frameRate = 1/Screen('GetFlipInterval',d.cic.window,1);
-          dx = d.speed*sin(d.direction*pi/180)/(frameRate);
-          dy = -d.speed*cos(d.direction*pi/180)/(frameRate);
-          nFrames = round(d.duration*200*frameRate);
-          
-          %Keeping the Dots in the Apperture
-          l = d.center(1)-d.apertureSize(1)/2;
-          r = d.center(1)+d.apertureSize(1)/2;
-          b = d.center(2)-d.apertureSize(2)/2;
-          t = d.center(2)+d.apertureSize(2)/2;
-          
-       
-          
-          
-           for i = 1:nFrames
-               pixpos.x = angle2pix(d.cic.window,d.x)+ d.resolution(1)/2;
-               pixpos.y = angle2pix(d.cic.window,d.y)+ d.resolution(2)/2;
-               
-               Screen('DrawDots',d.cic.window,[d.pixposx;d.pixposy],d.size,[1,1,1],d.cic.center);
-               
-               d.x = d.x + dx;
-               d.y = d.y + dy;
-               
-               %Brings back dots that move outside the aperture
-               d.x(d.x<l) = (d.x(d.x<l) + d.apertureSize(1));
-               d.x(d.x>r) = (d.x(d.x>r) - d.apertureSize(1));
-               d.y(d.y<b) = (d.y(d.y<b) + d.apertureSize(2));
-               d.y(d.y>t) = (d.y(d.y>t) - d.apertureSize(2));
-               
-        
-               
-               
-           end
+    properties
+    end
+    methods (Access = public)
+        function d = dots(name)
+            d = d@neurostim.stimulus(name);
+            
+            d.listenToEvent({'BEFOREFRAME','AFTERFRAME'});
+            d.addProperty('CC',[650,512.5]); %CC= Center Coordinates of o.window
+            d.addProperty('direction','RIGHT');
+            d.addProperty('speed', 5); % dot speed of linear dots (pixels/frame)
+            d.addProperty('nDots', 1000); % number of dots
+            d.addProperty('width', 5); % width of dot (pixels)
+            d.addProperty('fieldSize', 1500); % field size (pixels)
+            d.addProperty('coherence', 0.5); 
+            d.addProperty('angle', [0,90,180,270]); % heading of linear dots,   90deg = downwards
+            d.addProperty('x', d.fieldSize * rand(1,d.coherence*d.nDots)); % initial position
+            d.addProperty('y', d.fieldSize * rand(1,d.coherence*d.nDots));
            
           
-         
-    
-           
-  end
+            
+        end
+        
+        function afterFrame(d,c,evt)
+        end
+        
+        function beforeFrame(d,c,evt)
+             switch upper(d.direction)
+                 
+                 case 'RIGHT'
+                        try
+                            bdown=0;
+
+                            dx = d.speed * cos(d.angle(1)*pi/180); % x-velocity
+                            dy = d.speed * sin(d.angle(1)*pi/180); % y-velocity
+
+                            d.x = mod(d.x+dx,d.fieldSize); % update positions
+                            d.y = mod(d.y+dy,d.fieldSize);
+
+                            Screen('DrawDots', d.cic.window, [d.x;d.y], d.width, 255, [0 0], 1);
+
+                        catch
+
+                        disp(lasterr);
+                        end  
+                        
+                 case 'DOWN'
+                        try
+                            bdown=0;
+
+                            dx = d.speed * cos(d.angle(2)*pi/180); % x-velocity
+                            dy = d.speed * sin(d.angle(2)*pi/180); % y-velocity
+
+                            d.x = mod(d.x+dx,d.fieldSize); % update positions
+                            d.y = mod(d.y+dy,d.fieldSize);
+
+                            Screen('DrawDots', d.cic.window, [d.x;d.y], d.width, 255, [0 0], 1);
+
+                        catch
+
+                        disp(lasterr);
+                        end  
+                        
+                 case 'LEFT'
+                         try
+                            bdown=0;
+
+                            dx = d.speed * cos(d.angle(3)*pi/180); % x-velocity
+                            dy = d.speed * sin(d.angle(3)*pi/180); % y-velocity
+
+                            d.x = mod(d.x+dx,d.fieldSize); % update positions
+                            d.y = mod(d.y+dy,d.fieldSize);
+
+                            Screen('DrawDots', d.cic.window, [d.x;d.y], d.width, 255, [0 0], 1);
+
+                        catch
+
+                        disp(lasterr);
+                         end  
+                        
+                 case 'UP'
+                         try
+                            bdown=0;
+
+                            dx = d.speed * cos(d.angle(4)*pi/180); % x-velocity
+                            dy = d.speed * sin(d.angle(4)*pi/180); % y-velocity
+
+                            d.x = mod(d.x+dx,d.fieldSize); % update positions
+                            d.y = mod(d.y+dy,d.fieldSize);
+
+                            Screen('DrawDots', d.cic.window, [d.x;d.y], d.width, 255, [0 0], 1);
+
+                        catch
+
+                        disp(lasterr);
+                        end  
+                        
+             end
+        end
+    end
 end
-end
-end
-
-
-
-
-
-
-
-
-
