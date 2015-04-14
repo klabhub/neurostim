@@ -5,11 +5,9 @@ classdef fixation < neurostim.stimulus
     methods (Access = public)
         function o = fixation(name)
             o = o@neurostim.stimulus(name);
-            o.addProperty('size',[5,10,15,20,25,30,35,40,45,50]) ;     %Size property...Call o.size(multiple of 5) for the size desired.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
-                                                                       % Ex: o.size(6) = 30                                                              
-            o.addProperty('shape','CIRC') ;   
-            o.addProperty('angle', [10,20,30,40,50,60,70,80,90,100]);  % Same as size, except multiples of 10
-   
+            o.addProperty('size',5) ;                                                          
+            o.addProperty('shape','CIRC','',@(x)(ismember(x,{'CIRC','RECT'}))) ;   
+            o.addProperty('angle', 0);  
             o.on = 0;
             o.listenToEvent({'BEFOREFRAME','AFTERFRAME'});
             o.X = 0; % X coordinate for top left of screen
@@ -21,6 +19,7 @@ classdef fixation < neurostim.stimulus
         function afterFrame(o,c,evt)
            % o.X= o.X +100*(rand-0.5);
         end
+        
         function beforeFrame(o,c,evt)
             
             rct = CenterRect([o.X, o.Y, o.X+o.size(2).*(10), o.Y+o.size(2).*(10)], o.cic.position); %Center a Rectangle on the screen
@@ -31,9 +30,11 @@ classdef fixation < neurostim.stimulus
                     Screen('FillRect', o.cic.window, [o.color o.luminance],rct);
                     
                 case 'CIRC'
-                    Screen('glLoadIdentity',o.cic.window);      
-                    Screen('glPoint',o.cic.window,[o.color o.luminance],o.CC(1),o.CC(2),o.size(2));
-                    Screen('glLoadIdentity',o.cic.window);
+%                     Screen('glLoadIdentity',o.cic.window);      
+%                     Screen('glPoint',o.cic.window,[o.color o.luminance],o.CC(1),o.CC(2),o.size(2));
+%                     Screen('glLoadIdentity',o.cic.window);
+%                     
+                    Screen('DrawDots', o.cic.window,[o.X o.Y],o.size,[o.color o.luminance],o.cic.center);
                     
                 case 'CONCIRC'
                     Screen('glLoadIdentity', o.cic.window);
@@ -62,7 +63,6 @@ classdef fixation < neurostim.stimulus
             %Screen('DrawDots', o.cic.window,[o.X o.Y],o.size,[o.color o.luminance],o.cic.center);
         end
         
-        %Do we have to flip the screen after completion??
         
     end
 end
