@@ -30,7 +30,6 @@ c.run
 [m,sd]= threshold(l);
 figure;
 staircase = cat(2,l.quest.q.intensity)';
-staircase = staircase(
 plot(staircase);
 xlabel 'Trials'
 ylabel 'Coherence'
