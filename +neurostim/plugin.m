@@ -50,15 +50,17 @@ classdef plugin  < dynamicprops
         % or, you can pass a handle to a member function. For instance the
         % @afterFirstFixation member function which will add the frame at
         % which fixation was first obtained to, for instance an on-frame.
-        function addProperty(o,prop,value,fun)
+        function addProperty(o,prop,value,postprocess,validate)
             h = o.addprop(prop);
             h.SetObservable = true;
-            % Setup a listener for loging and postprocessing
-            if nargin >=4
-                o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,fun));
-            else
-                o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt));
+            if nargin <5
+                validate = '';
+                if nargin<4
+                    postprocess = '';
+                end
             end
+            % Setup a listener for logging, validation, and postprocessing
+            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
             o.(prop) = value; % Set it, this will call the logParmSet function as needed.
         end
         
@@ -66,26 +68,32 @@ classdef plugin  < dynamicprops
         % (to prevent duplication and enforce name space consistency)
         % But the user may want to add a postprocessor to a built in property like
         % X. This function does exactly that
-        function addPostSet(o,prop,fun)
+        function addPostSet(o,prop,postprocess,validate)
+            if nargin<4
+                validate ='';
+            end
             h =findprop(o,prop);
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
             h.SetObservable =true;
-            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,fun));
+            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess, validate));
             o.(prop) = o.(prop); % Force a call to the postprocessor.
         end
         
         
         % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
-        function logParmSet(o,src,evt,fun)
+        function logParmSet(o,src,evt,postprocess,validate)
             value = o.(src.Name); % The raw value that has just been set
-            if nargin>=4
+            if nargin >=5 && ~isempty(validate)
+                validate(value);
+            end
+            if nargin>=4 && ~isempty(postprocess)
                 % This re-sets the value to something else.
                 % Matlab is clever enough not to
                 % generate another postSet event.
-                o.(src.Name) = fun(o,value);
+                o.(src.Name) = postprocess(o,value);
             end
             o.log.parms{end+1}  = src.Name;
             o.log.values{end+1} = value;

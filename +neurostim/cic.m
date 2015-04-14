@@ -102,7 +102,7 @@ classdef cic < dynamicprops
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
-        data@sib;
+        %data@sib;
         
         %% Profiling information.
         profile@struct =  struct('BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[]);
