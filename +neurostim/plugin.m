@@ -87,7 +87,10 @@ classdef plugin  < dynamicprops
         function logParmSet(o,src,evt,postprocess,validate)
             value = o.(src.Name); % The raw value that has just been set
             if nargin >=5 && ~isempty(validate)
-                validate(value);
+               success = validate(value);
+               if ~success
+                   error(['Setting ' src.Name ' failed validation ' func2str(validate)]);
+               end
             end
             if nargin>=4 && ~isempty(postprocess)
                 % This re-sets the value to something else.
