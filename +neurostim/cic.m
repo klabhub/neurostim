@@ -372,7 +372,7 @@ classdef cic < dynamicprops
             conditionsInFactorial = 1:prod(nrLevels);
             subs = cell(1,nrFactors);
             for thisCond=conditionsInFactorial;
-                [subs{:}]= ind2sub(nrLevels,thisCond);
+                [subs{:}]= ind2sub(nrLevels',thisCond);
                 conditionName = [name num2str(thisCond)];
                 conditionSpecs= {};
                 for f=1:nrFactors
