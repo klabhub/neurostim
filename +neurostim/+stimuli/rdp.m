@@ -1,20 +1,25 @@
 classdef rdp < neurostim.stimulus
     % Class for drawing a random dot pattern in the PTB.
-    % Code from nsLLDots2 and modified for Matlab.
+    % Code from nsLLDots2 and modified for MATLAB.
     %
     % Adjustable variables:
     %   size - dotsize (px)
-    %   maxRadius - maximum radius of aperture (px)
-    %   speed / direction - dot speed and direction (if using polar coordinates)
-    %   xspeed / yspeed - dot speed (if using cartesian coordinates)
+    %   coordSystem - 0: polar
+    %                 1: cartesian
+    %   speed / direction - dot speed and direction (rad) (if using polar coordinates)
+    %   xspeed / yspeed - dot speed in directions x and y (if using cartesian coordinates)
     %   nrDots - number of dots
-    %   coherence - dot coherence
+    %   coherence - dot coherence (0-1)
     %   motionMode - 0: spiral
     %                1: linear
     %   noiseMode - 0: proportion
     %               1: distribution
     %   noiseDist - 0: gaussian
     %               1: uniform
+    %   noiseWidth - width of gaussian/uniform noise.
+    %   lifetime - lifetime of dots (in frames)
+    %   maxRadius - maximum radius of aperture (px)
+    %   position - center position of aperture (X,Y pixel coordinates)
     
     
     properties
@@ -36,7 +41,7 @@ classdef rdp < neurostim.stimulus
         function o = rdp(name)
             o = o@neurostim.stimulus(name); 
             o.listenToEvent({'BEFOREFRAME','AFTERFRAME','BEFORETRIAL'});
-            o.listenToKeyStroke('p');
+%             o.listenToKeyStroke('s');
             o.addProperty('size',5);
             o.addProperty('maxRadius',100);
             o.addProperty('speed',25);
@@ -52,6 +57,7 @@ classdef rdp < neurostim.stimulus
             o.addProperty('noiseMode',0);       % proportion, distribution
             o.addProperty('noiseDist',0);       % gaussian, uniform
             o.addProperty('noiseWidth',50);
+            o.addProperty('position',[1920/2 1080/2]);
             
           
         end
@@ -72,7 +78,10 @@ classdef rdp < neurostim.stimulus
             initialiseDots(o,true(o.nrDots,1));
             
             % initialise dots
-            o.framesLeft = randi(o.lifetime,o.nrDots,1);  
+            if o.lifetime ~= Inf
+                o.framesLeft = randi(o.lifetime,o.nrDots,1);
+            else o.framesLeft = ones(o.nrDots,1).*Inf;
+            end
             
             
             
@@ -81,7 +90,7 @@ classdef rdp < neurostim.stimulus
         
         function beforeFrame(o,c,evt)
             
-        Screen('DrawDots',c.window, [o.x o.y]', o.size, o.color, [c.position(3)/2 c.position(4)/2]);
+        Screen('DrawDots',c.window, [o.x o.y]', o.size, [o.color o.luminance], [o.position(1) o.position(2)]);
 
         end
         
@@ -89,7 +98,7 @@ classdef rdp < neurostim.stimulus
         function afterFrame(o,c,evt)
 
             % reduce lifetime by 1
-            if ~isequal(o.noiseMode,'distribution') || o.noiseMode ~= 1 || ~isequal(o.noiseMode,'dist')
+            if ~isequal(o.noiseMode,'distribution') && o.noiseMode ~= 1 && ~isequal(o.noiseMode,'dist')
                 o.framesLeft = o.framesLeft - 1;
             end
             
@@ -196,7 +205,7 @@ classdef rdp < neurostim.stimulus
                             end
                             
                             randAngle = o.direction + randAngle;
-                            [o.dx(pos), o.dy(pos)] = pol2cart(randAngle.*(pi./180),o.speed/o.framerate);
+                            [o.dx(pos,1), o.dy(pos,1)] = pol2cart(randAngle.*(pi./180),o.speed/o.framerate);
                     
                             
                             
@@ -253,7 +262,12 @@ classdef rdp < neurostim.stimulus
                     o.y = o.y + o.dwellTime.*o.dy;
             end
         end
-            
+        
+        
+%         function keyboard(o,key,time)
+%             % Generic keyboard handler to warn the end user/developer.
+%             o.coherence = 0;
+%         end    
     
     end
     
