@@ -77,7 +77,8 @@ classdef cic < dynamicprops
         subjectNr@double        = 0;
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
-        
+        iti@double              = 1000; % Inter-trial Interval (ms) - default 1s.
+        trialDuration@double    = 1000;  % Trial Duration (ms)
     end
     
     %% Protected properties.
@@ -268,7 +269,7 @@ classdef cic < dynamicprops
             % Set a pointer to CIC in the plugin
             o.cic = c;
             
-            % Setup handlers for this plugins keystrokes
+            % Call the keystroke function
             for i=1:length(o.keyStrokes)
                 addKeyStroke(c,o.keyStrokes{i},o.keyHelp{i},o);
             end
@@ -463,10 +464,12 @@ classdef cic < dynamicprops
             c.flags.experiment = true;
             when =0;
             nrBlocks = numel(c.blocks);
+            trialEndTime = GetSecs*1000;
             for blockNr=1:nrBlocks
                 disp(['Begin block ' num2str(blockNr)]);
                 c.flags.block = true;
                 for conditionNr = c.blocks(blockNr).conditions
+            
                     c.condition = conditionNr;
                     c.trial = c.trial+1;
                     
@@ -478,8 +481,10 @@ classdef cic < dynamicprops
                     notify(c,'BASEBEFORETRIAL');
                     notify(c,'BEFORETRIAL');
                     if (c.PROFILE); addProfile(c,'BEFORETRIAL',toc);end
+                    WaitSecs((trialEndTime+c.iti)/1000-GetSecs);    % wait ITI before next trial
                     c.flags.trial = true;
                     c.frame=0;
+                    trialStartTime = GetSecs*1000;  % for trialDuration check
                     while (c.flags.trial)
                         c.frame = c.frame+1;
                         if (c.PROFILE); tic;end
@@ -496,7 +501,11 @@ classdef cic < dynamicprops
                         %                         if ~isempty(c.mirror)
                         %                             Screen('CopyWindow',c.window,c.mirror);
                         %                         end
+                        if (c.trialDuration <= (GetSecs*1000-trialStartTime))   % if trialDuration has been reached
+                            c.flags.trial=false;
+                        end
                     end % Trial running
+                    trialEndTime = GetSecs * 1000;
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     if (c.PROFILE); tic;end
                     notify(c,'BASEAFTERTRIAL');
