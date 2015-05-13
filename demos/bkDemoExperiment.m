@@ -26,7 +26,9 @@ t.textalign = 'r';
 t.X = 0;
 t.Y = 0;
 
-functional(t,'X',{@plus,{'text','X'},5});
+% Two variants of functions: using the object t or its name 'text' 
+% This will evalue t.X+5 everytime t.X is requested (and log any changes).
+functional(t,'X',{@plus,{'text','X'},5}); 
 functional(t,'Y',{@plus,{t,'Y'},5});
 
 
