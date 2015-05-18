@@ -26,7 +26,6 @@ varying float phase;
 varying float freqTwoPi;
 varying float expMultiplier;
 varying vec4 color; 
-varying int useRGB;
 void main()
 {
     /* Apply standard geometric transformations to patch: */
@@ -45,5 +44,4 @@ void main()
     orientation         = deg2rad * sizeAngleFilterMode.z;
     expMultiplier       = -0.5 / (sigma * sigma);
     color               = modulateColor;
-    useRGB              = rgbColor;
 }
