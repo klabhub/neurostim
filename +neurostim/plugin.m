@@ -14,7 +14,6 @@ classdef plugin  < dynamicprops
         evts        = {}; % Events that this plugin will respond to.
     end
     
-    
     methods (Access=public)
         function o=plugin(n)
             % Create a named plugin
@@ -23,6 +22,7 @@ classdef plugin  < dynamicprops
             o.log(1).parms  = {};
             o.log(1).values = {};
             o.log(1).t =[];
+            
         end
         
         function keyboard(o,key,time)
@@ -40,6 +40,7 @@ classdef plugin  < dynamicprops
     % Only the (derived) class designer should have access to these
     % methods.
     methods (Access = protected, Sealed)
+
         % Add properties that will be time-logged automatically, fun
         % is an optional argument that can be used to modify the parameter
         % when it is set. This function will be called with the plugin object
@@ -102,6 +103,7 @@ classdef plugin  < dynamicprops
             o.log.values{end+1} = value;
             o.log.t(end+1)      = GetSecs;
         end
+        
     end
     
     % Convenience wrapper functions to pass the buck to CIC
@@ -111,24 +113,52 @@ classdef plugin  < dynamicprops
             nextTrial(o.cic);
         end
                 
-        
-        function listenToKeyStroke(o,key,keyHelp)
-            % Add  a key that this plugin will respond to. Note that the
+        function listenToKeyStroke(o,keys,keyHelp)
+            % listenToKeyStroke(o,keys,keyHelp)
+            % keys - cell array of strings corresponding to keys
+            % keyHelp - cell array of strings corresponding to key array,
+            % defining a help function for that key.
+            %
+            % Adds an array of keys that this plugin will respond to. Note that the
             % user must implement the keyboard function to do the work. The
             % keyHelp is a short string that can help the GUI user to
             % understand what the key does.
-            if ischar(key);key= {key};end
+
             if nargin<3
-                keyHelp = cell(1,length(key));
+                keyHelp = cell(1,length(keys));
                 [keyHelp{:}] = deal('?');
-            end
-            if isempty(key)
-                o.keyStrokes = {};
             else
-                o.keyStrokes= cat(2,o.keyStrokes,key);
+                keyHelp = {keyHelp};
+            end
+            
+            if any(size(o.cic))
+                for a = 1:max(size(keys))
+                    addKeyStroke(o.cic,keys{a},keyHelp{a},o);
+                end
+                
+                KbQueueCreate(o.cic);
+                KbQueueStart(o.cic);
+            end
+            
+            if ~isempty(keys)
+                o.keyStrokes= cat(2,o.keyStrokes,keys);
                 o.keyHelp= cat(2,o.keyHelp,keyHelp);
             end
         end
+        
+        
+        function ignoreKeyStroke(o,keys)
+            % ignoreKeyStroke(o,keys)
+            % An array of keys that this plugin will stop responding
+            % to. These keys must have been added in listenToKeyStroke
+            % previously.
+            removeKeyStrokes(o.cic,keys);
+            o.keyStrokes = o.keyStrokes(~ismember(o.keyStrokes,keys));
+            o.keyHelp = o.keyHelp(~ismember(o.keyStrokes,keys));
+            KbQueueCreate(o.cic);
+            KbQueueStart(o.cic);
+        end
+        
         
         function listenToEvent(o,evts)
             % Add  an event that this plugin will respond to. Note that the
