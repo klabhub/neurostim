@@ -79,6 +79,8 @@ classdef cic < dynamicprops
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         iti@double              = 1000; % Inter-trial Interval (ms) - default 1s.
         trialDuration@double    = 1000;  % Trial Duration (ms)
+        
+
     end
     
     %% Protected properties.
@@ -268,6 +270,7 @@ classdef cic < dynamicprops
             c.(nm) = cat(2,c.(nm),o.name);
             % Set a pointer to CIC in the plugin
             o.cic = c;
+            
             
             % Call the keystroke function
             for i=1:length(o.keyStrokes)
@@ -542,6 +545,23 @@ classdef cic < dynamicprops
                 c.keyStrokes = cat(2,c.keyStrokes,key);
                 c.keyHandlers{end+1}  = p;
                 c.keyHelp{end+1} = keyHelp;
+            end
+        end
+        
+        function removeKeyStrokes(c,key)
+            if ischar(key) || iscellstr(key)
+                key = KbName(key);
+            end
+            if ~isnumeric(key) || any(key <1) || any(key>256)
+                error('Please use KbName to add keys to keyhandlers')
+            end
+            if ~ismember(key,c.keyStrokes)
+                error(['The ' key ' key is not in use. You cannot remove it...']);
+            else
+                index = ismember(c.keyStrokes,key);
+                c.keyStrokes(index) = [];
+                c.keyHandlers(index)  = [];
+                c.keyHelp(index) = [];
             end
         end
         
