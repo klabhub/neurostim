@@ -12,8 +12,10 @@ varying float freqTwoPi;
 varying float expMultiplier;
 varying vec4  color; 
 varying float meanLuminance; 
-uniform int rgbColor;
+varying float sigma;
 
+uniform int rgbColor;
+uniform int mask;
 
 void main()
 {
@@ -30,7 +32,17 @@ void main()
     float sv = sin(dot(coeff, pos) + phase);
 
     /* Compute exponential hull for the gabor: */
-    float ev = exp(dot(pos, pos) * expMultiplier);
+    float ev;
+    if (mask==1){
+        /* Gabor mask */
+        ev = exp(-0.5 *dot(pos, pos) / (sigma * sigma));
+    }else if (mask==2){
+        /* Hard circular mask */
+        ev  = sqrt(dot(pos,pos))<sigma; 
+    }else{
+        /* Throw an error; this is not a valid mask... */
+        ev =1;
+    }
 
     if (rgbColor){
         gl_FragColor[0] = color[0]+(peakLuminance-color[0]) * ( ev * sv );
