@@ -172,7 +172,7 @@ classdef cic < dynamicprops
             else
                 c.subjectNr = value;
             end
-        end      n
+        end      
         
         % Allow thngs like c.('lldots.X')
         function v = getProp(c,prop)
@@ -549,14 +549,17 @@ classdef cic < dynamicprops
         end
         
         function removeKeyStrokes(c,key)
+            % removeKeyStrokes(c,key)
+            % removes keys (cell array of strings) from cic. These keys are
+            % no longer listened to.
             if ischar(key) || iscellstr(key)
                 key = KbName(key);
             end
             if ~isnumeric(key) || any(key <1) || any(key>256)
                 error('Please use KbName to add keys to keyhandlers')
             end
-            if ~ismember(key,c.keyStrokes)
-                error(['The ' key ' key is not in use. You cannot remove it...']);
+            if any(~ismember(key,c.keyStrokes))
+                error(['The ' key(~ismember(key,c.keyStrokes)) ' key is not in use. You cannot remove it...']);
             else
                 index = ismember(c.keyStrokes,key);
                 c.keyStrokes(index) = [];

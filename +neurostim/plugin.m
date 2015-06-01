@@ -127,8 +127,11 @@ classdef plugin  < dynamicprops
             if nargin<3
                 keyHelp = cell(1,length(keys));
                 [keyHelp{:}] = deal('?');
-            else
-                keyHelp = {keyHelp};
+            else keyHelp = {keyHelp};
+                if length(keys) ~= length(keyHelp)
+                    error('Number of KeyHelp strings not equal to number of keys.')
+                end
+
             end
             
             if any(size(o.cic))

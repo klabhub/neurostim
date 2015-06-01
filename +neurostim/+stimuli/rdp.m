@@ -20,6 +20,8 @@ classdef rdp < neurostim.stimulus
     %   lifetime - lifetime of dots (in frames)
     %   maxRadius - maximum radius of aperture (px)
     %   position - center position of aperture (X,Y pixel coordinates)
+    %   dwellTime - parameter for dwelling on frame; e.g. dwellTime = 2
+    %       moves twice as fast.
     
     
     properties
@@ -32,7 +34,6 @@ classdef rdp < neurostim.stimulus
         radius;
         phiOffset;
         framesLeft;
-        stayPut;
         framerate;
         truncateGauss = -1;
     end
@@ -41,7 +42,7 @@ classdef rdp < neurostim.stimulus
         function o = rdp(name)
             o = o@neurostim.stimulus(name); 
             o.listenToEvent({'BEFOREFRAME','AFTERFRAME','BEFORETRIAL'});
-%             o.listenToKeyStroke('s');
+            o.listenToKeyStroke('s');
             o.addProperty('size',5);
             o.addProperty('maxRadius',100);
             o.addProperty('speed',25);
@@ -77,7 +78,7 @@ classdef rdp < neurostim.stimulus
             
             initialiseDots(o,true(o.nrDots,1));
             
-            % initialise dots
+            % initialise dots' lifetime
             if o.lifetime ~= Inf
                 o.framesLeft = randi(o.lifetime,o.nrDots,1);
             else o.framesLeft = ones(o.nrDots,1).*Inf;
@@ -134,19 +135,14 @@ classdef rdp < neurostim.stimulus
             
         end
         
+        
         function initialiseDots(o,pos)
             % initialises dots in the array positions given by logical
             % array pos.
             
-
-            
-            
-            o.stayPut(pos,1) = o.dwellTime;
             o.framesLeft(pos,1) = o.lifetime;
             o.radius(pos,1) = (sqrt(rand(nnz(pos),1).*o.maxRadius.*o.maxRadius));
-            
             randAngle = rand(o.nrDots,1).*360;
-%             index = ones(size(o.nrDots));
             
             switch o.motionMode
                 case {0, lower('spiral')} % spiral
@@ -201,14 +197,12 @@ classdef rdp < neurostim.stimulus
                                 case {1, lower('uniform')} %uniform
                                     randAngle = rand(nnz(pos),1).*o.noiseWidth - repmat(o.noiseWidth/2, nnz(pos),1);
                                 otherwise
-                                    error('unknown')
+                                    error('Unknown noiseDist')
                             end
                             
                             randAngle = o.direction + randAngle;
                             [o.dx(pos,1), o.dy(pos,1)] = pol2cart(randAngle.*(pi./180),o.speed/o.framerate);
                     
-                            
-                            
                             
                     end
             end
@@ -220,32 +214,34 @@ classdef rdp < neurostim.stimulus
             %warp - move dots outside aperture
             switch o.motionMode
                 case {1, lower('linear')} %linear
+                    % calculates future position
                     futureX = o.x+o.dwellTime.*o.dx;
                     futureY = o.y+o.dwellTime.*o.dy;
-                    
                     futureRad = sqrt(futureX.^2 + futureY.^2);
-                    if any(futureRad>o.maxRadius)
+                    
+                    if any(futureRad>o.maxRadius)   % if any new dots are outside the max radius
+                        % move dots
                         [dotDir,~] = cart2pol(o.dx(~~(futureRad>o.maxRadius)),o.dy(~~(futureRad>o.maxRadius)));
-
                         [xr, yr] = rotateXY(o,o.x(~~(futureRad>o.maxRadius)),o.y(~~(futureRad>o.maxRadius)),-dotDir);
                         chordLength = 2*sqrt(o.maxRadius^2 - yr.^2);
                         xr = xr - chordLength;
                         [o.x(~~(futureRad>o.maxRadius)), o.y(~~(futureRad>o.maxRadius))] = rotateXY(o,xr,yr,dotDir);
-                        
                     end
+                    
                 case {0, lower('spiral')} %spiral
                     temp1 = o.dR>0 & (o.radius+o.dwellTime.*o.dR)>o.maxRadius;
                     temp2 = o.dR<0 & (o.radius+o.dwellTime.*o.dR)<0;
-                    if (any(temp1) || any(temp2))
+                    
+                    if (any(temp1) || any(temp2))   % if any dots are outside the max radius or below 0
+                        % position new dots randomly
                         nsMax = max(-1*o.dR(temp1 | temp2), 0);
                         nsMin = min(o.maxRadius, o.maxRadius - o.dR(temp1 | temp2));
                         o.radius(temp1 | temp2) = nsMax + (nsMin - nsMax).*rand(size(nsMax));
-                            
                     end
             
             end
             
-            %move dots
+            % move dots
             if any(~o.framesLeft)
                 initialiseDots(o,~o.framesLeft);
             end
