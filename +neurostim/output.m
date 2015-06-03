@@ -7,24 +7,20 @@ classdef output < neurostim.plugin
     % until the end of the experiment.
 
     events
-        BEFOREFRAME;
-        AFTERFRAME;    
-        BEFORETRIAL;
         AFTERTRIAL;    
-        BEFOREEXPERIMENT;
         AFTEREXPERIMENT;
     end
     
     properties
         counter;
         data;
+        saveDirectory = 'C:\MATLAB\Neurostim\';
+        saveAfterTrial = 0;
     end
     
-    methods
+    methods (Access = public)
         function o = output
             o = o@neurostim.plugin('output');
-            o.addProperty('saveDirectory','C:\MATLAB\Neurostim\');
-            o.addProperty('saveAfterTrial',2);
             
             if o.saveAfterTrial > 0
                 % only listen to afterTrial event if saving after trial.
@@ -38,6 +34,7 @@ classdef output < neurostim.plugin
         
             
         function collectData(o,c)
+            % collects all the data from log files into a cell array.
             o.data = [];
             for a = 1:length(o.cic.stimuli)
                stimulus = o.cic.stimuli{a};
@@ -53,15 +50,16 @@ classdef output < neurostim.plugin
         end
         
         function afterTrial(o,c,evt)
-            if o.counter==1
-                o.counter = o.saveAfterTrial;
-                collectData(o,c);
+            if o.counter==1 % if save after trial is triggered
+                o.counter = o.saveAfterTrial;   % reset counter
+                collectData(o,c);   % run data collection and file saving
                 saveFile(o,c);
-            else o.counter = o.counter-1;
+            else o.counter = o.counter-1;   % counter reduction
             end
         end
         
         function afterExperiment(o,c,evt)
+            % always save post-experiment.
             collectData(o,c);
             saveFile(o,c);
         end

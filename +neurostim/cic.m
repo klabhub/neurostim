@@ -451,7 +451,6 @@ classdef cic < dynamicprops
         
         function run(c)
             
-            
             % Setup PTB
             PsychImaging(c);
             
@@ -489,6 +488,7 @@ classdef cic < dynamicprops
                     c.frame=0;
                     trialStartTime = GetSecs*1000;  % for trialDuration check
                     while (c.flags.trial)
+%                         time = GetSecs;
                         c.frame = c.frame+1;
                         if (c.PROFILE); tic;end
                         notify(c,'BASEBEFOREFRAME');
@@ -501,6 +501,9 @@ classdef cic < dynamicprops
                         c.KbQueueCheck;
                         if (c.PROFILE); addProfile(c,'AFTERFRAME',toc);end
                         vbl=Screen('Flip', c.window,when,1-c.clear);
+%                         if (vbl - time) > (2/60 - .5*2/60)        
+%                             warning('Missed frame.');     % check for missed frames
+%                         end
                         %                         if ~isempty(c.mirror)
                         %                             Screen('CopyWindow',c.window,c.mirror);
                         %                         end
@@ -511,9 +514,9 @@ classdef cic < dynamicprops
                     trialEndTime = GetSecs * 1000;
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     if (c.PROFILE); tic;end
+                    vbl=Screen('Flip', c.window,when,1-c.clear);                    
                     notify(c,'BASEAFTERTRIAL');
                     notify(c,'AFTERTRIAL');
-                    vbl=Screen('Flip', c.window,when,1-c.clear);
                     afterTrial(c);
                     if (c.PROFILE); addProfile(c,'AFTERTRIAL',toc);end
                 end %conditions in block
@@ -571,7 +574,7 @@ classdef cic < dynamicprops
     end
     
     
-    methods (Access=protected)
+    methods (Access=public)
         
         %% Keyboard handling routines(protected). Basically light wrappers
         % around the PTB core functions
