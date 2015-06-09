@@ -27,7 +27,7 @@ classdef gabor < neurostim.stimulus
             o.addProperty('phase',0);
             o.addProperty('frequency',0.05);
             o.addProperty('sigma',50);
-            o.addProperty('mask','Gauss');%,@(x)(ismember(gabor.maskTypes,upper(x))));            
+            o.addProperty('mask','Gauss','',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));            
             
             %% Motion
             o.addProperty('phaseSpeed',0);
