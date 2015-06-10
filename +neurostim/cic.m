@@ -328,7 +328,7 @@ classdef cic < dynamicprops
             stimNames = specs(1:3:end);
             unknownStimuli = ~ismember(stimNames,c.stimuli);
             if any(unknownStimuli)
-                error(['These stimuli are unknown, add them first: ' specs(3*(find(unknownStimuli)-1)+1)]);
+                error(['These stimuli are unknown, add them first: ' specs{3*(find(unknownStimuli)-1)+1}]);
             else
                 c.conditions(name) = specs;
             end

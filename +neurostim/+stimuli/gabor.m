@@ -1,16 +1,19 @@
 classdef gabor < neurostim.stimulus
     % Wrapper class for the (fast) procedural Gabor textures in the PTB.
     %
+    properties (Constant)
+        maskTypes = {'GAUSS','CIRCLE'};
+    end
     properties
         texture;
+        shader;
         textureRect;
-        
     end
     
     methods
         function o =gabor(name)
             o = o@neurostim.stimulus(name);
-            o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT','AFTERFRAME'});
+            o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT','AFTERFRAME','BEFORETRIAL'});
             
             %% Base Teture parameters, see CreateProceduralGabor.m for details
             % No need to change unless you want to save texture memory and draw
@@ -24,7 +27,7 @@ classdef gabor < neurostim.stimulus
             o.addProperty('phase',0);
             o.addProperty('frequency',0.05);
             o.addProperty('sigma',50);
-            
+            o.addProperty('mask','Gauss','',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));            
             
             %% Motion
             o.addProperty('phaseSpeed',0);
@@ -38,13 +41,23 @@ classdef gabor < neurostim.stimulus
                     catch
                     	keyboard;
                     end
+                         
         end
-        function beforeFrame(o,c,evt)
+        
+        
+        function beforeTrial(o,c,evt)
+            glUseProgram(o.shader);       
+            glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));                        
+            glUseProgram(0);            
+        end
+        
+        function beforeFrame(o,c,evt)            
                     % Draw the texture with the current parameter settings
                     %Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] [,rotationAngle] [, filterMode] [, globalAlpha] [, modulateColor] [, textureShader] [, specialFlags] [, auxParameters]);
                     sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
+                    alpha= 0;  %Not used
                     destinationRect=CenterRectOnPoint(o.textureRect, o.X, o.Y);                    
-                    Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, o.orientation, filterMode, globalAlpha, [o.color, o.luminance 0] , textureShader,specialFlags, [o.phase, o.frequency, o.sigma, o.peakLuminance]);
+                    Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, o.orientation, filterMode, globalAlpha, [o.color, o.luminance alpha] , textureShader,specialFlags, [o.phase, o.frequency, o.sigma, o.peakLuminance]);
         end
         
         function afterFrame(o,c,evt)
@@ -63,20 +76,20 @@ classdef gabor < neurostim.stimulus
             global GL;
             % Make sure we have support for shaders, abort otherwise:
             AssertGLSL;   
-            % Load symmetric support shader 
+            % Load shader 
             p = fileparts(mfilename('fullpath'));
-            gaborShader = LoadGLSLProgramFromFiles(fullfile(p,'GLSLShaders','gabor'), debuglevel);
-            % Setup shader:
-            glUseProgram(gaborShader);
-            % Set the 'Center' parameter to the center position of the gabor image 
-            %patch [tw/2, th/2]:
-            glUniform2f(glGetUniformLocation(gaborShader, 'center'), o.xPixels/2, o.yPixels/2);                        
-            glUniform1i(glGetUniformLocation(gaborShader, 'rgbColor'), strcmpi(o.cic.colorMode,'RGB'));                        
+            o.shader = LoadGLSLProgramFromFiles(fullfile(p,'GLSLShaders','gabor'), debuglevel);
+            % Setup shader: variables set here cannot change during the
+            % experiment.
+            glUseProgram(o.shader);
+            glUniform2f(glGetUniformLocation(o.shader , 'size'), o.xPixels, o.yPixels);                        
+            glUniform1i(glGetUniformLocation(o.shader , 'rgbColor'), strcmpi(o.cic.colorMode,'RGB'));                        
+            glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));                        
             % Setup done:
             glUseProgram(0);
-            % Create a purely virtual procedural texture 'gaborid' of size width x height virtual pixels.
-            % Attach the GaborShader to it to define its appearance:
-            o.texture = Screen('SetOpenGLTexture', o.cic.window, [], 0, GL.TEXTURE_RECTANGLE_EXT, o.xPixels, o.yPixels, 1, gaborShader);
+            
+            % Create a purely virtual procedural texture of size width x height virtual pixels.            % Attach the Shader to it to define its appearance:
+            o.texture = Screen('SetOpenGLTexture', o.cic.window, [], 0, GL.TEXTURE_RECTANGLE_EXT, o.xPixels, o.yPixels, 1, o.shader);
             % Query and return its bounding rectangle:
             o.textureRect = Screen('Rect', o.texture);    
         end

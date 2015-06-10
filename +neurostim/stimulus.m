@@ -56,16 +56,16 @@ classdef stimulus < neurostim.plugin
             % Interpret the input. Defaults are set as recommended for
             % QUEST. See Quest and Quest Create
             p = inputParser;
-            p.addParamValue('guess',-1);   % Log Contrast for QUEST
-            p.addParamValue('guessSD',2);  % 
-            p.addParamValue('threshold',0.82); %Target threshold
-            p.addParamValue('beta',3.5); % Steepness of assumed Weibull
-            p.addParamValue('delta',0.01); % Fraction of blind presses
-            p.addParamValue('gamma',0.5); % Fraction of trials that will generate response when for intensity = -inf.
-            p.addParamValue('grain',0.01); % Discretization of the range
-            p.addParamValue('range',5); % Range centered on guess.
-            p.addParamValue('plotIt',false);
-            p.addParamValue('normalizePdf',1);
+            p.addParameter('guess',-1);   % Log Contrast for QUEST
+            p.addParameter('guessSD',2);  % 
+            p.addParameter('threshold',0.82); %Target threshold
+            p.addParameter('beta',3.5); % Steepness of assumed Weibull
+            p.addParameter('delta',0.01); % Fraction of blind presses
+            p.addParameter('gamma',0.5); % Fraction of trials that will generate response when for intensity = -inf.
+            p.addParameter('grain',0.01); % Discretization of the range
+            p.addParameter('range',5); % Range centered on guess.
+            p.addParameter('plotIt',false);
+            p.addParameter('normalizePdf',1);
             p.parse(varargin{:});
             switch upper(method)
                 case 'QUEST'

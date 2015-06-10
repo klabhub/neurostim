@@ -20,13 +20,13 @@ g.color = [0.5 0.5];
 g.luminance = 0.5;
 g.X = 250;                          % Position the Gabor 
 g.Y = 250;                          
-g.sigma = 25;                       % Set the sigma of the Gabor.
+g.sigma = 20 ;                       % Set the sigma of the Gabor.
 
 f = stimuli.fixation('fix');        % Add a fixation point stimulus
 f.color = [1 0];                    % Red
 f.luminance = 1;
 f.shape = 'DONUT';                  % Shape of the fixation point
-f.size = 20; 
+f.size = 2; 
 
 % Add stimuli to CIC
 c.add(f); 

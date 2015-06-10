@@ -34,8 +34,25 @@ classdef plugin  < dynamicprops
             % Generic event handler to warn the end user/developer.
             disp (['Please define a events function to handle  the ' evt.EventName  ' from '  src.name ' in plugin ' o.name ])
         end
-        
+    
+       % Define a property as a function of some other property. 
+       % specs is the function definition. The first element in this cell
+       % array is a function_handle, all subsequent arguments are arguments
+       % that will be passed to that function.
+       % Object/variable references can be constructed by using a
+       % two-element cell array : the first is a handle to the object or the name of the
+       % objet,the second is the object property. 
+        function functional(o,prop,specs)
+            h =findprop(o,prop);
+            if isempty(h)
+                error([prop ' is not a property of ' o.name '. Add it first']);
+            end
+            h.GetObservable =true;
+            o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));            
+        end
     end
+    
+    
     
     % Only the (derived) class designer should have access to these
     % methods.
@@ -87,10 +104,10 @@ classdef plugin  < dynamicprops
         function logParmSet(o,src,evt,postprocess,validate)
             value = o.(src.Name); % The raw value that has just been set
             if nargin >=5 && ~isempty(validate)
-               success = validate(value);
-               if ~success
-                   error(['Setting ' src.Name ' failed validation ' func2str(validate)]);
-               end
+                success = validate(value);
+                if ~success
+                    error(['Setting ' src.Name ' failed validation ' func2str(validate)]);
+                end
             end
             if nargin>=4 && ~isempty(postprocess)
                 % This re-sets the value to something else.
@@ -102,6 +119,45 @@ classdef plugin  < dynamicprops
             o.log.values{end+1} = value;
             o.log.t(end+1)      = GetSecs;
         end
+        
+       
+        
+        
+        % Evaluate a function to get a parameter and validate it if requested in the call
+        % to addProperty.
+        function evalParmGet(o,src,evt,specs)            
+            fun = specs{1}; % Function handle
+            nrArgs = length(specs)-1;
+            args= cell(1,nrArgs);
+            for i=1:nrArgs
+                if iscell(specs{1+i})
+                    if isa(specs{i+1}{1},'neurostim.plugin')
+                        % Handle to a plugin: interpret as dots.X
+                        args{i} = specs{i+1}{1}.(specs{i+1}{2});
+                    elseif ischar(specs{i+1}{1})
+                        % Name of a plugin. Find its handle first.
+                        args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                    else
+                        error('dasds');
+                    end
+                else
+                    args{i} = specs{i+1};
+                end
+            end
+            try
+                value = fun(args{:});
+            catch
+                error(['Could not evaluate ' func2str(fun) ' to get value for ' src.Name ]);
+            end
+            
+            % Compare with existing value to see if we need to set?
+            oldValue = o.(src.Name);
+            if (ischar(value) && ~(strcmp(oldValue,value))) ...
+                    || (isnumeric(value) && oldValue ~= value)
+                o.(src.Name) = value; % This calls PostSet and logs the new value
+            end
+        end
+        
     end
     
     % Convenience wrapper functions to pass the buck to CIC
@@ -110,7 +166,7 @@ classdef plugin  < dynamicprops
             % Move to the next trial
             nextTrial(o.cic);
         end
-                
+        
         
         function listenToKeyStroke(o,key,keyHelp)
             % Add  a key that this plugin will respond to. Note that the
@@ -142,5 +198,8 @@ classdef plugin  < dynamicprops
         end
         
     end
+    
+    methods (Static)
+            end
     
 end
