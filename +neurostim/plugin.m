@@ -170,19 +170,23 @@ classdef plugin  < dynamicprops
         
         function listenToKeyStroke(o,keys,keyHelp)
             % listenToKeyStroke(o,keys,keyHelp)
-            % keys - cell array of strings corresponding to keys
-            % keyHelp - cell array of strings corresponding to key array,
+            % keys - string or cell array of strings corresponding to keys
+            % keyHelp - string or cell array of strings corresponding to key array,
             % defining a help function for that key.
             %
             % Adds an array of keys that this plugin will respond to. Note that the
             % user must implement the keyboard function to do the work. The
             % keyHelp is a short string that can help the GUI user to
             % understand what the key does.
-
+            if ischar(keys), keys = {keys};end
+            if exist('keyHelp','var')
+                if ischar(keyHelp), keyHelp = {keyHelp};end
+            end
+            
             if nargin<3
                 keyHelp = cell(1,length(keys));
                 [keyHelp{:}] = deal('?');
-            else keyHelp = {keyHelp};
+            else
                 if length(keys) ~= length(keyHelp)
                     error('Number of KeyHelp strings not equal to number of keys.')
                 end
