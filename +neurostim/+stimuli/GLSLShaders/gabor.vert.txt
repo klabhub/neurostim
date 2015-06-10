@@ -26,7 +26,7 @@ varying float peakLuminance;
 varying float phase;
 varying float freqTwoPi;
 varying vec4 color; 
-varying float sigma;
+varying vec2 sigma;
 
 void main()
 {

@@ -21,23 +21,26 @@ g.luminance = 0.5;
 g.peakLuminance = 1 ;
 g.X = 250;                          % Position the Gabor 
 g.Y = 250;                          
-g.sigma = 10;                       % Set the sigma of the Gabor.
+g.sigma = [25 50];                       % Set the sigma of the Gabor.
 g.phaseSpeed = 10;
-g.mask ='Gauss';
+g.orientation =0;
+
+g.mask ='ANNULUS';
 
 g2=stimuli.gabor('outer');           % Create a gabor stimulus.
 g2.color = [0.5 0.5];
 g2.luminance = 0.5;
-g2.X = 250+65;                          % Position the Gabor 
-g2.Y = 250+65;                          
-g2.sigma = 10 ;                       % Set the sigma of the Gabor.
+g2.X = 250;                          % Position the Gabor 
+g2.Y = 250;                          
+g2.sigma = 20 ;                       % Set the sigma of the Gabor.
 g2.phaseSpeed = 10;
-g2.mask = 'Gauss';
+g2.orientation = 90;
+g2.mask = 'CIRCLE';
 
 
 f = stimuli.fixation('fix');        % Add a fixation point stimulus
 f.color = [1 0];                    % Red
-f.luminance = 1;
+f.luminance = 0;
 f.shape = 'DONUT';                  % Shape of the fixation point
 f.size = 2; 
 
@@ -48,9 +51,9 @@ c.add(g2);                           % Add it to CIC.
 
 %% Define conditions and blocks
 % Here we vary the peak luminance of the Gabor 
-c.addFactorial('contrastFactorial',{'outer','mask',{'Gauss','circle'}});
+c.addCondition('one',{'outer','orientation',90}) ;
 % Add a block in whcih we run all conditions in the named factorial 10 times.
-c.addBlock('contrastFactorial',10,'SEQUENTIAL')
+c.addBlock('one',10,'SEQUENTIAL')
 
 %% Run 
 c.run % Run the experiment. 

@@ -12,7 +12,7 @@ varying float freqTwoPi;
 varying float expMultiplier;
 varying vec4  color; 
 varying float meanLuminance; 
-varying float sigma;
+varying vec2 sigma;
 
 uniform int rgbColor;
 uniform int mask;
@@ -39,6 +39,9 @@ void main()
     }else if (mask==2){
         /* Hard circular mask */
         ev  = sqrt(dot(pos,pos))<sigma; 
+    }else if (mask==3){
+        /* Annulus */
+        ev  = sqrt(dot(pos,pos))>sigma; 
     }else{
         /* Throw an error; this is not a valid mask... */
         ev =1;
@@ -48,6 +51,7 @@ void main()
         gl_FragColor[0] = color[0]+(peakLuminance-color[0]) * ( ev * sv );
         gl_FragColor[1] = color[1]+(peakLuminance-color[1]) * ( ev * sv );
         gl_FragColor[2] = color[2]+(peakLuminance-color[2]) * ( ev * sv );
+        gl_FragColor[3] = .9;
     }else{
         gl_FragColor[0] = color[0];
         gl_FragColor[1] = color[1];

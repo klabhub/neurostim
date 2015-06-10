@@ -639,7 +639,7 @@ classdef cic < dynamicprops
                     cal = SetGammaMethod(cal,0);
                     
                 case 'RGB'
-                    
+                        
             end
             
             
@@ -656,7 +656,7 @@ classdef cic < dynamicprops
                 case 'XYL'
                     PsychColorCorrection('SetSensorToPrimary', c.window, cal);
                 case 'RGB'
-                    
+                    Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
             end
             
             

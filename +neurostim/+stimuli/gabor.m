@@ -2,7 +2,7 @@ classdef gabor < neurostim.stimulus
     % Wrapper class for the (fast) procedural Gabor textures in the PTB.
     %
     properties (Constant)
-        maskTypes = {'GAUSS','CIRCLE'};
+        maskTypes = {'GAUSS','CIRCLE','ANNULUS'};
     end
     properties
         texture;
@@ -55,9 +55,9 @@ classdef gabor < neurostim.stimulus
                     % Draw the texture with the current parameter settings
                     %Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] [,rotationAngle] [, filterMode] [, globalAlpha] [, modulateColor] [, textureShader] [, specialFlags] [, auxParameters]);
                     sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
-                    alpha= 0;  %Not used
+                    alpha= 1;  %Not used
                     destinationRect=CenterRectOnPoint(o.textureRect, o.X, o.Y);                    
-                    Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, o.orientation, filterMode, globalAlpha, [o.color, o.luminance alpha] , textureShader,specialFlags, [o.phase, o.frequency, o.sigma, o.peakLuminance]);
+                    Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.luminance alpha] , textureShader,specialFlags, [o.phase, o.frequency, o.sigma, o.peakLuminance]);
         end
         
         function afterFrame(o,c,evt)
