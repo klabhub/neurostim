@@ -128,7 +128,9 @@ classdef stimulus < neurostim.plugin
                     s.flags.on = c.frame >=s.on && c.frame < s.on+s.duration;
                     if s.flags.on 
                         notify(s,'BEFOREFRAME');
+                        if s.stimstart ~= true
                         s.stimstart = true;
+                        end
                     else %Stim off
                         
                     end

@@ -7,15 +7,12 @@ classdef nafcResponse < neurostim.stimulus
    % var - variable to check for response (string).
    % correctResponse - this is the matrix of functions that indicates a
    % correct response for each keypress. Default returns the key name.
-   % 
-   % keys - Adjustable within program, add keys in a list of strings.
    %
    % keyLabel - Cell array of strings which are the labels for the keys declared
    % above; in the same order. These are logged in o.responseLabel when the key is
    % pressed.
    %
    % endTrialonKeyPress - 1: ends trial on keypress.
-   % 
     
     
     
@@ -29,12 +26,6 @@ classdef nafcResponse < neurostim.stimulus
        function o = nafcResponse(name)
             o = o@neurostim.stimulus(name); 
             
-            o.addProperty('keys',{'z' 'x'});            % edit to change keys
-            
-            for i = 1:max(size(o.keys))
-                o.listenToKeyStroke(KbName(o.keys{i}));
-            end 
-            
             o.listenToEvent('BEFOREEXPERIMENT');
             
             o.addProperty('stimName','');
@@ -42,8 +33,7 @@ classdef nafcResponse < neurostim.stimulus
             o.addProperty('correctResponse',{});
             o.addProperty('keyLabel',{});
             o.addProperty('endTrialonKeyPress',true);
-            
-       
+            o.addProperty('keys',{'a'});
             
        end
        
@@ -53,14 +43,15 @@ classdef nafcResponse < neurostim.stimulus
            if ~isempty(o.correctResponse) && (max(size(o.keys)) ~= max(size(o.correctResponse)))
                error('nafcResponse: The number of keys is not the same as the number of key response functions.');
            end
-           
            if ~isempty(o.keyLabel) && (max(size(o.keys)) ~=max(size(o.keyLabel)))
                error('nafcResponse: The number of keylabels is not the same as the number of keys.');
            end
-%             for i = 1:max(size(o.keys))
-%                 o.listenToKeyStroke(KbName(o.keys{i}));
-%             end 
-
+           
+           % add key listener for all keys.
+           for i = 1:max(size(o.keys))
+                o.listenToKeyStroke(o.keys(i));
+           end
+           
        end
        
 
@@ -68,7 +59,7 @@ classdef nafcResponse < neurostim.stimulus
        function keyboard(o,key,time)
            % Generic keyboard handler
            for i = 1:max(size(o.keys))  % runs through each key in the array
-               if strcmp(key,o.keys{i}) % compares key pressed with key array
+               if strcmpi(key,o.keys{i}) % compares key pressed with key array
                    o.responseLabel = o.keyLabel{i}; % saves the keyLabel in a variable (logged)
                    a = o.cic.(o.stimName).(o.var);  % retrieves the value of the variable to be checked
                    if isempty(o.correctResponse)    % default case, saves key pressed as response

@@ -79,6 +79,8 @@ classdef cic < dynamicprops
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         iti@double              = 1000; % Inter-trial Interval (ms) - default 1s.
         trialDuration@double    = 1000;  % Trial Duration (ms)
+        
+
     end
     
     %% Protected properties.
@@ -170,7 +172,7 @@ classdef cic < dynamicprops
             else
                 c.subjectNr = value;
             end
-        end      n
+        end      
         
         % Allow thngs like c.('lldots.X')
         function v = getProp(c,prop)
@@ -268,6 +270,7 @@ classdef cic < dynamicprops
             c.(nm) = cat(2,c.(nm),o.name);
             % Set a pointer to CIC in the plugin
             o.cic = c;
+            
             
             % Call the keystroke function
             for i=1:length(o.keyStrokes)
@@ -448,7 +451,6 @@ classdef cic < dynamicprops
         
         function run(c)
             
-            
             % Setup PTB
             PsychImaging(c);
             
@@ -486,6 +488,7 @@ classdef cic < dynamicprops
                     c.frame=0;
                     trialStartTime = GetSecs*1000;  % for trialDuration check
                     while (c.flags.trial)
+%                         time = GetSecs;
                         c.frame = c.frame+1;
                         if (c.PROFILE); tic;end
                         notify(c,'BASEBEFOREFRAME');
@@ -498,6 +501,9 @@ classdef cic < dynamicprops
                         c.KbQueueCheck;
                         if (c.PROFILE); addProfile(c,'AFTERFRAME',toc);end
                         vbl=Screen('Flip', c.window,when,1-c.clear);
+%                         if (vbl - time) > (2/60 - .5*2/60)        
+%                             warning('Missed frame.');     % check for missed frames
+%                         end
                         %                         if ~isempty(c.mirror)
                         %                             Screen('CopyWindow',c.window,c.mirror);
                         %                         end
@@ -508,9 +514,9 @@ classdef cic < dynamicprops
                     trialEndTime = GetSecs * 1000;
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     if (c.PROFILE); tic;end
+                    vbl=Screen('Flip', c.window,when,1-c.clear);                    
                     notify(c,'BASEAFTERTRIAL');
                     notify(c,'AFTERTRIAL');
-                    vbl=Screen('Flip', c.window,when,1-c.clear);
                     afterTrial(c);
                     if (c.PROFILE); addProfile(c,'AFTERTRIAL',toc);end
                 end %conditions in block
@@ -545,10 +551,30 @@ classdef cic < dynamicprops
             end
         end
         
+        function removeKeyStrokes(c,key)
+            % removeKeyStrokes(c,key)
+            % removes keys (cell array of strings) from cic. These keys are
+            % no longer listened to.
+            if ischar(key) || iscellstr(key)
+                key = KbName(key);
+            end
+            if ~isnumeric(key) || any(key <1) || any(key>256)
+                error('Please use KbName to add keys to keyhandlers')
+            end
+            if any(~ismember(key,c.keyStrokes))
+                error(['The ' key(~ismember(key,c.keyStrokes)) ' key is not in use. You cannot remove it...']);
+            else
+                index = ismember(c.keyStrokes,key);
+                c.keyStrokes(index) = [];
+                c.keyHandlers(index)  = [];
+                c.keyHelp(index) = [];
+            end
+        end
+        
     end
     
     
-    methods (Access=protected)
+    methods (Access=public)
         
         %% Keyboard handling routines(protected). Basically light wrappers
         % around the PTB core functions

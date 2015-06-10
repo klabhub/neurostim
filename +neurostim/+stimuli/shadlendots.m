@@ -3,7 +3,7 @@ classdef shadlendots < neurostim.stimulus
     % Code taken from Shadlen's dotsX with initial variables from
     % createDotInfo.
     % Adjustable variables:
-    %       Coherence - dot coherence (from 0-1)
+    %       coherence - dot coherence (from 0-1)
     %       apertureXYD - aperture coordinates (X,Y) and D (diameter) in
     %             visual degrees
     %       direction (in degrees) - 0 is right.
@@ -30,13 +30,14 @@ classdef shadlendots < neurostim.stimulus
         d_ppd;
         center;
         dxdymultiplier;
+        dots2Display;
     end
     
     
     methods (Access = public)
         function o = shadlendots(name)
             o = o@neurostim.stimulus(name);
-            o.listenToEvent({'BEFOREFRAME','AFTERFRAME', 'BEFOREEXPERIMENT'});
+            o.listenToEvent({'BEFOREFRAME','AFTERFRAME', 'BEFORETRIAL'});
             
             % set dot properties (for user adjustment)
             o.addProperty('coherence',0.75);
@@ -53,18 +54,18 @@ classdef shadlendots < neurostim.stimulus
         
         function beforeTrial(o,c,evt)
             
+            % create all dots
             createinitialdots(o,c);
+            
+            % call calculation function
+            o.dots2Display = calculatedots(o);
             
         end
         
         
         function beforeFrame(o,c,evt)
-            
-            % call calculation function
-            dots2Display = calculatedots(o);
-            
             % draw dots on Screen
-            Screen('DrawDots',c.window,dots2Display,o.dotSize,o.color,o.center(1,1:2));
+            Screen('DrawDots',c.window,o.dots2Display,o.dotSize,o.color,o.center(1,1:2));
             
         end
 
@@ -73,6 +74,8 @@ classdef shadlendots < neurostim.stimulus
             
             o.ss(o.Lthis, :) = o.this_s;
             
+            % calculate dots' new positions
+            o.dots2Display = calculatedots(o);
         end
 
         
