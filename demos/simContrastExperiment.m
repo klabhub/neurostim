@@ -18,25 +18,27 @@ c.add(plugins.debug);               % Use the debug plugin; this allows you to m
 g=stimuli.gabor('inner');           % Create a gabor stimulus.
 g.color = [0.5 0.5 ];
 g.luminance = 0.5;
-g.peakLuminance = 1 ;
+g.peakLuminance = 1;
 g.X = 250;                          % Position the Gabor 
 g.Y = 250;                          
-g.sigma = [25 50];                       % Set the sigma of the Gabor.
+g.sigma = [50 25];                       % Set the sigma of the Gabor.
 g.phaseSpeed = 10;
 g.orientation =0;
+g.alpha = 0.5;
 
 g.mask ='ANNULUS';
+
 
 g2=stimuli.gabor('outer');           % Create a gabor stimulus.
 g2.color = [0.5 0.5];
 g2.luminance = 0.5;
-g2.X = 250;                          % Position the Gabor 
+g2.X = 250+10;                          % Position the Gabor 
 g2.Y = 250;                          
-g2.sigma = 20 ;                       % Set the sigma of the Gabor.
+g2.sigma = 25 ;                       % Set the sigma of the Gabor.
 g2.phaseSpeed = 10;
 g2.orientation = 90;
 g2.mask = 'CIRCLE';
-
+g2.alpha = 0.5; 
 
 f = stimuli.fixation('fix');        % Add a fixation point stimulus
 f.color = [1 0];                    % Red
@@ -46,7 +48,7 @@ f.size = 2;
 
 % Add stimuli to CIC
 %c.add(f); 
-c.add(g);                           % Add it to CIC.
+%q c.add(g);                           % Add it to CIC.
 c.add(g2);                           % Add it to CIC.
 
 %% Define conditions and blocks

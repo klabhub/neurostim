@@ -19,6 +19,7 @@ uniform int mask;
 attribute vec4 sizeAngleFilterMode;
 attribute vec4 modulateColor;
 attribute vec4 auxParameters0;
+attribute vec4 auxParameters1;
 
 /* Information passed to the fragment shader: Attributes and precalculated per patch constants: */
 varying float orientation;
@@ -26,7 +27,8 @@ varying float peakLuminance;
 varying float phase;
 varying float freqTwoPi;
 varying vec4 color; 
-varying vec2 sigma;
+varying float innerSigma;
+varying float outerSigma;
 
 void main()
 {
@@ -37,12 +39,14 @@ void main()
     /* and so that the center of the gabor patch has coordinate (0,0): */
     gl_TexCoord[0] = gl_MultiTexCoord0 -vec4(size/2,0,0) + vec4(-0.5, 0.5, 0.0, 0.0);
 
-    /* auxParameters0   = [o.phase, o.frequency, o.sigma, o.peakLuminance mask] */
+    /* auxParameters0   = [o.phase, o.frequency, o.sigma, ]
+       auxParameters1   = o.peakLuminance 0 0 0 ] */
 
     phase               = deg2rad * auxParameters0[0];
     freqTwoPi           = auxParameters0[1] * twopi;
-    sigma               = auxParameters0[2];
-    peakLuminance       = auxParameters0[3];
+    outerSigma          = auxParameters0[2];
+    innerSigma          = auxParameters0[3];    
+    peakLuminance       = auxParameters1[0];
     orientation         = deg2rad * sizeAngleFilterMode.z;
     color               = modulateColor;
 }

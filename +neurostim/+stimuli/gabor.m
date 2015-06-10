@@ -39,6 +39,7 @@ classdef gabor < neurostim.stimulus
                     try
                         createProcGabor(o);                    
                     catch
+                        disp('Create Procedural Gabor Failed');
                     	keyboard;
                     end
                          
@@ -55,9 +56,15 @@ classdef gabor < neurostim.stimulus
                     % Draw the texture with the current parameter settings
                     %Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] [,rotationAngle] [, filterMode] [, globalAlpha] [, modulateColor] [, textureShader] [, specialFlags] [, auxParameters]);
                     sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
-                    alpha= 1;  %Not used
                     destinationRect=CenterRectOnPoint(o.textureRect, o.X, o.Y);                    
-                    Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.luminance alpha] , textureShader,specialFlags, [o.phase, o.frequency, o.sigma, o.peakLuminance]);
+                    %aux parameters need to have 4xn with n<=8 size
+                    if numel(o.sigma)==1
+                        pad = 0;
+                    else
+                        pad = [];
+                    end
+                    aux = [o.phase, o.frequency, o.sigma, pad; o.peakLuminance 0 0 0]';
+                    Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.luminance o.alpha] , textureShader,specialFlags, aux);
         end
         
         function afterFrame(o,c,evt)
@@ -88,7 +95,7 @@ classdef gabor < neurostim.stimulus
             % Setup done:
             glUseProgram(0);
             
-            % Create a purely virtual procedural texture of size width x height virtual pixels.            % Attach the Shader to it to define its appearance:
+            % Create a purely virqqtual procedural texture of size width x height virtual pixels.            % Attach the Shader to it to define its appearance:
             o.texture = Screen('SetOpenGLTexture', o.cic.window, [], 0, GL.TEXTURE_RECTANGLE_EXT, o.xPixels, o.yPixels, 1, o.shader);
             % Query and return its bounding rectangle:
             o.textureRect = Screen('Rect', o.texture);    

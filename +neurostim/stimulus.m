@@ -40,6 +40,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('stimstop',false); 
             s.addProperty('color',[1/3 1/3]);
             s.addProperty('luminance',50);
+            s.addProperty('alpha',1);
         end                      
         
         % Setup threshold estimation for one of the parameters. The user
