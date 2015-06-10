@@ -68,14 +68,14 @@ c.add(s);
 
 
 
-k = stimuli.nafcResponse('key');
-c.add(k);
-k.keys = {'a' 'z'};
-k.stimName = 'dots';
-k.var = 'direction';
-k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
-k.keyLabel = {'clockwise', 'counterclockwise'};
-k.endTrialonKeyPress = 1;
+% k = stimuli.nafcResponse('key');
+% c.add(k);
+% k.keys = {'a' 'z'};
+% k.stimName = 'dots';
+% k.var = 'direction';
+% k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
+% k.keyLabel = {'clockwise', 'counterclockwise'};
+% k.endTrialonKeyPress = 1;
 
 % s = stimuli.shadlendots('dots2');
 % s.apertureXYD = [0 0 150];
@@ -93,6 +93,9 @@ c.addBlock('myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all cond
 
 
 c.add(output.mat);
+
+a = plugins.eyelink;
+c.add(a);
 
 c.run; 
 

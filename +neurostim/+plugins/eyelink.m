@@ -1,5 +1,15 @@
 % Wrapper around the Eyelink Toolbox.
 classdef eyelink < neurostim.plugins.eyetracker
+    % new properties:
+    % keepExperimentSetup - 1 or 0. 
+    %                       1: keep Eyelink functions using the same colour
+    %                       setup as the experiment (i.e. background, foreground).
+    %                       0: get Eyelink colour setup from parameters
+    %                       below. - still in progress.
+    % backgroundColor - background colour for eyelink toolbox functions.
+    % foregroundColor - foreground colour for eyelink toolbox functions.
+    % clbTargetColor - calibration target color.
+    
     properties
         el@struct;
         fakeConnection@logical = false;
@@ -8,6 +18,10 @@ classdef eyelink < neurostim.plugins.eyetracker
         edfFile@char = 'test.edf';
         getSamples@logical=false;
         getEvents@logical=false;
+        keepExperimentSetup = 1;
+        backgroundColor;
+        foregroundColor;
+        clbTargetColor;
     end
     properties
         doTrackerSetup@logical  = true;  % Do it before the next trial
@@ -37,13 +51,14 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink; % Check that the EyelinkToolBox is available.
             o = o@neurostim.plugins.eyetracker;
             o.listenToKeyStroke('F9','DriftCorrect');
+            o.listenToKeyStroke('F8','EyelinkSetup');
             o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'}); %The parent class is also listening to the AFTERFRAME event. Intended?
+            
         end
         
         function beforeExperiment(o,c,evt)
-
             o.el=EyelinkInitDefaults(o.cic.window);
-            restoreExperimentSetup(o.el,c);
+            
             [result,dummy] = EyelinkInit(o.fakeConnection);
             if result~=1
                 o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
@@ -63,6 +78,10 @@ classdef eyelink < neurostim.plugins.eyetracker
             [~,tmpFile] = fileparts(tempname);
             o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
             Eyelink('Openfile', o.edfFile);
+            if o.keepExperimentSetup
+                restoreExperimentSetup(o);
+            else eyelinkSetup(o);
+            end
         end
         
         function afterExperiment(o,c,evt)
@@ -81,12 +100,18 @@ classdef eyelink < neurostim.plugins.eyetracker
 
             % Do re-calibration if requested
             if o.doTrackerSetup && ~o.fakeConnection
+                if ~o.keepExperimentSetup
+                    eyelinkSetup(o);
+                end
                 EyelinkDoTrackerSetup(o.el); %Need to modify to allow ns to control the background RGB/lum CIE etc.
                 o.doTrackerSetup = false;
             end
             if o.doDriftCorrect && ~o.fakeConnection
+                if ~o.keepExperimentSetup
+                    eyelinkSetup(o);
+                end
                 o.el.TERMINATE_KEY = o.el.ESC_KEY;
-                EyelinkDoDriftCorrection(o.el,[],[],[],0);
+                EyelinkDoDriftCorrection(o.el);
                 o.doDriftCorrect = false;
             end
             if ~o.isRecording
@@ -103,6 +128,11 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             Eyelink('Command','record_status_message %s%s%s',c.paradigm, '_TRIAL:',num2str(c.trial));
             Eyelink('Message','%s',['TR:' num2str(c.trial)]);   %will this be used to align clocks later?
+            
+            if ~o.keepExperimentSetup
+                restoreExperimentSetup(o);
+                EyelinkClearCalDisplay(o.el);
+            end
         end
         
         function afterFrame(o,c,evt)
@@ -154,7 +184,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             switch upper(key)
                 case 'F9'
                     o.doDriftCorrect  =true;
-                case 'S'
+                case 'F8'
                     o.doTrackerSetup  = true;
             end
         end
@@ -175,9 +205,25 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
         end
         
-        function restoreExperimentSetup(o,c)
-            
+        function restoreExperimentSetup(o)
+            % function restoreExperimentSetup(o)
+            % restores the original experiment background/foreground
+            % colours.
+            o.el.backgroundcolour = o.cic.color.background;
+            o.el.foregroundcolour = o.cic.color.text;
+            o.el.calibrationtargetcolour = o.el.foregroundcolour;
+            PsychEyelinkDispatchCallback(o.el);
         end
         
+        function eyelinkSetup(o)
+            % function eyelinkSetup(o)
+            % sets up Eyelink functions with background/foreground colours
+            % as specified.
+            o.el.backgroundcolour = o.backgroundColor;
+            o.el.foregroundcolour = o.foregroundColor;
+            o.el.calibrationtargetcolour = o.clbTargetColor;
+            PsychEyelinkDispatchCallback(o.el);
+
+        end
     end
 end
