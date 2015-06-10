@@ -41,23 +41,24 @@ void main()
     }else if (mask==2){
         /* Hard circular mask: sigmae = outer*/
         ev  = sqrt(dot(pos,pos))<=outerSigma; 
-        alpha = ev;
+        alpha = ev; /* This makes the part of the texture outside the circle completely transparent */
     }else if (mask==3){
         /* Annulus  Sigma  = [outer inner]*/
         float tmp;
         tmp = sqrt(dot(pos,pos));
         ev  = (tmp>=innerSigma) && (tmp<=outerSigma); 
-        alpha = ev;
+        alpha = ev; /* This makes the part of the texture outside the circle completely transparent */
     }else{
         /* Throw an error; this is not a valid mask... */
         ev =1;
+        alpha = 1;
     }
 
     if (rgbColor){
         gl_FragColor[0] = color[0]+(peakLuminance-color[0]) * ( ev * sv );
         gl_FragColor[1] = color[1]+(peakLuminance-color[1]) * ( ev * sv );
         gl_FragColor[2] = color[2]+(peakLuminance-color[2]) * ( ev * sv );
-        gl_FragColor[3] = alpha*color[3];q 
+        gl_FragColor[3] = alpha*color[3];
     }else{
         gl_FragColor[0] = color[0];
         gl_FragColor[1] = color[1];
