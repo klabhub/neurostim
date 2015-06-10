@@ -50,6 +50,7 @@ classdef plugin  < dynamicprops
             h.GetObservable =true;
             o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));            
         end
+        
     end
     
     
@@ -116,13 +117,17 @@ classdef plugin  < dynamicprops
                 % generate another postSet event.
                 o.(src.Name) = postprocess(o,value);
             end
-            o.log.parms{end+1}  = src.Name;
+            o.addToLog(src.Name,value);
+        end
+        
+        % Protected access to logging
+         function addToLog(o,name,value)
+            o.log.parms{end+1}  = name;
             o.log.values{end+1} = value;
             o.log.t(end+1)      = GetSecs;
         end
-        
-       
-        
+
+      
         
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.

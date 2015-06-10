@@ -90,6 +90,7 @@ classdef cic < dynamicprops
         window =[]; % The PTB window
         mirror =[]; % The experimenters copy
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
+        block;      % Current block.
         condition;  % Current condition
         trial;      % Current trial
         frame;      % Current frame
@@ -98,7 +99,7 @@ classdef cic < dynamicprops
         
         %% Internal lists to keep track of stimuli, conditions, and blocks.
         stimuli;    % Cell array of char with stimulus names.
-        conditions; % Map of conditions to parameter specs.
+        conditions; % Map of conditions to parameter specs.       
         blocks;     % Struct array with .nrRepeats .randomization .conditions
         plugins;    % Cell array of char with names of plugins.
         
@@ -130,6 +131,8 @@ classdef cic < dynamicprops
         subject@char;   % Subject
         startTimeStr@char;  % Start time as a HH:MM:SS string
         cursor;         % Cursor 'none','arrow'; see ShowCursor
+        conditionName;  % The name of the current condition.
+        blockName;      % Name of the current block
     end
     
     %% Public methods
@@ -166,6 +169,19 @@ classdef cic < dynamicprops
                 v= num2str(c.subjectNr);
             end
         end
+                
+        function v = get.conditionName(c)
+            v = key(c.conditions,c.condition);
+        end
+             
+        function v = get.blockName(c) 
+            if c.block <= numel(c.blocks)
+                v = c.blocks(c.block).name;
+            else
+                v = '';
+            end
+        end
+        
         function set.subject(c,value)
             if ischar(value)
                 c.subjectNr = double(value);
@@ -222,6 +238,26 @@ classdef cic < dynamicprops
             addKeyStroke(c,KbName('q'),'Quit',c);
         end
         
+        function addScript(c,when, fun)
+            % It may sometimes be more convenient to specify a function m-file
+            % as the basic control script (rather than write a plugin that does
+            % the same). 
+            % when = when should this script be run
+            % fun = function handle to the script. The script will be called
+            % with cic as its sole argument.
+            
+            if ismember('eScript',c.plugins)
+                plg = c.eScript;
+            else 
+                plg = neurostim.plugins.eScript;
+                
+            end
+            plg.addScript(when,fun);
+            % Add or update the plugin (must call after adding script 
+            % so that all events are listened to     
+            c.add(plg); 
+        end
+        
         function keyboard(c,key,time)
             % CIC Responses to keystrokes.
             % q = quit experiment
@@ -248,18 +284,20 @@ classdef cic < dynamicprops
             c.flags.trial =false;
         end
         
-        function add(c,o)
+        function o = add(c,o)
             % Add a plugin.
             if ~isa(o,'neurostim.plugin')
                 error('Only plugin derived classes can be added to CIC');
             end
+            
+            
             if isprop(c,o.name)
-                error(['This name (' o.name ') already exists in CIC.']);
+            %    error(['This name (' o.name ') already exists in CIC.']);
+            % Update existing
             else
                 h = c.addprop(o.name);
                 c.(o.name) = o;
                 h.SetObservable = false; % No events
-            end
             
             % Add to the appropriate list
             if isa(o,'neurostim.stimulus')
@@ -270,6 +308,7 @@ classdef cic < dynamicprops
             c.(nm) = cat(2,c.(nm),o.name);
             % Set a pointer to CIC in the plugin
             o.cic = c;
+            end
             
             
             % Call the keystroke function
@@ -329,7 +368,7 @@ classdef cic < dynamicprops
             % name  =  name of the condition
             % parms = triplets {'stimulus name','variable', value}
             stimNames = specs(1:3:end);
-            unknownStimuli = ~ismember(stimNames,c.stimuli);
+            unknownStimuli = ~ismember(stimNames,cat(2,c.stimuli,'cic'));
             if any(unknownStimuli)
                 error(['These stimuli are unknown, add them first: ' specs{3*(find(unknownStimuli)-1)+1}]);
             else
@@ -393,42 +432,63 @@ classdef cic < dynamicprops
             end
         end
         
+        function addBlock(c,blockName,conditionNames,nrRepeats,randomization)
         % Select certain conditions to be part of a block.
-        function addBlock(c,conditionNames,nrRepeats,randomization)
+        % blockName = a descriptive name for this block
+        % conditionNames = which (existing) condtions or factorials should
+        % be run in this block. (Char or cell array of names)
+        % nrRepeats = how often should these conditions/factorials be
+        % repeated
+        % randomization = how should conditions be randomized across trials
+        
             
-            block.nrRepeats = nrRepeats;
-            block.randomization = randomization;
+            blck.name = blockName;
+            blck.nrRepeats = nrRepeats;
+            blck.randomization = randomization;
             conditionNames = strcat('^',conditionNames,'\d*');
             conditionNumbers = index(c.conditions,conditionNames);
+            if any(isnan(conditionNumbers))
+                notFound = unique(conditionNames(isnan(conditionNumbers)));
+                notFound = strrep(notFound,'^','');notFound = strrep(notFound,'\d*','');
+                disp('These Conditions are undefined: ' );
+                notFound
+                error('Conditions not found');
+            end
             switch (randomization)
                 case 'SEQUENTIAL'
-                    block.conditions = repmat(conditionNumbers,[1 nrRepeats]);
+                    blck.conditions = repmat(conditionNumbers,[1 nrRepeats]);
                 case 'RANDOMWITHREPLACEMENT'
-                    block.conditions = repmat(conditionNumbers,[1 nrRepeats]);
-                    block.conditions = block.conditions(randperm(numel(block.conditions)));
+                    blck.conditions = repmat(conditionNumbers,[1 nrRepeats]);
+                    blck.conditions = blck.conditions(randperm(numel(blck.conditions)));
                 case 'BLOCKRANDOMWITHREPLACEMENT'
-                    block.conditions = zeros(1,0);
+                    blck.conditions = zeros(1,0);
                     for i=1:nrRepeats
-                        block.conditions = cat(2,block.conditions, conditionNumbers(randperm(numel(conditionNumbers))));
+                        blck.conditions = cat(2,blck.conditions, conditionNumbers(randperm(numel(conditionNumbers))));
                     end
                 otherwise
                     error(['This randomization mode is unknown: ' randomization ]);
             end
-            c.blocks = cat(1,c.blocks,block);
+            c.blocks = cat(1,c.blocks,blck);
         end
         
         
         
-        function beforeTrial(c)
-            
+        function beforeTrial(c)            
             % Assign values specified in the desing to each of the stimuli.
             specs = c.conditions(c.condition);
             nrParms = length(specs)/3;
             for p =1:nrParms
-                stim  = c.(specs{3*(p-1)+1});
+                stimName =specs{3*(p-1)+1};
                 varName = specs{3*(p-1)+2};
-                value   = specs{3*(p-1)+3};
-                stim.(varName) = value;
+                value   = specs{3*(p-1)+3};                
+                if strcmpi(stimName,'CIC')
+                    % This codition changes one of the CIC properties
+                    c.(varName) = value;
+                else
+                    % Change a stimulus  or plugin property
+                    stim  = c.(stimName);
+                    stim.(varName) = value;
+                end
             end
             
             
@@ -468,12 +528,14 @@ classdef cic < dynamicprops
             nrBlocks = numel(c.blocks);
             trialEndTime = GetSecs*1000;
             for blockNr=1:nrBlocks
-                disp(['Begin block ' num2str(blockNr)]);
                 c.flags.block = true;
-                for conditionNr = c.blocks(blockNr).conditions
-            
+                c.block = blockNr;
+                disp(['Begin Block: ' c.blockName]);
+                for conditionNr = c.blocks(blockNr).conditions             
                     c.condition = conditionNr;
                     c.trial = c.trial+1;
+                    
+                    disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
                     
                     %                     if ~isempty(c.mirror)
                     %                         Screen('CopyWindow',c.window,c.mirror);

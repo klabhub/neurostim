@@ -1,4 +1,10 @@
 classdef myexpt < neurostim.plugin
+    % A user could define a simple plugin like this one to control all
+    % aspects of an experiment. The need for this, however, is limited as
+    % almost (?) the same functionality can be generated with the
+    % cic.addScript method which essentially allows the user to provide
+    % only functions that serve as the member functions of a plugin class. 
+    
     
     methods
         function o = myexpt

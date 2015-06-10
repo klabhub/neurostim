@@ -36,7 +36,7 @@ c.add(g);                           % Add it to CIC.
 % Here we vary the peak luminance of the Gabor 
 c.addFactorial('contrastFactorial',{'gabor','peakLuminance',{0.75 1}});
 % Add a block in whcih we run all conditions in the named factorial 10 times.
-c.addBlock('contrastFactorial',10,'SEQUENTIAL')
+c.addBlock('contrastBlock','contrastFactorial',10,'SEQUENTIAL')
 
 %% Run 
 c.run % Run the experiment. 

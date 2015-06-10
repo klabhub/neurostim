@@ -52,7 +52,7 @@ c.add(gi);
 
 
 c.addFactorial('myFactorial',{'inny','frequency',{0.05, 0.01}}) ; %You can add more direction conditions... Key press 'n' changes direction.... e.g: {'right','left',etc..}
-c.addBlock('myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
+c.addBlock('blockName','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
 
 c.run; 

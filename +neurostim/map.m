@@ -9,7 +9,7 @@ end
     end
     
     properties (Dependent)
-        nrKeys@double;      % Number of keys currently stored in this map
+        nrKeys@double;      % Number of keys currently stored in this map        
     end
     
     methods
@@ -42,6 +42,13 @@ end
             end
         end
         
+        function value = key(m,nr)
+            if nr <= m.nrKeys
+                value = m.keys{nr};
+            else
+                value = '';
+            end
+        end
         
         function value = length(m)
             value = m.nrKeys;
