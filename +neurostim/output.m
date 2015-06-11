@@ -14,7 +14,6 @@ classdef output < neurostim.plugin
     properties
         counter;
         data;
-        saveDirectory = 'C:\MATLAB\Neurostim\';
         saveAfterTrial = 0;
     end
     
@@ -47,6 +46,7 @@ classdef output < neurostim.plugin
         
         function saveFile(o,c)
             % Generic wrapper for file saving.
+            save(cat(2,horzcat(c.fullFile,'.mat')),'c');
         end
         
         function afterTrial(o,c,evt)

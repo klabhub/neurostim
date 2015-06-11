@@ -451,6 +451,9 @@ classdef cic < dynamicprops
         
         function run(c)
             
+            %Add a generic output plug-in (there may be others already added)
+            c.add(neurostim.output);
+            
             % Setup PTB
             PsychImaging(c);
             

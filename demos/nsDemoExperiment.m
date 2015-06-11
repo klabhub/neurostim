@@ -92,8 +92,6 @@ c.addFactorial('myFactorial',...
 c.addBlock('myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
 
-c.add(output.mat);
-
 c.run; 
 
 
