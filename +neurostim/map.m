@@ -1,4 +1,5 @@
 classdef  map <handle
+    
 properties (Constant)
     CHUNK = 10;             % Log size increase (NIY).
 end

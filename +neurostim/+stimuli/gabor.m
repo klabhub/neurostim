@@ -1,6 +1,6 @@
 classdef gabor < neurostim.stimulus
     % Wrapper class for the (fast) procedural Gabor textures in the PTB.
-    %
+    
     properties (Constant)
         maskTypes = {'GAUSS','CIRCLE','ANNULUS'};
     end
@@ -18,16 +18,16 @@ classdef gabor < neurostim.stimulus
             %% Base Teture parameters, see CreateProceduralGabor.m for details
             % No need to change unless you want to save texture memory and draw
             % only small Gabors.
-            o.addProperty('xPixels',128);
-            o.addProperty('yPixels',128);
+            o.addProperty('width',10);
+            o.addProperty('height',10);
             
             %%  Gabor parameters
             o.addProperty('orientation',0);
-            o.addProperty('peakLuminance',70);
+            o.addProperty('contrast',1);
             o.addProperty('phase',0);
             o.addProperty('frequency',0.05);
-            o.addProperty('sigma',50);
-            o.addProperty('mask','Gauss','',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));            
+            o.addProperty('sigma',1); % [Inner Outer] or  [Outer]
+            o.addProperty('mask','Gauss','',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));
             
             %% Motion
             o.addProperty('phaseSpeed',0);
@@ -35,70 +35,68 @@ classdef gabor < neurostim.stimulus
         end
         
         function beforeExperiment(o,c,evt)
-                    % Create the procedural texture
-                    try
-                        createProcGabor(o);                    
-                    catch
-                        disp('Create Procedural Gabor Failed');
-                    	keyboard;
-                    end
-                         
+            % Create the procedural texture
+            try
+                createProcGabor(o);
+            catch
+                error('Create Procedural Gabor Failed');
+            end
         end
         
         
         function beforeTrial(o,c,evt)
-            glUseProgram(o.shader);       
-            glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));                        
-            glUseProgram(0);            
+            glUseProgram(o.shader);
+            glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
+            glUseProgram(0);
         end
         
-        function beforeFrame(o,c,evt)            
-                    % Draw the texture with the current parameter settings
-                    %Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] [,rotationAngle] [, filterMode] [, globalAlpha] [, modulateColor] [, textureShader] [, specialFlags] [, auxParameters]);
-                    sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
-                    destinationRect=CenterRectOnPoint(o.textureRect, o.X, o.Y);                    
-                    %aux parameters need to have 4xn with n<=8 size
-                    if numel(o.sigma)==1
-                        pad = 0;
-                    else
-                        pad = [];
-                    end
-                    aux = [o.phase, o.frequency, o.sigma, pad; o.peakLuminance 0 0 0]';
-                    Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.luminance o.alpha] , textureShader,specialFlags, aux);
+        function beforeFrame(o,c,evt)
+            % Draw the texture with the current parameter settings
+            %Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] [,rotationAngle] [, filterMode] [, globalAlpha] [, modulateColor] [, textureShader] [, specialFlags] [, auxParameters]);
+            sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
+            destinationRect=CenterRectOnPoint(o.textureRect, o.X, o.Y);
+            %aux parameters need to have 4xn with n<=8 size
+            if numel(o.sigma)==1
+                pad = 0;
+            else
+                pad = [];
+            end
+            aux = [o.phase, o.frequency, o.sigma, pad; o.contrast 0 0 0]';
+            Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.luminance o.alpha] , textureShader,specialFlags, aux);
         end
         
         function afterFrame(o,c,evt)
-                    % Change any or all of the parameters.
-                    o.phase = o.phase + o.phaseSpeed;                         
+            % Change any or all of the parameters.
+            o.phase = o.phase + o.phaseSpeed;
         end
         
     end
     
-    methods 
+    methods
         
         function createProcGabor(o)
-            % Shamelessly copied from PTB 
-            debuglevel = 1;         
-            % Global GL struct: Will be initialized in the LoadGLSLProgramFromFiles            
+            % Copied from PTB
+            debuglevel = 1;
+            % Global GL struct: Will be initialized in the LoadGLSLProgramFromFiles
             global GL;
             % Make sure we have support for shaders, abort otherwise:
-            AssertGLSL;   
-            % Load shader 
+            AssertGLSL;
+            % Load shader
             p = fileparts(mfilename('fullpath'));
             o.shader = LoadGLSLProgramFromFiles(fullfile(p,'GLSLShaders','gabor'), debuglevel);
             % Setup shader: variables set here cannot change during the
             % experiment.
             glUseProgram(o.shader);
-            glUniform2f(glGetUniformLocation(o.shader , 'size'), o.xPixels, o.yPixels);                        
-            glUniform1i(glGetUniformLocation(o.shader , 'rgbColor'), strcmpi(o.cic.colorMode,'RGB'));                        
-            glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));                        
+            glUniform2f(glGetUniformLocation(o.shader , 'size'), o.width, o.height);
+            glUniform1i(glGetUniformLocation(o.shader , 'rgbColor'), strcmpi(o.cic.colorMode,'RGB'));
+            glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
             % Setup done:
             glUseProgram(0);
             
             % Create a purely virqqtual procedural texture of size width x height virtual pixels.            % Attach the Shader to it to define its appearance:
-            o.texture = Screen('SetOpenGLTexture', o.cic.window, [], 0, GL.TEXTURE_RECTANGLE_EXT, o.xPixels, o.yPixels, 1, o.shader);
+            o.texture = Screen('SetOpenGLTexture', o.cic.window, [], 0, GL.TEXTURE_RECTANGLE_EXT, o.width, o.height, 1, o.shader);
             % Query and return its bounding rectangle:
-            o.textureRect = Screen('Rect', o.texture);    
+            o.textureRect = Screen('Rect', o.texture);
         end
     end
     

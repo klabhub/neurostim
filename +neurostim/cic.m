@@ -24,7 +24,7 @@
 % 	Remote monitoring?
 
 
-classdef cic < dynamicprops
+classdef cic < neurostim.plugin
     
     %% Events
     % All communication with plugins is through events. CIC generates events
@@ -71,8 +71,9 @@ classdef cic < dynamicprops
     properties (GetAccess=public, SetAccess =public)
         color                   = struct('text',[1/3 1/3 50],'background',[1/3 1/3 5]); % Colors
         colorMode               = 'xyL'; % xyL, RGBA
-        position@double         = [];    % Window coordinates.[left top width height]
-        mirrorPosition@double   = []; % Window coordinates.[left top width height].
+        pixels@double           = [];    % Window coordinates.[left top width height]
+        physical@double         = []; % Window size in physical units [width height]
+        mirrorPixels@double   = []; % Window coordinates.[left top width height].
         root@char               = pwd;    % Root target directory for saving files.
         subjectNr@double        = 0;
         paradigm@char           = 'test';
@@ -80,7 +81,7 @@ classdef cic < dynamicprops
         iti@double              = 1000; % Inter-trial Interval (ms) - default 1s.
         trialDuration@double    = 1000;  % Trial Duration (ms)
         
-
+        
     end
     
     %% Protected properties.
@@ -94,15 +95,14 @@ classdef cic < dynamicprops
         condition;  % Current condition
         trial;      % Current trial
         frame;      % Current frame
-        name = 'cic'; %
-        cursorVisible           = false; % Set it through c.cursor =
+        cursorVisible = false; % Set it through c.cursor =
         
         %% Internal lists to keep track of stimuli, conditions, and blocks.
         stimuli;    % Cell array of char with stimulus names.
-        conditions; % Map of conditions to parameter specs.       
+        conditions; % Map of conditions to parameter specs.
         blocks;     % Struct array with .nrRepeats .randomization .conditions
         plugins;    % Cell array of char with names of plugins.
-        
+        responseKeys; % Map of keys to actions.(See addResponse)
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
@@ -112,10 +112,10 @@ classdef cic < dynamicprops
         profile@struct =  struct('BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[]);
         
         %% Keyboard interaction
-        keyStrokes          = []; % PTB numbers for each key that is handled.
-        keyHelp             = {}; % Help info for key
-        keyDeviceIndex      = []; % Use the first device by default
-        keyHandlers         = {}; % Handles for the plugins that handle the keys.
+        allKeyStrokes          = []; % PTB numbers for each key that is handled.
+        allKeyHelp             = {}; % Help info for key
+        keyDeviceIndex          = []; % Use the first device by default
+        keyHandlers             = {}; % Handles for the plugins that handle the keys.
         
     end
     
@@ -148,7 +148,7 @@ classdef cic < dynamicprops
             v= length(c.conditions);
         end
         function v = get.center(c)
-            [x,y] = RectCenter(c.position);
+            [x,y] = RectCenter(c.pixels);
             v=[x y];
         end
         function v= get.startTimeStr(c)
@@ -169,12 +169,12 @@ classdef cic < dynamicprops
                 v= num2str(c.subjectNr);
             end
         end
-                
+        
         function v = get.conditionName(c)
             v = key(c.conditions,c.condition);
         end
-             
-        function v = get.blockName(c) 
+        
+        function v = get.blockName(c)
             if c.block <= numel(c.blocks)
                 v = c.blocks(c.block).name;
             else
@@ -188,7 +188,7 @@ classdef cic < dynamicprops
             else
                 c.subjectNr = value;
             end
-        end      
+        end
         
         % Allow thngs like c.('lldots.X')
         function v = getProp(c,prop)
@@ -221,10 +221,10 @@ classdef cic < dynamicprops
     methods (Access=public)
         % Constructor.
         function c= cic
+            c = c@neurostim.plugin('cic');
             % Some very basic PTB settings that are enforced for all
             KbName('UnifyKeyNames'); % Same key names across OS.
-            % c.cursor = 'none';
-            
+            % c.cursor = 'none';           
             % Initialize empty
             c.startTime     = now;
             c.stimuli       = {};
@@ -232,30 +232,56 @@ classdef cic < dynamicprops
             c.plugins       = {};
             
             % Setup the keyboard handling
-            c.keyStrokes = [];
-            c.keyHelp  = {};
+            c.responseKeys  = neurostim.map;
+            c.allKeyStrokes = [];
+            c.allKeyHelp  = {};
             % Keys handled by CIC
             addKeyStroke(c,KbName('q'),'Quit',c);
         end
         
-        function addScript(c,when, fun)
+        function addScript(c,when, fun,keys)
             % It may sometimes be more convenient to specify a function m-file
             % as the basic control script (rather than write a plugin that does
-            % the same). 
+            % the same).
             % when = when should this script be run
             % fun = function handle to the script. The script will be called
             % with cic as its sole argument.
-            
+            if nargin <4
+                keys = {};
+            end
             if ismember('eScript',c.plugins)
                 plg = c.eScript;
-            else 
+            else
                 plg = neurostim.plugins.eScript;
                 
             end
-            plg.addScript(when,fun);
-            % Add or update the plugin (must call after adding script 
-            % so that all events are listened to     
-            c.add(plg); 
+            plg.addScript(when,fun,keys);
+            % Add or update the plugin (must call after adding script
+            % so that all events are listened to
+            c.add(plg);
+        end
+        
+        function addResponse(c,key,varargin)
+            % function addResponse(c,key,varargin)
+            % Add a key that the subject can press to give a response. The
+            % optional parameter/value pairs define what the key does:
+            %
+            % 'write' : the value to log []
+            % 'after' : only respond to this key after this time [-Inf]
+            % 'before' : only respond to this key before this time [+Inf];
+            % 'nextTrial' : logical to indicate whether to start a new trial
+            % 'keyHelp' : a short string to document what this key does.
+            %
+            p =inputParser;
+            p.addParameter('write',[]);
+            p.addParameter('after',-Inf,@isnumeric);
+            p.addParameter('before',Inf,@isnumeric);
+            p.addParameter('nextTrial',false,@islogical);
+            p.addParameter('keyHelp','?',@ischar);
+            p.parse(varargin{:});
+            addKeyStroke(c,KbName(key),p.Results.keyHelp,c);
+            c.responseKeys(key) = p.Results;
+            
         end
         
         function keyboard(c,key,time)
@@ -269,7 +295,15 @@ classdef cic < dynamicprops
                 case 'n'
                     c.flags.trial = false;
                 otherwise
-                    error('How did you get here?');
+                    % Respond to the keys added by cic.addResponse
+                    actions = c.responseKeys(key);
+                    if c.frame >= actions.after && c.frame <= actions.before
+                        c.write(key,actions.write)
+                        disp([key ':' num2str(actions.write)]);
+                        if actions.nextTrial
+                            c.nextTrial;
+                        end
+                    end
             end
         end
         
@@ -290,24 +324,25 @@ classdef cic < dynamicprops
                 error('Only plugin derived classes can be added to CIC');
             end
             
-            
-            if isprop(c,o.name)
-            %    error(['This name (' o.name ') already exists in CIC.']);
-            % Update existing
-            else
-                h = c.addprop(o.name);
-                c.(o.name) = o;
-                h.SetObservable = false; % No events
-            
             % Add to the appropriate list
             if isa(o,'neurostim.stimulus')
                 nm   = 'stimuli';
             else
                 nm = 'plugins';
             end
-            c.(nm) = cat(2,c.(nm),o.name);
-            % Set a pointer to CIC in the plugin
-            o.cic = c;
+            
+            if ismember(o.name,c.(nm))
+                %    error(['This name (' o.name ') already exists in CIC.']);
+                % Update existing
+            elseif  isprop(c,o.name)
+                error(['Please use a differnt name for your stimulus. ' o.nae ' is reserved'])
+            else
+                h = c.addprop(o.name); % Make it a dynamic property
+                c.(o.name) = o;
+                h.SetObservable = false; % No events
+                c.(nm) = cat(2,c.(nm),o.name);
+                % Set a pointer to CIC in the plugin
+                o.cic = c;
             end
             
             
@@ -433,14 +468,14 @@ classdef cic < dynamicprops
         end
         
         function addBlock(c,blockName,conditionNames,nrRepeats,randomization)
-        % Select certain conditions to be part of a block.
-        % blockName = a descriptive name for this block
-        % conditionNames = which (existing) condtions or factorials should
-        % be run in this block. (Char or cell array of names)
-        % nrRepeats = how often should these conditions/factorials be
-        % repeated
-        % randomization = how should conditions be randomized across trials
-        
+            % Select certain conditions to be part of a block.
+            % blockName = a descriptive name for this block
+            % conditionNames = which (existing) condtions or factorials should
+            % be run in this block. (Char or cell array of names)
+            % nrRepeats = how often should these conditions/factorials be
+            % repeated
+            % randomization = how should conditions be randomized across trials
+            
             
             blck.name = blockName;
             blck.nrRepeats = nrRepeats;
@@ -473,14 +508,14 @@ classdef cic < dynamicprops
         
         
         
-        function beforeTrial(c)            
+        function beforeTrial(c)
             % Assign values specified in the desing to each of the stimuli.
             specs = c.conditions(c.condition);
             nrParms = length(specs)/3;
             for p =1:nrParms
                 stimName =specs{3*(p-1)+1};
                 varName = specs{3*(p-1)+2};
-                value   = specs{3*(p-1)+3};                
+                value   = specs{3*(p-1)+3};
                 if strcmpi(stimName,'CIC')
                     % This codition changes one of the CIC properties
                     c.(varName) = value;
@@ -511,6 +546,11 @@ classdef cic < dynamicprops
         
         function run(c)
             
+            if isempty(c.physical)
+                % Assuming code is in pixels
+                c.physical = c.pixels(3:4);
+            end
+            
             % Setup PTB
             PsychImaging(c);
             
@@ -531,7 +571,7 @@ classdef cic < dynamicprops
                 c.flags.block = true;
                 c.block = blockNr;
                 disp(['Begin Block: ' c.blockName]);
-                for conditionNr = c.blocks(blockNr).conditions             
+                for conditionNr = c.blocks(blockNr).conditions
                     c.condition = conditionNr;
                     c.trial = c.trial+1;
                     
@@ -550,7 +590,7 @@ classdef cic < dynamicprops
                     c.frame=0;
                     trialStartTime = GetSecs*1000;  % for trialDuration check
                     while (c.flags.trial)
-%                         time = GetSecs;
+                        %                         time = GetSecs;
                         c.frame = c.frame+1;
                         if (c.PROFILE); tic;end
                         notify(c,'BASEBEFOREFRAME');
@@ -563,9 +603,9 @@ classdef cic < dynamicprops
                         c.KbQueueCheck;
                         if (c.PROFILE); addProfile(c,'AFTERFRAME',toc);end
                         vbl=Screen('Flip', c.window,when,1-c.clear);
-%                         if (vbl - time) > (2/60 - .5*2/60)        
-%                             warning('Missed frame.');     % check for missed frames
-%                         end
+                        %                         if (vbl - time) > (2/60 - .5*2/60)
+                        %                             warning('Missed frame.');     % check for missed frames
+                        %                         end
                         %                         if ~isempty(c.mirror)
                         %                             Screen('CopyWindow',c.window,c.mirror);
                         %                         end
@@ -576,7 +616,7 @@ classdef cic < dynamicprops
                     trialEndTime = GetSecs * 1000;
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     if (c.PROFILE); tic;end
-                    vbl=Screen('Flip', c.window,when,1-c.clear);                    
+                    vbl=Screen('Flip', c.window,when,1-c.clear);
                     notify(c,'BASEAFTERTRIAL');
                     notify(c,'AFTERTRIAL');
                     afterTrial(c);
@@ -586,6 +626,7 @@ classdef cic < dynamicprops
             end %blocks
             notify(c,'BASEAFTEREXPERIMENT');
             notify(c,'AFTEREXPERIMENT');
+            Screen('glLoadIdentity',c.window);
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.color.text);
             Screen('Flip', c.window);
             c.KbQueueStop;
@@ -604,12 +645,12 @@ classdef cic < dynamicprops
             if ~isnumeric(key) || key <1 || key>256
                 error('Please use KbName to add keys to keyhandlers')
             end
-            if ismember(key,c.keyStrokes)
+            if ismember(key,c.allKeyStrokes)
                 error(['The ' key ' key is in use. You cannot add it again...']);
             else
-                c.keyStrokes = cat(2,c.keyStrokes,key);
+                c.allKeyStrokes = cat(2,c.allKeyStrokes,key);
                 c.keyHandlers{end+1}  = p;
-                c.keyHelp{end+1} = keyHelp;
+                c.allKeyHelp{end+1} = keyHelp;
             end
         end
         
@@ -623,13 +664,13 @@ classdef cic < dynamicprops
             if ~isnumeric(key) || any(key <1) || any(key>256)
                 error('Please use KbName to add keys to keyhandlers')
             end
-            if any(~ismember(key,c.keyStrokes))
-                error(['The ' key(~ismember(key,c.keyStrokes)) ' key is not in use. You cannot remove it...']);
+            if any(~ismember(key,c.allKeyStrokes))
+                error(['The ' key(~ismember(key,c.allKeyStrokes)) ' key is not in use. You cannot remove it...']);
             else
-                index = ismember(c.keyStrokes,key);
-                c.keyStrokes(index) = [];
+                index = ismember(c.allKeyStrokes,key);
+                c.allKeyStrokes(index) = [];
                 c.keyHandlers(index)  = [];
-                c.keyHelp(index) = [];
+                c.allKeyHelp(index) = [];
             end
         end
         
@@ -645,7 +686,7 @@ classdef cic < dynamicprops
                 c.keyDeviceIndex = device;
             end
             keyList = zeros(1,256);
-            keyList(c.keyStrokes) = 1;
+            keyList(c.allKeyStrokes) = 1;
             KbQueueCreate(c.keyDeviceIndex,keyList);
         end
         
@@ -667,7 +708,7 @@ classdef cic < dynamicprops
                 %                 lastRelease(out)=[];
                 ks = find(firstPress);
                 for k=ks
-                    ix = unique(find(c.keyStrokes==k));% should be only one.
+                    ix = unique(find(c.allKeyStrokes==k));% should be only one.
                     if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
                     % Call the keyboard member function in the relevant
                     % class
@@ -701,29 +742,29 @@ classdef cic < dynamicprops
                     cal = SetGammaMethod(cal,0);
                     
                 case 'RGB'
-                        
+                    
             end
             
             
             % if bitspp
             %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
-           
+            
             
             % end
             screens=Screen('Screens');
             screenNumber=max(screens);
-            c.window = PsychImaging('OpenWindow',screenNumber, c.color.background, c.position);
+            c.window = PsychImaging('OpenWindow',screenNumber, c.color.background, c.pixels);
             
             switch upper(c.colorMode)
                 case 'XYL'
                     PsychColorCorrection('SetSensorToPrimary', c.window, cal);
                 case 'RGB'
-                    Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+                    Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             end
             
             
-            if ~isempty(c.mirrorPosition)
-                c.mirror = PsychImaging('OpenWindow',screenNumber, c.color.background, c.mirrorPosition);
+            if ~isempty(c.mirrorPixels)
+                c.mirror = PsychImaging('OpenWindow',screenNumber, c.color.background, c.mirrorPixels);
             end
         end
     end

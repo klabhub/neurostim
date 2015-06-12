@@ -12,6 +12,7 @@ classdef eScript < neurostim.plugin
         afterFrameFun@function_handle;
         beforeTrialFun@function_handle;
         afterTrialFun@function_handle;
+        keyFun@function_handle;
     end
     
     
@@ -38,11 +39,15 @@ classdef eScript < neurostim.plugin
             if ~isempty(o.afterTrialFun)
                 disp(['AfterTrial: ' func2str(o.afterTrialFun)]);
             end
+            if ~isempty(o.keyFun)
+                disp(['Keyboard: ' func2str(o.keyFun)]);
+            end
+
             disp('****************************************')
             
         end
         
-        function addScript(o,when,fun)
+        function addScript(o,when,fun,keys)
             % Add a script to a particular phase
             % when = event (BeforeFrame, AfterFrame, BeforeTrial, AfterTrial)
             % fun = function that takes a single input argument (cic)
@@ -63,11 +68,16 @@ classdef eScript < neurostim.plugin
                     o.beforeTrialFun    = fun;
                 case 'AFTERTRIAL'
                     o.afterTrialFun     = fun;
+                case 'KEYBOARD' 
+                    o.keyFun            = fun;
                 otherwise
                     error(['The eScript plugin does not handle ' when ' events.']);
             end
-            if ~ismember(upper(when),o.evts)
-                o.listenToEvent(upper(when)); % Plugin shoudl start listening now.
+            
+            if strcmpi(when,'KEYBOARD')
+                o.listenToKeyStroke(keys)
+            elseif ~ismember(upper(when),o.evts)
+                o.listenToEvent(upper(when)); % Plugin should start listening now.
             end
             
             %% Because the script is not logged automatically, we store
@@ -107,6 +117,10 @@ classdef eScript < neurostim.plugin
         end
         function afterTrial(o,c,evt)
             o.afterTrialFun(c);
+        end
+        
+        function keyboard(o,key,time)
+            o.keyFun(o,key,time);
         end
         
     end

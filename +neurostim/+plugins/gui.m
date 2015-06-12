@@ -14,7 +14,7 @@ classdef gui <neurostim.stimulus
     properties (SetAccess =public, GetAccess=public)
         xAlign@char = 'right';          % 'left', or 'right'
         yAlign@char = 'center';         % center
-        spacing@double = 2;             % Space between lines
+        spacing@double = .1;             % Space between lines
         nrCharsPerLine@double= 25;      % Number of chars per line
         font@char = 'Courier New';      % Font
         fontSize@double = 11;           % Font size
