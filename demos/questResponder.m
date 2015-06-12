@@ -6,7 +6,7 @@ classdef questResponder < neurostim.plugin;
     methods
         function o = questResponder
             o = o@neurostim.plugin('questResponder');  
-            o.keyStrokes ={'z', '/'};
+            o.listenToKeyStroke({'a', 'l'});
         end
         
         function afterFrame(o,frame)
@@ -23,7 +23,7 @@ classdef questResponder < neurostim.plugin;
         
         function keyboard(o,key,time)
             switch (key)
-                case 'z'
+                case 'a'
                     % User responded leftward
                     correct= (o.lldots.direction==0);
                 case 'l'

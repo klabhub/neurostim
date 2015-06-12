@@ -1,4 +1,4 @@
-classdef stimulus < neurostim.plugin
+classdef stimulus < neurostim.plugin 
     events
         BEFOREFRAME;
         AFTERFRAME;    
@@ -40,6 +40,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('stimstop',false); 
             s.addProperty('color',[1/3 1/3]);
             s.addProperty('luminance',50);
+            s.addProperty('alpha',1);
         end                      
         
         % Setup threshold estimation for one of the parameters. The user
@@ -125,6 +126,10 @@ classdef stimulus < neurostim.plugin
         function baseEvents(s,c,evt)
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
+                    Screen('glLoadIdentity', c.window);
+                    Screen('glTranslate', c.window,c.pixels(3)/2,c.pixels(4)/2);
+                    Screen('glScale', c.window,c.pixels(3)/c.physical(1), c.pixels(4)/c.physical(2));
+                    
                     s.flags.on = c.frame >=s.on && c.frame < s.on+s.duration;
                     if s.flags.on 
                         notify(s,'BEFOREFRAME');
@@ -153,8 +158,13 @@ classdef stimulus < neurostim.plugin
 
             end
         end
+        
+      
+            
     end
-    
+    methods (Access= protected)
+   
+    end
         
     %% Methods that the user cannot change. 
     % These are called from by the controller for all stimuli to provide 

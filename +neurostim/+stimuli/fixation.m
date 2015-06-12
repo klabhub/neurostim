@@ -23,7 +23,7 @@ classdef fixation < neurostim.stimulus
                     rct = CenterRect([o.X, o.Y, o.X+o.size, o.Y+o.size], o.cic.position); %Center a Rectangle on the screen
                     Screen('FillRect', o.cic.window, [o.color o.luminance],rct);                    
                 case 'CIRC' % Circle
-                    Screen('DrawDots', o.cic.window,[o.X o.Y],o.size,[o.color o.luminance],o.cic.center);                    
+                    Screen('DrawDots', o.cic.window,[o.X o.Y],o.size,[o.color o.luminance],[0 0],2); % With antialiasing.                    
                 case 'DONUT' % DONUT
                     Screen('DrawDots', o.cic.window,[o.X o.Y],o.size,[o.color o.luminance],o.cic.center);  
                     Screen('DrawDots', o.cic.window,[o.X o.Y],o.size2,[o.color2 o.luminance2],o.cic.center);                                
