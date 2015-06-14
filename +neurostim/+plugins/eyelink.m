@@ -43,9 +43,10 @@ classdef eyelink < neurostim.plugins.eyetracker
         function beforeExperiment(o,c,evt)
 
             o.el=EyelinkInitDefaults(o.cic.window);
+            restoreExperimentSetup(o.el,c);
             [result,dummy] = EyelinkInit(o.fakeConnection);
             if result~=1
-                o.cic.error('STOPEXPERIMENT','Eyelink failed to initialze');
+                o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
                 ok = false;
                 return;
             end
@@ -84,7 +85,8 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.doTrackerSetup = false;
             end
             if o.doDriftCorrect && ~o.fakeConnection
-                EyelinkDoDriftCorrection(o.el);
+                o.el.TERMINATE_KEY = o.el.ESC_KEY;
+                EyelinkDoDriftCorrection(o.el,[],[],[],0);
                 o.doDriftCorrect = false;
             end
             if ~o.isRecording
@@ -144,7 +146,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             switch (evt.EventName)
                 %Nothing to do?
                 otherwise
-                    error(['Unhandlded event ' evt.EventName]);
+                    error(['Unhandled event ' evt.EventName]);
             end
         end
         
@@ -171,6 +173,10 @@ classdef eyelink < neurostim.plugins.eyetracker
                     o.getEvents = true;
                 end
             end
+        end
+        
+        function restoreExperimentSetup(o,c)
+            
         end
         
     end

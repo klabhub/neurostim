@@ -15,7 +15,7 @@ Screen('Preference', 'ConserveVRAM', 32);
 % c.iti = 2000;
 % c.trialDuration = inf;
 
-c = config.basic;
+c = myConfig;
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
 
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
@@ -89,7 +89,7 @@ c.addFactorial('myFactorial',...
     {'dots','direction',{0 335 310 285 260}}, ...
     {'dots', 'coherence', {0.75 1}}) ;
 
-c.addBlock('blockName','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
+c.addBlock('myBlock','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
 
 c.add(output.mat);

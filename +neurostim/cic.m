@@ -96,7 +96,7 @@ classdef cic < neurostim.plugin
         trial;      % Current trial
         frame;      % Current frame
         cursorVisible = false; % Set it through c.cursor =
-        
+        vbl = [];
         %% Internal lists to keep track of stimuli, conditions, and blocks.
         stimuli;    % Cell array of char with stimulus names.
         conditions; % Map of conditions to parameter specs.
@@ -554,6 +554,9 @@ classdef cic < neurostim.plugin
         
         function run(c)
             
+            %Add a generic output plug-in (there may be others already added)
+            c.add(neurostim.output);
+            
             if isempty(c.physical)
                 % Assuming code is in pixels
                 c.physical = c.pixels(3:4);
@@ -564,7 +567,6 @@ classdef cic < neurostim.plugin
             
             c.KbQueueCreate;
             c.KbQueueStart;
-            
             c.trial = 0;
             DrawFormattedText(c.window, 'Press any key to start...', 'center', 'center', c.color.text);
             Screen('Flip', c.window);
@@ -610,7 +612,7 @@ classdef cic < neurostim.plugin
                         notify(c,'AFTERFRAME');
                         c.KbQueueCheck;
                         if (c.PROFILE); addProfile(c,'AFTERFRAME',toc);end
-                        vbl=Screen('Flip', c.window,when,1-c.clear);
+                        c.vbl(end+1)=Screen('Flip', c.window,when,1-c.clear);
                         %                         if (vbl - time) > (2/60 - .5*2/60)
                         %                             warning('Missed frame.');     % check for missed frames
                         %                         end

@@ -23,6 +23,12 @@ classdef output < neurostim.plugin
     end
     
     
+    properties (Dependent)
+        fullFile;       % Output file name including path
+        path;
+    end
+        
+    
     methods
         function set.root(o,v)
             if ~exist(v,'dir')
@@ -31,6 +37,7 @@ classdef output < neurostim.plugin
             o.root = v;
         end
     end
+    
     
     methods (Access = public)
         function o = output
@@ -54,35 +61,55 @@ classdef output < neurostim.plugin
                 o.data.(stimulus)(3,:) = num2cell(o.cic.(stimulus).log.t);
             end
         end
-        
+                
+        function saveFileBase(o,c)
+           % Save output to disk.
+            [pathName, fname,ext] = fileparts(o.filename);  
+            try
+                saveFile(o,c);
+            catch
+                try
+                    warning('There was a problem saving to disk. Attempting save to c:\temp');
+                    save(['c:\temp\' fname,ext],'c', '-mat');
+                    warning('There was a problem saving to disk. Attempting save to c:\temp.... success');
+                catch
+                    warning('There was a problem saving to disk. Halting execution to allow manual recovery');
+                    keyboard;
+                end
+            end
+        end
         
         function saveFile(o,c)
-            % Generic wrapper for file saving.
+            %Function that should be overloaded in derived class for custom user output formats.
+            save(o.filename,'c', '-mat');
         end
         
         function afterTrial(o,c,evt)
             if o.counter==1 % if save after trial is triggered
                 o.counter = o.saveAfterTrial;   % reset counter
                 collectData(o,c);   % run data collection and file saving
-                saveFile(o,c);
-            else o.counter = o.counter-1;   % counter reduction
+                saveFileBase(o,c);
+            else
+                o.counter = o.counter-1;   % counter reduction
             end
         end
         
         function afterExperiment(o,c,evt)
             % always save post-experiment.
             collectData(o,c);
-            saveFile(o,c);
+            saveFileBase(o,c);
         end
-        
         
         function beforeExperiment(o,c,evt)
             % Always set at the start of the experiment so that we can 
             % check that we can save.
             o.setFile;
-        end
+        end  
+    end
         
+      
         
+     methods (Access = protected)   
         function f = setFile(o)
             % Set the file name based on the mode and the current time.
             
@@ -109,10 +136,6 @@ classdef output < neurostim.plugin
         end                
     end
     
-    
-    methods (Access= protected)
-        
-    end
     
     
     methods (Static)
