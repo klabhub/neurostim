@@ -11,7 +11,7 @@ classdef output < neurostim.plugin
     %
     
     properties (GetAccess=public, SetAccess=public)
-        root=pwd;
+        root='c:\temp\';
         mode@char   = 'DAYFOLDERS';
         saveAfterTrial = 0;        
     end
@@ -98,6 +98,7 @@ classdef output < neurostim.plugin
             % always save post-experiment.
             collectData(o,c);
             saveFileBase(o,c);
+            disp(['Saved to ' o.filename]);
         end
         
         function beforeExperiment(o,c,evt)
