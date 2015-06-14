@@ -23,7 +23,7 @@ classdef fixation < neurostim.stimulus
                     rct = CenterRect([o.X, o.Y, o.X+o.size, o.Y+o.size], o.cic.position); %Center a Rectangle on the screen
                     Screen('FillRect', o.cic.window, [o.color o.luminance],rct);                    
                 case 'CIRC' % Circle
-                    Screen('DrawDots', o.cic.window,[o.X o.Y],o.size,[o.color o.luminance],o.cic.center);                    
+                    Screen('DrawDots', o.cic.window,[o.X o.Y],o.size,[o.color o.luminance],[0 0],2); % With antialiasing.                    
                 case 'DONUT' % DONUT
                     Screen('DrawDots', o.cic.window,[o.X o.Y],o.size,[o.color o.luminance],o.cic.center);  
                     Screen('DrawDots', o.cic.window,[o.X o.Y],o.size2,[o.color2 o.luminance2],o.cic.center);                                
@@ -38,9 +38,25 @@ classdef fixation < neurostim.stimulus
                     y = o.Y + [-0.5*o.size +0.5*o.size -0.5*o.size];
                    Screen('FillPoly',o.cic.window,[o.color o.luminance],[x' y'],isConvex);
                    Screen('glLoadIdentity', o.cic.window);                                     
-                case 'OVAL'                                  
-                case 'STAR'                                       
-                             
+                case 'OVAL' % oval
+                    Screen('glLoadIdentity',o.cic.window);
+                    Screen('glTranslate',o.cic.window,o.cic.center(1),o.cic.center(2));
+                    x = [o.X-(o.size/2) o.X+(o.size/2)];
+                    y = [o.Y-(o.size2/2) o.Y+(o.size2/2)];
+                    Screen('FillOval', o.cic.window, [o.color o.luminance], [x(1) y(1) x(2) y(2)]);
+                    Screen('glLoadIdentity',o.cic.window);
+                case 'STAR' % Five-pointed star, oriented with point upward.
+                    Screen('glLoadIdentity',o.cic.window);
+                    Screen('glTranslate',o.cic.window, o.cic.center(1), o.cic.center(2));
+%                     Screen('glRotate',o.cic.window,o.angle+90,0,0,1);
+                    anglesDeg = linspace(270,360+270,11);
+                    radius2 = .5*(3-sqrt(5))*o.size;
+                    radiustot = [repmat([o.size radius2],1,5) o.size];
+                    x = cosd(anglesDeg).*radiustot+o.X;
+                    y = sind(anglesDeg).*radiustot+o.Y;
+                    Screen('FillPoly',o.cic.window, [o.color o.luminance], [x;y]', 0);
+                    Screen('glLoadIdentity',o.cic.window);
+
             end
         end
         

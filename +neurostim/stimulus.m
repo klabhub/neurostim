@@ -1,14 +1,13 @@
-classdef stimulus < neurostim.plugin
+classdef stimulus < neurostim.plugin 
     events
         BEFOREFRAME;
         AFTERFRAME;    
         BEFORETRIAL;
         AFTERTRIAL;    
         BEFOREEXPERIMENT;
-        AFTEREXPERIMENT;
-
-        
+        AFTEREXPERIMENT;        
     end
+    
     properties (SetAccess = public,GetAccess=public)
         quest@struct;     
     end
@@ -28,6 +27,8 @@ classdef stimulus < neurostim.plugin
             v = o.on+o.duration;
         end
     end
+    
+    
     methods
         function s= stimulus(name)
             s = s@neurostim.plugin(name);
@@ -40,6 +41,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('stimstop',false); 
             s.addProperty('color',[1/3 1/3]);
             s.addProperty('luminance',50);
+            s.addProperty('alpha',1);
         end                      
         
         % Setup threshold estimation for one of the parameters. The user
@@ -56,16 +58,16 @@ classdef stimulus < neurostim.plugin
             % Interpret the input. Defaults are set as recommended for
             % QUEST. See Quest and Quest Create
             p = inputParser;
-            p.addParamValue('guess',-1);   % Log Contrast for QUEST
-            p.addParamValue('guessSD',2);  % 
-            p.addParamValue('threshold',0.82); %Target threshold
-            p.addParamValue('beta',3.5); % Steepness of assumed Weibull
-            p.addParamValue('delta',0.01); % Fraction of blind presses
-            p.addParamValue('gamma',0.5); % Fraction of trials that will generate response when for intensity = -inf.
-            p.addParamValue('grain',0.01); % Discretization of the range
-            p.addParamValue('range',5); % Range centered on guess.
-            p.addParamValue('plotIt',false);
-            p.addParamValue('normalizePdf',1);
+            p.addParameter('guess',-1);   % Log Contrast for QUEST
+            p.addParameter('guessSD',2);  % 
+            p.addParameter('threshold',0.82); %Target threshold
+            p.addParameter('beta',3.5); % Steepness of assumed Weibull
+            p.addParameter('delta',0.01); % Fraction of blind presses
+            p.addParameter('gamma',0.5); % Fraction of trials that will generate response when for intensity = -inf.
+            p.addParameter('grain',0.01); % Discretization of the range
+            p.addParameter('range',5); % Range centered on guess.
+            p.addParameter('plotIt',false);
+            p.addParameter('normalizePdf',1);
             p.parse(varargin{:});
             switch upper(method)
                 case 'QUEST'
@@ -119,16 +121,33 @@ classdef stimulus < neurostim.plugin
                 m =QuestMean(s.quest.q);
                 sd = QuestSd(s.quest.q);
             end
-        end
-       
+        end                  
+    end
+    
+    methods (Access= protected)
+   
+    end
         
+    %% Methods that the user cannot change. 
+    % These are called from by CIC for all stimuli to provide 
+    % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
+    % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
+    % the derived class an oppurtunity to respond to changes that this 
+    % base functionality makes.
+    methods (Sealed)        
         function baseEvents(s,c,evt)
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
+                    Screen('glLoadIdentity', c.window);
+                    Screen('glTranslate', c.window,c.pixels(3)/2,c.pixels(4)/2);
+                    Screen('glScale', c.window,c.pixels(3)/c.physical(1), -c.pixels(4)/c.physical(2));
+                    
                     s.flags.on = c.frame >=s.on && c.frame < s.on+s.duration;
                     if s.flags.on 
                         notify(s,'BEFOREFRAME');
+                        if s.stimstart ~= true
                         s.stimstart = true;
+                        end
                     else %Stim off
                         
                     end
@@ -150,18 +169,6 @@ classdef stimulus < neurostim.plugin
 
 
             end
-        end
-    end
-    
-        
-    %% Methods that the user cannot change. 
-    % These are called from by the controller for all stimuli to provide 
-    % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
-    % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
-    % the derived class an oppurtunity to respond to changes that this 
-    % base functionality makes.
-    methods (Sealed)
-        
-        
+        end        
     end
 end

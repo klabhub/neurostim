@@ -8,7 +8,7 @@ Screen('Preference', 'SkipSyncTests', 1);
 c= cic;
 c.position = [0 0 200 100];
 % Add a limited lifetime dot pattern
-l=lldots('lldots');
+l=stimuli.lldots('lldots');
 c.add(l);
 % Vary the nrDots across conditions. This factorial is given the name 'nrDots'
 c.addFactorial('nrDots',{'lldots','nrDots',{10 20 30 40}});
@@ -19,7 +19,7 @@ c.addFactorial('nrDots',{'lldots','nrDots',{10 20 30 40}});
 l.setupThresholdEstimation('coherence','QUEST','guess',-2,'guessSD',3);
 % Run a block with the conditions from the 'size' factorial. 
 % Repeat each condition 40 times.
-c.addBlock('nrDots',40,'BLOCKRANDOMWITHREPLACEMENT');
+c.addBlock('coherence','nrDots',10,'BLOCKRANDOMWITHREPLACEMENT');
 % The quest responder class (see questResponder.m) shows how to control 
 % the logic flow in an experiment. In this case it actually simulates
 % responses.
