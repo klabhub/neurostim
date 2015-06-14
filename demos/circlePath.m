@@ -3,16 +3,16 @@ function circlePath(c)
 % an experiment. This eScript is called by the scripting.m demo
 
 
-speed = 0.05 * sin(c.frame/30); %pixels/frame. Ths value is not logged automatically.
+speed = 0.1 * sin(c.frame/30); %cm/frame. Ths value is not logged automatically.
 % To provide some disaster recovery options, each script that is used is
 % stored verbatim in the output. This would allow a user to find out what
 % the speed parameter was set to.
 
 
-
+radius = 0.3*sqrt(sum(c.physical.^2));
 % However, any assignment to stimulus properties is logged, so the disaster
 % recovery is unlikely to be needed?
-c.gabor.X = 250+100*cos(c.frame * speed ); 
-c.gabor.Y = 250+100*sin(c.frame * speed);
+c.gabor.X = radius*cos(c.frame * speed ); 
+c.gabor.Y = radius*sin(c.frame * speed);
 
 end

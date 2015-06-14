@@ -5,10 +5,9 @@ classdef stimulus < neurostim.plugin
         BEFORETRIAL;
         AFTERTRIAL;    
         BEFOREEXPERIMENT;
-        AFTEREXPERIMENT;
-
-        
+        AFTEREXPERIMENT;        
     end
+    
     properties (SetAccess = public,GetAccess=public)
         quest@struct;     
     end
@@ -28,6 +27,8 @@ classdef stimulus < neurostim.plugin
             v = o.on+o.duration;
         end
     end
+    
+    
     methods
         function s= stimulus(name)
             s = s@neurostim.plugin(name);
@@ -120,15 +121,26 @@ classdef stimulus < neurostim.plugin
                 m =QuestMean(s.quest.q);
                 sd = QuestSd(s.quest.q);
             end
-        end
-       
+        end                  
+    end
+    
+    methods (Access= protected)
+   
+    end
         
+    %% Methods that the user cannot change. 
+    % These are called from by CIC for all stimuli to provide 
+    % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
+    % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
+    % the derived class an oppurtunity to respond to changes that this 
+    % base functionality makes.
+    methods (Sealed)        
         function baseEvents(s,c,evt)
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
                     Screen('glLoadIdentity', c.window);
                     Screen('glTranslate', c.window,c.pixels(3)/2,c.pixels(4)/2);
-                    Screen('glScale', c.window,c.pixels(3)/c.physical(1), c.pixels(4)/c.physical(2));
+                    Screen('glScale', c.window,c.pixels(3)/c.physical(1), -c.pixels(4)/c.physical(2));
                     
                     s.flags.on = c.frame >=s.on && c.frame < s.on+s.duration;
                     if s.flags.on 
@@ -157,23 +169,6 @@ classdef stimulus < neurostim.plugin
 
 
             end
-        end
-        
-      
-            
-    end
-    methods (Access= protected)
-   
-    end
-        
-    %% Methods that the user cannot change. 
-    % These are called from by the controller for all stimuli to provide 
-    % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
-    % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
-    % the derived class an oppurtunity to respond to changes that this 
-    % base functionality makes.
-    methods (Sealed)
-        
-        
+        end        
     end
 end

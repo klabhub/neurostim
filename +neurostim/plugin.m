@@ -38,10 +38,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             disp (['Please define a keyboard function to handle  ' key ' in '  o.name ])
         end
         
-        function events(o,src,evt)
-            % Generic event handler to warn the end user/developer.
-            disp (['Please define a events function to handle  the ' evt.EventName  ' from '  src.name ' in plugin ' o.name ])
-        end
         
         % Define a property as a function of some other property.
         % specs is the function definition. The first element in this cell
@@ -77,8 +73,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     % Only the (derived) class designer should have access to these
     % methods.
-    methods (Access = protected, Sealed)
-        
+    methods (Access = protected, Sealed)        
         function s= copyElement(o)
             % This protected function is called from the public (sealed)
             % copy member of matlab.mixin.Copyable. We overload it here to

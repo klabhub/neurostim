@@ -9,7 +9,7 @@ classdef basic < neurostim.config
        
        function o = basic
            o = o@neurostim.config;
-           o.position = [0 0 1600 1000];
+           o.pixels = [0 0 1600 1000];
            o.color.background = [0 0 0];
            o.colorMode = 'xyl';
            o.iti = 1000;

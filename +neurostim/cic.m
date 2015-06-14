@@ -307,6 +307,13 @@ classdef cic < neurostim.plugin
             end
         end
         
+        function [x,y,buttons] = getMouse(c)
+              [x,y,buttons] = GetMouse(c.window);            
+              tmp = [1 -1].*([x y]./c.pixels(3:4)-0.5).*c.physical;
+              x= tmp(1);y=tmp(2);
+        end
+       
+        
         function disp(c)
             % Provide basic information about the CIC
             disp(char(['CIC. Started at ' datestr(c.startTime,'HH:MM:SS') ],...
@@ -390,6 +397,7 @@ classdef cic < neurostim.plugin
                         case 'AFTEREXPERIMENT'
                             h= @(c,evt)(o.afterExperiment(c,evt));
                     end
+                    % Install a listener in CIC. It will distribute.
                     addlistener(c,o.evts{i},h);
                 end
             end

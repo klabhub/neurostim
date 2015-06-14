@@ -89,7 +89,7 @@ c.addFactorial('myFactorial',...
     {'dots','direction',{0 335 310 285 260}}, ...
     {'dots', 'coherence', {0.75 1}}) ;
 
-c.addBlock('myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
+c.addBlock('blockName','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
 
 c.add(output.mat);
