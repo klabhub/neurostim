@@ -1,4 +1,5 @@
-classdef plugin  < dynamicprops
+classdef plugin  < dynamicprops & matlab.mixin.Copyable
+    
     properties (SetAccess=public)
         cic@neurostim.cic;  % Pointer to CIC
     end
@@ -10,14 +11,14 @@ classdef plugin  < dynamicprops
     
     properties (SetAccess=private, GetAccess=public)
         keyStrokes  = {}; % Cell array of keys that his plugin will respond to
-        keyHelp     = {};
+        keyHelp     = {}; % Copy in the plugin allows easier setup of keyboard handling by stimuli and other derived classes.
         evts        = {}; % Events that this plugin will respond to.
     end
     
     methods (Access=public)
         function o=plugin(n)
             % Create a named plugin
-            o.name =n;
+            o.name = n;
             % Initialize an empty log.
             o.log(1).parms  = {};
             o.log(1).values = {};
@@ -25,39 +26,78 @@ classdef plugin  < dynamicprops
             
         end
         
+        function s= duplicate(o,name)
+            % This copies the plugin and gives it a new name. See
+            % plugin.copyElement
+            s=copy(o);
+            s.name = name;
+        end
+        
         function keyboard(o,key,time)
             % Generic keyboard handler to warn the end user/developer.
             disp (['Please define a keyboard function to handle  ' key ' in '  o.name ])
         end
         
-        function events(o,src,evt)
-            % Generic event handler to warn the end user/developer.
-            disp (['Please define a events function to handle  the ' evt.EventName  ' from '  src.name ' in plugin ' o.name ])
-        end
-    
-       % Define a property as a function of some other property. 
-       % specs is the function definition. The first element in this cell
-       % array is a function_handle, all subsequent arguments are arguments
-       % that will be passed to that function.
-       % Object/variable references can be constructed by using a
-       % two-element cell array : the first is a handle to the object or the name of the
-       % objet,the second is the object property. 
+        
+        % Define a property as a function of some other property.
+        % specs is the function definition. The first element in this cell
+        % array is a function_handle, all subsequent arguments are arguments
+        % that will be passed to that function.
+        % Object/variable references can be constructed by using a
+        % two-element cell array : the first is a handle to the object or the name of the
+        % objet,the second is the object property.
         function functional(o,prop,specs)
             h =findprop(o,prop);
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
             h.GetObservable =true;
-            o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));            
+            o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
+        end
+        
+        function write(o,name,value)
+            % User callable write function.
+            o.addToLog(name,value);
+        end
+        
+        % Convenience wrapper; just passed to CIC
+        function nextTrial(o)
+            % Move to the next trial
+            nextTrial(o.cic);
         end
     end
     
-    
+    methods (Access= protected)
+        
+    end
     
     % Only the (derived) class designer should have access to these
     % methods.
-    methods (Access = protected, Sealed)
-
+    methods (Access = protected, Sealed)        
+        function s= copyElement(o)
+            % This protected function is called from the public (sealed)
+            % copy member of matlab.mixin.Copyable. We overload it here to
+            % copy not just the static properties but also the
+            % dynamicprops.
+            %
+            % Example:
+            % b=copy(a)
+            % This will make a copy (with separate properties) of a in b.
+            % This in contrast to b=a, which only copies the handle (so essentialy b==a).
+            
+            % First a shallow copy of fixed properties
+            s = copyElement@matlab.mixin.Copyable(o);
+            
+            % Then setup the dynamic props again.
+            dynProps = setdiff(properties(o),properties(s));
+            for p=1:numel(dynProps)
+                pName = dynProps{p};
+                s.addProperty(pName,o.(pName));
+            end
+        end
+        
+        
+        
         % Add properties that will be time-logged automatically, fun
         % is an optional argument that can be used to modify the parameter
         % when it is set. This function will be called with the plugin object
@@ -116,17 +156,21 @@ classdef plugin  < dynamicprops
                 % generate another postSet event.
                 o.(src.Name) = postprocess(o,value);
             end
-            o.log.parms{end+1}  = src.Name;
+            o.addToLog(src.Name,value);
+        end
+        
+        % Protected access to logging
+        function addToLog(o,name,value)
+            o.log.parms{end+1}  = name;
             o.log.values{end+1} = value;
             o.log.t(end+1)      = GetSecs;
         end
         
-       
         
         
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
-        function evalParmGet(o,src,evt,specs)            
+        function evalParmGet(o,src,evt,specs)
             fun = specs{1}; % Function handle
             nrArgs = length(specs)-1;
             args= cell(1,nrArgs);
@@ -163,10 +207,6 @@ classdef plugin  < dynamicprops
     
     % Convenience wrapper functions to pass the buck to CIC
     methods (Sealed)
-        function nextTrial(o)
-            % Move to the next trial
-            nextTrial(o.cic);
-        end
         
         function listenToKeyStroke(o,keys,keyHelp)
             % listenToKeyStroke(o,keys,keyHelp)
@@ -190,14 +230,15 @@ classdef plugin  < dynamicprops
                 if length(keys) ~= length(keyHelp)
                     error('Number of KeyHelp strings not equal to number of keys.')
                 end
-
+                
             end
             
             if any(size(o.cic))
-                for a = 1:max(size(keys))
+                % Pass the information to CIC which keeps track of
+                % keystrokes
+                for a = 1:numel(keys)
                     addKeyStroke(o.cic,keys{a},keyHelp{a},o);
                 end
-                
                 KbQueueCreate(o.cic);
                 KbQueueStart(o.cic);
             end
@@ -234,8 +275,4 @@ classdef plugin  < dynamicprops
         end
         
     end
-    
-    methods (Static)
-            end
-    
 end

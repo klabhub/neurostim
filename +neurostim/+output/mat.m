@@ -12,7 +12,7 @@ classdef mat < neurostim.output
         
         
         function saveFile(o,c)
-            save(cat(2,o.saveDirectory,'c.mat'),'c');
+            save(o.filename,'c');
         end
     end
     

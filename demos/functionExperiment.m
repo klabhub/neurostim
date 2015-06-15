@@ -38,7 +38,7 @@ c.add(t);
 % the text starts in the top left corner every trial (otherwise it would
 % reuse the last value from the previous trial).
 c.addCondition('red',{'text','color',[1 0 0],'text','X',0,'text','Y',0}) ; 
-c.addBlock('red',10,'SEQUENTIAL') % Add a block in whcih we run this 10 times.
+c.addBlock('redBlock','red',10,'SEQUENTIAL') % Add a block in whcih we run this 10 times.
 
 
 
