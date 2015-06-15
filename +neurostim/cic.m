@@ -303,7 +303,7 @@ classdef cic < dynamicprops
                     addlistener(o,o.evts{i},h);
                 else
                     switch upper(o.evts{i})
-                        case 'BEFOREEXPERIMENT'
+                         case 'BEFOREEXPERIMENT'
                             h= @(c,evt)(o.beforeExperiment(c,evt));
                         case 'BEFORETRIAL'
                             h= @(c,evt)(o.beforeTrial(c,evt));
@@ -441,7 +441,7 @@ classdef cic < dynamicprops
         function error(c,command,msg)
             switch (command)
                 case 'STOPEXPERIMENT'
-                    fprintf(2,msg)
+                    fprintf(2,msg);
                     c.flags.experiment = false;
                 otherwise
                     error('?');
@@ -486,7 +486,7 @@ classdef cic < dynamicprops
                     c.flags.trial = true;
                     c.frame=0;
                     trialStartTime = GetSecs*1000;  % for trialDuration check
-                    while (c.flags.trial)
+                    while (c.flags.trial && c.flags.experiment)
 %                         time = GetSecs;
                         c.frame = c.frame+1;
                         if (c.PROFILE); tic;end

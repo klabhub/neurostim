@@ -14,20 +14,22 @@ classdef eyelink < neurostim.plugins.eyetracker
         el@struct;
         fakeConnection@logical = false;
         eye;
-        commands = {'link_sample_data = LEFT,RIGHT,GAZE,AREA'};
+        valid;
+        commands = {'link_sample_data = LEFT,RIGHT,GAZE,GAZERES,AREA,VELOCITY'};
         edfFile@char = 'test.edf';
-        getSamples@logical=false;
-        getEvents@logical=false;
+        getSamples@logical=true;
+        getEvents@logical=true;
         keepExperimentSetup = 1;
         backgroundColor;
         foregroundColor;
         clbTargetColor;
     end
+    
     properties
         doTrackerSetup@logical  = true;  % Do it before the next trial
-        doDriftCorrect@logical  = false;  % Do it before the next trial
+        doDriftCorrect@logical  = true;  % Do it before the next trial
     end
-    
+
     properties (Dependent)
         isRecording@logical;
         isConnected@double;
@@ -54,9 +56,11 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.listenToKeyStroke('F8','EyelinkSetup');
             o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'}); %The parent class is also listening to the AFTERFRAME event. Intended?
             
+            o.addProperty('eyeData',struct);
         end
         
         function beforeExperiment(o,c,evt)
+            
             o.el=EyelinkInitDefaults(o.cic.window);
             
             [result,dummy] = EyelinkInit(o.fakeConnection);
@@ -93,7 +97,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             catch
                 error('Eyelink file failed to transfer to the NS computer');
             end
-            Eyelink('Shutdown');
+          Eyelink('Shutdown');
         end
         
         function beforeTrial(o,c,evt)
@@ -110,7 +114,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 if ~o.keepExperimentSetup
                     eyelinkSetup(o);
                 end
-                o.el.TERMINATE_KEY = o.el.ESC_KEY;
+                o.el.TERMINATE_KEY = o.el.ESC_KEY;  % quit using ESC
                 EyelinkDoDriftCorrection(o.el);
                 o.doDriftCorrect = false;
             end
@@ -118,7 +122,8 @@ classdef eyelink < neurostim.plugins.eyetracker
                 available = Eyelink('EyeAvailable'); % get eye that's tracked
                 if available == o.el.BINOCULAR
                     o.eye = o.el.LEFT_EYE;
-                elseif o.eye ~=available
+                elseif available == -1
+                    o.eye = available;
                     o.cic.error('STOPEXPERIMENT','eye not available')
                 else
                     o.eye = available;
@@ -146,29 +151,38 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % Continuous samples requested
                 if Eyelink( 'NewFloatSampleAvailable') > 0
                     % get the sample in the form of an event structure
-                    evt = Eyelink( 'NewestFloatSample');
-                    o.x = evt.gx(o.eye+1); % +1 as we're accessing MATLAB array
-                    o.y = evt.gy(o.eye+1);
-                    o.size = evt.pa(o.eye+1);
+                    o.eyeData.samples = Eyelink( 'NewestFloatSample');
+                    o.x = o.eyeData.samples.gx(o.eye+1); % +1 as we're accessing MATLAB array
+                    o.y = o.eyeData.samples.gy(o.eye+1);
+                    o.size = o.eyeData.samples.pa(o.eye+1);
                     o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.size >0;
                 end %
-            elseif o.getEvents
+            end
+            if o.getEvents
                 % Only events requested
                 switch  o.isConnected
                     case o.el.dummyconnected
                         % Use mousecoordinates
                         [x,y,button] = GetMouse(o.cic.window);
-                        evt.type=o.el.ENDSACC;
-                        evt.genx=x;
-                        evt.geny=y;
+                        o.eyeData.type=o.el.ENDSACC;
+                        o.eyeData.genx=x;
+                        o.eyeData.geny=y;
+                        
                     case o.el.connected
                         evtype=Eyelink('getnextdatatype');
-                        evt = Eyelink('getfloatdata', evtype);
+                        switch evtype
+                            case {o.el.ENDSACC, o.el.ENDFIX, o.el.STARTBLINK,...
+                                    o.el.ENDBLINK,o.el.STARTSACC,o.el.STARTFIX,...
+                                    o.el.FIXUPDATE, o.el.INPUTEVENT,o.el.MESSAGEEVENT,...
+                                    o.el.BUTTONEVENT, o.el.STARTPARSE, o.el.ENDPARSE}
+                                % get all events
+                                o.eyeData.evts = Eyelink('GetFloatData', evtype);
+                        end
                     otherwise
                         o.cic.error('STOPEXPERIMENT','Eyelink is not connected');
                 end
-                o.x = evt.genx;
-                o.y = evt.geny;
+                % x and y
+                
             end
         end
         
