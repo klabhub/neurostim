@@ -46,24 +46,24 @@ g.luminance = 50;
 g.X = 0;                          % Position the Gabor
 g.Y = 0; 
 g.color = [1 1];
-g.shape = 'STAR';
-g.size = 20;
-g.size2 = 10;
+g.shape = 'OVAL';
+g.size = 2;
+g.size2 = 5;
 c.add(g);
 
 % 
 s = stimuli.rdp('dots');
 s.color = [1/3 1/3];
-s.luminance = 90;
-s.motionMode = 0;
+s.luminance = 100;
+s.motionMode = 1;
 s.noiseMode = 0;
 s.noiseDist = 1;
 s.coherence = 0.8;
 s.lifetime = 10;
-s.duration = 100;
+s.duration = Inf;
 s.size = 2;
+s.maxRadius = 10;
 % s.on = 60;
-% s.position = [500 1080/2];
 c.add(s);
 
 
@@ -77,13 +77,17 @@ c.add(s);
 % k.keyLabel = {'clockwise', 'counterclockwise'};
 % k.endTrialonKeyPress = 1;
 
-% s = stimuli.shadlendots('dots2');
-% s.apertureXYD = [0 0 150];
-% s.color = [1 1 1]; % in xyl
-% s.coherence = 0.75;
+% s = stimuli.shadlendots('dots');
+% s.apertureXYD = [10 0 20];
+% s.color = [1 1];
+% s.luminance = 1;
+% s.coherence = 0.8;
+% s.speed = 10;
 % s.direction = 0;
 % c.add(s);
 
+m = stimuli.mouse('mouse');
+c.add(m);
 
 c.addFactorial('myFactorial',...
     {'dots','direction',{0 335 310 285 260}}, ...
@@ -91,11 +95,9 @@ c.addFactorial('myFactorial',...
 
 c.addBlock('myBlock','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
+c.add(output);
 
-c.add(output.mat);
-
-a = plugins.eyelink;
-c.add(a);
+% c.add(plugins.eyelink);
 
 c.run; 
 

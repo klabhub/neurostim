@@ -125,7 +125,7 @@ classdef cic < neurostim.plugin
         nrStimuli;      % The number of stimuli currently in CIC
         nrConditions;   % The number of conditions in this experiment
         nrTrials;       % The number of trials in this experiment
-        center;         % Were is the center of the display window.
+        center;         % Where is the center of the display window.
         file;           % Target file name
         fullFile;       % Target file name including path
         subject@char;   % Subject
@@ -133,6 +133,7 @@ classdef cic < neurostim.plugin
         cursor;         % Cursor 'none','arrow'; see ShowCursor
         conditionName;  % The name of the current condition.
         blockName;      % Name of the current block
+        framerate;      % framerate of screen.
     end
     
     %% Public methods
@@ -168,6 +169,11 @@ classdef cic < neurostim.plugin
                 % True subject numbers
                 v= num2str(c.subjectNr);
             end
+        end
+        
+        function v = get.framerate(c)
+            frameDur = Screen('GetFlipInterval',c.window);
+            v = 1/frameDur;
         end
         
         function v = get.conditionName(c)
@@ -214,6 +220,8 @@ classdef cic < neurostim.plugin
                 c.cursorVisible = true;
             end
         end
+        
+
         
     end
     
@@ -309,9 +317,11 @@ classdef cic < neurostim.plugin
         
         function [x,y,buttons] = getMouse(c)
               [x,y,buttons] = GetMouse(c.window);            
-              tmp = [1 -1].*([x y]./c.pixels(3:4)-0.5).*c.physical;
-              x= tmp(1);y=tmp(2);
+              [x,y] = pixel2Physical(x,y);
         end
+        
+
+
        
         
         function disp(c)
@@ -684,6 +694,18 @@ classdef cic < neurostim.plugin
             end
         end
         
+        function [a,b] = pixel2Physical(c,x,y)
+            % converts from pixel dimensions to physical ones.
+            tmp = [1 -1].*([x y]./c.pixels(3:4)-0.5).*c.physical(3:4);
+            a = tmp(1);
+            b = tmp(2);
+        end
+        
+        function [a,b] = physical2Pixel(c,x,y)
+            tmp = c.pixels(3:4).*(0.5 + [x y]./([1 -1].*c.physical(3:4)));
+            a = tmp(1);
+            b = tmp(2);
+        end
     end
     
     
@@ -803,6 +825,8 @@ classdef cic < neurostim.plugin
         function addProfile(c,what,duration)
             c.profile.(what) = [c.profile .(what) duration];
         end
+        
+
     end
     
 end

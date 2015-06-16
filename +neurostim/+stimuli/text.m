@@ -75,7 +75,9 @@ classdef text < neurostim.stimulus
                     end
                     
                     % draw text to Screen
-                    Screen('DrawText', c.window, messagetext, xpos, ypos, o.color);
+                    if o.visible
+                        Screen('DrawText', c.window, messagetext, xpos, ypos, o.color);
+                    end
                     
                     % restore prevous font/size/style
                     Screen('TextFont', c.window, prevfont);

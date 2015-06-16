@@ -22,6 +22,11 @@ classdef stimulus < neurostim.plugin
         off;
     end
     
+    properties (Access=private)
+        stimstart = false;
+        stimstop = false;
+    end
+    
     methods
         function v= get.off(o)
             v = o.on+o.duration;
@@ -37,11 +42,12 @@ classdef stimulus < neurostim.plugin
             s.addProperty('Z',0);  
             s.addProperty('on',0);  
             s.addProperty('duration',Inf);  
-            s.addProperty('stimstart',false)
-            s.addProperty('stimstop',false); 
             s.addProperty('color',[1/3 1/3]);
             s.addProperty('luminance',50);
             s.addProperty('alpha',1);
+            s.addProperty('visible',true);
+            s.addProperty('scale',struct('x',[],'y',[],'z',[]));
+            s.addProperty('phi',struct('x',[],'y',[],'z',[]));
         end                      
         
         % Setup threshold estimation for one of the parameters. The user
@@ -138,9 +144,10 @@ classdef stimulus < neurostim.plugin
         function baseEvents(s,c,evt)
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
+%                     keyboard;
                     Screen('glLoadIdentity', c.window);
                     Screen('glTranslate', c.window,c.pixels(3)/2,c.pixels(4)/2);
-                    Screen('glScale', c.window,c.pixels(3)/c.physical(1), -c.pixels(4)/c.physical(2));
+                    Screen('glScale', c.window,c.pixels(3)/c.physical(3), -c.pixels(4)/c.physical(4));
                     
                     s.flags.on = c.frame >=s.on && c.frame < s.on+s.duration;
                     if s.flags.on 
