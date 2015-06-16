@@ -39,6 +39,10 @@ c.add(plugins.debug);               % Use the debug plugin which allows you to m
 % t.color = [255 255 255];
 % c.add(t);
 
+
+m = stimuli.mouse('mouse');
+c.add(m);
+
 g=stimuli.fixation('fix');           % Create a gabor stimulus.
 g.on = 0;
 g.duration = inf;
@@ -46,9 +50,13 @@ g.luminance = 50;
 g.X = 0;                          % Position the Gabor
 g.Y = 0; 
 g.color = [1 1];
-g.shape = 'OVAL';
+g.shape = 'STAR';
 g.size = 2;
-g.size2 = 5;
+g.size2 = 1;
+functional(g,'angle',{@plus,{c,'frame'},0});
+
+% functional(g,'X',{@plus,{m,'clickx'},0});
+% functional(g,'Y',{@plus,{m,'clicky'},0});
 c.add(g);
 
 % 
@@ -62,7 +70,7 @@ s.coherence = 0.8;
 s.lifetime = 10;
 s.duration = Inf;
 s.size = 2;
-s.maxRadius = 10;
+s.maxRadius = 8;
 % s.on = 60;
 c.add(s);
 
@@ -78,7 +86,7 @@ c.add(s);
 % k.endTrialonKeyPress = 1;
 
 % s = stimuli.shadlendots('dots');
-% s.apertureXYD = [10 0 20];
+% s.apertureD = 20;
 % s.color = [1 1];
 % s.luminance = 1;
 % s.coherence = 0.8;
@@ -86,11 +94,9 @@ c.add(s);
 % s.direction = 0;
 % c.add(s);
 
-m = stimuli.mouse('mouse');
-c.add(m);
 
 c.addFactorial('myFactorial',...
-    {'dots','direction',{0 335 310 285 260}}, ...
+    {'dots','direction',{0 90}}, ...
     {'dots', 'coherence', {0.75 1}}) ;
 
 c.addBlock('myBlock','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.

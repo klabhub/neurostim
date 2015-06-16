@@ -33,6 +33,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             s.name = name;
         end
         
+        
         function keyboard(o,key,time)
             % Generic keyboard handler to warn the end user/developer.
             disp (['Please define a keyboard function to handle  ' key ' in '  o.name ])
@@ -198,7 +199,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Compare with existing value to see if we need to set?
             oldValue = o.(src.Name);
             if (ischar(value) && ~(strcmp(oldValue,value))) ...
-                    || (isnumeric(value) && oldValue ~= value)
+                    || (~isempty(value) && isnumeric(value) && oldValue ~= value)
                 o.(src.Name) = value; % This calls PostSet and logs the new value
             end
         end

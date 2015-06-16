@@ -44,7 +44,7 @@ classdef rdp < neurostim.stimulus
             o.listenToKeyStroke('s');
             o.addProperty('size',5);
             o.addProperty('maxRadius',100);
-            o.addProperty('speed',10);
+            o.addProperty('speed',5);
             o.addProperty('xspeed',0);
             o.addProperty('yspeed',0);
             o.addProperty('direction',0);
@@ -57,7 +57,6 @@ classdef rdp < neurostim.stimulus
             o.addProperty('noiseMode',0);       % proportion, distribution
             o.addProperty('noiseDist',0);       % gaussian, uniform
             o.addProperty('noiseWidth',50);
-            o.addProperty('position',[0 0]);
             
           
         end
@@ -83,14 +82,12 @@ classdef rdp < neurostim.stimulus
             
             
         end
-        
+
         
         function beforeFrame(o,c,evt)
-            if o.visible
-                
-                Screen('DrawDots',c.window, [o.x o.y]', o.size, [o.color o.luminance], [o.position(1) o.position(2)]);
+            
+            Screen('DrawDots',c.window, [o.x o.y]', o.size, [o.color o.luminance]);
 
-            end
 
         end
         

@@ -45,9 +45,11 @@ classdef stimulus < neurostim.plugin
             s.addProperty('color',[1/3 1/3]);
             s.addProperty('luminance',50);
             s.addProperty('alpha',1);
-            s.addProperty('visible',true);
-            s.addProperty('scale',struct('x',[],'y',[],'z',[]));
-            s.addProperty('phi',struct('x',[],'y',[],'z',[]));
+            s.addProperty('scale',struct('x',1,'y',1,'z',1));
+            s.addProperty('angle',0);
+            s.addProperty('rx',0);
+            s.addProperty('ry',0);
+            s.addProperty('rz',1);
         end                      
         
         % Setup threshold estimation for one of the parameters. The user
@@ -127,7 +129,9 @@ classdef stimulus < neurostim.plugin
                 m =QuestMean(s.quest.q);
                 sd = QuestSd(s.quest.q);
             end
-        end                  
+        end
+        
+
     end
     
     methods (Access= protected)
@@ -144,11 +148,14 @@ classdef stimulus < neurostim.plugin
         function baseEvents(s,c,evt)
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
-%                     keyboard;
-                    Screen('glLoadIdentity', c.window);
-                    Screen('glTranslate', c.window,c.pixels(3)/2,c.pixels(4)/2);
-                    Screen('glScale', c.window,c.pixels(3)/c.physical(3), -c.pixels(4)/c.physical(4));
+                    glScreenSetup(c);
                     
+                    %Apply stimulus transform
+                    
+                    Screen('glTranslate',c.window,s.X,s.Y,s.Z);
+                    Screen('glScale',c.window,s.scale.x,s.scale.y);
+                    Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
+                
                     s.flags.on = c.frame >=s.on && c.frame < s.on+s.duration;
                     if s.flags.on 
                         notify(s,'BEFOREFRAME');
@@ -158,6 +165,7 @@ classdef stimulus < neurostim.plugin
                     else %Stim off
                         
                     end
+                    Screen('glLoadIdentity', c.window);
                 case 'BASEAFTERFRAME'
                     if s.flags.on 
                         notify(s,'AFTERFRAME');

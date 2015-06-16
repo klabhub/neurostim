@@ -317,7 +317,14 @@ classdef cic < neurostim.plugin
         
         function [x,y,buttons] = getMouse(c)
               [x,y,buttons] = GetMouse(c.window);            
-              [x,y] = pixel2Physical(x,y);
+              [x,y] = c.pixel2Physical(x,y);
+        end
+        
+        
+        function glScreenSetup(c)            
+            Screen('glLoadIdentity', c.window);
+            Screen('glTranslate', c.window,c.pixels(3)/2,c.pixels(4)/2);
+            Screen('glScale', c.window,c.pixels(3)/c.physical(1), -c.pixels(4)/c.physical(2));
         end
         
 
@@ -696,13 +703,13 @@ classdef cic < neurostim.plugin
         
         function [a,b] = pixel2Physical(c,x,y)
             % converts from pixel dimensions to physical ones.
-            tmp = [1 -1].*([x y]./c.pixels(3:4)-0.5).*c.physical(3:4);
+            tmp = [1 -1].*([x y]./c.pixels(3:4)-0.5).*c.physical(1:2);
             a = tmp(1);
             b = tmp(2);
         end
         
         function [a,b] = physical2Pixel(c,x,y)
-            tmp = c.pixels(3:4).*(0.5 + [x y]./([1 -1].*c.physical(3:4)));
+            tmp = c.pixels(3:4).*(0.5 + [x y]./([1 -1].*c.physical(1:2)));
             a = tmp(1);
             b = tmp(2);
         end

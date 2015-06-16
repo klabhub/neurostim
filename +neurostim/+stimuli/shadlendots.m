@@ -4,8 +4,7 @@ classdef shadlendots < neurostim.stimulus
     % createDotInfo.
     % Adjustable variables:
     %       coherence - dot coherence (from 0-1)
-    %       apertureXYD - aperture coordinates (X,Y) and D (diameter) in
-    %       set units.
+    %       apertureD - aperture diameter in set units.
     %       direction (in degrees) - 0 is right.
     %       dotSize - size of dots in pixels
     %       maxDotsPerFrame - depends on graphics card
@@ -34,7 +33,7 @@ classdef shadlendots < neurostim.stimulus
             
             % set dot properties (for user adjustment)
             o.addProperty('coherence',0.75);
-            o.addProperty('apertureXYD', [0 50 50]); % Aperture in XYD
+            o.addProperty('apertureD', 50); % Diameter of the aperture
             o.addProperty('direction',0);
             o.addProperty('dotSize',2);
             o.addProperty('maxDotsPerFrame',150);
@@ -56,9 +55,7 @@ classdef shadlendots < neurostim.stimulus
         
         function beforeFrame(o,c,evt)
             % draw dots on Screen
-            if o.visible
-                Screen('DrawDots',c.window,o.dots2Display,o.dotSize,[o.color o.luminance],o.center(1,1:2));
-            end
+            Screen('DrawDots',c.window,o.dots2Display,o.dotSize,[o.color o.luminance]);
             
         end
 
@@ -81,15 +78,15 @@ classdef shadlendots < neurostim.stimulus
             
             % set initial variables
             o.loopi = 1;
-            apD = o.apertureXYD(:,3);
+            apD = o.apertureD;
             
             % Change x,y coordinates to pixels (y is inverted - pos on bottom, neg. on top)
-            o.center = [o.apertureXYD(:,1) o.apertureXYD(:,2)];% where you want the center of the aperture
-            o.center(:,3) = o.apertureXYD(:,3); % add diameter
+            o.center = [0 0];% where you want the center of the aperture
+            o.center(:,3) = apD; % add diameter
             
             % ndots is the number of dots shown per video frame. Dots will be placed in a 
             % square of the size of aperture.
-            o.ndots = min(o.maxDotsPerFrame, ceil(16.7 * apD .* apD * c.pixels(3)/c.physical(3) * 0.01 / c.framerate));
+            o.ndots = min(o.maxDotsPerFrame, ceil(16.7 * apD .* apD * c.pixels(3)/c.physical(1) * 0.01 / c.framerate));
             
             o.dxdymultiplier = (3/c.framerate);
   
@@ -119,7 +116,7 @@ classdef shadlendots < neurostim.stimulus
 
             % Compute new locations, how many dots move coherently
             L = rand(o.ndots,1) < o.coherence;
-            dxdy = repmat((o.speed/10) * (10/o.apertureXYD(:,3)) * o.dxdymultiplier *...
+            dxdy = repmat((o.speed/10) * (10/o.apertureD) * o.dxdymultiplier *...
                 [cos(pi*o.direction/180.0), -sin(pi*o.direction/180.0)], o.ndots,1);   
             
             % Offset the selected dots
@@ -146,12 +143,12 @@ classdef shadlendots < neurostim.stimulus
             end
 
             % Convert for plot
-            this_x = o.apertureXYD(:,3)*o.this_s;	% pix/ApUnit
+            this_x = o.apertureD*o.this_s;	% pix/ApUnit
 
             % It assumes that 0 is at the top left, but we want it to be in the 
             % center, so shift the dots up and left, which means adding half of the 
             % aperture size to both the x and y directions.
-            dot_show = (this_x - o.apertureXYD(:,3)/2)';
+            dot_show = (this_x - o.apertureD/2)';
 
             outCircle = sqrt(dot_show(1,:).^2 + dot_show(2,:).^2) + o.dotSize/2 > (o.center(1,3)/2);        
             dots2Display = dot_show;
