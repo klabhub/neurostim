@@ -69,10 +69,6 @@ classdef cic < neurostim.plugin
     % These can be set in a script by a user to setup the
     % experiment
     properties (GetAccess=public, SetAccess =public)
-        color                   = struct('text',[1/3 1/3 50],'background',[1/3 1/3 5]); % Colors
-        colorMode               = 'xyL'; % xyL, RGBA
-        pixels@double           = [];    % Window coordinates.[left top width height]
-        physical@double         = []; % Window size in physical units [width height]
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
         root@char               = pwd;    % Root target directory for saving files.
         subjectNr@double        = 0;
@@ -80,6 +76,9 @@ classdef cic < neurostim.plugin
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         iti@double              = 1000; % Inter-trial Interval (ms) - default 1s.
         trialDuration@double    = 1000;  % Trial Duration (ms)
+        screen                  = struct('pixels',[],'physical',[],'color',struct('text',[1/3 1/3 50],...
+                                    'background',[1/3 1/3 5]),'colorMode','xyL',...
+                                    'framerate',[]);    %screen-related parameters.
         
         
     end
@@ -133,7 +132,6 @@ classdef cic < neurostim.plugin
         cursor;         % Cursor 'none','arrow'; see ShowCursor
         conditionName;  % The name of the current condition.
         blockName;      % Name of the current block
-        framerate;      % framerate of screen.
     end
     
     %% Public methods
@@ -149,7 +147,7 @@ classdef cic < neurostim.plugin
             v= length(c.conditions);
         end
         function v = get.center(c)
-            [x,y] = RectCenter(c.pixels);
+            [x,y] = RectCenter(c.screen.pixels);
             v=[x y];
         end
         function v= get.startTimeStr(c)
@@ -169,11 +167,6 @@ classdef cic < neurostim.plugin
                 % True subject numbers
                 v= num2str(c.subjectNr);
             end
-        end
-        
-        function v = get.framerate(c)
-            frameDur = Screen('GetFlipInterval',c.window);
-            v = 1/frameDur;
         end
         
         function v = get.conditionName(c)
@@ -219,6 +212,11 @@ classdef cic < neurostim.plugin
                 ShowCursor(value,c.window);
                 c.cursorVisible = true;
             end
+        end
+        
+        function getFramerate(c)
+            frameDur = Screen('GetFlipInterval',c.window);
+            c.screen.framerate = 1/frameDur;
         end
         
 
@@ -323,8 +321,8 @@ classdef cic < neurostim.plugin
         
         function glScreenSetup(c)            
             Screen('glLoadIdentity', c.window);
-            Screen('glTranslate', c.window,c.pixels(3)/2,c.pixels(4)/2);
-            Screen('glScale', c.window,c.pixels(3)/c.physical(1), -c.pixels(4)/c.physical(2));
+            Screen('glTranslate', c.window,c.screen.pixels(3)/2,c.screen.pixels(4)/2);
+            Screen('glScale', c.window,c.screen.pixels(3)/c.screen.physical(1), -c.screen.pixels(4)/c.screen.physical(2));
         end
         
 
@@ -574,9 +572,9 @@ classdef cic < neurostim.plugin
             %Add a generic output plug-in (there may be others already added)
             c.add(neurostim.output);
             
-            if isempty(c.physical)
+            if isempty(c.screen.physical)
                 % Assuming code is in pixels
-                c.physical = c.pixels(3:4);
+                c.screen.physical = c.screen.pixels(3:4);
             end
             
             % Setup PTB
@@ -585,7 +583,8 @@ classdef cic < neurostim.plugin
             c.KbQueueCreate;
             c.KbQueueStart;
             c.trial = 0;
-            DrawFormattedText(c.window, 'Press any key to start...', 'center', 'center', c.color.text);
+            c.getFramerate;
+            DrawFormattedText(c.window, 'Press any key to start...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.window);
             KbWait();
             notify(c,'BASEBEFOREEXPERIMENT');
@@ -654,7 +653,7 @@ classdef cic < neurostim.plugin
             notify(c,'BASEAFTEREXPERIMENT');
             notify(c,'AFTEREXPERIMENT');
             Screen('glLoadIdentity',c.window);
-            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.color.text);
+            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.window);
             c.KbQueueStop;
             KbWait;
@@ -703,13 +702,13 @@ classdef cic < neurostim.plugin
         
         function [a,b] = pixel2Physical(c,x,y)
             % converts from pixel dimensions to physical ones.
-            tmp = [1 -1].*([x y]./c.pixels(3:4)-0.5).*c.physical(1:2);
+            tmp = [1 -1].*([x y]./c.screen.pixels(3:4)-0.5).*c.screen.physical(1:2);
             a = tmp(1);
             b = tmp(2);
         end
         
         function [a,b] = physical2Pixel(c,x,y)
-            tmp = c.pixels(3:4).*(0.5 + [x y]./([1 -1].*c.physical(1:2)));
+            tmp = c.screen.pixels(3:4).*(0.5 + [x y]./([1 -1].*c.screen.physical(1:2)));
             a = tmp(1);
             b = tmp(2);
         end
@@ -765,7 +764,7 @@ classdef cic < neurostim.plugin
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
             % Unrestricted color range
             PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');
-            switch upper(c.colorMode)
+            switch upper(c.screen.colorMode)
                 case 'XYL'
                     % Use builtin xyYToXYZ() plugin for xyY -> XYZ conversion:
                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'xyYToXYZ');
@@ -792,9 +791,9 @@ classdef cic < neurostim.plugin
             % end
             screens=Screen('Screens');
             screenNumber=max(screens);
-            c.window = PsychImaging('OpenWindow',screenNumber, c.color.background, c.pixels);
+            c.window = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
             
-            switch upper(c.colorMode)
+            switch upper(c.screen.colorMode)
                 case 'XYL'
                     PsychColorCorrection('SetSensorToPrimary', c.window, cal);
                 case 'RGB'
@@ -803,7 +802,7 @@ classdef cic < neurostim.plugin
             
             
             if ~isempty(c.mirrorPixels)
-                c.mirror = PsychImaging('OpenWindow',screenNumber, c.color.background, c.mirrorPixels);
+                c.mirror = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.mirrorPixels);
             end
         end
     end

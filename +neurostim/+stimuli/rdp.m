@@ -146,13 +146,13 @@ classdef rdp < neurostim.stimulus
                     o.phiOffset(pos,1) = randAngle(pos);
                     
                     if (ceil(o.coherence*o.nrDots)-1)>=1 && any(pos(1:ceil(o.coherence*o.nrDots)))
-                        o.dR(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.framerate;
-                        o.dphi(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.framerate;
+                        o.dR(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.screen.framerate;
+                        o.dphi(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.screen.framerate;
                     end
                     if o.coherence == 0 || (o.coherence ~= 1 && any(pos(ceil(o.coherence*o.nrDots):end)))
                         index = find(pos)>=o.coherence*o.nrDots;
-                        o.dR(index,1) = -o.xspeed/o.cic.framerate;
-                        o.dphi(index,1)=-o.yspeed/o.cic.framerate;
+                        o.dR(index,1) = -o.xspeed/o.cic.screen.framerate;
+                        o.dphi(index,1)=-o.yspeed/o.cic.screen.framerate;
                     end
                     
                     o.x(pos,1) = o.radius(pos).*cosd(randAngle(pos));
@@ -167,15 +167,15 @@ classdef rdp < neurostim.stimulus
                         case {0, lower('proportion'), lower('prop')} %proportion
                             
                             if (ceil(o.coherence*o.nrDots))>=1 && any(pos(1:ceil(o.coherence*o.nrDots)))
-                               o.dx(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.framerate;
-                               o.dy(pos(1:ceil(o.coherence*o.nrDots)),1) = o.yspeed/o.cic.framerate;
+                               o.dx(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.screen.framerate;
+                               o.dy(pos(1:ceil(o.coherence*o.nrDots)),1) = o.yspeed/o.cic.screen.framerate;
                             end
                             
                             if o.coherence == 0 || (o.coherence ~= 1 && any(pos(ceil(o.coherence*o.nrDots):end)))
                                index = find(pos)>=o.coherence*o.nrDots;
                                randAngle(index) = rand(nnz(index),1).*360;
-                               o.dx(index,1) = cosd(randAngle(index)).*o.speed/o.cic.framerate;
-                               o.dy(index,1) = sind(randAngle(index)).*o.speed/o.cic.framerate;
+                               o.dx(index,1) = cosd(randAngle(index)).*o.speed/o.cic.screen.framerate;
+                               o.dy(index,1) = sind(randAngle(index)).*o.speed/o.cic.screen.framerate;
                             end
                             
                             
@@ -197,7 +197,7 @@ classdef rdp < neurostim.stimulus
                             end
                             
                             randAngle = o.direction + randAngle;
-                            [o.dx(pos,1), o.dy(pos,1)] = pol2cart(randAngle.*(pi./180),o.speed/o.cic.framerate);
+                            [o.dx(pos,1), o.dy(pos,1)] = pol2cart(randAngle.*(pi./180),o.speed/o.cic.screen.framerate);
                     
                             
                     end

@@ -40,25 +40,44 @@ classdef output < neurostim.plugin
     
     
     methods (Access = public)
-        function o = output
+        function o = output(name)
             o = o@neurostim.plugin('output');
             if o.saveAfterTrial > 0
                 % only listen to afterTrial event if saving after trial.
                 o.listenToEvent({'AFTERTRIAL'});
             end
             o.listenToEvent({'AFTEREXPERIMENT','BEFOREEXPERIMENT'});            
+%             o.listenToEvent({'BASEAFTEREXPERIMENT'});
             o.counter = o.saveAfterTrial;            
         end
         
-        
+            
         function collectData(o,c)
             % collects all the data from log files into a cell array.
-            o.data = [];
-            for a = 1:length(o.cic.stimuli)
-                stimulus = o.cic.stimuli{a};
-                o.data.(stimulus)(1,:) = o.cic.(stimulus).log.parms;
-                o.data.(stimulus)(2,:) = o.cic.(stimulus).log.values;
-                o.data.(stimulus)(3,:) = num2cell(o.cic.(stimulus).log.t);
+            o.data = struct;
+            for a = 1:length(c.stimuli)
+                stimulus = c.stimuli{a};
+               o.data.stimuli.(stimulus)(1,:) = c.(stimulus).log.parms;
+               o.data.stimuli.(stimulus)(2,:) = c.(stimulus).log.values;
+               o.data.stimuli.(stimulus)(3,:) = num2cell(c.(stimulus).log.t);
+            end
+            
+            saveVariables = {'screen','subjectNr','paradigm',...
+                'iti','trialDuration','nrStimuli','nrConditions','nrTrials',...
+                'fullFile','subject','blocks'};
+            
+            for a = 1:length(saveVariables)
+                variable = saveVariables{a};
+                o.data.(variable) = c.(variable);
+            end
+            
+            for a = 1:length(c.plugins)
+               plugin = c.plugins{a};
+               if ~isempty(c.(plugin).log.parms)
+                   o.data.(plugin)(1,:) = c.(plugin).log.parms;
+                   o.data.(plugin)(2,:) = c.(plugin).log.values;
+                   o.data.(plugin)(3,:) = num2cell(c.(plugin).log.t);
+               end
             end
         end
                 
@@ -82,6 +101,7 @@ classdef output < neurostim.plugin
         function saveFile(o,c)
             %Function that should be overloaded in derived class for custom user output formats.
             save(o.filename,'c', '-mat');
+            
         end
         
         function afterTrial(o,c,evt)

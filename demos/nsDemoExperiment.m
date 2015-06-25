@@ -21,8 +21,8 @@ c.add(plugins.debug);               % Use the debug plugin which allows you to m
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
 % g.color = [1/3 1/3];
 % g.luminance = 30;
-% g.X = 250;                          % Position the Gabor
-% g.Y = 250;                          
+% g.X = 0;                          % Position the Gabor
+% g.Y = 0;                          
 % g.sigma = 25;                       % Set the sigma of the Gabor.
 % g.phaseSpeed = 10;
 % c.add(g);
@@ -43,21 +43,19 @@ c.add(plugins.debug);               % Use the debug plugin which allows you to m
 m = stimuli.mouse('mouse');
 c.add(m);
 
-g=stimuli.fixation('fix');           % Create a gabor stimulus.
-g.on = 0;
-g.duration = inf;
-g.luminance = 50;
-g.X = 0;                          % Position the Gabor
-g.Y = 0; 
-g.color = [1 1];
-g.shape = 'STAR';
-g.size = 2;
-g.size2 = 1;
-functional(g,'angle',{@plus,{c,'frame'},0});
+f=stimuli.fixation('fix');           % Create a fixation stimulus.
+f.on = 0;
+f.duration = inf;
+f.luminance = 50;
+f.color = [1 1];
+f.shape = 'STAR';
+f.size = 2;
+f.size2 = 1;
+% functional(f,'angle',{@plus,{c,'frame'},0});
 
-% functional(g,'X',{@plus,{m,'clickx'},0});
-% functional(g,'Y',{@plus,{m,'clicky'},0});
-c.add(g);
+functional(f,'X',{@(x)x,{m,'mousex'}});
+functional(f,'Y',{@(x)x,{m,'mousey'}});
+c.add(f);
 
 % 
 s = stimuli.rdp('dots');
@@ -76,14 +74,14 @@ c.add(s);
 
 
 
-% k = stimuli.nafcResponse('key');
-% c.add(k);
-% k.keys = {'a' 'z'};
-% k.stimName = 'dots';
-% k.var = 'direction';
-% k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
-% k.keyLabel = {'clockwise', 'counterclockwise'};
-% k.endTrialonKeyPress = 1;
+k = stimuli.nafcResponse('key');
+c.add(k);
+k.keys = {'a' 'z'};
+k.stimName = 'dots';
+k.var = 'direction';
+k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
+k.keyLabel = {'clockwise', 'counterclockwise'};
+k.endTrialonKeyPress = 1;
 
 % s = stimuli.shadlendots('dots');
 % s.apertureD = 20;
@@ -96,8 +94,7 @@ c.add(s);
 
 
 c.addFactorial('myFactorial',...
-    {'dots','direction',{0 90}}, ...
-    {'dots', 'coherence', {0.75 1}}) ;
+    {'fix','shape',{'STAR' 'RECT'}}) ;
 
 c.addBlock('myBlock','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 

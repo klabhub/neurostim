@@ -5,12 +5,20 @@ classdef mouse < neurostim.stimulus
     %                       arrow: normal mouse arrow
     %                       hand: mouse hand
     %
+    % Updates every frame with mouse position (may cause frame drops)
     
-    
-    properties
+    properties (Access=public)
         mousex;
         mousey;
         cursorShape = 'cross';
+        time;
+        pressed = 0;
+    end
+    
+    properties (Access=public, SetObservable)
+        trajX;
+        trajY;
+        trajTime;
     end
     
     methods (Access = public)
@@ -22,6 +30,8 @@ classdef mouse < neurostim.stimulus
             o.addProperty('clickx',[]);
             o.addProperty('clicky',[]);
             o.addProperty('clickbutton',[]);
+            o.addProperty('clicktime',[]);
+            o.addProperty('clickNumber',0);
             
         end
         
@@ -48,19 +58,33 @@ classdef mouse < neurostim.stimulus
         
         function afterFrame(o,c,evt)
             
-           [o.mousex(end+1),o.mousey(end+1),buttons] = c.getMouse();
-           if any(buttons) ~=0
-               o.clickx = o.mousex(end);
-               o.clicky = o.mousey(end);
+           [o.mousex,o.mousey,buttons] = c.getMouse();
+           o.time = GetSecs;
+
+           if any(buttons)~=0   % if any button is pressed
+               o.clickx = o.X;
+               o.clicky = o.Y;
                o.clickbutton = buttons;
+               o.clicktime = o.time;
+               if o.pressed == 0    % check if button was previously pressed
+                   o.clickNumber = o.clickNumber + 1;
+               end
+               o.pressed = 1;   % set button as pressed.
+           else o.pressed = 0;
+                   
            end
-           
-            
+            o.trajX(end+1) = o.mousex;
+            o.trajY(end+1) = o.mousey;
+            o.trajTime(end+1) = o.time;
         end
         
+        
+        
+        
         function afterExperiment(o,c,evt)
-            o.X = o.mousex;
-            o.Y = o.mousey;
+            o.addPostSet('trajX',[]);
+            o.addPostSet('trajY',[]);
+            o.addPostSet('trajTime',[]);
         end
     end
 end

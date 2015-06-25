@@ -9,10 +9,10 @@ classdef myConfig < neurostim.cic
         
         function o = myConfig()
            o = o@neurostim.cic;
-           o.pixels = [0 0 1600 1000];
-           o.physical = [0 0 50 31.25];
-           o.color.background = [0 0 0];
-           o.colorMode = 'xyl';
+           o.screen.pixels = [0 0 1600 1000];
+           o.screen.physical = [50 31.25];
+           o.screen.color.background = [0 0 0];
+           o.screen.colorMode = 'xyl';
            o.iti = 1000;
            o.trialDuration = Inf;
         end

@@ -48,7 +48,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % two-element cell array : the first is a handle to the object or the name of the
         % objet,the second is the object property.
         function functional(o,prop,specs)
-            h =findprop(o,prop);
+             h =findprop(o,prop);
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
@@ -135,7 +135,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
-            h.SetObservable =true;
+%             h.SetObservable =true;    % This gives a read-only error -
+%             setObservable in properties beforehand.
             o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess, validate));
             o.(prop) = o.(prop); % Force a call to the postprocessor.
         end
@@ -199,7 +200,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Compare with existing value to see if we need to set?
             oldValue = o.(src.Name);
             if (ischar(value) && ~(strcmp(oldValue,value))) ...
-                    || (~isempty(value) && isnumeric(value) && oldValue ~= value)
+                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || oldValue ~= value)) || (isempty(value) && ~isempty(oldValue))
                 o.(src.Name) = value; % This calls PostSet and logs the new value
             end
         end

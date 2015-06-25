@@ -62,7 +62,9 @@ classdef gabor < neurostim.stimulus
                 pad = [];
             end
             aux = [o.phase, o.frequency, o.sigma, pad; o.contrast 0 0 0]';
+
             Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.luminance o.alpha] , textureShader,specialFlags, aux);
+
         end
         
         function afterFrame(o,c,evt)
@@ -88,7 +90,7 @@ classdef gabor < neurostim.stimulus
             % experiment.
             glUseProgram(o.shader);
             glUniform2f(glGetUniformLocation(o.shader , 'size'), o.width, o.height);
-            glUniform1i(glGetUniformLocation(o.shader , 'rgbColor'), strcmpi(o.cic.colorMode,'RGB'));
+            glUniform1i(glGetUniformLocation(o.shader , 'rgbColor'), strcmpi(o.cic.screen.colorMode,'RGB'));
             glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
             % Setup done:
             glUseProgram(0);
