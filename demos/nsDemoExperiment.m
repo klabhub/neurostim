@@ -8,14 +8,13 @@ Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference', 'ConserveVRAM', 32);
 
 
-% c = cic;                            % Create Command and Intelligence Center...
+c = cic;                            % Create Command and Intelligence Center...
 % c.position = [0 0 1600 1000];         % Set the position and size of the window
 % c.color.background= [0 0 0];
 % c.colorMode = 'xyl';
 % c.iti = 2000;
 % c.trialDuration = inf;
-
-c = myConfig;
+c = myConfig(c);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
 
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
@@ -98,7 +97,7 @@ c.addFactorial('myFactorial',...
 
 c.addBlock('myBlock','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
-c.add(output);
+% c.add(output);
 
 % c.add(plugins.eyelink);
 

@@ -25,7 +25,7 @@ classdef mouse < neurostim.stimulus
         function o = mouse(name)
             o = o@neurostim.stimulus(name);
             
-            o.listenToEvent({'BEFOREEXPERIMENT','AFTERFRAME','AFTEREXPERIMENT'})
+            o.listenToEvent({'BEFOREEXPERIMENT','AFTERFRAME','BEFORETRIAL','AFTERTRIAL'})
             
             o.addProperty('clickx',[]);
             o.addProperty('clicky',[]);
@@ -56,6 +56,14 @@ classdef mouse < neurostim.stimulus
             
         end
         
+        function beforeTrial(o,c,evt)
+            if ~isempty(o.trajX) || ~isempty(o.trajY) || ~isempty(o.trajTime)
+                o.trajX = [];
+                o.trajY = [];
+                o.trajTime = [];
+            end
+        end
+        
         function afterFrame(o,c,evt)
             
            [o.mousex,o.mousey,buttons] = c.getMouse();
@@ -81,10 +89,13 @@ classdef mouse < neurostim.stimulus
         
         
         
-        function afterExperiment(o,c,evt)
+        function afterTrial(o,c,evt)
             o.addPostSet('trajX',[]);
             o.addPostSet('trajY',[]);
             o.addPostSet('trajTime',[]);
+            o.removeListener('trajX');
+            o.removeListener('trajY');
+            o.removeListener('trajTime');
         end
     end
 end

@@ -10,9 +10,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     properties (SetAccess=private, GetAccess=public)
+        
         keyStrokes  = {}; % Cell array of keys that his plugin will respond to
         keyHelp     = {}; % Copy in the plugin allows easier setup of keyboard handling by stimuli and other derived classes.
         evts        = {}; % Events that this plugin will respond to.
+    end
+    
+    properties (Access = private)
+        listenerHandle = struct;
     end
     
     methods (Access=public)
@@ -53,7 +58,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
             h.GetObservable =true;
-            o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
+            o.listenerHandle.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
         end
         
         function write(o,name,value)
@@ -119,7 +124,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 end
             end
             % Setup a listener for logging, validation, and postprocessing
-            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
+            o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
             o.(prop) = value; % Set it, this will call the logParmSet function as needed.
         end
         
@@ -137,11 +142,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
 %             h.SetObservable =true;    % This gives a read-only error -
 %             setObservable in properties beforehand.
-            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess, validate));
+            o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess, validate));
             o.(prop) = o.(prop); % Force a call to the postprocessor.
         end
         
-        
+        function removeListener(o,prop)
+            delete(o.listenerHandle.(prop));
+        end
         % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)

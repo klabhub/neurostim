@@ -55,6 +55,7 @@ classdef cic < neurostim.plugin
         AFTERTRIAL;
         BEFOREFRAME;
         AFTERFRAME;
+        FIRSTFRAME;
         
         %%
         reward;
@@ -105,6 +106,9 @@ classdef cic < neurostim.plugin
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
+        trialStartTime = [];
+        trialEndTime = [];
+        stopTime = [];
         %data@sib;
         
         %% Profiling information.
@@ -410,7 +414,9 @@ classdef cic < neurostim.plugin
                         case 'AFTERTRIAL'
                             h= @(c,evt)(o.afterTrial(c,evt));
                         case 'AFTEREXPERIMENT'
-                            h= @(c,evt)(o.afterExperiment(c,evt));
+                             h= @(c,evt)(o.afterExperiment(c,evt));
+                        case 'FIRSTFRAME'
+                            h = @(c,evt)(o.firstFrame(c,evt));
                     end
                     % Install a listener in CIC. It will distribute.
                     addlistener(c,o.evts{i},h);
@@ -570,7 +576,7 @@ classdef cic < neurostim.plugin
         function run(c)
             
             %Add a generic output plug-in (there may be others already added)
-            c.add(neurostim.output);
+            c.add(neurostim.plugins.output);
             
             if isempty(c.screen.physical)
                 % Assuming code is in pixels
@@ -613,8 +619,9 @@ classdef cic < neurostim.plugin
                     if (c.PROFILE); addProfile(c,'BEFORETRIAL',toc);end
                     WaitSecs((trialEndTime+c.iti)/1000-GetSecs);    % wait ITI before next trial
                     c.flags.trial = true;
+                    PsychHID('KbQueueFlush');
                     c.frame=0;
-                    trialStartTime = GetSecs*1000;  % for trialDuration check
+                    c.trialStartTime(c.trial) = GetSecs*1000;  % for trialDuration check
                     while (c.flags.trial && c.flags.experiment)
                         %                         time = GetSecs;
                         c.frame = c.frame+1;
@@ -629,20 +636,25 @@ classdef cic < neurostim.plugin
                         c.KbQueueCheck;
                         if (c.PROFILE); addProfile(c,'AFTERFRAME',toc);end
                         c.vbl(end+1)=Screen('Flip', c.window,when,1-c.clear);
+                        
+                        if c.frame == 1
+                           notify(c,'FIRSTFRAME'); 
+                        end
                         %                         if (vbl - time) > (2/60 - .5*2/60)
                         %                             warning('Missed frame.');     % check for missed frames
                         %                         end
                         %                         if ~isempty(c.mirror)
                         %                             Screen('CopyWindow',c.window,c.mirror);
                         %                         end
-                        if (c.trialDuration <= (GetSecs*1000-trialStartTime))   % if trialDuration has been reached
+                        if (c.trialDuration <= (GetSecs*1000-c.trialStartTime))   % if trialDuration has been reached
                             c.flags.trial=false;
                         end
                     end % Trial running
-                    trialEndTime = GetSecs * 1000;
+
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     if (c.PROFILE); tic;end
                     vbl=Screen('Flip', c.window,when,1-c.clear);
+                    c.trialEndTime(c.trial) = GetSecs * 1000;   
                     notify(c,'BASEAFTERTRIAL');
                     notify(c,'AFTERTRIAL');
                     afterTrial(c);
@@ -650,11 +662,15 @@ classdef cic < neurostim.plugin
                 end %conditions in block
                 if ~c.flags.experiment;break;end
             end %blocks
+            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
+            Screen('Flip', c.window);
+            if length(c.trialEndTime)<c.trial
+                c.trialEndTime(c.trial) = GetSecs * 1000;
+            end
+            c.stopTime = now;
             notify(c,'BASEAFTEREXPERIMENT');
             notify(c,'AFTEREXPERIMENT');
             Screen('glLoadIdentity',c.window);
-            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.window);
             c.KbQueueStop;
             KbWait;
             Screen('CloseAll');
