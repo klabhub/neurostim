@@ -145,7 +145,7 @@ classdef cic < neurostim.plugin
             v= length(c.stimuli);
         end
         function v= get.nrTrials(c)
-            v= 0;
+            v= length(c.blocks.conditions);
         end
         function v= get.nrConditions(c)
             v= length(c.conditions);
@@ -585,9 +585,12 @@ classdef cic < neurostim.plugin
             
             % Setup PTB
             PsychImaging(c);
-            
+            slack = zeros(c.nrTrials,20000);
+            c.trialEndTime = zeros(1,c.nrTrials);
+            c.trialStartTime = zeros(1,c.nrTrials);
             c.KbQueueCreate;
             c.KbQueueStart;
+            Priority(2);
             c.trial = 0;
             c.getFramerate;
             DrawFormattedText(c.window, 'Press any key to start...', 'center', 'center', c.screen.color.text);
@@ -598,7 +601,8 @@ classdef cic < neurostim.plugin
             c.flags.experiment = true;
             when =0;
             nrBlocks = numel(c.blocks);
-            trialEndTime = GetSecs*1000;
+            ititime = GetSecs*1000;
+            %             profile on;
             for blockNr=1:nrBlocks
                 c.flags.block = true;
                 c.block = blockNr;
@@ -606,39 +610,57 @@ classdef cic < neurostim.plugin
                 for conditionNr = c.blocks(blockNr).conditions
                     c.condition = conditionNr;
                     c.trial = c.trial+1;
-                    
-                    disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
+                    %                     disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
                     
                     %                     if ~isempty(c.mirror)
                     %                         Screen('CopyWindow',c.window,c.mirror);
                     %                     end
-                    if (c.PROFILE); tic;end
+                    %                     if (c.PROFILE); tic;end
                     beforeTrial(c);
                     notify(c,'BASEBEFORETRIAL');
                     notify(c,'BEFORETRIAL');
-                    if (c.PROFILE); addProfile(c,'BEFORETRIAL',toc);end
-                    WaitSecs((trialEndTime+c.iti)/1000-GetSecs);    % wait ITI before next trial
+                    %                     if (c.PROFILE); addProfile(c,'BEFORETRIAL',toc);end
+                    if c.trial>1
+                        for a = 1:(round((c.iti)*c.screen.framerate/1000))
+                            Screen('Flip',c.window);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                        end
+                    end
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     c.frame=0;
-                    c.trialStartTime(c.trial) = GetSecs*1000;  % for trialDuration check
+                    frameStart=GetSecs*1000;
                     while (c.flags.trial && c.flags.experiment)
-                        %                         time = GetSecs;
+                        %                                                 time = GetSecs;
                         c.frame = c.frame+1;
                         if (c.PROFILE); tic;end
                         notify(c,'BASEBEFOREFRAME');
                         notify(c,'BEFOREFRAME');
-                        if (c.PROFILE); addProfile(c,'BEFOREFRAME',toc);end
+                        %                         if (c.PROFILE); addProfile(c,'BEFOREFRAME',toc);end
                         Screen('DrawingFinished',c.window);
-                        if (c.PROFILE); tic;end
+                        %                         if (c.PROFILE); tic;end
                         notify(c,'BASEAFTERFRAME');
                         notify(c,'AFTERFRAME');
                         c.KbQueueCheck;
                         if (c.PROFILE); addProfile(c,'AFTERFRAME',toc);end
-                        c.vbl(end+1)=Screen('Flip', c.window,when,1-c.clear);
+                        slack(c.trial,c.frame) = 1000/c.screen.framerate-(GetSecs*1000-frameStart);
+                        [vbl,~,flip,missed] = Screen('Flip', c.window,when,1-c.clear);
+                        if missed>0
+                            disp(['Missed Frame ' num2str(c.frame)])
+                            %                             disp(['slack = ' num2str(slack(c.trial,c.frame))])
+                        end
+                        frameStart = GetSecs*1000;
                         
+                        if c.trial == 10
+                            %                            profile viewer;
+                            slack(:,1) = [];
+                            slack(:,11:end)=[];
+                            keyboard;
+                        end
                         if c.frame == 1
-                           notify(c,'FIRSTFRAME'); 
+                            notify(c,'FIRSTFRAME');
+                            c.trialStartTime(c.trial) = vbl*1000; % for trialDuration check
+                            ititime = vbl*1000-ititime;
+                            time = vbl*1000;
                         end
                         %                         if (vbl - time) > (2/60 - .5*2/60)
                         %                             warning('Missed frame.');     % check for missed frames
@@ -646,15 +668,17 @@ classdef cic < neurostim.plugin
                         %                         if ~isempty(c.mirror)
                         %                             Screen('CopyWindow',c.window,c.mirror);
                         %                         end
-                        if (c.trialDuration <= (GetSecs*1000-c.trialStartTime))   % if trialDuration has been reached
+                        if (floor(c.trialDuration/c.screen.framerate))<= ((GetSecs*1000-c.trialStartTime(c.trial))/c.screen.framerate)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
                         end
                     end % Trial running
-
+                    
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     if (c.PROFILE); tic;end
                     vbl=Screen('Flip', c.window,when,1-c.clear);
-                    c.trialEndTime(c.trial) = GetSecs * 1000;   
+                    c.trialEndTime(c.trial) = GetSecs * 1000;
+                    trialdur = vbl*1000-time;
+                    ititime = vbl*1000;
                     notify(c,'BASEAFTERTRIAL');
                     notify(c,'AFTERTRIAL');
                     afterTrial(c);
@@ -670,10 +694,12 @@ classdef cic < neurostim.plugin
             c.stopTime = now;
             notify(c,'BASEAFTEREXPERIMENT');
             notify(c,'AFTEREXPERIMENT');
+            Priority(0);
             Screen('glLoadIdentity',c.window);
             c.KbQueueStop;
             KbWait;
             Screen('CloseAll');
+            %             profile viewer;
         end
         
         
@@ -754,7 +780,7 @@ classdef cic < neurostim.plugin
         
         function KbQueueCheck(c)
             [pressed, firstPress, firstRelease, lastPress, lastRelease]= KbQueueCheck(c.keyDeviceIndex);
-            if pressed
+             if pressed
                 % Some key was pressed, pass it to the plugin that wants
                 % it.
                 %                 firstRelease(out)=[]; not using right now
@@ -762,8 +788,8 @@ classdef cic < neurostim.plugin
                 %                 lastRelease(out)=[];
                 ks = find(firstPress);
                 for k=ks
-                    ix = unique(find(c.allKeyStrokes==k));% should be only one.
-                    if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
+                    ix = sum(c.allKeyStrokes==k);% should be only one.
+                    if ix >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
                     % Call the keyboard member function in the relevant
                     % class
                     c.keyHandlers{ix}.keyboard(KbName(k),firstPress(k));

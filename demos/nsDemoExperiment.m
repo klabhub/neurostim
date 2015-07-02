@@ -3,7 +3,6 @@ function  nsDemoExperiment
 import neurostim.*
 % Factorweights.
 commandwindow;
-
 Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference', 'ConserveVRAM', 32);
 
@@ -48,12 +47,12 @@ f.duration = inf;
 f.luminance = 50;
 f.color = [1 1];
 f.shape = 'STAR';
-f.size = 2;
+f.size = 2; 
 f.size2 = 1;
-% functional(f,'angle',{@plus,{c,'frame'},0});
+functional(f,'angle',{@plus,{c,'frame'},0});
 
-functional(f,'X',{@(x)x,{m,'mousex'}});
-functional(f,'Y',{@(x)x,{m,'mousey'}});
+% functional(f,'X',{@(x)x,{m,'mousex'}});
+% functional(f,'Y',{@(x)x,{m,'mousey'}});
 c.add(f);
 
 % 
@@ -82,14 +81,14 @@ k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
 k.keyLabel = {'clockwise', 'counterclockwise'};
 k.endTrialonKeyPress = 1;
 
-% s = stimuli.shadlendots('dots');
-% s.apertureD = 20;
-% s.color = [1 1];
-% s.luminance = 1;
-% s.coherence = 0.8;
-% s.speed = 10;
-% s.direction = 0;
-% c.add(s);
+s = stimuli.shadlendots('dots2');
+s.apertureD = 20;
+s.color = [1 1];
+s.luminance = 1;
+s.coherence = 0.8;
+s.speed = 10;
+s.direction = 0;
+c.add(s);
 
 
 c.addFactorial('myFactorial',...
@@ -97,10 +96,10 @@ c.addFactorial('myFactorial',...
 
 c.addBlock('myBlock','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
-% c.add(output);
+c.add(plugins.output);
 
 % c.add(plugins.eyelink);
 
-c.run; 
+c.run;
 
 

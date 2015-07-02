@@ -13,7 +13,7 @@ classdef output < neurostim.plugin
     properties (GetAccess=public, SetAccess=public)
         root='c:\temp\';
         mode@char   = 'DAYFOLDERS';
-        saveAfterTrial = 1;        
+        saveAfterTrial = 0;        
     end
     
     properties (GetAccess=public, SetAccess=protected);
@@ -46,7 +46,7 @@ classdef output < neurostim.plugin
     methods (Access = public)
         function o = output(name)
             o = o@neurostim.plugin('output');
-            if o.saveAfterTrial > 0
+             if o.saveAfterTrial > 0
                 % only listen to afterTrial event if saving after trial.
                 o.listenToEvent({'AFTERTRIAL'});
             end
@@ -110,6 +110,9 @@ classdef output < neurostim.plugin
                 
                 for a = 1:length(saveVariables)
                     variable = saveVariables{a};
+                    if strcmpi(variable,'trialStartTime') || strcmpi(variable,'trialEndTime')
+                        o.data.(horzcat('save',num2str(o.trial))).(variable) = c.(variable)(end);
+                    end
                     o.data.(horzcat('save',num2str(o.trial))).(variable) = c.(variable);
                 end
                 
@@ -120,7 +123,8 @@ classdef output < neurostim.plugin
                             c.(plugin).log.parms((o.variableSize.(plugin)+1):end);
                         o.data.(horzcat('save',num2str(o.trial))).(plugin)(2,:) = ...
                             c.(plugin).log.values((o.variableSize.(plugin)+1):end);
-                        o.data.(horzcat('save',num2str(o.trial))).(plugin)(3,:) = num2cell(c.(plugin).log.t((o.variableSize.(plugin)+1):end));
+                        o.data.(horzcat('save',num2str(o.trial))).(plugin)(3,:) = ...
+                            num2cell(c.(plugin).log.t((o.variableSize.(plugin)+1):end));
                         o.variableSize.(plugin) = max(size(c.(plugin).log.parms));
                     end
                 end
@@ -167,14 +171,20 @@ classdef output < neurostim.plugin
         
         function saveFile(o,c,append)
                 %Function that should be overloaded in derived class for custom user output formats.
-             if append
+             if o.last == 1
+                 [pathName, fname,ext] = fileparts(o.filename);  
                  data = o.data.(horzcat('save',num2str(o.trial)));
-                 o.m.(horzcat('save',num2str(o.trial))) = data;
-            else
-                data = o.data.save0;
-                o.m = matfile(o.filename,'Writable',true);
-                o.m.save0 = data;
-            end
+                 save([pathName, fname, '_total.mat'],'data','-mat');
+                 
+             else if append
+                     data = o.data.(horzcat('save',num2str(o.trial)));
+                     o.m.(horzcat('save',num2str(o.trial))) = data;
+                 else
+                     data = o.data.save0;
+                     o.m = matfile(o.filename,'Writable',true);
+                     o.m.save0 = data;
+                 end
+             end
             
         end
         
@@ -257,6 +267,12 @@ classdef output < neurostim.plugin
         function f= timeName()
             % Create a file named after the current time (quasi-unique)
             f= [datestr(now,'HHMMSS') '.mat'];
+        end
+        
+        function sobj = saveobj(obj)
+            sobj = saveobj@super(obj);
+            
+            
         end
     end
     

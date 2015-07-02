@@ -95,7 +95,7 @@ classdef rdp < neurostim.stimulus
         function afterFrame(o,c,evt)
 
             % reduce lifetime by 1
-            if ~isequal(o.noiseMode,'distribution') && o.noiseMode ~= 1 && ~isequal(o.noiseMode,'dist')
+            if ~strcmpi(o.noiseMode,'distribution') && o.noiseMode ~= 1 && ~strcmpi(o.noiseMode,'dist')
                 o.framesLeft = o.framesLeft - 1;
             end
             
@@ -113,6 +113,7 @@ classdef rdp < neurostim.stimulus
             
             R = [cos(arg) -sin(arg) sin(arg) cos(arg)];
             % create a matrix with all rotation matrices in a column
+            
             R2 = zeros(2*max(size(xprev)),2);
             R2(1:2:end) = R(:,1:2);
             R2(2:2:end) = R(:,3:4);
@@ -121,6 +122,7 @@ classdef rdp < neurostim.stimulus
             % along the diagonal
             R = mat2cell(R2,2*ones(max(size(xprev)),1),2);
             R = blkdiag(R{:});
+            
             
             xyprev = reshape([xprev(:) yprev(:)]',2*size(xprev,1),[]);
             
@@ -217,11 +219,11 @@ classdef rdp < neurostim.stimulus
                     
                     if any(futureRad>o.maxRadius)   % if any new dots are outside the max radius
                         % move dots
-                        [dotDir,~] = cart2pol(o.dx(~~(futureRad>o.maxRadius)),o.dy(~~(futureRad>o.maxRadius)));
-                        [xr, yr] = rotateXY(o,o.x(~~(futureRad>o.maxRadius)),o.y(~~(futureRad>o.maxRadius)),-dotDir);
+                        [dotDir,~] = cart2pol(o.dx(~~(futureRad>o.maxRadius)),o.dy(logical(futureRad>o.maxRadius)));
+                        [xr, yr] = rotateXY(o,o.x(logical(futureRad>o.maxRadius)),o.y(logical(futureRad>o.maxRadius)),-dotDir);
                         chordLength = 2*sqrt(o.maxRadius^2 - yr.^2);
                         xr = xr - chordLength;
-                        [o.x(~~(futureRad>o.maxRadius)), o.y(~~(futureRad>o.maxRadius))] = rotateXY(o,xr,yr,dotDir);
+                        [o.x(logical(futureRad>o.maxRadius)), o.y(logical(futureRad>o.maxRadius))] = rotateXY(o,xr,yr,dotDir);
                     end
                     
                 case {0, lower('spiral')} %spiral
