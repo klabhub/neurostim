@@ -1,18 +1,26 @@
 classdef fixation < neurostim.stimulus
     properties
-        
     end
+    
+
     methods (Access = public)
         function o = fixation(name)
             o = o@neurostim.stimulus(name);
-            o.addProperty('size',5);
+            o.addProperty('size',15);
             o.addProperty('size2',5);
             o.addProperty('color2',[0 0]);
             o.addProperty('luminance2',0);
             o.addProperty('shape','CIRC','',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR'}))) ;               
-            o.listenToEvent({'BEFOREFRAME'});
+            o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT'});
             o.on = 0;
         end
+        
+        function beforeExperiment(o,c,evt)
+            if (c.screen.physical(1) ~= c.screen.pixels(3)) && sum(strcmp('size',c.fix.log.parms))==1
+                o.size = o.size*o.cic.screen.physical(1)/o.cic.screen.pixels(3);
+            end
+        end
+
         
         function beforeFrame(o,c,evt)
             switch upper(o.shape)                                   
@@ -27,10 +35,9 @@ classdef fixation < neurostim.stimulus
                     % This rotation does not work: (it rotates the o.Y
                     % too...)
                     %Screen('glRotate', o.cic.window, o.angle+90, 0, 0, 1) ;  %0.angle = 0 ->points rightward
-                    isConvex = 1;
                     x = [-0.5*o.size 0 0.5*o.size];
                     y = [-0.5*o.size +0.5*o.size -0.5*o.size];
-                   Screen('FillPoly',o.cic.window,[o.color o.luminance],[x' y'],isConvex);                           
+                   Screen('FillPoly',o.cic.window,[o.color o.luminance],[x' y'],1);                           
                 case 'OVAL' % oval
                     x = [-(o.size/2) (o.size/2)];
                     y = [-(o.size2/2) (o.size2/2)];
@@ -46,6 +53,7 @@ classdef fixation < neurostim.stimulus
 
             end
         end
+        
         
         
     end

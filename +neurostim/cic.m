@@ -223,6 +223,19 @@ classdef cic < neurostim.plugin
             c.screen.framerate = 1/frameDur;
         end
         
+        function set.screen(c,value)
+            if ~isequal(value.physical,c.screen.physical)
+                if ~isequal(c.screen.pixels(3)/value.physical(1),c.screen.pixels(4)/value.physical(2))
+                    warning('Physical dimensions are not the same aspect ratio as pixel dimensions.');
+                    c.screen = value;
+                else
+                    c.screen = value;
+                end
+            else
+                c.screen = value;
+            end
+        end
+            
 
         
     end
@@ -295,9 +308,9 @@ classdef cic < neurostim.plugin
         end
         
         function keyboard(c,key,time)
-            % CIC Responses to keystrokes.
-            % q = quit experiment
-            %
+%             CIC Responses to keystrokes.
+%             q = quit experiment
+            
             switch (key)
                 case 'q'
                     c.flags.experiment = false;
@@ -361,7 +374,7 @@ classdef cic < neurostim.plugin
                 %    error(['This name (' o.name ') already exists in CIC.']);
                 % Update existing
             elseif  isprop(c,o.name)
-                error(['Please use a differnt name for your stimulus. ' o.nae ' is reserved'])
+                error(['Please use a different name for your stimulus. ' o.nae ' is reserved'])
             else
                 h = c.addprop(o.name); % Make it a dynamic property
                 c.(o.name) = o;
@@ -788,8 +801,8 @@ classdef cic < neurostim.plugin
                 %                 lastRelease(out)=[];
                 ks = find(firstPress);
                 for k=ks
-                    ix = sum(c.allKeyStrokes==k);% should be only one.
-                    if ix >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
+                    ix = find(c.allKeyStrokes==k);% should be only one.
+                    if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
                     % Call the keyboard member function in the relevant
                     % class
                     c.keyHandlers{ix}.keyboard(KbName(k),firstPress(k));

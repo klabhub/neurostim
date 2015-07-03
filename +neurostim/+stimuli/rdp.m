@@ -258,10 +258,6 @@ classdef rdp < neurostim.stimulus
         end
         
         
-%         function keyboard(o,key,time)
-%             % Generic keyboard handler to warn the end user/developer.
-%             o.coherence = 0;
-%         end    
     
     end
     

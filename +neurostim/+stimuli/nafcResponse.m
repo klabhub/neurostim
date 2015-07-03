@@ -49,7 +49,7 @@ classdef nafcResponse < neurostim.stimulus
            
            % add key listener for all keys.
            for i = 1:max(size(o.keys))
-                o.listenToKeyStroke(o.keys(i));
+                o.listenToKeyStroke(o.keys{i},o.keyLabel{i});
            end
            
        end
@@ -73,7 +73,7 @@ classdef nafcResponse < neurostim.stimulus
 %                disp(o.response);       %debug - should be logged already.
 %                disp(o.responseLabel);
            if o.endTrialonKeyPress
-               o.nextTrial;
+               o.cic.nextTrial;
            end
        
 

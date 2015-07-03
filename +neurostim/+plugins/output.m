@@ -174,7 +174,7 @@ classdef output < neurostim.plugin
              if o.last == 1
                  [pathName, fname,ext] = fileparts(o.filename);  
                  data = o.data.(horzcat('save',num2str(o.trial)));
-                 save([pathName, fname, '_total.mat'],'data','-mat');
+                 save([pathName, '\',fname, '_total.mat'],'data','-mat');
                  
              else if append
                      data = o.data.(horzcat('save',num2str(o.trial)));
