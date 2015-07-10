@@ -227,13 +227,9 @@ classdef cic < neurostim.plugin
             if ~isequal(value.physical,c.screen.physical)
                 if ~isequal(c.screen.pixels(3)/value.physical(1),c.screen.pixels(4)/value.physical(2))
                     warning('Physical dimensions are not the same aspect ratio as pixel dimensions.');
-                    c.screen = value;
-                else
-                    c.screen = value;
                 end
-            else
-                c.screen = value;
             end
+            c.screen = value;
         end
             
 

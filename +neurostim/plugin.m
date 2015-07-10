@@ -46,19 +46,24 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         
         
         % Define a property as a function of some other property.
-        % specs is the function definition. The first element in this cell
-        % array is a function_handle, all subsequent arguments are arguments
-        % that will be passed to that function.
-        % Object/variable references can be constructed by using a
-        % two-element cell array : the first is a handle to the object or the name of the
-        % objet,the second is the object property.
-        function functional(o,prop,specs)
+        % funcstring is the function definition. It is a string which
+        % references a stimulus/plugin by its assigned name and reuses that 
+        %  property name if it uses an object/variable of that property. e.g. 
+        % '@(cic) sin(cic.frame)' or
+        % '@(dots) dots.X + 1'
+        %
+        function functional(o,prop,funcstring)
              h =findprop(o,prop);
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
             h.GetObservable =true;
-            o.listenerHandle.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
+            specs(2,1) = regexp(funcstring,'@\((\w*)\)','tokens');
+            specs{2,1}(2) = regexp(funcstring,'(?<=(??@specs{2,1}{:})\.)\w*','match');
+            specs{1} = regexprep(funcstring,'(??@specs{2,1}{1})(\.(??@specs{2,1}{2}))?','X');
+            specs{1} = str2func(specs{1});
+            
+            o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
         end
         
         function write(o,name,value)
@@ -149,6 +154,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function removeListener(o,prop)
             delete(o.listenerHandle.(prop));
         end
+        
         % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
@@ -164,6 +170,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % Matlab is clever enough not to
                 % generate another postSet event.
                 o.(src.Name) = postprocess(o,value);
+            end
+            % checks if this is a function reference and if the listener
+            % already exists
+            if ischar(value) && any(regexp(value,'@\((\w*)\)')) && ~isfield(o.listenerHandle,['pre.' src.Name])
+                % it does not exist, call functional()
+                functional(o,src.Name,value); 
             end
             o.addToLog(src.Name,value);
         end
@@ -188,11 +200,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if isa(specs{i+1}{1},'neurostim.plugin')
                         % Handle to a plugin: interpret as dots.X
                         args{i} = specs{i+1}{1}.(specs{i+1}{2});
-                    elseif ischar(specs{i+1}{1})
+                    elseif ischar(specs{i+1}{1}) && ~strcmp(specs{i+1}{1},'cic')
                         % Name of a plugin. Find its handle first.
                         args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
                     else
-                        error('dasds');
+                        args{i} = o.cic.(specs{i+1}{2}); 
                     end
                 else
                     args{i} = specs{i+1};
@@ -207,7 +219,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Compare with existing value to see if we need to set?
             oldValue = o.(src.Name);
             if (ischar(value) && ~(strcmp(oldValue,value))) ...
-                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || oldValue ~= value)) || (isempty(value) && ~isempty(oldValue))
+                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
                 o.(src.Name) = value; % This calls PostSet and logs the new value
             end
         end

@@ -38,24 +38,31 @@ c.add(plugins.debug);               % Use the debug plugin which allows you to m
 % c.add(t);
 
 
-m = stimuli.mouse('mouse');
-c.add(m);
-
 f=stimuli.fixation('fix');           % Create a fixation stimulus.
 f.on = 0;
 f.duration = inf;
 f.luminance = 50;
 f.color = [1 1];
 f.shape = 'STAR';
-f.size = 2; 
+% f.size = 2; 
 f.size2 = 1;
-functional(f,'angle',{@plus,{c,'frame'},0});
+% functional(f,'angle',{@plus,{c,'frame'},0});
 
-% functional(f,'X',{@(x)x,{m,'mousex'}});
+% functional(f,'X','@(mouse) mouse.mousex');
+% functional(f,'angle','@(c) c.frame');
+f.angle = '@(cic) cic.frame';
+f.X = '@(mouse) mouse.mousex + 10';
+f.Y = '@(mouse) mouse.mousey';
+
 % functional(f,'Y',{@(x)x,{m,'mousey'}});
 c.add(f);
-
 % 
+
+
+
+m = stimuli.mouse('mouse');
+c.add(m);
+
 s = stimuli.rdp('dots');
 s.color = [1/3 1/3];
 s.luminance = 100;
@@ -81,25 +88,44 @@ k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
 k.keyLabel = {'clockwise', 'counterclockwise'};
 k.endTrialonKeyPress = 1;
 
-s = stimuli.shadlendots('dots2');
-s.apertureD = 20;
-s.color = [1 1];
-s.luminance = 1;
-s.coherence = 0.8;
-s.speed = 10;
-s.direction = 0;
-c.add(s);
+% s = stimuli.shadlendots('dots2');
+% s.apertureD = 20;
+% s.color = [1 1];
+% s.luminance = 1;
+% s.coherence = 0.8;
+% s.speed = 10;
+% s.direction = 0;
+% c.add(s);
 
 
 c.addFactorial('myFactorial',...
     {'fix','shape',{'STAR' 'RECT'}}) ;
 
-c.addBlock('myBlock','myFactorial',10,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
+c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
 c.add(plugins.output);
 
+% b = plugins.fixate;
+% c.add(b);
+% c.add(plugins.reward);
+
 % c.add(plugins.eyelink);
+% e=plugins.eyelink;
+% e.eyeToTrack = 'binocular';
 
 c.run;
 
-
+% f=fixate;
+% f.from = 100;
+% f.to = 1000;
+% f.X = 0;
+% f.Y = 0;
+% f.Z = 0;
+% f.reward.type = 'LIQUID';
+% f.reward.dur = 100;
+% f.reward.when = 'TRIALEND';
+% f.reward.when = 'IMMEDIATE';
+% c.add(f);
+% 
+% r = reward
+% r.type = 
