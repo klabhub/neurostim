@@ -45,26 +45,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         end
         
         
-        % Define a property as a function of some other property.
-        % funcstring is the function definition. It is a string which
-        % references a stimulus/plugin by its assigned name and reuses that 
-        %  property name if it uses an object/variable of that property. e.g. 
-        % '@(cic) sin(cic.frame)' or
-        % '@(dots) dots.X + 1'
-        %
-        function functional(o,prop,funcstring)
-             h =findprop(o,prop);
-            if isempty(h)
-                error([prop ' is not a property of ' o.name '. Add it first']);
-            end
-            h.GetObservable =true;
-            specs(2,1) = regexp(funcstring,'@\((\w*)\)','tokens');
-            specs{2,1}(2) = regexp(funcstring,'(?<=(??@specs{2,1}{:})\.)\w*','match');
-            specs{1} = regexprep(funcstring,'(??@specs{2,1}{1})(\.(??@specs{2,1}{2}))?','X');
-            specs{1} = str2func(specs{1});
-            
-            o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
-        end
+        
         
         function write(o,name,value)
             % User callable write function.
@@ -107,7 +88,27 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
         end
         
-        
+        % Define a property as a function of some other property.
+        % This function is called at the initial logParmSet of a parameter.
+        % funcstring is the function definition. It is a string which
+        % references a stimulus/plugin by its assigned name and reuses that 
+        %  property name if it uses an object/variable of that property. e.g. 
+        % '@(cic) sin(cic.frame)' or
+        % '@(dots) dots.X + 1'
+        %
+        function functional(o,prop,funcstring)
+             h =findprop(o,prop);
+            if isempty(h)
+                error([prop ' is not a property of ' o.name '. Add it first']);
+            end
+            h.GetObservable =true;
+            specs(2,1) = regexp(funcstring,'@\((\w*)\)','tokens');
+            specs{2,1}(2) = regexp(funcstring,'(?<=(??@specs{2,1}{:})\.)\w*','match');
+            specs{1} = regexprep(funcstring,'(??@specs{2,1}{1})(\.(??@specs{2,1}{2}))?','X');
+            specs{1} = str2func(specs{1});
+            
+            o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
+        end
         
         % Add properties that will be time-logged automatically, fun
         % is an optional argument that can be used to modify the parameter
@@ -202,7 +203,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         args{i} = specs{i+1}{1}.(specs{i+1}{2});
                     elseif ischar(specs{i+1}{1}) && ~strcmp(specs{i+1}{1},'cic')
                         % Name of a plugin. Find its handle first.
-                        args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                        if strcmp(specs{i+1}{2},src.Name)   %if function is self-referential
+                            oldValues = o.log.values(strcmp(o.log.parms,specs{i+1}{2}));
+                            if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)\)'))
+                                args{i} = oldValues{end-1};
+                            else
+                                args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                            end
+                        else
+                            args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                        end
                     else
                         args{i} = o.cic.(specs{i+1}{2}); 
                     end
