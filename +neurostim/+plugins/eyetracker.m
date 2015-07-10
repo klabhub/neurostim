@@ -1,24 +1,45 @@
 classdef eyetracker < neurostim.plugin
 
-properties 
+properties (Access=public)
     x@double;
     y@double;
     z@double;
-    size@double;
+    pupilSize@double;
     useMouse@logical=false;
+    keepExperimentSetup = 1;
 end
+
 methods
     function o= eyetracker
         o = o@neurostim.plugin('eye'); % Always eye such that it can be accessed through cic.eye
-        o.listenToEvent ('AFTERFRAME');
+        o.listenToEvent('AFTERFRAME');
+        o.addProperty('eyeClockTime',[]);
+        o.addProperty('hardwareModel',[]);
+        o.addProperty('sampleRate',1000);
+        o.addProperty('backgroundColor',[]);
+        o.addProperty('foregroundColor',[]);
+        o.addProperty('clbTargetColor',[]);
+        o.addProperty('clbTargetSize',[]);
+        o.addProperty('eyeToTrack','left');
     end
     
+    function trackedEye(o)
+        if ischar(o.eyeToTrack)
+            switch lower(o.eyeToTrack)
+                case {'left','l'}
+                    o.eyeToTrack = 0;
+                case {'right','r'}
+                    o.eyeToTrack = 1;
+                case {'binocular','b','binoc'}
+                    o.eyeToTrack = 2;
+            end
+        end
+    end
     
-    function events(o,src,evt)
-        if o.useMouse && strcmpi(evt.EventName,'AFTERFRAME')
-           [mouseX,mouseY] = GetMouse(o.cic.window);
-            o.x=mouseX;
-            o.y=mouseY; 
+    function [x,y] = mouseConnection(o,c)
+        if o.useMouse
+            %use the inbuilt mouse function
+           [x,y] = c.getMouse;
         end
     end
     

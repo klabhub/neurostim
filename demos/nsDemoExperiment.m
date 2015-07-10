@@ -46,15 +46,10 @@ f.color = [1 1];
 f.shape = 'STAR';
 % f.size = 2; 
 f.size2 = 1;
-% functional(f,'angle',{@plus,{c,'frame'},0});
+% f.angle = '@(cic) cic.frame';
+f.X = '@(mouse) mouse.mousex';
+f.Y = '@(mouse) mouse.mousey-1';
 
-% functional(f,'X','@(mouse) mouse.mousex');
-% functional(f,'angle','@(c) c.frame');
-f.angle = '@(cic) cic.frame';
-f.X = '@(mouse) mouse.mousex + 10';
-f.Y = '@(mouse) mouse.mousey';
-
-% functional(f,'Y',{@(x)x,{m,'mousey'}});
 c.add(f);
 % 
 
@@ -62,6 +57,7 @@ c.add(f);
 
 m = stimuli.mouse('mouse');
 c.add(m);
+
 
 s = stimuli.rdp('dots');
 s.color = [1/3 1/3];
@@ -105,11 +101,11 @@ c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run
 
 c.add(plugins.output);
 
-% b = plugins.fixate;
-% c.add(b);
+b = plugins.fixate;
+c.add(b);
 % c.add(plugins.reward);
 
-% c.add(plugins.eyelink);
+c.add(plugins.eyelink);
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
