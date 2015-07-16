@@ -185,7 +185,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function addToLog(o,name,value)
             o.log.parms{end+1}  = name;
             o.log.values{end+1} = value;
-            o.log.t(end+1)      = GetSecs;
+            o.log.t(end+1)      = GetSecs*1000;
         end
         
         

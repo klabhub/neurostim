@@ -101,14 +101,20 @@ c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run
 
 c.add(plugins.output);
 
-b = plugins.fixate;
-c.add(b);
+% b = plugins.fixate;
+% c.add(b);
 % c.add(plugins.reward);
 
 c.add(plugins.eyelink);
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
+f1 = plugins.fixate('f1');
+c.add(f1);
+f2 = plugins.fixate('f2');
+c.add(f2);
+s=plugins.saccade('sac1',f1,f2);
+c.add(s);
 c.run;
 
 % f=fixate;

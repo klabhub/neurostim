@@ -58,7 +58,7 @@ classdef cic < neurostim.plugin
         FIRSTFRAME;
         
         %%
-        reward;
+        GETREWARD;
         
     end
     %% Constants
@@ -426,6 +426,8 @@ classdef cic < neurostim.plugin
                              h= @(c,evt)(o.afterExperiment(c,evt));
                         case 'FIRSTFRAME'
                             h = @(c,evt)(o.firstFrame(c,evt));
+                        case 'GETREWARD'
+                            h = @(c,evt)(o.getReward(c,evt));
                     end
                     % Install a listener in CIC. It will distribute.
                     addlistener(c,o.evts{i},h);

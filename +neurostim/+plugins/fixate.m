@@ -5,8 +5,8 @@ classdef fixate < neurostim.plugins.behavior
    end
    
    methods
-       function o=fixate
-           o=o@neurostim.plugins.behavior;
+       function o=fixate(name)
+           o=o@neurostim.plugins.behavior(name);
            o.continuous = true;
        end
        
