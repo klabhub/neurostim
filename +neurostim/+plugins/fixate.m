@@ -11,11 +11,10 @@ classdef fixate < neurostim.plugins.behavior
        end
        
        
-       function on = checkBehavior(o)
-           % checkBehavior returns o.on = true when behavior passes all
+       function on = validateBehavior(o)
+           % validateBehavior returns o.on = true when behavior passes all
            % checks.
            on = sqrt((o.cic.eye.x-o.X)^2+(o.cic.eye.y-o.Y)^2)<=o.tolerance;
-           
        end
    end
     
