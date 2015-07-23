@@ -27,22 +27,20 @@ classdef saccade < neurostim.plugins.behavior
             if nargin == 3   % two fixation inputs
                 o.fix1 = varargin{1};
                 o.fix2 = varargin{2};
-                o.listenToEvent('BEFOREEXPERIMENT');
+                
+                % set initial values
+                o.duration = o.minLatency;
+                o.startX = ['@(' o.fix1.name ') ' o.fix1.name '.X'];
+                o.startY = ['@(' o.fix1.name ') ' o.fix1.name '.Y'];
+                o.endX = ['@(' o.fix2.name ') ' o.fix2.name '.X'];
+                o.endY = ['@(' o.fix2.name ') ' o.fix2.name '.Y'];
+                o.from = ['@(' o.fix1.name ', cic) ' o.fix1.name '.endTime - cic.trialStartTime(cic.trial)'];
+                o.fix1.cic.(o.fix2.name).from = ['@(' o.name ', cic) ' o.name '.endTime - cic.trialStartTime(cic.trial)'];
+                
             elseif nargin == 2
                 error('Only one fixation object supplied.')
             end
-        end
-        
-        function beforeExperiment(o,c,evt)
             o.duration = o.maxLatency;
-            o.startX = o.fix1.X;
-            o.startY = o.fix1.Y;
-            o.endX = o.fix2.X;
-            o.endY = o.fix2.Y;
-            o.from = ['@(' o.fix1.name ', cic) ' o.fix1.name '.endTime - cic.trialStartTime(cic.trial)'];
-%             o.from = ['@(' o.fix1.name ') 'o.fix1.name '.endTime'];
-            f2name = o.fix2.name;
-            c.(f2name).from = ['@(' o.name ') ' o.name '.endTime'];
         end
         
         function on = validateBehavior(o)
@@ -54,24 +52,26 @@ classdef saccade < neurostim.plugins.behavior
             for a = 1:numel(o.endX)
                 xvec = [o.startX; o.endX(a)];
                 yvec = [o.startY; o.endY(a)];
-                if sqrt((X-o.startX)^2+(Y-o.startY)^2)<=o.tolerance && (GetSecs*1000)<=o.startTime+o.minLatency
-                    % if point is within tolerance of start position
+                if sqrt((X-o.startX)^2+(Y-o.startY)^2)<=o.tolerance && (GetSecs*1000)<=(o.startTime+o.maxLatency)
+                    % if point is within tolerance of start position before
+                    % max latency has passed
                     on = true;
                     break;
-                elseif sqrt((X-o.endX(a))^2+(Y-o.endY(a))^2)<=o.tolerance && (GetSecs*1000)>=o.startTime+o.minLatency
+                elseif sqrt((X-o.endX(a))^2+(Y-o.endY(a))^2)<=o.tolerance && (GetSecs*1000)>=o.startTime+o.minLatency && (GetSecs*1000)<=(o.startTime+o.maxLatency)
                     % if point is within tolerance of end position
                     % after min latency has passed
                     on = true;
+                    o.done = true;
                     o.endTime = GetSecs*1000;
                     break;
-                elseif Y>=min(yvec) && Y<=max(yvec)
+                elseif Y>=min(yvec) && Y<=max(yvec) && (GetSecs*1000)<=(o.startTime+o.maxLatency)
                     distance = abs((yvec(2)-yvec(1))*X - (xvec(2)-xvec(1))*Y...
                         + xvec(2)*yvec(1) - yvec(2)*xvec(1))/(sqrt(yvec(2)-yvec(1))^2+(xvec(2)-xvec(1))^2);
                     on = distance<=o.tolerance;
                     if on
                         break;
                     end
-                elseif X>=min(xvec) && X<=max(xvec) % else if point is within these two points
+                elseif X>=min(xvec) && X<=max(xvec) && (GetSecs*1000)<=(o.startTime+o.maxLatency)% else if point is within these two points
                     distance = abs((yvec(2)-yvec(1))*X - (xvec(2)-xvec(1))*Y...
                         + xvec(2)*yvec(1) - yvec(2)*xvec(1))/(sqrt(yvec(2)-yvec(1))^2+(xvec(2)-xvec(1))^2);
                     on = distance<=o.tolerance;

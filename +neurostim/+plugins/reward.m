@@ -1,9 +1,12 @@
 classdef reward < neurostim.plugin
     
    properties
+       soundCorrectFile;
+       soundIncorrectFile;
        soundCorrect;
        soundIncorrect;
        soundReady = false;
+       mccChannel;
    end
    
    properties (SetObservable, AbortSet)
@@ -19,6 +22,8 @@ classdef reward < neurostim.plugin
            o=o@neurostim.plugin('reward');
            
            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GETREWARD','AFTERTRIAL'})
+           o.soundCorrectFile = 'C:\Users\tkoster\Downloads\440Hz_05sec.wav';
+           o.soundIncorrectFile = 'C:\Users\tkoster\Downloads\250Hz_05sec.wav';
        end
        
        
@@ -32,6 +37,22 @@ classdef reward < neurostim.plugin
           if any(arrayfun(@(n) strcmpi(o.rewardData(n).type,'sound'),1:numel(o.rewardData)))    %if sound is set, initialise
               InitializePsychSound(1);
               o.paHandle = PsychPortAudio('Open');
+              [y,~] = audioread(o.soundCorrectFile);
+              
+              if size(y,2) == 1
+                o.soundCorrect = [y'; y'];
+              else
+                  o.soundCorrect = y';
+              end
+              
+              [y,~] = audioread(o.soundIncorrectFile);
+              
+              if size(y,2) == 1
+                o.soundIncorrect = [y'; y'];
+              else
+                  o.soundIncorrect = y';
+              end
+              
           end
        end
        
@@ -89,13 +110,13 @@ classdef reward < neurostim.plugin
            % Inputs:
            % rewardData - the specific rewardData struct.
            if rewardData.answer
-%                PsychPortAudio('FillBuffer', o.paHandle, o.soundCorrect);
+               PsychPortAudio('FillBuffer', o.paHandle, o.soundCorrect);
            else
-%                PsychPortAudio('FillBuffer', o.paHandle, o.soundIncorrect);
+               PsychPortAudio('FillBuffer', o.paHandle, o.soundIncorrect);
            end
            
            if strcmpi(rewardData.when,'IMMEDIATE')
-%                PsychPortAudio('Start', o.paHandle);
+               PsychPortAudio('Start', o.paHandle);
            elseif strcmpi(rewardData.when,'AFTERTRIAL')
                o.soundReady = true;
            end
@@ -103,7 +124,12 @@ classdef reward < neurostim.plugin
        end
        
        function liquidReward(o,rewardData)
-           
+           % function liquidReward(o,rewardData)
+           % delegates to the MCC
+           if rewardData.answer
+               
+           end
+               
        end
            
    end
