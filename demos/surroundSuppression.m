@@ -13,10 +13,10 @@ Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just
 
 %% Setup CIC and the stimuli.
 c = cic;                            % Create Command and Intelligence Center...
-c.pixels    = [0 0 500 500];        % Set the position and size of the window
-c.physical  = [15 15];              % Set the physical size of the window (centimeters)
-c.color.background= [0.5 0.5 0.5];
-c.colorMode = 'RGB';                % Tell CIC that we'll use RGB colors
+c.screen.pixels    = [0 0 500 500];        % Set the position and size of the window
+c.screen.physical  = [15 15];              % Set the physical size of the window (centimeters)
+c.screen.color.background= [0.5 0.5 0.5];
+c.screen.colorMode = 'RGB';                % Tell CIC that we'll use RGB colors
 c.trialDuration  = inf;
 c.add(plugins.gui); 
 
@@ -38,8 +38,8 @@ g.duration  = 30;
 
 % Duplicate the test grating to serve as a reference (its contrast is
 % constant). Call this new stimulus 'reference'
-g2= duplicate(g,'referemce');
-functional(g2,'X',{@times,{g,'X'},-1}); % X  = -X of the test
+g2= duplicate(g,'reference');
+g2.X = '@(test) -test.X';
 g2.contrast = 0.5;  
 
 % Duplicate the test grating to make a surround
@@ -47,11 +47,11 @@ g3= duplicate(g,'surround');
 g3.mask = 'ANNULUS';
 g3.sigma = [1 2];
 g3.contrast  = 0.5;
-functional(g3,'X',{@times,{g,'X'},1});  % X= X of the test
+g3.X = '@(test) -test.X';
 
 % Duplicate the surround to use as the surround of the reference
 g4 = duplicate(g3,'referenceSurround');
-functional(g4,'X',{@times,{g,'X'},-1});
+g4.X = '@(test) -test.X';
 g4.contrast = 1;
 
 % Red fixation point
@@ -59,7 +59,7 @@ f = stimuli.fixation('fix');        % Add a fixation point stimulus
 f.color = [1 0];                    % Red
 f.luminance = 0;
 f.shape = 'CIRC';                  % Shape of the fixation point
-f.size = 10;
+f.size = 1;
 f.X = 0;
 f.Y = 0;
 
