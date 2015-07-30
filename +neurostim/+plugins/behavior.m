@@ -14,7 +14,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
     acquireEvent = {};    % checks behaviour, for acquiring data
     validateEvent = {'afterFrame'}; % checks whether this behaviour is 'correct'
     endsTrial = true;  %does violating behaviour end trial?
-    rewardOn = true;
+    rewardOn = false;
     data;
     prevOn = false;
     end
@@ -158,12 +158,13 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                     if ~o.on && o.prevOn       % if behaviour is not on, but was on previously
                         o.startTime = Inf;      % reset start time and done flag
                         o.done = false;
+%                         display('wrong')
                         if o.rewardOn       % if we want to trigger rewards
                             [o.rewardData.answer] = deal(false);
                             notify(c,'GETREWARD');
                         end
                         if o.endsTrial    % if we want failure to end trial
-                            keyboard;
+%                             keyboard;
                             c.nextTrial;  % quit trial
                             return;
                         end
@@ -171,6 +172,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                     if ~o.done && o.on && (GetSecs*1000)-o.startTime>=o.duration   % if duration has been met and behaviour is still on
                         o.done = true;  % set done flag
                         o.endTime = GetSecs*1000;
+%                         display('right')
                         if o.rewardOn   % if we want to trigger rewards
                             [o.rewardData.answer] = deal(true);
                             notify(c,'GETREWARD');

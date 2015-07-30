@@ -1,12 +1,12 @@
-classdef stimulus < neurostim.plugin 
-    events
-        BEFOREFRAME;
-        AFTERFRAME;    
-        BEFORETRIAL;
-        AFTERTRIAL;    
-        BEFOREEXPERIMENT;
-        AFTEREXPERIMENT;        
-    end
+classdef stimulus < neurostim.plugin
+%     events
+%         BEFOREFRAME;
+%         AFTERFRAME;    
+%         BEFORETRIAL;
+%         AFTERTRIAL;    
+%         BEFOREEXPERIMENT;
+%         AFTEREXPERIMENT;        
+%     end
     
     properties (SetAccess = public,GetAccess=public)
         quest@struct;     
@@ -130,7 +130,6 @@ classdef stimulus < neurostim.plugin
                 sd = QuestSd(s.quest.q);
             end
         end
-        
 
     end
     

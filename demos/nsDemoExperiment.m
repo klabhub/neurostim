@@ -6,14 +6,14 @@ commandwindow;
 Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference', 'ConserveVRAM', 32);
 
-
-c = cic;                            % Create Command and Intelligence Center...
+% c = myConfig('Eyelink',false);
+% c = cic;                            % Create Command and Intelligence Center...
 % c.position = [0 0 1600 1000];         % Set the position and size of the window
 % c.color.background= [0 0 0];
 % c.colorMode = 'xyl';
 % c.iti = 2000;
 % c.trialDuration = inf;
-c = myConfig(c);
+c = myConfig;
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
 
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
@@ -47,13 +47,21 @@ f.shape = 'STAR';
 % f.size = 2; 
 f.size2 = 1;
 % f.angle = '@(cic) cic.frame';
-f.X = '@(mouse) mouse.mousex';
-f.Y = '@(mouse) mouse.mousey-1';
+% f.X = '@(mouse) mouse.mousex';
+% f.Y = '@(mouse) mouse.mousey';
+f.X = 0;
+f.Y = 0;
 
 c.add(f);
 % 
 
-
+fl = stimuli.fixation('fixl');
+fl.on = 0;
+f1.duration = inf;
+fl.shape = 'CIRC';
+fl.X = 5;
+fl.Y = 0;
+c.add(fl);
 
 m = stimuli.mouse('mouse');
 c.add(m);
@@ -101,20 +109,35 @@ c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run
 
 c.add(plugins.output);
 
+
+
 % b = plugins.fixate;
 % c.add(b);
 % c.add(plugins.reward);
 
-c.add(plugins.eyelink);
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
 f1 = plugins.fixate('f1');
+f1.X = 0;
+f1.Y = 0;
+f1.duration = 500;
 c.add(f1);
 f2 = plugins.fixate('f2');
+
+f2.X = 5;
+f2.Y = 0;
 c.add(f2);
+
 s=plugins.saccade('sac1',f1,f2);
 c.add(s);
+
+e = plugins.eyelink;
+e.useMouse = true;
+c.add(e);
+
+% c.add(plugins.mcc);
+
 c.run;
 
 % f=fixate;

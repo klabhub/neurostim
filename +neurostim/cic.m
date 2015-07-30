@@ -46,15 +46,16 @@ classdef cic < neurostim.plugin
         BASEAFTERTRIAL;
         BASEBEFOREFRAME;
         BASEAFTERFRAME;
+        BASEGETREWARD;
         
         % Events to which client developed @plugin and @stimulus classes
-        % respond
-        BEFOREEXPERIMENT;
-        AFTEREXPERIMENT;
-        BEFORETRIAL;
-        AFTERTRIAL;
-        BEFOREFRAME;
-        AFTERFRAME;
+%         % respond
+%         BEFOREEXPERIMENT;
+%         AFTEREXPERIMENT;
+%         BEFORETRIAL;
+%         AFTERTRIAL;
+%         BEFOREFRAME;
+%         AFTERFRAME;
         FIRSTFRAME;
         
         %%
@@ -388,11 +389,11 @@ classdef cic < neurostim.plugin
             
             % Setup the plugin to listen to the events it requested
             for i=1:length(o.evts)
-                if isa(o,'neurostim.stimulus')
+                if isa(o,'neurostim.stimulus') || (isa(o,'neurostim.plugin') && o.priority)
                     % STIMULUS events are special; the BASE event
                     % handlers look at them first and decide whether to
                     % pass them on to the stimulus itself.
-                    addlistener(c,['BASE' o.evts{i}],@o.baseEvents);
+                     addlistener(c,['BASE' o.evts{i}],@o.baseEvents);
                     switch upper(o.evts{i})
                         case 'BEFOREEXPERIMENT'
                             h= @(c,evt)(o.beforeExperiment(o.cic,evt));
@@ -406,6 +407,8 @@ classdef cic < neurostim.plugin
                             h= @(c,evt)(o.afterTrial(o.cic,evt));
                         case 'AFTEREXPERIMENT'
                             h= @(c,evt)(o.afterExperiment(o.cic,evt));
+                        case 'GETREWARD'
+                            h=@(c,evt)(o.getReward(o.cic,evt));
                     end
                     % Install a listener in the derived class so that it
                     % can respond to notify calls in the base class
@@ -661,12 +664,12 @@ classdef cic < neurostim.plugin
                         end
                         frameStart = GetSecs*1000;
                         
-                        if c.trial == 10
+%                         if c.trial == 10
                             %                            profile viewer;
-                            slack(:,1) = [];
-                            slack(:,11:end)=[];
-                            keyboard;
-                        end
+%                             slack(:,1) = [];
+%                             slack(:,11:end)=[];
+%                             keyboard;
+%                         end
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime(c.trial) = vbl*1000; % for trialDuration check
