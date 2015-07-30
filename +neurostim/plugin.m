@@ -2,6 +2,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     properties (SetAccess=public)
         cic@neurostim.cic;  % Pointer to CIC
+        priority@logical = false;
+    end
+    
+    events
+        BEFOREFRAME;
+        AFTERFRAME;    
+        BEFORETRIAL;
+        AFTERTRIAL;    
+        BEFOREEXPERIMENT;
+        AFTEREXPERIMENT;        
     end
     
     properties (SetAccess=private, GetAccess=public)
@@ -102,11 +112,37 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
             h.GetObservable =true;
-            specs(2,1) = regexp(funcstring,'@\((\w*)\)','tokens');
-            specs{2,1}(2) = regexp(funcstring,'(?<=(??@specs{2,1}{:})\.)\w*','match');
-            specs{1} = regexprep(funcstring,'(??@specs{2,1}{1})(\.(??@specs{2,1}{2}))?','X');
+            % find the function end of the string
+            funcend = regexp(funcstring,'\<@\((\w*)(,\s*\w*)*\)\>','end');
+            func = funcstring(funcend+1:end); % store the function end of the string
+            specs{1} = func;
+            c = 0;
+            variables = regexp(funcstring,'(?<=@\s*\()(\w*)|(?<=,\s*)(\w*)','tokens');  %get the main variables
+            for a=1:length(variables)
+                vardot = regexp(funcstring,'(?<=(??@variables{a}{1})\.)\w*(\.\w*)*','match');   %get the variable after the dot
+                for b = 1:length(vardot)
+                    % replace each variable in the function
+                specs{1} = regexprep(specs{1},'(??@variables{a}{:})(\.(??@vardot{b}))?',char('A'+c),'once');
+                c = c+1;
+                specs{end+1,1} = horzcat(variables{a},vardot(b));
+                end
+            end
+            % recreate the initial function variable list, i.e. '@(A,B)'
+            for x=1:c
+                if x == 1
+                    vars = horzcat('@(','A');
+                    if x == c
+                        vars = horzcat(vars, ')');
+                    end
+                elseif x==c
+                        vars = horzcat(vars,', ',char('A'+x-1),')');
+                else
+                    vars = horzcat(vars,', ',char('A'+x-1));
+                end
+            end
+            % merge the function back together
+            specs{1} = horzcat(vars,specs{1});
             specs{1} = str2func(specs{1});
-            
             o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
         end
         
@@ -174,7 +210,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             % checks if this is a function reference and if the listener
             % already exists
-            if ischar(value) && any(regexp(value,'@\((\w*)\)')) && ~isfield(o.listenerHandle,['pre.' src.Name])
+            if ischar(value) && any(regexp(value,'@\((\w*)*')) && ~isfield(o.listenerHandle,['pre.' src.Name])
                 % it does not exist, call functional()
                 functional(o,src.Name,value); 
             end
@@ -185,7 +221,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function addToLog(o,name,value)
             o.log.parms{end+1}  = name;
             o.log.values{end+1} = value;
-            o.log.t(end+1)      = GetSecs;
+            o.log.t(end+1)      = GetSecs*1000;
         end
         
         
@@ -305,5 +341,26 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
         end
         
+    end
+    
+    methods (Access = public)
+        function baseEvents(o,c,evt)
+                switch evt.EventName
+                    case 'BASEBEFOREFRAME'
+                        notify(o,'BEFOREFRAME');
+                    case 'BASEAFTERFRAME'
+                        notify(o,'AFTERFRAME');
+                    case 'BASEBEFORETRIAL'
+                        notify(o,'BEFORETRIAL');
+                    case 'BASEAFTERTRIAL'
+                        notify(o,'AFTERTRIAL');
+                        
+                    case 'BASEBEFOREEXPERIMENT'
+                        notify(o,'BEFOREEXPERIMENT');
+                        
+                    case 'BASEAFTEREXPERIMENT'
+                        notify(o,'AFTEREXPERIMENT');
+            end
+        end
     end
 end

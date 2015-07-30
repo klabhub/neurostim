@@ -9,8 +9,8 @@ classdef mcc < neurostim.plugin
  
     
     properties (Constant)
-        AFTERFRAME=1;
-        AFTERTRIAL=2;
+%         AFTERFRAME=1;
+%         AFTERTRIAL=2;
         ANALOG=0;
         DIGITAL=1;
     end
@@ -71,6 +71,8 @@ classdef mcc < neurostim.plugin
             o.mapList.channel   = cat(2,o.mapList.channel,channel);
             o.mapList.prop      = cat(2,o.mapList.prop,prop);
             o.mapList.when      = cat(2,o.mapList.when,o.(upper(when)));
+            
+            o.listenToEvent(o.mapList.when);
         end
         
         
@@ -115,18 +117,17 @@ classdef mcc < neurostim.plugin
             v  = DaqAIn(o.daq,channel,range);
         end
         
-        function events(o,src,evt)
-            switch evt.EventName
-                case 'AFTERTRIAL'
-                    ix = find(o.mapList.when ==o.AFTERTRIAL);
-                    if ~isempty(ix)
-                        read(o,ix);
-                    end
-                case 'AFTERFRAME'                    
-                    ix = find(o.mapList.when ==o.AFTERFRAME);
-                    if ~isempty(ix)
-                        read(o,ix);
-                    end
+        function afterTrial(o,c,evt)
+            ix = find(o.mapList.when ==o.AFTERTRIAL);
+            if ~isempty(ix)
+                read(o,ix);
+            end
+        end
+        
+        function afterFrame(o,c,evt)
+            ix = find(o.mapList.when ==o.AFTERFRAME);
+            if ~isempty(ix)
+                read(o,ix);
             end
         end
         
