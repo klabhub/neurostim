@@ -16,8 +16,8 @@ classdef fixation < neurostim.stimulus
         end
         
         function beforeExperiment(o,c,evt)
-            if (c.screen.physical(1) ~= c.screen.pixels(3)) && sum(strcmp('size',c.fix.log.parms))==1
-                o.size = o.size*o.cic.screen.physical(1)/o.cic.screen.pixels(3);
+            if (c.screen.physical(1) ~= c.screen.pixels(3)) && sum(strcmp('size',c.(o.name).log.parms))==1
+                o.size = o.size*c.screen.physical(1)/c.screen.pixels(3);
             end
         end
 

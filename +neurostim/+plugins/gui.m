@@ -14,7 +14,7 @@ classdef gui <neurostim.stimulus
     properties (SetAccess =public, GetAccess=public)
         xAlign@char = 'right';          % 'left', or 'right'
         yAlign@char = 'center';         % center
-        spacing@double = .1;             % Space between lines
+        spacing@double = 1;             % Space between lines
         nrCharsPerLine@double= 25;      % Number of chars per line
         font@char = 'Courier New';      % Font
         fontSize@double = 11;           % Font size
@@ -23,7 +23,7 @@ classdef gui <neurostim.stimulus
         header@char  = '';              % Header to add.
         footer@char  = '';              % Footer to add.
         showKeys@logical = true;        % Show defined keystrokes
-        updateEachFrame = false;        % Set to true to update every frame. (Costly; debug purposes only)
+        updateEachFrame = true;        % Set to true to update every frame. (Costly; debug purposes only)
     end
     
     properties (SetAccess=protected)
@@ -63,7 +63,7 @@ classdef gui <neurostim.stimulus
                     if (o.updateEachFrame); update(o,c);end
                     draw(o,c);
         end
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o,c,evt) 
                     % Update
                     update(o,c);               
         end
@@ -89,7 +89,7 @@ classdef gui <neurostim.stimulus
             Screen('TextFont',c.window, o.font);
             Screen('TextSize',c.window, o.fontSize);
             [~,~,bbox] = DrawFormattedText(c.window, o.currentText, o.xAlign,o.yAlign, WhiteIndex(c.window),o.nrCharsPerLine,[],[],o.spacing);
-            % The bbox does not seem to fit... add some slack
+            % The bbox does not seem to fit... add some slack 
             slack = 0.05;
             bbox = [1-slack 1-slack 1+slack 1+slack].*bbox;
             Screen('FrameRect',c.window,WhiteIndex(c.window),bbox);

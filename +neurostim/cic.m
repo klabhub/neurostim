@@ -339,6 +339,18 @@ classdef cic < neurostim.plugin
             Screen('glScale', c.window,c.screen.pixels(3)/c.screen.physical(1), -c.screen.pixels(4)/c.screen.physical(2));
         end
         
+        
+        function restoreTextPrefs(c)
+            
+            defaultfont = Screen('Preference','DefaultFontName');
+            defaultsize = Screen('Preference','DefaultFontSize');
+            defaultstyle = Screen('Preference','DefaultFontStyle');
+            Screen('TextFont', c.window, defaultfont);
+            Screen('TextSize', c.window, defaultsize);
+            Screen('TextStyle', c.window, defaultstyle);
+            
+        end
+        
 
 
        
@@ -635,8 +647,8 @@ classdef cic < neurostim.plugin
                     notify(c,'BEFORETRIAL');
                     %                     if (c.PROFILE); addProfile(c,'BEFORETRIAL',toc);end
                     if c.trial>1
-                        for a = 1:(round((c.iti)*c.screen.framerate/1000))
-                            Screen('Flip',c.window);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                        while (round(c.iti-(GetSecs*1000-c.trialEndTime(c.trial-1)))*c.screen.framerate/1000)>0
+                            Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
                     c.flags.trial = true;
@@ -657,7 +669,7 @@ classdef cic < neurostim.plugin
                         c.KbQueueCheck;
                         if (c.PROFILE); addProfile(c,'AFTERFRAME',toc);end
                         slack(c.trial,c.frame) = 1000/c.screen.framerate-(GetSecs*1000-frameStart);
-                        [vbl,~,flip,missed] = Screen('Flip', c.window,when,1-c.clear);
+                        [vbl,~,~,missed] = Screen('Flip', c.window,when,1-c.clear);
                         if missed>0
                             disp(['Missed Frame ' num2str(c.frame)])
                             %                             disp(['slack = ' num2str(slack(c.trial,c.frame))])
@@ -700,14 +712,14 @@ classdef cic < neurostim.plugin
                 end %conditions in block
                 if ~c.flags.experiment;break;end
             end %blocks
-            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.window);
             if length(c.trialEndTime)<c.trial
                 c.trialEndTime(c.trial) = GetSecs * 1000;
             end
             c.stopTime = now;
             notify(c,'BASEAFTEREXPERIMENT');
             notify(c,'AFTEREXPERIMENT');
+            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
+            Screen('Flip', c.window);
             Priority(0);
             Screen('glLoadIdentity',c.window);
             c.KbQueueStop;

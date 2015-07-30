@@ -21,21 +21,25 @@ classdef text < neurostim.stimulus
     methods (Access = public)
         function o = text(name)
             o = o@neurostim.stimulus(name);
-            o.listenToEvent({'BEFOREFRAME','AFTERFRAME'});
+            o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT','AFTERTRIAL','AFTEREXPERIMENT'});
             
             % add text properties
             o.addProperty('message','Hello World');
-            o.addProperty('font','Times New Roman');
+            o.addProperty('font','Courier New');
             o.addProperty('textsize', 20);
             o.addProperty('textstyle', 0);
             o.addProperty('textalign','center');
-            
+        end
+        
+        function beforeExperiment(o,c,evt)
+           scale = c.screen.physical(1)/c.screen.pixels(3);
+           o.scale.x = scale;
+           o.scale.y = -scale;
         end
         
         function beforeFrame(o,c,evt)
                     % Draw text with the assigned parameters
-                    messagetext = double(o.message);
-                    
+%                     messagetext = double(o.message);
                     % determine text style variable for 'TextStyle'
                     switch lower(o.textstyle)
                         case {'normal',0}
@@ -51,14 +55,12 @@ classdef text < neurostim.stimulus
                     end
                     
                     % change font/size/style
-                    prevfont = Screen('TextFont', c.window, o.font);
-                    prevtextsize = Screen('TextSize', c.window, o.textsize);
-                    prevtextstyle = Screen('TextStyle', c.window, style);
+                    Screen('TextFont', c.window, o.font);
+                    Screen('TextSize', c.window, o.textsize);
+                    Screen('TextStyle', c.window, style);
                     
-                    
+                    [textRect] = Screen('TextBounds',c.window,o.message);
                     % aligning text in window
-                    [textRect,~] = Screen('TextBounds', c.window, messagetext); % gets text box size
-                    
                     switch lower(o.textalign)
                         case {'center','centre','c'}
                             xpos = o.X - textRect(3)/2;
@@ -75,21 +77,19 @@ classdef text < neurostim.stimulus
                     end
                     
                     % draw text to Screen
-                    if o.visible
-                        Screen('DrawText', c.window, messagetext, xpos, ypos, o.color);
-                    end
-                    
-                    % restore prevous font/size/style
-                    Screen('TextFont', c.window, prevfont);
-                    Screen('TextSize', c.window, prevtextsize);
-                    Screen('TextStyle', c.window, prevtextstyle);
+                    Screen('DrawText', c.window, o.message, xpos, ypos, o.color);
                    
         end
-
         
-        function afterFrame(o,c,evt)
+        function afterTrial(o,c,evt)
+            
+            c.restoreTextPrefs;
         end
         
+        function afterExperiment(o,c,evt)
+            c.restoreTextPrefs;
+            
+        end
     end
     
 end

@@ -1,4 +1,4 @@
-%% 
+ %% 
 % Surround Suppression Example
 %
 % Demonstrates how to copy stimuli, how to link them to each other with
@@ -9,7 +9,7 @@
 
 %% Prerequisites. 
 import neurostim.*
-Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+Screen('Preference', 'SkipSyncTests', 0); % Not in  production mode; this is just to run without requiring accurate timing.
 
 %% Setup CIC and the stimuli.
 c = cic;                            % Create Command and Intelligence Center...
@@ -33,9 +33,9 @@ g.sigma = 1;
 g.phaseSpeed = 10;
 g.orientation = 90;
 g.mask ='CIRCLE';
-g.frequency = 3;
+g.frequency = 3; 
 g.duration  = 30; 
-
+ 
 % Duplicate the test grating to serve as a reference (its contrast is
 % constant). Call this new stimulus 'reference'
 g2= duplicate(g,'reference');
@@ -88,12 +88,12 @@ surroundContrast = 0.6;
 %
 % The third factor just ensures that the reference and test stimulus appear
 % on the left and right equally often
-%
+% 
 design = {{'surround','orientation',{0,0,90,0},'surround','contrast',{0,surroundContrast,surroundContrast,surroundContrast},'referenceSurround','contrast',{0,surroundContrast,0,0}},...
           {'test','contrast',{0.10, 0.20 ,0.40 ,0.50}},...
           {'test','X',{-2.5, 2.5}}};
 % 
-%design = {{'test','contrast',{0.10, 0.20 ,0.40 ,0.50}},...
+%design = {{'test','contrast',{0.10, 0.20 ,0.40,0.50}},...
 %          {'test','X',{-2.5, 2.5}}};
  
 c.addFactorial('orientation',design{:}) ;
@@ -106,5 +106,5 @@ c.addBlock('orientation','orientation',10,'RANDOMWITHREPLACEMENT')
 c.addResponse('a','write',-1,'nextTrial',true);
 c.addResponse('l','write',+1,'nextTrial',true);
 
-c.run % Run the experiment. 
+c.run % Run the experiment.  
  
