@@ -8,12 +8,14 @@ Screen('Preference', 'ConserveVRAM', 32);
 
 % c = myConfig('Eyelink',false);
 % c = cic;                            % Create Command and Intelligence Center...
-% c.position = [0 0 1600 1000];         % Set the position and size of the window
-% c.color.background= [0 0 0];
-% c.colorMode = 'xyl';
+% c.screen.pixels = [0 0 1600 1000];         % Set the position and size of the window
+% c.screen.color.background= [0 0 0];
+% c.screen.colorMode = 'xyl';
 % c.iti = 2000;
 % c.trialDuration = inf;
 c = myConfig;
+
+
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
 
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
@@ -25,37 +27,36 @@ c.add(plugins.debug);               % Use the debug plugin which allows you to m
 % g.phaseSpeed = 10;
 % c.add(g);
 
-
 % t = stimuli.text('text');           % create a text stimulus
 % t.message = 'Hello World';
-% t.font = 'Times New Roman';
-% t.textsize = 50;
-% t.textstyle = 'italic';
-% t.textalign = 'r';
-% t.X = 1920/2;
-% t.Y = 1080/2;
-% t.color = [255 255 255];
+% t.font = 'Courier New';
+% t.textsize = 40;
+% t.textalign = 'c';
+% t.X = 0;
+% t.Y = 0;
+% t.color = [1 1 0.5];
 % c.add(t);
 
 
+% 
 f=stimuli.fixation('fix');           % Create a fixation stimulus.
 f.on = 0;
 f.duration = inf;
 f.luminance = 50;
 f.color = [1 1];
 f.shape = 'STAR';
-% f.size = 2; 
+f.size = 1; 
 f.size2 = 1;
 % f.angle = '@(cic) cic.frame';
 % f.X = '@(mouse) mouse.mousex';
 % f.Y = '@(mouse) mouse.mousey';
 f.X = 0;
 f.Y = 0;
-
+% 
 c.add(f);
 % 
 
-fl = stimuli.fixation('fixl');
+fl = stimuli.fixation('fix1');
 fl.on = 0;
 f1.duration = inf;
 fl.shape = 'CIRC';
@@ -63,10 +64,11 @@ fl.X = 5;
 fl.Y = 0;
 c.add(fl);
 
-m = stimuli.mouse('mouse');
-c.add(m);
+% m = stimuli.mouse('mouse');
+% c.add(m);
 
 
+% 
 s = stimuli.rdp('dots');
 s.color = [1/3 1/3];
 s.luminance = 100;
@@ -83,14 +85,14 @@ c.add(s);
 
 
 
-k = stimuli.nafcResponse('key');
-c.add(k);
-k.keys = {'a' 'z'};
-k.stimName = 'dots';
-k.var = 'direction';
-k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
-k.keyLabel = {'clockwise', 'counterclockwise'};
-k.endTrialonKeyPress = 1;
+% k = stimuli.nafcResponse('key');
+% c.add(k);
+% k.keys = {'a' 'z'};
+% k.stimName = 'dots';
+% k.var = 'direction';
+% k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
+% k.keyLabel = {'clockwise', 'counterclockwise'};
+% k.endTrialonKeyPress = 1;
 
 % s = stimuli.shadlendots('dots2');
 % s.apertureD = 20;
@@ -103,7 +105,7 @@ k.endTrialonKeyPress = 1;
 
 
 c.addFactorial('myFactorial',...
-    {'fix','shape',{'STAR' 'RECT'}}) ;
+    {'dots','coherence',{0.1 0.9}}) ;
 
 c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
@@ -118,23 +120,24 @@ c.add(plugins.output);
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
-f1 = plugins.fixate('f1');
-f1.X = 0;
-f1.Y = 0;
-f1.duration = 500;
-c.add(f1);
-f2 = plugins.fixate('f2');
+% f1 = plugins.fixate('f1');
+% f1.X = 0;
+% f1.Y = 0;
+% f1.duration = 500;
+% c.add(f1);
+% f2 = plugins.fixate('f2');
+% 
+% f2.X = 5;
+% f2.Y = 0;
+% c.add(f2);
+% 
+% s=plugins.saccade('sac1',f1,f2);
+% c.add(s);
+% 
+% e = plugins.eyelink;
+% e.useMouse = true;
+% c.add(e);
 
-f2.X = 5;
-f2.Y = 0;
-c.add(f2);
-
-s=plugins.saccade('sac1',f1,f2);
-c.add(s);
-
-e = plugins.eyelink;
-e.useMouse = true;
-c.add(e);
 
 % c.add(plugins.mcc);
 

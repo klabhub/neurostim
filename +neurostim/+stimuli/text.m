@@ -21,7 +21,7 @@ classdef text < neurostim.stimulus
     methods (Access = public)
         function o = text(name)
             o = o@neurostim.stimulus(name);
-            o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT','AFTERTRIAL','AFTEREXPERIMENT'});
+            o.listenToEvent({'BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT'});
             
             % add text properties
             o.addProperty('message','Hello World');
@@ -31,16 +31,11 @@ classdef text < neurostim.stimulus
             o.addProperty('textalign','center');
         end
         
-        function beforeExperiment(o,c,evt)
-           scale = c.screen.physical(1)/c.screen.pixels(3);
-           o.scale.x = scale;
-           o.scale.y = -scale;
-        end
         
         function beforeFrame(o,c,evt)
                     % Draw text with the assigned parameters
-%                     messagetext = double(o.message);
-                    % determine text style variable for 'TextStyle'
+%                     % determine text style variable for 'TextStyle'
+                    
                     switch lower(o.textstyle)
                         case {'normal',0}
                             style = 0;
@@ -54,41 +49,43 @@ classdef text < neurostim.stimulus
                             style = 0;
                     end
                     
-                    % change font/size/style
+%                     change font/size/style
                     Screen('TextFont', c.window, o.font);
                     Screen('TextSize', c.window, o.textsize);
                     Screen('TextStyle', c.window, style);
+                    
+                    
+                    % fix X and Y to be in pixels (clipping occurs at
+                    % negative numbers under high quality text rendering)
+                    [X,Y] = c.physical2Pixel(o.X,o.Y);
                     
                     [textRect] = Screen('TextBounds',c.window,o.message);
                     % aligning text in window
                     switch lower(o.textalign)
                         case {'center','centre','c'}
-                            xpos = o.X - textRect(3)/2;
-                            ypos = o.Y - textRect(4)/2;
+                            xpos = X - textRect(3)/2;
+                            ypos = Y - textRect(4)/2;
                         case {'left','l'}
-                            xpos = o.X;
-                            ypos = o.Y - textRect(4)/2;
+                            xpos = X;
+                            ypos = Y - textRect(4)/2;
                         case {'right','r'}
-                            xpos = o.X - textRect(3);
-                            ypos = o.Y - textRect(4)/2;
+                            xpos = X - textRect(3);
+                            ypos = Y - textRect(4)/2;
                         otherwise
-                            xpos = o.X;
-                            ypos = o.Y;
+                            xpos = X;
+                            ypos = Y;
                     end
                     
                     % draw text to Screen
-                    Screen('DrawText', c.window, o.message, xpos, ypos, o.color);
-                   
+                    DrawFormattedText(c.window,o.message,xpos,ypos,o.color);
         end
         
         function afterTrial(o,c,evt)
-            
             c.restoreTextPrefs;
         end
         
         function afterExperiment(o,c,evt)
             c.restoreTextPrefs;
-            
         end
     end
     
