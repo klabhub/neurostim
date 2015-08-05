@@ -65,6 +65,7 @@ classdef saccade < neurostim.plugins.behavior
                     o.endTime = GetSecs*1000;
                     break;
                 elseif Y>=min(yvec) && Y<=max(yvec) && (GetSecs*1000)<=(o.startTime+o.maxLatency)
+                    % calculate using distance formula
                     distance = abs((yvec(2)-yvec(1))*X - (xvec(2)-xvec(1))*Y...
                         + xvec(2)*yvec(1) - yvec(2)*xvec(1))/(sqrt(yvec(2)-yvec(1))^2+(xvec(2)-xvec(1))^2);
                     on = distance<=o.tolerance;
@@ -72,6 +73,7 @@ classdef saccade < neurostim.plugins.behavior
                         break;
                     end
                 elseif X>=min(xvec) && X<=max(xvec) && (GetSecs*1000)<=(o.startTime+o.maxLatency)% else if point is within these two points
+                    % calculate using distance formula
                     distance = abs((yvec(2)-yvec(1))*X - (xvec(2)-xvec(1))*Y...
                         + xvec(2)*yvec(1) - yvec(2)*xvec(1))/(sqrt(yvec(2)-yvec(1))^2+(xvec(2)-xvec(1))^2);
                     on = distance<=o.tolerance;

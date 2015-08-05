@@ -298,7 +298,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Compare with existing value to see if we need to set?
             oldValue = o.(src.Name);
             if (ischar(value) && ~(strcmp(oldValue,value))) ...
-                    && (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
+                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || ischar(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
                 o.(src.Name) = value; % This calls PostSet and logs the new value
             end
         end
@@ -378,21 +378,21 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     methods (Access = public)
         function baseEvents(o,c,evt)
-                switch evt.EventName
-                    case 'BASEBEFOREFRAME'
-                        notify(o,'BEFOREFRAME');
-                    case 'BASEAFTERFRAME'
-                        notify(o,'AFTERFRAME');
-                    case 'BASEBEFORETRIAL'
-                        notify(o,'BEFORETRIAL');
-                    case 'BASEAFTERTRIAL'
-                        notify(o,'AFTERTRIAL');
-                        
-                    case 'BASEBEFOREEXPERIMENT'
-                        notify(o,'BEFOREEXPERIMENT');
-                        
-                    case 'BASEAFTEREXPERIMENT'
-                        notify(o,'AFTEREXPERIMENT');
+            switch evt.EventName
+                case 'BASEBEFOREFRAME'
+                    notify(o,'BEFOREFRAME');
+                case 'BASEAFTERFRAME'
+                    notify(o,'AFTERFRAME');
+                case 'BASEBEFORETRIAL'
+                    notify(o,'BEFORETRIAL');
+                case 'BASEAFTERTRIAL'
+                    notify(o,'AFTERTRIAL');
+                    
+                case 'BASEBEFOREEXPERIMENT'
+                    notify(o,'BEFOREEXPERIMENT');
+                    
+                case 'BASEAFTEREXPERIMENT'
+                    notify(o,'AFTEREXPERIMENT');
             end
         end
     end

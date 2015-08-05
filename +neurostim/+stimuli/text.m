@@ -16,9 +16,16 @@ classdef text < neurostim.stimulus
     
     properties
         antialiasing = 0;
-        flipVertical = 0;
     end
     
+    methods
+        function o = set.antialiasing(o,value)
+            if value ~= Screen('Preference','TextRenderer')
+                warning('Text antialiasing not set to screen antialiasing')
+            end
+            o.antialiasing = value;
+        end
+    end
     
     methods (Access = public)
         function o = text(name)
@@ -31,22 +38,27 @@ classdef text < neurostim.stimulus
             o.addProperty('textsize', 20);
             o.addProperty('textstyle', 0);
             o.addProperty('textalign','center');
+            o.X = 0;
+            o.Y = 0;
+            
         end
         
         
         function beforeFrame(o,c,evt)
                     % Draw text with the assigned parameters
-%                     % determine text style variable for 'TextStyle'
+                     % determine text style variable for 'TextStyle'
                     
                     if o.antialiasing
                        Screen('glLoadIdentity', c.window); 
                        Screen('glRotate',c.window,o.angle,o.rx,o.ry,o.rz);
+                       % fix X and Y to be in pixels (clipping occurs at
+                       % negative numbers under high quality text rendering)
                        [X,Y] = c.physical2Pixel(o.X,o.Y);
                        textsize = o.textsize;
                     else
+                        Screen('glScale',c.window,1,-1);
                         X = o.X;
                         Y = o.Y;
-                        o.flipVertical = 1;
                         textsize = round(o.textsize*c.screen.physical(1)/c.screen.pixels(4));
                     end
 
@@ -69,28 +81,43 @@ classdef text < neurostim.stimulus
                     Screen('TextStyle', c.window, style);
                     
                     
-                    % fix X and Y to be in pixels (clipping occurs at
-                    % negative numbers under high quality text rendering)
                     
                     [textRect] = Screen('TextBounds',c.window,o.message);
                     % aligning text in window
                     switch lower(o.textalign)
                         case {'center','centre','c'}
-                            xpos = X - textRect(3)/2;
-                            ypos = Y - textRect(4)/2;
+                            if o.antialiasing
+                                xpos = X - textRect(3)/2;
+                                ypos = Y - textRect(4)/2;
+                            else
+                                xpos = -textRect(3)/2;
+                                ypos = -textRect(4)/2;
+                            end
                         case {'left','l'}
-                            xpos = X;
-                            ypos = Y - textRect(4)/2;
+                            if o.antialiasing
+                                xpos = X;
+                                ypos = X - textRect(4)/2;
+                            else
+                                xpos = X;
+                                ypos = - textRect(4)/2;
+                            end
                         case {'right','r'}
-                            xpos = X - textRect(3);
-                            ypos = Y - textRect(4)/2;
+                            if o.antialiasing
+                                xpos = X - textRect(3);
+                                ypos = -textRect(4)/2;
+                            else
+                                xpos = -textRect(3);
+                                ypos = -textRect(4)/2;
+                            end
                         otherwise
                             xpos = X;
                             ypos = Y;
                     end
                     
+%                     winRect = (textRect + [xpos ypos xpos ypos]);
+                    
                     % draw text to Screen
-                    DrawFormattedText(c.window,o.message,xpos,ypos,o.color,[],[],o.flipVertical);
+                    [~,~,bounds]=DrawFormattedText(c.window,o.message,xpos,ypos,o.color,[],[],[],[],[],[]);
         end
         
         function afterTrial(o,c,evt)

@@ -27,13 +27,16 @@ c.add(plugins.debug);               % Use the debug plugin which allows you to m
 % g.phaseSpeed = 10;
 % c.add(g);
 
+
+
 % t = stimuli.text('text');           % create a text stimulus
 % t.message = 'Hello World';
 % t.font = 'Courier New';
-% t.textsize = 40;
+% t.textsize = 50;
 % t.textalign = 'c';
-% t.X = 0;
-% t.Y = 0;
+% t.X = '@(mouse) mouse.mousex';
+% t.Y = '@(mouse) mouse.mousey';
+% t.antialiasing = 0;
 % t.color = [1 1 0.5];
 % c.add(t);
 
@@ -62,11 +65,12 @@ f1.duration = inf;
 fl.shape = 'CIRC';
 fl.X = 5;
 fl.Y = 0;
+
 c.add(fl);
 
-% m = stimuli.mouse('mouse');
-% c.add(m);
 
+m = stimuli.mouse('mouse');
+c.add(m);
 
 % 
 s = stimuli.rdp('dots');
