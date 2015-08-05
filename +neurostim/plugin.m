@@ -113,11 +113,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             h.GetObservable =true;
             % find the function end of the string
-            funcend = regexp(funcstring,'\<@\((\w*)(,\s*\w*)*\)\>','end');
+            funcend = regexp(funcstring,'\<@\((\w*)(,*\s*\w*(\.\w*)*)*\)\>','end');
             func = funcstring(funcend+1:end); % store the function end of the string
             specs{1} = func;
             c = 0;
-            variables = regexp(funcstring,'(?<=@\s*\()(\w*)|(?<=,\s*)(\w*)','tokens');  %get the main variables
+            variables = regexp(funcstring,'(?<=@\s*\()(\w*(\.\w*)*)|(?<=,\s*)(\w*(\.\w*)*)','tokens');  %get the main variables
             for a=1:length(variables)
                 vardot = regexp(funcstring,'(?<=(??@variables{a}{1})\.)\w*(\.\w*)*','match');   %get the variable after the dot
                 for b = 1:length(vardot)
@@ -214,7 +214,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % it does not exist, call functional()
                 functional(o,src.Name,value); 
             end
-            o.addToLog(src.Name,value);
+             o.addToLog(src.Name,value);
         end
         
         % Protected access to logging
@@ -237,20 +237,53 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if isa(specs{i+1}{1},'neurostim.plugin')
                         % Handle to a plugin: interpret as dots.X
                         args{i} = specs{i+1}{1}.(specs{i+1}{2});
-                    elseif ischar(specs{i+1}{1}) && ~strcmp(specs{i+1}{1},'cic')
+                    elseif ischar(specs{i+1}{1}) && isempty(strfind(specs{i+1}{1},'cic')) %not an object of cic
                         % Name of a plugin. Find its handle first.
-                        if strcmp(specs{i+1}{2},src.Name)   %if function is self-referential
-                            oldValues = o.log.values(strcmp(o.log.parms,specs{i+1}{2}));
-                            if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)\)'))
-                                args{i} = oldValues{end-1};
-                            else
-                                args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                        if ~isempty(strfind(specs{i+1}{2},src.Name))   %if function is self-referential
+                            if isempty(strfind(specs{i+1}{1},'.')) %if there is no subproperty reference
+                                oldValues = o.log.values(strcmp(o.log.parms,specs{i+1}{2}));
+                                if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)\)'))
+                                    args{i} = oldValues{end-1};
+                                else
+                                    args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                                end
+                            else a = strfind(specs{i+1}{1},'.');    % if there is a subproperty reference
+                                
+                                
                             end
                         else
-                            args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                            if isempty(strfind(specs{i+1}{1},'.')) %if there is no subproperty reference
+                                args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                            else a = strfind(specs{i+1}{1},'.');    % if there is a subproperty reference
+                                predot = specs{i+1}{1}(1:(a-1)); %get the initial variable
+                                args{i} = o.cic.(predot);
+                                if length(a)>1  %if there is more than one subproperty ref
+                                    for b = 1:length(a)-1
+                                        postdot = specs{i+1}{1}(a(b)+1:a(b+1));
+                                        args{i} = args{i}.(postdot);
+                                    end
+                                    args{i} = args{i}.(specs{i+1}{2});
+                                end
+                            end
                         end
-                    else
-                        args{i} = o.cic.(specs{i+1}{2}); 
+                    else % cic reference
+                        if isempty(strfind(specs{i+1}{1},'.'))  %if there is no subproperty reference
+                            args{i} = o.cic.(specs{i+1}{2}); 
+                        else a = strfind(specs{i+1}{1},'.');    % if there is a subproperty reference
+                            args{i} = o.cic;
+                            if length(a)>1  %if there is more than one subproperty ref
+                                for b = 1:length(a)-1
+                                   postdot = specs{i+1}{1}(a(b)+1:a(b+1)-1);
+                                   args{i} = args{i}.(postdot);
+                                end
+                                postdot = specs{i+1}{1}(a(b+1)+1:end);
+                                args{i} = args{i}.(postdot).(specs{i+1}{2});
+                            else
+                                postdot = specs{i+1}{1}(a+1:end);
+                                args{i} = args{i}.(postdot).(specs{i+1}{2});
+                            end
+                            
+                        end
                     end
                 else
                     args{i} = specs{i+1};
@@ -265,7 +298,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Compare with existing value to see if we need to set?
             oldValue = o.(src.Name);
             if (ischar(value) && ~(strcmp(oldValue,value))) ...
-                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
+                    && (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
                 o.(src.Name) = value; % This calls PostSet and logs the new value
             end
         end

@@ -147,14 +147,14 @@ classdef stimulus < neurostim.plugin
         function baseEvents(s,c,evt)
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
-                    if ~isa(s,'neurostim.stimuli.text')
-                        glScreenSetup(c);
-                        
-                        %Apply stimulus transform
-                        Screen('glTranslate',c.window,s.X,s.Y,s.Z);
-                        Screen('glScale',c.window,s.scale.x,s.scale.y);
-                        Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
-                    end
+                    
+                    glScreenSetup(c);
+                    
+                    %Apply stimulus transform
+                    Screen('glTranslate',c.window,s.X,s.Y,s.Z);
+                    Screen('glScale',c.window,s.scale.x,s.scale.y);
+                    Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
+                    
                     s.flags.on = c.frame >=s.on && c.frame < s.on+s.duration;
                     if s.flags.on 
                         notify(s,'BEFOREFRAME');

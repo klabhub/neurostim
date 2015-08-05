@@ -15,6 +15,8 @@ classdef text < neurostim.stimulus
     %
     
     properties
+        antialiasing = 0;
+        flipVertical = 0;
     end
     
     
@@ -36,6 +38,18 @@ classdef text < neurostim.stimulus
                     % Draw text with the assigned parameters
 %                     % determine text style variable for 'TextStyle'
                     
+                    if o.antialiasing
+                       Screen('glLoadIdentity', c.window); 
+                       Screen('glRotate',c.window,o.angle,o.rx,o.ry,o.rz);
+                       [X,Y] = c.physical2Pixel(o.X,o.Y);
+                       textsize = o.textsize;
+                    else
+                        X = o.X;
+                        Y = o.Y;
+                        o.flipVertical = 1;
+                        textsize = round(o.textsize*c.screen.physical(1)/c.screen.pixels(4));
+                    end
+
                     switch lower(o.textstyle)
                         case {'normal',0}
                             style = 0;
@@ -51,13 +65,12 @@ classdef text < neurostim.stimulus
                     
 %                     change font/size/style
                     Screen('TextFont', c.window, o.font);
-                    Screen('TextSize', c.window, o.textsize);
+                    Screen('TextSize', c.window, textsize);
                     Screen('TextStyle', c.window, style);
                     
                     
                     % fix X and Y to be in pixels (clipping occurs at
                     % negative numbers under high quality text rendering)
-                    [X,Y] = c.physical2Pixel(o.X,o.Y);
                     
                     [textRect] = Screen('TextBounds',c.window,o.message);
                     % aligning text in window
@@ -77,7 +90,7 @@ classdef text < neurostim.stimulus
                     end
                     
                     % draw text to Screen
-                    DrawFormattedText(c.window,o.message,xpos,ypos,o.color);
+                    DrawFormattedText(c.window,o.message,xpos,ypos,o.color,[],[],o.flipVertical);
         end
         
         function afterTrial(o,c,evt)
