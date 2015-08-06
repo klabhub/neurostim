@@ -424,7 +424,7 @@ classdef cic < neurostim.plugin
                     end
                     % Install a listener in the derived class so that it
                     % can respond to notify calls in the base class
-                    addlistener(o,o.evts{i},h);
+                        addlistener(o,o.evts{i},h);
                 else
                     switch upper(o.evts{i})
                          case 'BEFOREEXPERIMENT'
@@ -441,11 +441,15 @@ classdef cic < neurostim.plugin
                              h= @(c,evt)(o.afterExperiment(c,evt));
                         case 'FIRSTFRAME'
                             h = @(c,evt)(o.firstFrame(c,evt));
-                        case 'GETREWARD'
-                            h = @(c,evt)(o.getReward(c,evt));
+                         case 'GETREWARD'
+                            h = @(c,evt)(o.getReward(o.cic,evt));
                     end
                     % Install a listener in CIC. It will distribute.
-                    addlistener(c,o.evts{i},h);
+                    if strcmpi(o.evts{i},'GETREWARD')
+                         addlistener(o,o.evts{i},h);
+                    else
+                        addlistener(c,o.evts{i},h);
+                    end
                 end
             end
         end

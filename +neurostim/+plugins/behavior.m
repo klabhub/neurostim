@@ -14,7 +14,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
     acquireEvent = {};    % checks behaviour, for acquiring data
     validateEvent = {'afterFrame'}; % checks whether this behaviour is 'correct'
     endsTrial = true;  %does violating behaviour end trial?
-    rewardOn = false;
+    rewardOn = true;
     data;
     prevOn = false;
     end
@@ -57,7 +57,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
             if any(strcmpi('afterexperiment',[o.validateEvent o.acquireEvent]))
                 o.listenToEvent('AFTEREXPERIMENT');
             end
-        end
+         end
         
         function beforeTrial(o,c,evt)
             % reset all flags
@@ -158,10 +158,10 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                     if ~o.on && o.prevOn       % if behaviour is not on, but was on previously
                         o.startTime = Inf;      % reset start time and done flag
                         o.done = false;
-%                         display('wrong')
+%                         display('wrong');
                         if o.rewardOn       % if we want to trigger rewards
                             [o.rewardData.answer] = deal(false);
-                            notify(c,'GETREWARD');
+                            notify(o,'GETREWARD');
                         end
                         if o.endsTrial    % if we want failure to end trial
 %                             keyboard;
@@ -175,7 +175,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
 %                         display('right')
                         if o.rewardOn   % if we want to trigger rewards
                             [o.rewardData.answer] = deal(true);
-                            notify(c,'GETREWARD');
+                            notify(o,'GETREWARD');
                         end
                     end
                 else    % if behaviour is discrete
@@ -191,8 +191,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
         end
     end
     
-    
-    
+   
     
     
 end

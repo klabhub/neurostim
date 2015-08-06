@@ -11,7 +11,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         BEFORETRIAL;
         AFTERTRIAL;    
         BEFOREEXPERIMENT;
-        AFTEREXPERIMENT;        
+        AFTEREXPERIMENT;
     end
     
     properties (SetAccess=private, GetAccess=public)
@@ -232,58 +232,79 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             fun = specs{1}; % Function handle
             nrArgs = length(specs)-1;
             args= cell(1,nrArgs);
+            
             for i=1:nrArgs
                 if iscell(specs{1+i})
-                    if isa(specs{i+1}{1},'neurostim.plugin')
-                        % Handle to a plugin: interpret as dots.X
-                        args{i} = specs{i+1}{1}.(specs{i+1}{2});
-                    elseif ischar(specs{i+1}{1}) && isempty(strfind(specs{i+1}{1},'cic')) %not an object of cic
-                        % Name of a plugin. Find its handle first.
-                        if ~isempty(strfind(specs{i+1}{2},src.Name))   %if function is self-referential
-                            if isempty(strfind(specs{i+1}{1},'.')) %if there is no subproperty reference
-                                oldValues = o.log.values(strcmp(o.log.parms,specs{i+1}{2}));
-                                if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)\)'))
+                    if isempty(strfind(specs{i+1}{2},'.')) 
+                        %if there is no subproperty reference
+                        if ischar(specs{i+1}{1}) && strcmp(specs{i+1}{1},'cic')
+                            % An object of cic
+                            args{i} = o.cic.(specs{i+1}{2});
+                        else
+                            %not an object of cic; must be a plugin/stimulus
+                            if strcmp(specs{i+1}{1},o.name)
+                                % if is self-referential
+                                oldValues = o.log.values(strcmp(o.log.parms,specs{i+1}{2}));    % check old value was not functional
+                                if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))
                                     args{i} = oldValues{end-1};
                                 else
                                     args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
                                 end
-                            else a = strfind(specs{i+1}{1},'.');    % if there is a subproperty reference
-                                
-                                
-                            end
-                        else
-                            if isempty(strfind(specs{i+1}{1},'.')) %if there is no subproperty reference
+                            else % is not self-referential
                                 args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
-                            else a = strfind(specs{i+1}{1},'.');    % if there is a subproperty reference
-                                predot = specs{i+1}{1}(1:(a-1)); %get the initial variable
-                                args{i} = o.cic.(predot);
-                                if length(a)>1  %if there is more than one subproperty ref
-                                    for b = 1:length(a)-1
-                                        postdot = specs{i+1}{1}(a(b)+1:a(b+1));
-                                        args{i} = args{i}.(postdot);
-                                    end
-                                    args{i} = args{i}.(specs{i+1}{2});
-                                end
                             end
                         end
-                    else % cic reference
-                        if isempty(strfind(specs{i+1}{1},'.'))  %if there is no subproperty reference
-                            args{i} = o.cic.(specs{i+1}{2}); 
-                        else a = strfind(specs{i+1}{1},'.');    % if there is a subproperty reference
-                            args{i} = o.cic;
-                            if length(a)>1  %if there is more than one subproperty ref
-                                for b = 1:length(a)-1
-                                   postdot = specs{i+1}{1}(a(b)+1:a(b+1)-1);
-                                   args{i} = args{i}.(postdot);
-                                end
-                                postdot = specs{i+1}{1}(a(b+1)+1:end);
-                                args{i} = args{i}.(postdot).(specs{i+1}{2});
-                            else
-                                postdot = specs{i+1}{1}(a+1:end);
-                                args{i} = args{i}.(postdot).(specs{i+1}{2});
-                            end
+                        
+                    else
+                        % there is a subproperty reference
+                        a = strfind(specs{i+1}{2},'.'); % a is dot reference numbers
+                        predot = specs{i+1}{2}(1:(a-1)); %get the initial variable
+                        
+                        if ischar(specs{i+1}{1}) && strcmp(specs{i+1}{1},'cic')
+                            % if is an object of cic
+                            args{i} = o.cic.(predot);
+                        else % if is not an object of cic (plugin/stimulus)
+                            args{i} = o.cic.(specs{i+1}{1}).(predot);
                             
+                            if strcmp(specs{i+1}{1},src.Name)
+                            % if the property is self-referential
+                            oldValues = o.log.values(strcmp(o.log.parms,predot)); 
+                                if isstruct(oldValues{end}) %if is a structure
+                                    % store the last and second-last values
+                                    % so that args{} can be set to the
+                                    % previous non-functional value.
+                                    oldValueEnd = oldValues{end};
+                                    oldValue1End = oldValues{end-1};
+                                    if length(a)>1
+                                        for b = 1:length(a)-1
+                                            postdot = specs{i+1}{2}(a(b)+1:a(b+1)-1);
+                                            oldValueEnd = oldValueEnd.(postdot);
+                                            oldValue1End = oldValue1End.(postdot);
+                                            args{i} = args{i}.(postdot);
+                                        end
+                                    end
+                                    postdot = specs{i+1}{2}(a(end)+1:end);
+                                    oldValueEnd = oldValueEnd.(postdot);
+                                    oldValue1End = oldValue1End.(postdot);
+                                    if ischar(oldValueEnd) && any(regexp(oldValueEnd,'@\((\w*)*')) %if the last value was a functional string
+                                        args{i} = oldValue1End; % set the value to the previous value.
+                                        continue;   %skip the rest of this loop now that args{i} has been found.
+                                    else
+                                        args{i} = args{i}.(postdot);    %set the value to the acquired value.
+                                        continue;   %skip the rest of this loop now that args{i} has been found.
+                                    end
+                                end
+                            end
                         end
+                        if length(a)>1  %if there is more than one subproperty ref
+                            for b = 1:length(a)-1 % collect all the subproperty refs
+                                postdot = specs{i+1}{2}(a(b)+1:a(b+1)-1);
+                                args{i} = args{i}.(postdot);
+                            end
+                        end
+                        % get the last after-dot reference
+                        postdot = specs{i+1}{2}(a(end)+1:end);
+                        args{i} = args{i}.(postdot);
                     end
                 else
                     args{i} = specs{i+1};
@@ -395,5 +416,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     notify(o,'AFTEREXPERIMENT');
             end
         end
+        
+        
     end
 end

@@ -1,4 +1,7 @@
 classdef reward < neurostim.plugin
+    % Simple reward class which presents rewards if requested by the
+    % notification event getReward.
+    
     
    properties
        soundCorrectFile;
@@ -7,6 +10,8 @@ classdef reward < neurostim.plugin
        soundIncorrect;
        soundReady = false;
        mccChannel;
+       correctBuffer;
+       incorrectBuffer;
    end
    
    properties (SetObservable, AbortSet)
@@ -21,9 +26,9 @@ classdef reward < neurostim.plugin
        function o=reward
            o=o@neurostim.plugin('reward');
            
-           o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GETREWARD','AFTERTRIAL'})
-           o.soundCorrectFile = 'C:\Users\tkoster\Downloads\440Hz_05sec.wav';
-           o.soundIncorrectFile = 'C:\Users\tkoster\Downloads\250Hz_05sec.wav';
+            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GETREWARD','AFTERTRIAL'})
+           o.soundCorrectFile = 'C:\Users\tkoster\Downloads\nsSounds\sounds\correct.wav';
+           o.soundIncorrectFile = 'C:\Users\tkoster\Downloads\nsSounds\sounds\incorrect.wav';
        end
        
        
@@ -53,6 +58,9 @@ classdef reward < neurostim.plugin
                   o.soundIncorrect = y';
               end
               
+              o.correctBuffer = PsychPortAudio('CreateBuffer',o.paHandle,o.soundCorrect);
+              o.incorrectBuffer = PsychPortAudio('CreateBuffer',o.paHandle,o.soundIncorrect);
+              
           end
        end
        
@@ -79,9 +87,10 @@ classdef reward < neurostim.plugin
            % when - immediate or aftertrial
            % respondTo - cell array of 'correct', 'incorrect' to respond to.
            % answer - true/false for correct/incorrect.
-           for a = 1:max(size(o.rewardData))
-               if (any(strcmpi(o.rewardData(a).respondTo,'correct')) && o.rewardData(a).answer) ||...
-                       (any(strcmpi(o.rewardData(a).respondTo,'incorrect')) && ~o.rewardData(a).answer)
+           display(['o.name is ' o.name]);
+           for a = 1:max(size({o.rewardData.type}))
+               if (any((strcmpi(o.rewardData(a).respondTo,'correct')) && o.rewardData(a).answer)) ||...
+                       (any(strcmpi(o.rewardData(a).respondTo,'incorrect') && ~o.rewardData(a).answer))
                    % if respond to correct (and answer is correct) or respond
                    % to incorrect (and answer is incorrect)
                    
@@ -110,13 +119,14 @@ classdef reward < neurostim.plugin
            % Inputs:
            % rewardData - the specific rewardData struct.
            if rewardData.answer
-               PsychPortAudio('FillBuffer', o.paHandle, o.soundCorrect);
+               PsychPortAudio('FillBuffer', o.paHandle,o.correctBuffer);
            else
-               PsychPortAudio('FillBuffer', o.paHandle, o.soundIncorrect);
+               PsychPortAudio('FillBuffer', o.paHandle, o.incorrectBuffer);
            end
            
            if strcmpi(rewardData.when,'IMMEDIATE')
-               PsychPortAudio('Start', o.paHandle);
+               PsychPortAudio('Start', o.paHandle,1,0,0,inf,1);
+%                PsychPortAudio('Stop',o.paHandle,1);
            elseif strcmpi(rewardData.when,'AFTERTRIAL')
                o.soundReady = true;
            end

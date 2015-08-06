@@ -113,11 +113,9 @@ classdef text < neurostim.stimulus
                             xpos = X;
                             ypos = Y;
                     end
-                    
-%                     winRect = (textRect + [xpos ypos xpos ypos]);
-                    
+                   
                     % draw text to Screen
-                    [~,~,bounds]=DrawFormattedText(c.window,o.message,xpos,ypos,o.color,[],[],[],[],[],[]);
+                    [~,~,bounds]=DrawFormattedText(c.window,o.message,xpos,ypos,o.color);
         end
         
         function afterTrial(o,c,evt)
