@@ -62,7 +62,6 @@ classdef nafcResponse < neurostim.plugins.behavior
                    else
                        o.response = o.correctResponse{i};
                    end
-                   o.response
                end
            end
        end
