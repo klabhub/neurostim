@@ -155,7 +155,7 @@ classdef stimulus < neurostim.plugin
                     Screen('glScale',c.window,s.scale.x,s.scale.y);
                     Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
                     
-                    s.flags.on = c.frame >=s.on && c.frame < s.on+s.duration;
+                    s.flags.on = c.frame >=round(s.on*c.screen.framerate/1000) && c.frame < round((s.on+s.duration)*c.screen.framerate/1000);
                     if s.flags.on 
                         notify(s,'BEFOREFRAME');
                         if s.stimstart ~= true

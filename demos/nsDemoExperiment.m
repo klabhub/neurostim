@@ -47,6 +47,7 @@ f.on = 0;
 f.duration = inf;
 f.luminance = 50;
 f.color = [1 1];
+% f.color = '@(cic,fix) [cic.screen.color.background(1) fix.color(1)]';
 f.shape = 'STAR';
 f.size = 1; 
 f.size2 = 1;
@@ -72,6 +73,7 @@ c.add(fl);
 m = stimuli.mouse('mouse');
 c.add(m);
 
+
 % 
 s = stimuli.rdp('dots');
 s.color = [1/3 1/3];
@@ -84,19 +86,17 @@ s.lifetime = 10;
 s.duration = Inf;
 s.size = 2;
 s.maxRadius = 8;
-% s.on = 60;
 c.add(s);
 
 
-
-% k = stimuli.nafcResponse('key');
-% c.add(k);
-% k.keys = {'a' 'z'};
-% k.stimName = 'dots';
-% k.var = 'direction';
-% k.correctResponse = {(@(x) x<300 & x>180) (@(y) y>300 | y<180)};
-% k.keyLabel = {'clockwise', 'counterclockwise'};
-% k.endTrialonKeyPress = 1;
+% c.order(f,s);
+k = plugins.nafcResponse('key');
+c.add(k);
+k.keys = {'a' 'z'};
+k.stimName = 'dots';
+k.var = 'direction';
+k.correctResponse = {'@(x) x<300 & x>180' '@(y) y>300 | y<180'};
+k.keyLabel = {'clockwise', 'counterclockwise'};
 
 % s = stimuli.shadlendots('dots2');
 % s.apertureD = 20;
@@ -124,26 +124,26 @@ c.add(plugins.output);
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
-% f1 = plugins.fixate('f1');
-% f1.X = 0;
-% f1.Y = 0;
-% f1.duration = 500;
-% c.add(f1);
-% f2 = plugins.fixate('f2');
-% 
-% f2.X = 5;
-% f2.Y = 0;
-% c.add(f2);
-% 
-% s=plugins.saccade('sac1',f1,f2);
-% c.add(s);
-% 
-% e = plugins.eyelink;
-% e.useMouse = true;
-% c.add(e);
+f1 = plugins.fixate('f1');
+f1.X = 0;
+f1.Y = 0;
+f1.duration = 500;
+c.add(f1);
+f2 = plugins.fixate('f2');
+
+f2.X = 5;
+f2.Y = 0;
+c.add(f2);
+
+s=plugins.saccade('sac1',f1,f2);
+c.add(s);
+
+e = plugins.eyelink;
+e.useMouse = true;
+c.add(e);
 
 
-% c.add(plugins.mcc);
+% c.add(plugins.reward);
 
 c.run;
 
