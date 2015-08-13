@@ -177,6 +177,15 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                     end
                 else    % if behaviour is discrete
                     o.done = o.on;
+                    if o.rewardOn   % if we want to trigger rewards
+                        if o.done
+                            [o.rewardData.answer] = deal(true);
+                            notify(o,'GETREWARD');
+                        else
+                            [o.rewardData.answer] = deal(false);
+                            notify(o,'GETREWARD');
+                        end
+                    end
                     if o.done && o.endsTrial
                         c.nextTrial;
                         return;
