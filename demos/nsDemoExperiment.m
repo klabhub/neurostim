@@ -143,7 +143,7 @@ e.useMouse = true;
 c.add(e);
 
 
-% c.add(plugins.reward);
+c.add(plugins.reward);
 
 c.run;
 

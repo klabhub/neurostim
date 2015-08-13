@@ -1,7 +1,9 @@
 classdef reward < neurostim.plugin
     % Simple reward class which presents rewards if requested by the
     % notification event getReward.
-    
+    events
+        GETREWARD;
+    end
     
    properties
        soundCorrectFile;

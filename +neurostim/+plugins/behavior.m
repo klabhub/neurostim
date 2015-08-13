@@ -6,10 +6,6 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
     % beforeframe, afterframe), case insensitive.
     % reward - struct containing type, duration, etc.
     
-    events
-        GETREWARD;
-    end
-    
     properties
     acquireEvent = {};    % checks behaviour, for acquiring data
     validateEvent = {'afterFrame'}; % checks whether this behaviour is 'correct'
