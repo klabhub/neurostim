@@ -27,6 +27,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
             o = o@neurostim.plugin(name);
             o.addPostSet('done',[]);
             o.addPostSet('on',[]);
+            o.addProperty('response',[]);
             o.addProperty('continuous',false);
             o.addProperty('duration',1000);
             o.addProperty('from',0);
@@ -177,11 +178,16 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                     end
                 else    % if behaviour is discrete
                     o.done = o.on;
-                    if o.rewardOn   % if we want to trigger rewards
-                        if o.done
+                    if o.rewardOn && o.done  % if we want to trigger rewards
+%                         if ~ischar(o.response)
+                            if o.response
                             [o.rewardData.answer] = deal(true);
                             notify(o,'GETREWARD');
-                        end
+                        elseif o.done && ~(o.response)
+                            [o.rewardData.answer] = deal(false);
+                            notify(o,'GETREWARD');
+                            end
+%                         end
                     end
                     if o.done && o.endsTrial
                         c.nextTrial;

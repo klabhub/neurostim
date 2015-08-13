@@ -19,7 +19,6 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('correctResponse',{});
             o.addProperty('keyLabel',{});
             o.addProperty('keys',{'a'});
-            o.addProperty('response',[]);
             o.addProperty('responseLabel',[]);
             
 %             o.addProperty('eval',struct);
