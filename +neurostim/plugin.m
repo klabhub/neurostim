@@ -112,17 +112,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
             h.GetObservable =true;
+            specs{1} = funcstring;
             % find the function end of the string
             funcend = regexp(funcstring,'\<@\((\w*)(,*\s*\w*(\.\w*)*)*\)\>','end');
             func = funcstring(funcend+1:end); % store the function end of the string
-            specs{1} = func;
+            specs{2,1} = func;
             c = 0;
             variables = regexp(funcstring,'(?<=@\s*\()(\w*(\.\w*)*)|(?<=,\s*)(\w*(\.\w*)*)','tokens');  %get the main variables
             for a=1:length(variables)
                 vardot = regexp(funcstring,'(?<=(??@variables{a}{1})\.)\w*(\.\w*)*','match');   %get the variable after the dot
                 for b = 1:length(vardot)
                     % replace each variable in the function
-                specs{1} = regexprep(specs{1},'(??@variables{a}{:})(\.(??@vardot{b}))?',char('A'+c),'once');
+                specs{2,1} = regexprep(specs{2,1},'(??@variables{a}{:})(\.(??@vardot{b}))?',char('A'+c),'once');
                 c = c+1;
                 specs{end+1,1} = horzcat(variables{a},vardot(b));
                 end
@@ -141,8 +142,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 end
             end
             % merge the function back together
-            specs{1} = horzcat(vars,specs{1});
-            specs{1} = str2func(specs{1});
+            specs{2,1} = horzcat(vars,specs{2,1});
+            specs{2,1} = str2func(specs{2,1});
             o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
         end
         
@@ -209,7 +210,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 o.(src.Name) = postprocess(o,value);
             end
             % checks if this is a function reference and if the listener
-            % already exists
+            % already exists for this function
             if ischar(value) && any(regexp(value,'@\((\w*)*')) && ~isfield(o.listenerHandle,['pre.' src.Name])
                 % it does not exist, call functional()
                 functional(o,src.Name,value); 
@@ -229,46 +230,50 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
         function evalParmGet(o,src,evt,specs)
-            fun = specs{1}; % Function handle
-            nrArgs = length(specs)-1;
+            if ischar(o.(src.Name)) && ~strcmp(specs{1},o.(src.Name)) %if value is set to a new function
+                delete(o.listenerHandle.pre.(src.Name));
+                functional(o,src.Name,o.(src.Name));
+            end
+            fun = specs{2}; % Function handle
+            nrArgs = length(specs)-2;
             args= cell(1,nrArgs);
             
             for i=1:nrArgs
-                if iscell(specs{1+i})
-                    if isempty(strfind(specs{i+1}{2},'.')) 
+                if iscell(specs{2+i})
+                    if isempty(strfind(specs{i+2}{2},'.')) 
                         %if there is no subproperty reference
-                        if ischar(specs{i+1}{1}) && strcmp(specs{i+1}{1},'cic')
+                        if ischar(specs{i+2}{1}) && strcmp(specs{i+2}{1},'cic')
                             % An object of cic
-                            args{i} = o.cic.(specs{i+1}{2});
+                            args{i} = o.cic.(specs{i+2}{2});
                         else
                             %not an object of cic; must be a plugin/stimulus
-                            if strcmp(specs{i+1}{1},o.name)
+                            if strcmp(specs{i+2}{1},o.name)
                                 % if is self-referential
-                                oldValues = o.log.values(strcmp(o.log.parms,specs{i+1}{2}));    % check old value was not functional
+                                oldValues = o.log.values(strcmp(o.log.parms,specs{i+2}{2}));    % check old value was not functional
                                 if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))
                                     args{i} = oldValues{end-1};
                                 else
-                                    args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                                    args{i} = o.cic.(specs{i+2}{1}).(specs{i+2}{2});
                                 end
                             else % is not self-referential
-                                args{i} = o.cic.(specs{i+1}{1}).(specs{i+1}{2});
+                                args{i} = o.cic.(specs{i+2}{1}).(specs{i+2}{2});
                             end
                         end
                         
                     else
                         % there is a subproperty reference
-                        a = strfind(specs{i+1}{2},'.'); % a is dot reference numbers
-                        predot = specs{i+1}{2}(1:(a-1)); %get the initial variable
+                        a = strfind(specs{i+2}{2},'.'); % a is dot reference numbers
+                        predot = specs{i+2}{2}(1:(a-1)); %get the initial variable
                         
-                        if ischar(specs{i+1}{1}) && strcmp(specs{i+1}{1},'cic')
+                        if ischar(specs{i+2}{1}) && strcmp(specs{i+2}{1},'cic')
                             % if is an object of cic
                             args{i} = o.cic.(predot);
                         else % if is not an object of cic (plugin/stimulus)
-                            args{i} = o.cic.(specs{i+1}{1}).(predot);
+                            args{i} = o.cic.(specs{i+2}{1}).(predot);
                             
-                            if strcmp(specs{i+1}{1},src.Name)
-                            % if the property is self-referential
-                            oldValues = o.log.values(strcmp(o.log.parms,predot)); 
+                            if strcmp(specs{i+2}{1},src.Name)
+                                % if the property is self-referential
+                                oldValues = o.log.values(strcmp(o.log.parms,predot));
                                 if isstruct(oldValues{end}) %if is a structure
                                     % store the last and second-last values
                                     % so that args{} can be set to the
@@ -277,13 +282,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                                     oldValue1End = oldValues{end-1};
                                     if length(a)>1
                                         for b = 1:length(a)-1
-                                            postdot = specs{i+1}{2}(a(b)+1:a(b+1)-1);
+                                            postdot = specs{i+2}{2}(a(b)+1:a(b+1)-1);
                                             oldValueEnd = oldValueEnd.(postdot);
                                             oldValue1End = oldValue1End.(postdot);
                                             args{i} = args{i}.(postdot);
                                         end
                                     end
-                                    postdot = specs{i+1}{2}(a(end)+1:end);
+                                    postdot = specs{i+2}{2}(a(end)+1:end);
                                     oldValueEnd = oldValueEnd.(postdot);
                                     oldValue1End = oldValue1End.(postdot);
                                     if ischar(oldValueEnd) && any(regexp(oldValueEnd,'@\((\w*)*')) %if the last value was a functional string
@@ -298,16 +303,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         end
                         if length(a)>1  %if there is more than one subproperty ref
                             for b = 1:length(a)-1 % collect all the subproperty refs
-                                postdot = specs{i+1}{2}(a(b)+1:a(b+1)-1);
+                                postdot = specs{i+2}{2}(a(b)+1:a(b+1)-1);
                                 args{i} = args{i}.(postdot);
                             end
                         end
                         % get the last after-dot reference
-                        postdot = specs{i+1}{2}(a(end)+1:end);
+                        postdot = specs{i+2}{2}(a(end)+1:end);
                         args{i} = args{i}.(postdot);
                     end
                 else
-                    args{i} = specs{i+1};
+                    args{i} = specs{i+2};
                 end
             end
             try
@@ -318,8 +323,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             % Compare with existing value to see if we need to set?
             oldValue = o.(src.Name);
-            if (ischar(value) && ~(strcmp(oldValue,value))) ...
-                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || ischar(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
+            if (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
                 o.(src.Name) = value; % This calls PostSet and logs the new value
             end
         end
@@ -399,6 +404,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     methods (Access = public)
         function baseEvents(o,c,evt)
+            
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
                     notify(o,'BEFOREFRAME');
@@ -408,10 +414,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     notify(o,'BEFORETRIAL');
                 case 'BASEAFTERTRIAL'
                     notify(o,'AFTERTRIAL');
-                    
                 case 'BASEBEFOREEXPERIMENT'
                     notify(o,'BEFOREEXPERIMENT');
-                    
                 case 'BASEAFTEREXPERIMENT'
                     notify(o,'AFTEREXPERIMENT');
             end

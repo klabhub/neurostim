@@ -13,7 +13,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
     properties
     acquireEvent = {};    % checks behaviour, for acquiring data
     validateEvent = {'afterFrame'}; % checks whether this behaviour is 'correct'
-    endsTrial = true;  %does violating behaviour end trial?
+    endsTrial = false;  %does violating behaviour end trial?
     rewardOn = true;
     data;
     prevOn = false;

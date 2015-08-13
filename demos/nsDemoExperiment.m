@@ -93,11 +93,11 @@ c.add(s);
 k = plugins.nafcResponse('key');
 c.add(k);
 k.keys = {'a' 'z'};
-k.stimName = 'dots';
-k.var = 'direction';
-k.correctResponse = {'@(x) x<300 & x>180' '@(y) y>300 | y<180'};
+% k.stimName = 'dots';
+% k.var = 'direction';
+k.correctResponse = {'@(dots) dots.direction<300 & dots.direction>180' '@(dots) dots.direction>300 | dots.direction<180'};
 k.keyLabel = {'clockwise', 'counterclockwise'};
-
+k.endsTrial = true;
 % s = stimuli.shadlendots('dots2');
 % s.apertureD = 20;
 % s.color = [1 1];

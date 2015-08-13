@@ -3,8 +3,6 @@ classdef nafcResponse < neurostim.plugins.behavior
    % keyboard input for PTB.
    %
    % Inputs:
-   % stimName - name of stimulus to watch for checking the variable (string).
-   % var - variable to check for response (string).
    % correctResponse - this is a cell array of functions (input as strings) that indicates a
    %        correct response for each keypress. Default returns the key name.
    % keyLabel - Cell array of strings which are the labels for the keys declared
@@ -12,24 +10,19 @@ classdef nafcResponse < neurostim.plugins.behavior
    %        pressed.
     
     
-    
-    
-   properties
-   end
-   
+
    methods (Access = public)
        function o = nafcResponse(name)
             o = o@neurostim.plugins.behavior(name); 
             o.continuous = false;
             o.listenToEvent('BEFORETRIAL');
-            o.addProperty('stimName','');
-            o.addProperty('var','');
             o.addProperty('correctResponse',{});
             o.addProperty('keyLabel',{});
             o.addProperty('keys',{'a'});
             o.addProperty('response',[]);
             o.addProperty('responseLabel',[]);
             
+%             o.addProperty('eval',struct);
        end
        
        function beforeTrial(o,c,evt)
@@ -49,6 +42,8 @@ classdef nafcResponse < neurostim.plugins.behavior
                end
            end
            
+           
+           
        end
        
        function data = validateBehavior(o)
@@ -62,13 +57,12 @@ classdef nafcResponse < neurostim.plugins.behavior
                if strcmpi(key,o.keys{i}) % compares key pressed with key array
                    o.on = true;
                    o.responseLabel = o.keyLabel{i}; % saves the keyLabel in a variable (logged)
-                   a = o.cic.(o.stimName).(o.var);  % retrieves the value of the variable to be checked
                    if isempty(o.correctResponse)    % default case, saves key pressed as response
                        o.response = key;
-                   else 
-                       b = str2func(o.correctResponse{i});
-                       o.response = b(a);    % evaluates function and saves result as response
+                   else
+                       o.response = o.correctResponse{i};
                    end
+                   o.response
                end
            end
        end
