@@ -181,9 +181,6 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                         if o.done
                             [o.rewardData.answer] = deal(true);
                             notify(o,'GETREWARD');
-                        else
-                            [o.rewardData.answer] = deal(false);
-                            notify(o,'GETREWARD');
                         end
                     end
                     if o.done && o.endsTrial
