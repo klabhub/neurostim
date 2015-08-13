@@ -145,6 +145,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             specs{2,1} = horzcat(vars,specs{2,1});
             specs{2,1} = str2func(specs{2,1});
             o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
+            
         end
         
         % Add properties that will be time-logged automatically, fun
@@ -213,7 +214,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % already exists for this function
             if ischar(value) && any(regexp(value,'@\((\w*)*')) && ~isfield(o.listenerHandle,['pre.' src.Name])
                 % it does not exist, call functional()
-                functional(o,src.Name,value); 
+                functional(o,src.Name,value);
+                %evaluate
+                value = o.(src.Name);
             end
              o.addToLog(src.Name,value);
         end
@@ -237,7 +240,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             fun = specs{2}; % Function handle
             nrArgs = length(specs)-2;
             args= cell(1,nrArgs);
-            
+            try
             for i=1:nrArgs
                 if iscell(specs{2+i})
                     if isempty(strfind(specs{i+2}{2},'.')) 
@@ -314,6 +317,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 else
                     args{i} = specs{i+2};
                 end
+            end
+            catch
+%                 if ~isempty(o.cic) && ~all(cellfun(@isempty,args)) 
+%                     error(['Could not evaluate ' func2str(fun) 'to get value for ' src.Name]);
+%                 else
+%                     return;
+%                 end
+                
             end
             try
                 value = fun(args{:});

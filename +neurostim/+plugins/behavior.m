@@ -157,7 +157,8 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                     end
                     if ~o.on && o.prevOn       % if behaviour is not on, but was on previously
                         o.startTime = Inf;      % reset start time and done flag
-                        o.done = false;
+                        o.done = true;
+                        o.prevOn = false;
 %                         display('wrong');
                         if o.rewardOn       % if we want to trigger rewards
                             [o.rewardData.answer] = deal(false);
@@ -169,7 +170,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                             return;
                         end
                     end
-                    if ~o.done && o.on && (GetSecs*1000)-o.startTime>=o.duration   % if duration has been met and behaviour is still on
+                    if ~o.done && o.on && (((GetSecs*1000)-o.startTime>=o.duration) || o.endTime~=Inf)   % if duration has been met and behaviour is still on
                         o.done = true;  % set done flag
                         o.endTime = GetSecs*1000;
 %                         display('right')

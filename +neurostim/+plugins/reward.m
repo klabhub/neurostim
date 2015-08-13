@@ -22,13 +22,13 @@ classdef reward < neurostim.plugin
       paHandle; 
    end
    
-   methods (Access=protected)
+   methods (Access=public)
        function o=reward
            o=o@neurostim.plugin('reward');
            
-            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GETREWARD','AFTERTRIAL'})
-           o.soundCorrectFile = 'C:\Users\tkoster\Downloads\nsSounds\sounds\correct.wav';
-           o.soundIncorrectFile = 'C:\Users\tkoster\Downloads\nsSounds\sounds\incorrect.wav';
+           o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GETREWARD','AFTERTRIAL'})
+           o.soundCorrectFile = 'nsSounds\sounds\correct.wav';
+           o.soundIncorrectFile = 'nsSounds\sounds\incorrect.wav';
        end
        
        
@@ -87,7 +87,7 @@ classdef reward < neurostim.plugin
            % when - immediate or aftertrial
            % respondTo - cell array of 'correct', 'incorrect' to respond to.
            % answer - true/false for correct/incorrect.
-           display(['o.name is ' o.name]);
+%            display(['o.name is ' o.name]);
            for a = 1:max(size({o.rewardData.type}))
                if (any((strcmpi(o.rewardData(a).respondTo,'correct')) && o.rewardData(a).answer)) ||...
                        (any(strcmpi(o.rewardData(a).respondTo,'incorrect') && ~o.rewardData(a).answer))

@@ -61,7 +61,6 @@ classdef saccade < neurostim.plugins.behavior
                     % if point is within tolerance of end position
                     % after min latency has passed
                     on = true;
-                    o.done = true;
                     o.endTime = GetSecs*1000;
                     break;
                 elseif Y>=min(yvec) && Y<=max(yvec) && (GetSecs*1000)<=(o.startTime+o.maxLatency)
