@@ -46,7 +46,6 @@ classdef cic < neurostim.plugin
         BASEAFTERTRIAL;
         BASEBEFOREFRAME;
         BASEAFTERFRAME;
-        BASEGETREWARD;
         
         % Events to which client developed @plugin and @stimulus classes
 %         % respond
@@ -65,6 +64,8 @@ classdef cic < neurostim.plugin
     %% Constants
     properties (Constant)
         PROFILE@logical = true; % Using a const to allow JIT to compile away profiler code
+        
+%         defaultPluginOrder = {'mcc','stimuli','eyetracker','behavior','unknown'};
     end
     
     %% Public properties
@@ -82,7 +83,8 @@ classdef cic < neurostim.plugin
                                     'background',[1/3 1/3 5]),'colorMode','xyL',...
                                     'framerate',[]);    %screen-related parameters.
         
-        
+        getFlipTime@logical = false; %flag to notify whether to getg the frame flip time.
+        requiredSlack = 1;  % required slack time in frame loop (stops all plugins after this time has passed)
     end
     
     %% Protected properties.
@@ -92,10 +94,10 @@ classdef cic < neurostim.plugin
         window =[]; % The PTB window
         mirror =[]; % The experimenters copy
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
-        block;      % Current block.
-        condition;  % Current condition
-        trial;      % Current trial
-        frame;      % Current frame
+        block = 0;      % Current block.
+        condition = 0;  % Current condition
+        trial = 0;      % Current trial
+        frame = 0;      % Current frame
         cursorVisible = false; % Set it through c.cursor =
         vbl = [];
         %% Internal lists to keep track of stimuli, conditions, and blocks.
@@ -110,6 +112,7 @@ classdef cic < neurostim.plugin
         trialStartTime = [];
         trialEndTime = [];
         stopTime = [];
+        frameStart = 0;
         %data@sib;
         
         %% Profiling information.
@@ -121,6 +124,10 @@ classdef cic < neurostim.plugin
         keyDeviceIndex          = []; % Use the first device by default
         keyHandlers             = {}; % Handles for the plugins that handle the keys.
         
+        
+        pluginOrder = {};
+        
+        flipTime;   % storing the frame flip time.
     end
     
     %% Dependent Properties
@@ -137,6 +144,8 @@ classdef cic < neurostim.plugin
         cursor;         % Cursor 'none','arrow'; see ShowCursor
         conditionName;  % The name of the current condition.
         blockName;      % Name of the current block
+        defaultPluginOrder;
+
     end
     
     %% Public methods
@@ -220,8 +229,10 @@ classdef cic < neurostim.plugin
         end
         
         function getFramerate(c)
-            frameDur = Screen('GetFlipInterval',c.window);
-            c.screen.framerate = 1/frameDur;
+            if isempty(c.screen.framerate) && ~isempty(c.window)
+                frameDur = Screen('GetFlipInterval',c.window);
+                c.screen.framerate = 1/frameDur;
+            end
         end
         
         function set.screen(c,value)
@@ -232,7 +243,11 @@ classdef cic < neurostim.plugin
             end
             c.screen = value;
         end
-            
+        
+        function v=get.defaultPluginOrder(c)
+            v = [fliplr(c.stimuli) fliplr(c.plugins)];
+        end
+           
 
         
     end
@@ -351,6 +366,79 @@ classdef cic < neurostim.plugin
             
         end
         
+        
+        function createEventListeners(c)
+           % creates all Event Listeners
+           if isempty(c.pluginOrder)
+            c.pluginOrder = c.defaultPluginOrder;
+           end
+           for a = 1:numel(c.pluginOrder)
+               o = c.(c.pluginOrder{a});
+               
+               for i=1:length(o.evts)
+                   if isa(o,'neurostim.plugin')
+                       % base events allow housekeeping before events
+                       % trigger, but getReward and firstFrame do not require a
+                       % baseEvent.
+                       if strcmpi(o.evts{i},'GETREWARD')
+                           h=@(c,evt)(o.getReward(o.cic,evt));
+                       elseif strcmpi(o.evts{i},'FIRSTFRAME')
+                           h=@(c,evt)(o.firstFrame(o.cic,evt));
+                       else
+                           addlistener(c,['BASE' o.evts{i}],@o.baseEvents);
+                           switch upper(o.evts{i})
+                               case 'BEFOREEXPERIMENT'
+                                   h= @(c,evt)(o.beforeExperiment(o.cic,evt));
+                               case 'BEFORETRIAL'
+                                   h= @(c,evt)(o.beforeTrial(o.cic,evt));
+                               case 'BEFOREFRAME'
+                                   h= @(c,evt)(o.beforeFrame(o.cic,evt));
+                               case 'AFTERFRAME'
+                                   h= @(c,evt)(o.afterFrame(o.cic,evt));
+                               case 'AFTERTRIAL'
+                                   h= @(c,evt)(o.afterTrial(o.cic,evt));
+                               case 'AFTEREXPERIMENT'
+                                   h= @(c,evt)(o.afterExperiment(o.cic,evt));
+                           end
+                       end
+                        % Install a listener in the derived class so that it
+                       % can respond to notify calls in the base class
+                       addlistener(o,o.evts{i},h);
+                   end
+               end
+           end
+        end
+        
+        
+        function pluginOrder = order(c,varargin)
+            % pluginOrder = c.order([plugin1] [,plugin2] [,...])
+            % Returns pluginOrder when no input is given.
+            % Inputs: lists name of plugins in the order they are requested
+            % to be executed in.
+            if nargin>2
+                if isempty(c.pluginOrder)
+                    c.pluginOrder = c.defaultPluginOrder;
+                end
+                if iscellstr(varargin)
+                    a = varargin;
+                else
+                    for j = 1:nargin-1
+                        a{j} = varargin{j}.name;
+                    end
+                end
+                for j = 1:length(a)-1
+                    ind1 = find(strcmp(c.pluginOrder,a{j}));
+                    ind2 = find(strcmp(c.pluginOrder,a{j+1}));
+                    if ind2>ind1
+                        c.pluginOrder(ind1) = [];
+                        c.pluginOrder = [c.pluginOrder(1:ind2-1) a{j} c.pluginOrder(ind2:end)];
+                    end
+                end
+                
+            end
+            pluginOrder = c.pluginOrder;
+        end
+        
 
 
        
@@ -393,65 +481,11 @@ classdef cic < neurostim.plugin
                 o.cic = c;
             end
             
-            
             % Call the keystroke function
             for i=1:length(o.keyStrokes)
                 addKeyStroke(c,o.keyStrokes{i},o.keyHelp{i},o);
             end
-            
-            % Setup the plugin to listen to the events it requested
-            for i=1:length(o.evts)
-                if isa(o,'neurostim.stimulus') || (isa(o,'neurostim.plugin') && o.priority)
-                    % STIMULUS events are special; the BASE event
-                    % handlers look at them first and decide whether to
-                    % pass them on to the stimulus itself.
-                     addlistener(c,['BASE' o.evts{i}],@o.baseEvents);
-                    switch upper(o.evts{i})
-                        case 'BEFOREEXPERIMENT'
-                            h= @(c,evt)(o.beforeExperiment(o.cic,evt));
-                        case 'BEFORETRIAL'
-                            h= @(c,evt)(o.beforeTrial(o.cic,evt));
-                        case 'BEFOREFRAME'
-                            h= @(c,evt)(o.beforeFrame(o.cic,evt));
-                        case 'AFTERFRAME'
-                            h= @(c,evt)(o.afterFrame(o.cic,evt));
-                        case 'AFTERTRIAL'
-                            h= @(c,evt)(o.afterTrial(o.cic,evt));
-                        case 'AFTEREXPERIMENT'
-                            h= @(c,evt)(o.afterExperiment(o.cic,evt));
-                        case 'GETREWARD'
-                            h=@(c,evt)(o.getReward(o.cic,evt));
-                    end
-                    % Install a listener in the derived class so that it
-                    % can respond to notify calls in the base class
-                        addlistener(o,o.evts{i},h);
-                else
-                    switch upper(o.evts{i})
-                         case 'BEFOREEXPERIMENT'
-                            h= @(c,evt)(o.beforeExperiment(c,evt));
-                        case 'BEFORETRIAL'
-                            h= @(c,evt)(o.beforeTrial(c,evt));
-                        case 'BEFOREFRAME'
-                            h= @(c,evt)(o.beforeFrame(c,evt));
-                        case 'AFTERFRAME'
-                            h= @(c,evt)(o.afterFrame(c,evt));
-                        case 'AFTERTRIAL'
-                            h= @(c,evt)(o.afterTrial(c,evt));
-                        case 'AFTEREXPERIMENT'
-                             h= @(c,evt)(o.afterExperiment(c,evt));
-                        case 'FIRSTFRAME'
-                            h = @(c,evt)(o.firstFrame(c,evt));
-                         case 'GETREWARD'
-                            h = @(c,evt)(o.getReward(o.cic,evt));
-                    end
-                    % Install a listener in CIC. It will distribute.
-                    if strcmpi(o.evts{i},'GETREWARD')
-                         addlistener(o,o.evts{i},h);
-                    else
-                        addlistener(c,o.evts{i},h);
-                    end
-                end
-            end
+
         end
         
         
@@ -613,26 +647,24 @@ classdef cic < neurostim.plugin
                 c.screen.physical = c.screen.pixels(3:4);
             end
             
+            % Set up order and event listeners
+            c.order;
+            c.createEventListeners;
+            
             % Setup PTB
             PsychImaging(c);
-            slack = zeros(c.nrTrials,20000);
             c.trialEndTime = zeros(1,c.nrTrials);
             c.trialStartTime = zeros(1,c.nrTrials);
             c.KbQueueCreate;
             c.KbQueueStart;
-            Priority(2);
-            c.trial = 0;
             c.getFramerate;
             DrawFormattedText(c.window, 'Press any key to start...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.window);
             KbWait();
             notify(c,'BASEBEFOREEXPERIMENT');
-            notify(c,'BEFOREEXPERIMENT');
             c.flags.experiment = true;
-            when =0;
             nrBlocks = numel(c.blocks);
             ititime = GetSecs*1000;
-            %             profile on;
             for blockNr=1:nrBlocks
                 c.flags.block = true;
                 c.block = blockNr;
@@ -645,11 +677,8 @@ classdef cic < neurostim.plugin
                     %                     if ~isempty(c.mirror)
                     %                         Screen('CopyWindow',c.window,c.mirror);
                     %                     end
-                    %                     if (c.PROFILE); tic;end
                     beforeTrial(c);
                     notify(c,'BASEBEFORETRIAL');
-                    notify(c,'BEFORETRIAL');
-                    %                     if (c.PROFILE); addProfile(c,'BEFORETRIAL',toc);end
                     if c.trial>1
                         while (round(c.iti-(GetSecs*1000-c.trialEndTime(c.trial-1)))*c.screen.framerate/1000)>0
                             Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
@@ -658,43 +687,27 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     c.frame=0;
-                    frameStart=GetSecs*1000;
+                    c.frameStart=GetSecs*1000;
                     while (c.flags.trial && c.flags.experiment)
-                        %                                                 time = GetSecs;
                         c.frame = c.frame+1;
-                        if (c.PROFILE); tic;end
                         notify(c,'BASEBEFOREFRAME');
-                        notify(c,'BEFOREFRAME');
-                        %                         if (c.PROFILE); addProfile(c,'BEFOREFRAME',toc);end
                         Screen('DrawingFinished',c.window);
-                        %                         if (c.PROFILE); tic;end
                         notify(c,'BASEAFTERFRAME');
-                        notify(c,'AFTERFRAME');
                         c.KbQueueCheck;
-                        if (c.PROFILE); addProfile(c,'AFTERFRAME',toc);end
-                        slack(c.trial,c.frame) = 1000/c.screen.framerate-(GetSecs*1000-frameStart);
-                        [vbl,~,~,missed] = Screen('Flip', c.window,when,1-c.clear);
+                        [vbl,stimon,~,missed] = Screen('Flip', c.window,0,1-c.clear);
                         if missed>0
                             disp(['Missed Frame ' num2str(c.frame)])
-                            %                             disp(['slack = ' num2str(slack(c.trial,c.frame))])
+                        elseif c.getFlipTime
+                            c.flipTime = stimon*1000;
                         end
-                        frameStart = GetSecs*1000;
+                        c.frameStart = GetSecs*1000;
                         
-%                         if c.trial == 10
-                            %                            profile viewer;
-%                             slack(:,1) = [];
-%                             slack(:,11:end)=[];
-%                             keyboard;
-%                         end
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime(c.trial) = vbl*1000; % for trialDuration check
                             ititime = vbl*1000-ititime;
                             time = vbl*1000;
                         end
-                        %                         if (vbl - time) > (2/60 - .5*2/60)
-                        %                             warning('Missed frame.');     % check for missed frames
-                        %                         end
                         %                         if ~isempty(c.mirror)
                         %                             Screen('CopyWindow',c.window,c.mirror);
                         %                         end
@@ -704,15 +717,13 @@ classdef cic < neurostim.plugin
                     end % Trial running
                     
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
-                    if (c.PROFILE); tic;end
-                    vbl=Screen('Flip', c.window,when,1-c.clear);
+%                     if (c.PROFILE); tic;end
+                    vbl=Screen('Flip', c.window,0,1-c.clear);
                     c.trialEndTime(c.trial) = GetSecs * 1000;
-                    trialdur = vbl*1000-time;
+                    trialdur = vbl*1000-time; 
                     ititime = vbl*1000;
                     notify(c,'BASEAFTERTRIAL');
-                    notify(c,'AFTERTRIAL');
                     afterTrial(c);
-                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',toc);end
                 end %conditions in block
                 if ~c.flags.experiment;break;end
             end %blocks
@@ -721,7 +732,6 @@ classdef cic < neurostim.plugin
             end
             c.stopTime = now;
             notify(c,'BASEAFTEREXPERIMENT');
-            notify(c,'AFTEREXPERIMENT');
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.window);
             Priority(0);
@@ -729,7 +739,6 @@ classdef cic < neurostim.plugin
             c.KbQueueStop;
             KbWait;
             Screen('CloseAll');
-            %             profile viewer;
         end
         
         

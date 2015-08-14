@@ -50,6 +50,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rx',0);
             s.addProperty('ry',0);
             s.addProperty('rz',1);
+            s.addProperty('startTime',0);
         end                      
         
         % Setup threshold estimation for one of the parameters. The user
@@ -157,6 +158,13 @@ classdef stimulus < neurostim.plugin
                     
                     s.flags.on = c.frame >=round(s.on*c.screen.framerate/1000) && c.frame < round((s.on+s.duration)*c.screen.framerate/1000);
                     if s.flags.on 
+                        if (s.startTime == 0)
+                            if c.getFlipTime && ~isempty(c.flipTime)
+                                s.startTime = c.flipTime;
+                            else
+                                c.getFlipTime = true;
+                            end
+                        end
                         notify(s,'BEFOREFRAME');
                         if s.stimstart ~= true
                         s.stimstart = true;
@@ -180,7 +188,7 @@ classdef stimulus < neurostim.plugin
 
                 case 'BASEAFTEREXPERIMENT'    
                     notify(s,'AFTEREXPERIMENT');
-
+                    
 
             end
         end        

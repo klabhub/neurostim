@@ -415,18 +415,35 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     methods (Access = public)
         function baseEvents(o,c,evt)
-            
+            if c.PROFILE;tic;end
             switch evt.EventName
-                case 'BASEBEFOREFRAME'
-                    notify(o,'BEFOREFRAME');
-                case 'BASEAFTERFRAME'
-                    notify(o,'AFTERFRAME');
-                case 'BASEBEFORETRIAL'
-                    notify(o,'BEFORETRIAL');
-                case 'BASEAFTERTRIAL'
-                    notify(o,'AFTERTRIAL');
                 case 'BASEBEFOREEXPERIMENT'
                     notify(o,'BEFOREEXPERIMENT');
+                    
+                case 'BASEBEFORETRIAL'
+                    notify(o,'BEFORETRIAL');
+                    if c.PROFILE; c.addProfile('BEFORETRIAL',toc);end;
+                    
+                case 'BASEBEFOREFRAME'
+                    if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
+%                         display(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) ' due to framerate limitations.']);
+                        return;
+                    end
+                    notify(o,'BEFOREFRAME');
+                    if c.PROFILE; c.addProfile('BEFOREFRAME',toc);end;
+                    
+                case 'BASEAFTERFRAME'
+                    if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
+%                         display(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) ' due to framerate limitations.']);
+                        return;
+                    end
+                    notify(o,'AFTERFRAME');
+                    if c.PROFILE; c.addProfile('AFTERFRAME',toc);end;
+                    
+                case 'BASEAFTERTRIAL'
+                    notify(o,'AFTERTRIAL');
+                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',toc);end;
+                    
                 case 'BASEAFTEREXPERIMENT'
                     notify(o,'AFTEREXPERIMENT');
             end
