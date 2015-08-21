@@ -82,7 +82,7 @@ classdef cic < neurostim.plugin
         screen                  = struct('pixels',[],'physical',[],'color',struct('text',[1/3 1/3 50],...
                                     'background',[1/3 1/3 5]),'colorMode','xyL',...
                                     'framerate',[]);    %screen-related parameters.
-        
+        flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to getg the frame flip time.
         requiredSlack = 1;  % required slack time in frame loop (stops all plugins after this time has passed)
     end
@@ -127,7 +127,7 @@ classdef cic < neurostim.plugin
         
         pluginOrder = {};
         
-        flipTime;   % storing the frame flip time.
+        
     end
     
     %% Dependent Properties
@@ -381,7 +381,7 @@ classdef cic < neurostim.plugin
                        % trigger, but getReward and firstFrame do not require a
                        % baseEvent.
                        if strcmpi(o.evts{i},'GETREWARD')
-                           h=@(c,evt)(o.getReward(o.cic,evt));
+                            h=@(c,evt)(o.getReward(o.cic,evt));
                        elseif strcmpi(o.evts{i},'FIRSTFRAME')
                            h=@(c,evt)(o.firstFrame(o.cic,evt));
                        else
@@ -699,6 +699,7 @@ classdef cic < neurostim.plugin
                             disp(['Missed Frame ' num2str(c.frame)])
                         elseif c.getFlipTime
                             c.flipTime = stimon*1000;
+                            c.getFlipTime=false;
                         end
                         c.frameStart = GetSecs*1000;
                         
@@ -739,6 +740,7 @@ classdef cic < neurostim.plugin
             c.KbQueueStop;
             KbWait;
             Screen('CloseAll');
+            if c.PROFILE; report(c);end
         end
         
         
@@ -907,10 +909,25 @@ classdef cic < neurostim.plugin
             ylabel '#'
             title 'AfterFrame'
             
+            subplot(2,2,4)
+            x = c.profile.AFTERTRIAL;
+            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            hist(1000*x,bins)
+            xlabel 'Time (ms)'
+            ylabel '#'
+            title 'AfterTrial'
+            
+            subplot(2,2,3)
+            x = c.profile.BEFORETRIAL;
+            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            hist(1000*x,bins)
+            xlabel 'Time (ms)'
+            ylabel '#'
+            title 'BeforeTrial'
             
         end
         function addProfile(c,what,duration)
-            c.profile.(what) = [c.profile .(what) duration];
+            c.profile.(what) = [c.profile.(what) duration];
         end
         
 
