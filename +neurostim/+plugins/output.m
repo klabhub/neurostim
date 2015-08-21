@@ -245,23 +245,11 @@ classdef output < neurostim.plugin
     methods (Static)
         
         function createDir(root,d)
-            % Recursively create the requested directory
-            here =pwd;
-            cd (root);
-            dirs = strsplit(d,filesep);
-            for i=1:numel(dirs)
-                if ~exist(dirs{i},'dir')
-                    [ok, msg]= mkdir(dirs{i});
-                else 
-                    ok = true;
-                end
-                if (ok)
-                    cd (dirs{i});
-                else
-                    error(msg);
-                end                
+            thisDir = fullfile(root,d);
+            if ~exist(thisDir,'dir')
+                mkdir(thisDir);
             end
-            cd(here);
+            cd(thisDir);
         end
         
         function f= timeName()

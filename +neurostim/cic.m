@@ -869,7 +869,7 @@ classdef cic < neurostim.plugin
                 case 'XYL'
                     PsychColorCorrection('SetSensorToPrimary', c.window, cal);
                 case 'RGB'
-                    Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    %Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             end
             
             
