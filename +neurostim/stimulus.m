@@ -20,16 +20,25 @@ classdef stimulus < neurostim.plugin
     end    
     properties (Dependent)
         off;
+        onFrame;
+        offFrame;
     end
     
     properties (Access=private)
         stimstart = false;
         stimstop = false;
+        prevOn@logical = false;
     end
     
     methods
         function v= get.off(o)
             v = o.on+o.duration;
+        end
+        function v=get.onFrame(s)
+            v = round(s.on*s.cic.screen.framerate/1000);
+        end
+        function v=get.offFrame(s)
+            v=s.onFrame+round(s.duration*s.cic.screen.framerate/1000);
         end
     end
     
@@ -37,19 +46,21 @@ classdef stimulus < neurostim.plugin
     methods
         function s= stimulus(name)
             s = s@neurostim.plugin(name);
-            s.addProperty('X',0);
-            s.addProperty('Y',0);
-            s.addProperty('Z',0);  
-            s.addProperty('on',0);  
-            s.addProperty('duration',Inf);  
-            s.addProperty('color',[1/3 1/3]);
-            s.addProperty('luminance',50);
-            s.addProperty('alpha',1);
+            s.addProperty('X',0,[],@isnumeric);
+            s.addProperty('Y',0,[],@isnumeric);
+            s.addProperty('Z',0,[],@isnumeric);  
+            s.addProperty('on',0,[],@isnumeric);  
+            s.addProperty('duration',Inf,[],@isnumeric);  
+            s.addProperty('color',[1/3 1/3],[],@isnumeric);
+            s.addProperty('luminance',50,[],@isnumeric);
+            s.addProperty('alpha',1,[],@(x)x<=1&&x>=0);
             s.addProperty('scale',struct('x',1,'y',1,'z',1));
-            s.addProperty('angle',0);
-            s.addProperty('rx',0);
-            s.addProperty('ry',0);
-            s.addProperty('rz',1);
+            s.addProperty('angle',0,[],@isnumeric);
+            s.addProperty('rx',0,[],@isnumeric);
+            s.addProperty('ry',0,[],@isnumeric);
+            s.addProperty('rz',1,[],@isnumeric);
+            s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
+            s.addProperty('endTime',Inf);   % first time the stimulus does not appear after being run
         end                      
         
         % Setup threshold estimation for one of the parameters. The user
@@ -155,14 +166,28 @@ classdef stimulus < neurostim.plugin
                     Screen('glScale',c.window,s.scale.x,s.scale.y);
                     Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
                     
-                    s.flags.on = c.frame >=round(s.on*c.screen.framerate/1000) && c.frame < round((s.on+s.duration)*c.screen.framerate/1000);
+                    % get the stimulus end time
+                        if c.frame==s.offFrame+2
+                        s.endTime=c.flipTime;
+                        end
+                    
+                    
+
+                    
+                    s.flags.on = c.frame >s.onFrame && c.frame < s.offFrame;
                     if s.flags.on 
+                        if c.frame==s.onFrame+2 % get stimulus on time
+                            s.startTime = c.flipTime;
+                        end
                         notify(s,'BEFOREFRAME');
                         if s.stimstart ~= true
                         s.stimstart = true;
+                        c.getFlipTime=true; % get the next flip time for startTime
                         end
-                    else %Stim off
-                        
+                    elseif s.stimstart && (c.frame==s.offFrame+1)% if the stimulus will not be shown, 
+                        % get the next screen flip for endTime
+                        c.getFlipTime=true;
+                        s.stimstart=false;
                     end
                     Screen('glLoadIdentity', c.window);
                 case 'BASEAFTERFRAME'
@@ -180,7 +205,7 @@ classdef stimulus < neurostim.plugin
 
                 case 'BASEAFTEREXPERIMENT'    
                     notify(s,'AFTEREXPERIMENT');
-
+                    
 
             end
         end        

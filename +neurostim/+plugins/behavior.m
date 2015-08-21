@@ -9,8 +9,8 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
     properties
     acquireEvent = {};    % checks behaviour, for acquiring data
     validateEvent = {'afterFrame'}; % checks whether this behaviour is 'correct'
-    endsTrial = false;  %does violating behaviour end trial?
-    rewardOn = true;
+    endsTrial = true;  %does violating behaviour end trial?
+    rewardOn = false;
     data;
     prevOn = false;
     end
@@ -179,15 +179,15 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                 else    % if behaviour is discrete
                     o.done = o.on;
                     if o.rewardOn && o.done  % if we want to trigger rewards
-%                         if ~ischar(o.response)
-                            if o.response
+                        %                         if ~ischar(o.response)
+                        if o.response
                             [o.rewardData.answer] = deal(true);
                             notify(o,'GETREWARD');
-                        elseif o.done && ~(o.response)
+                        else
                             [o.rewardData.answer] = deal(false);
                             notify(o,'GETREWARD');
-                            end
-%                         end
+                        end
+                        %                         end
                     end
                     if o.done && o.endsTrial
                         c.nextTrial;

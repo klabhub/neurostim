@@ -2,7 +2,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     properties (SetAccess=public)
         cic@neurostim.cic;  % Pointer to CIC
-        priority@logical = false;
     end
     
     events
@@ -114,7 +113,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             h.GetObservable =true;
             specs{1} = funcstring;
             % find the function end of the string
-            funcend = regexp(funcstring,'\<@\((\w*)(,*\s*\w*(\.\w*)*)*\)\>','end');
+            funcend = regexp(funcstring,'\<@\((\w*)(,*\s*\w*(\.\w*)*)*\)\>\s*','end');
             func = funcstring(funcend+1:end); % store the function end of the string
             specs{2,1} = func;
             c = 0;
@@ -141,9 +140,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     vars = horzcat(vars,', ',char('A'+x-1));
                 end
             end
-            % merge the function back together
-            specs{2,1} = horzcat(vars,specs{2,1});
-            specs{2,1} = str2func(specs{2,1});
+            
+            if ~exist('vars','var')
+                specs{2,1} = str2func(func);
+            else
+                % merge the function back together
+                specs{2,1} = horzcat(vars,specs{2,1});
+                specs{2,1} = str2func(specs{2,1});
+            end
             o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
             
         end
@@ -198,6 +202,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
             value = o.(src.Name); % The raw value that has just been set
+            % checks if this is a function reference and if the listener
+            % already exists for this function
+            if ischar(value) && any(regexp(value,'@\((\w*)*')) && ~isfield(o.listenerHandle,['pre.' src.Name])
+                % it does not exist, call functional()
+                functional(o,src.Name,value);
+                %evaluate
+                value = o.(src.Name);
+            end
             if nargin >=5 && ~isempty(validate)
                 success = validate(value);
                 if ~success
@@ -210,14 +222,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % generate another postSet event.
                 o.(src.Name) = postprocess(o,value);
             end
-            % checks if this is a function reference and if the listener
-            % already exists for this function
-            if ischar(value) && any(regexp(value,'@\((\w*)*')) && ~isfield(o.listenerHandle,['pre.' src.Name])
-                % it does not exist, call functional()
-                functional(o,src.Name,value);
-                %evaluate
-                value = o.(src.Name);
-            end
+
              o.addToLog(src.Name,value);
         end
         
@@ -415,18 +420,35 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     methods (Access = public)
         function baseEvents(o,c,evt)
-            
+            if c.PROFILE;tic;end
             switch evt.EventName
-                case 'BASEBEFOREFRAME'
-                    notify(o,'BEFOREFRAME');
-                case 'BASEAFTERFRAME'
-                    notify(o,'AFTERFRAME');
-                case 'BASEBEFORETRIAL'
-                    notify(o,'BEFORETRIAL');
-                case 'BASEAFTERTRIAL'
-                    notify(o,'AFTERTRIAL');
                 case 'BASEBEFOREEXPERIMENT'
                     notify(o,'BEFOREEXPERIMENT');
+                    
+                case 'BASEBEFORETRIAL'
+                    notify(o,'BEFORETRIAL');
+                    if c.PROFILE; c.addProfile('BEFORETRIAL',toc);end;
+                    
+                case 'BASEBEFOREFRAME'
+                    if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
+                        display(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) ' due to framerate limitations.']);
+                        return;
+                    end
+                    notify(o,'BEFOREFRAME');
+                    if c.PROFILE; c.addProfile('BEFOREFRAME',toc);end;
+                    
+                case 'BASEAFTERFRAME'
+%                     if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
+%                         display(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) ' due to framerate limitations.']);
+%                         return;
+%                     end
+                    notify(o,'AFTERFRAME');
+                    if c.PROFILE; c.addProfile('AFTERFRAME',toc);end;
+                    
+                case 'BASEAFTERTRIAL'
+                    notify(o,'AFTERTRIAL');
+                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',toc);end;
+                    
                 case 'BASEAFTEREXPERIMENT'
                     notify(o,'AFTEREXPERIMENT');
             end
