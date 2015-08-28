@@ -18,8 +18,8 @@ classdef gabor < neurostim.stimulus
             %% Base Teture parameters, see CreateProceduralGabor.m for details
             % No need to change unless you want to save texture memory and draw
             % only small Gabors.
-            o.addProperty('width',10);
-            o.addProperty('height',10);
+            o.addProperty('width',10,'',@isnumeric);
+            o.addProperty('height',10,'',@isnumeric);
             
             %%  Gabor parameters
             o.addProperty('orientation',0);

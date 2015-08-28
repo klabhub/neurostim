@@ -33,11 +33,11 @@ classdef text < neurostim.stimulus
             o.listenToEvent({'BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT'});
             
             % add text properties
-            o.addProperty('message','Hello World');
-            o.addProperty('font','Courier New');
-            o.addProperty('textsize', 20);
-            o.addProperty('textstyle', 0);
-            o.addProperty('textalign','center');
+            o.addProperty('message','Hello World','',@ischar);
+            o.addProperty('font','Courier New','',@ischar);
+            o.addProperty('textsize', 20,'',@isnumeric);
+            o.addProperty('textstyle', 0,'',@(x)ismember(x,[0 1 2 4]));
+            o.addProperty('textalign','center','',@(x)ismember(upper(x),{'CENTER','CENTRE','C','LEFT','L','RIGHT','R'}));
             o.X = 0;
             o.Y = 0;
             

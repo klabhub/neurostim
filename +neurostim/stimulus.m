@@ -28,6 +28,7 @@ classdef stimulus < neurostim.plugin
         stimstart = false;
         stimstop = false;
         prevOn@logical = false;
+        stimNum = 1;
     end
     
     methods
@@ -35,10 +36,28 @@ classdef stimulus < neurostim.plugin
             v = o.on+o.duration;
         end
         function v=get.onFrame(s)
-            v = round(s.on*s.cic.screen.framerate/1000);
+            if numel(s.on)>1
+                if s.stimNum< numel(s.on)
+                v = round(s.on{s.stimNum}*s.cic.screen.framerate/1000);
+                elseif s.stimNum==numel(s.on)
+                    v=round(s.on{end}*s.cic.screen.framerate/1000);
+                    s.stimNum = 1;
+                end
+            else
+                v = round(s.on*s.cic.screen.framerate/1000);
+            end
         end
         function v=get.offFrame(s)
-            v=s.onFrame+round(s.duration*s.cic.screen.framerate/1000);
+            if numel(s.duration)>1
+                if s.stimNum<=numel(s.duration)
+                    v = s.onFrame+round(s.duration{s.stimNum}*s.cic.screen.framerate/1000);
+                elseif s.stimNum==numel(s.duration)
+                    v=s.onFrame+round(s.duration{end}*s.cic.screen.framerate/1000);
+                    s.stimNum=1;
+                end
+            else
+                v=s.onFrame+round(s.duration*s.cic.screen.framerate/1000);
+            end
         end
     end
     
@@ -49,8 +68,8 @@ classdef stimulus < neurostim.plugin
             s.addProperty('X',0,[],@isnumeric);
             s.addProperty('Y',0,[],@isnumeric);
             s.addProperty('Z',0,[],@isnumeric);  
-            s.addProperty('on',0,[],@isnumeric);  
-            s.addProperty('duration',Inf,[],@isnumeric);  
+            s.addProperty('on',0,[],@(x) isnumeric(x) || iscell(x));  
+            s.addProperty('duration',Inf,[],@(x) isnumeric(x) || iscell(x));  
             s.addProperty('color',[1/3 1/3],[],@isnumeric);
             s.addProperty('luminance',50,[],@isnumeric);
             s.addProperty('alpha',1,[],@(x)x<=1&&x>=0);
@@ -141,6 +160,7 @@ classdef stimulus < neurostim.plugin
                 sd = QuestSd(s.quest.q);
             end
         end
+        
 
     end
     
@@ -188,6 +208,7 @@ classdef stimulus < neurostim.plugin
                         % get the next screen flip for endTime
                         c.getFlipTime=true;
                         s.stimstart=false;
+                        s.stimNum = s.stimNum+1;
                     end
                     Screen('glLoadIdentity', c.window);
                 case 'BASEAFTERFRAME'
@@ -197,7 +218,7 @@ classdef stimulus < neurostim.plugin
                 case 'BASEBEFORETRIAL'
                     notify(s,'BEFORETRIAL');
 
-                case 'BASEAFTERTRIAL'    
+                case 'BASEAFTERTRIAL'
                     notify(s,'AFTERTRIAL');
 
                 case 'BASEBEFOREEXPERIMENT'

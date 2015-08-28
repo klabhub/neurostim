@@ -32,12 +32,12 @@ classdef shadlendots < neurostim.stimulus
             o.listenToEvent({'BEFOREFRAME','AFTERFRAME', 'BEFORETRIAL'});
             
             % set dot properties (for user adjustment)
-            o.addProperty('coherence',0.75);
-            o.addProperty('apertureD', 50); % Diameter of the aperture
-            o.addProperty('direction',0);
-            o.addProperty('dotSize',2);
-            o.addProperty('maxDotsPerFrame',150);
-            o.addProperty('speed',10);
+            o.addProperty('coherence',0.75,'',@(x)x<=1&&x>=0);
+            o.addProperty('apertureD', 50,'',@isnumeric); % Diameter of the aperture
+            o.addProperty('direction',0,'',@isnumeric);
+            o.addProperty('dotSize',2,'',@isnumeric);
+            o.addProperty('maxDotsPerFrame',150,'',@isnumeric);
+            o.addProperty('speed',10,'',@isnumeric);
             
         end
         

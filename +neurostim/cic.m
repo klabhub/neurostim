@@ -81,10 +81,10 @@ classdef cic < neurostim.plugin
         trialDuration@double    = 1000;  % Trial Duration (ms)
         screen                  = struct('pixels',[],'physical',[],'color',struct('text',[1/3 1/3 50],...
                                     'background',[1/3 1/3 5]),'colorMode','xyL',...
-                                    'framerate',[]);    %screen-related parameters.
+                                    'framerate',60);    %screen-related parameters.
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to getg the frame flip time.
-        requiredSlack = 1;  % required slack time in frame loop (stops all plugins after this time has passed)
+        requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
     end
     
     %% Protected properties.
@@ -113,6 +113,7 @@ classdef cic < neurostim.plugin
         trialEndTime = [];
         stopTime = [];
         frameStart = 0;
+        frameDeadline;
         %data@sib;
         
         %% Profiling information.
@@ -272,6 +273,7 @@ classdef cic < neurostim.plugin
             c.allKeyHelp  = {};
             % Keys handled by CIC
             addKeyStroke(c,KbName('q'),'Quit',c);
+            c.addProperty('missedFrame',[]);
         end
         
         function addScript(c,when, fun,keys)
@@ -504,6 +506,78 @@ classdef cic < neurostim.plugin
             end
         end
         
+        function addRSVP(c,name,varargin)
+            % addRSVP(c,name,{ISI, duration, stimulusName, stimulusProperty, parameters[, repetitions, randomization]})
+            % add a Rapid Serial Visual Presentation
+            % Inputs:
+            % name - name of the RSVP
+            % ISI - inter-stimulus-interval (ms)
+            % duration - RSVP stimlus duration (ms)
+            % stimulusName - stimulus name
+            % stimulusProperty - property of the stimulus to change each RSVP
+            % parameters - cell array of parameters
+            % 
+            % Optional Inputs:
+            % repetitions - number of repetitions (default: until stimulus end-duration)
+            % randomization - type of randomization (default: sequential)
+          
+            nrRSVP = numel(varargin);
+            
+            for a=1:nrRSVP
+               RSVPSpecs = varargin{a};
+               % extract all information
+               isi = RSVPSpecs{1};
+               duration = RSVPSpecs{2};
+               stimName = RSVPSpecs{3};
+               stimProp = RSVPSpecs{4};
+               params = RSVPSpecs{5};
+               if numel(RSVPSpecs)>6
+                       randomization = RSVPSpecs{7};
+                   else
+                       randomization = 'SEQUENTIAL';
+               end
+
+               if c.(stimName).duration ~=Inf %if stimulus duration is not infinite
+                stimEndDur = c.(stimName).duration;
+               else stimEndDur=c.trialDuration; % otherwise, set to trial duration
+               end
+               % set the stimulus on and duration times
+               c.(stimName).on = num2cell(c.(stimName).on:(duration+isi):stimEndDur);
+               c.(stimName).duration = duration;
+               % calculate on which frames the parameters should be set
+               frames = round(cell2mat(c.(stimName).on)*c.screen.framerate/1000);
+               
+               if numel(RSVPSpecs)>5
+                   nrRepeats=RSVPSpecs{6};
+               else nrRepeats = ceil(numel(frames)/numel(params));
+               end
+               
+               if nrRepeats>1 %if parameters need expansion
+                   switch upper(randomization)
+                       case 'SEQUENTIAL'
+                           params = repmat(params,[1,nrRepeats]);
+                       case 'RANDOMWITHREPLACEMENT'
+                           
+                       case 'BLOCKRANDOMWITHREPLACEMENT'
+                           
+                           
+                   end
+               end
+               addlistener(c,'BASEBEFOREFRAME',@(c,evt)rsvpUpdate(c,evt,stimName,stimProp,params,frames));
+            end
+            
+            
+            
+            
+        end
+        
+        function rsvpUpdate(c,~,stimulus,prop,parms,frames)
+            if any(c.frame==frames)
+                c.(stimulus).(prop) = parms{c.frame==frames};
+            end
+        end
+            
+        
         function addFactorial(c,name,varargin)
             % Add a factor to the design.
             % name = name of the factorial
@@ -529,6 +603,13 @@ classdef cic < neurostim.plugin
             parmValues  = cell(nrFactors,1);
             for f=1:nrFactors
                 factorSpecs =varargin{f};
+                
+%                 if strcmpi(factorSpecs(1),'rsvp') %if this is an rsvp factorial
+%                     isi = factorSpecs(2);
+%                     duration = factorSpecs(3);
+%                     factorSpecs = factorSpecs(4:end);
+%                 end
+
                 if ~all(cellfun(@iscell,factorSpecs(3:3:end)))
                     error('Levels must be specified as cell arrays');
                 end
@@ -538,7 +619,7 @@ classdef cic < neurostim.plugin
                 else
                     nrLevels(f) =  thisNrLevels;
                 end
-                parmValues{f} = varargin{f}(3:3:end);
+                parmValues{f} = factorSpecs{3:3:end};
             end
             conditionsInFactorial = 1:prod(nrLevels);
             subs = cell(1,nrFactors);
@@ -694,14 +775,17 @@ classdef cic < neurostim.plugin
                         Screen('DrawingFinished',c.window);
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
-                        [vbl,stimon,~,missed] = Screen('Flip', c.window,0,1-c.clear);
-                        if missed>0
-                            disp(['Missed Frame ' num2str(c.frame)])
+                        [vbl,stimon,flip,missed] = Screen('Flip', c.window,0,1-c.clear);
+                        if c.frame>1 && abs(c.frameDeadline-(flip*1000)) > (100/c.screen.framerate)
+                            c.missedFrame = c.frame;
                         elseif c.getFlipTime
                             c.flipTime = stimon*1000;
                             c.getFlipTime=false;
+                            c.flipTime = stimon*1000;
+                            c.getFlipTime=false;
                         end
-                        c.frameStart = GetSecs*1000;
+                        c.frameStart = flip*1000;
+                        c.frameDeadline = (flip*1000)+(1000/c.screen.framerate);
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
@@ -895,32 +979,36 @@ classdef cic < neurostim.plugin
             subplot(2,2,1)
             x = c.profile.BEFOREFRAME;
             low = 5;high=95;
-            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            hist(1000*x,bins)
+            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            %             hist(1000*x,bins)
+            hist(1000*x)
             xlabel 'Time (ms)'
             ylabel '#'
             title 'BeforeFrame'
             
             subplot(2,2,2)
             x = c.profile.AFTERFRAME;
-            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            hist(1000*x,bins)
+            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            %             hist(1000*x,bins)
+            hist(1000*x)
             xlabel 'Time (ms)'
             ylabel '#'
             title 'AfterFrame'
             
             subplot(2,2,4)
             x = c.profile.AFTERTRIAL;
-            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            hist(1000*x,bins)
+            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            %             hist(1000*x,bins)
+            hist(1000*x)
             xlabel 'Time (ms)'
             ylabel '#'
             title 'AfterTrial'
             
             subplot(2,2,3)
             x = c.profile.BEFORETRIAL;
-            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            hist(1000*x,bins)
+            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            %             hist(1000*x,bins)
+            hist(1000*x)
             xlabel 'Time (ms)'
             ylabel '#'
             title 'BeforeTrial'

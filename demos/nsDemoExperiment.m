@@ -15,7 +15,9 @@ Screen('Preference', 'ConserveVRAM', 32);
 % c.trialDuration = inf;
 c = myConfig;
 
-
+e = plugins.eyelink;
+e.useMouse = true;
+c.add(e);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
 
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
@@ -43,26 +45,28 @@ c.add(plugins.debug);               % Use the debug plugin which allows you to m
 
 % 
 f=stimuli.fixation('fix');           % Create a fixation stimulus.
-f.on = 0;
-f.duration = inf;
+% f.on = 0;
+% f.duration = 100;
+f.duration = Inf;
 f.luminance = 50;
 f.color = [1 1];
 % f.color = '@(cic,fix) [cic.screen.color.background(1) fix.color(1)]';
 f.shape = 'STAR';
 f.size = 1; 
 f.size2 = 1;
+
+% f.rsvp(30,30,{'angle',{0 45 90 135 180 225 270 315 360}});
 % f.angle = '@(cic) cic.frame';
-% f.X = '@(mouse) mouse.mousex';
 % f.Y = '@(mouse) mouse.mousey';
-f.X = 0;
-f.Y = 0;
+% f.X = 0;
+% f.Y = 0;
 % 
 c.add(f);
 % 
 
 fl = stimuli.fixation('fix1');
 fl.on = 0;
-f1.duration = inf;
+fl.duration = Inf;
 fl.shape = 'CIRC';
 fl.X = 5;
 fl.Y = 0;
@@ -74,14 +78,14 @@ m = stimuli.mouse('mouse');
 c.add(m);
 
 
-% 
+%  
 s = stimuli.rdp('dots');
 s.color = [1/3 1/3];
 s.luminance = 100;
 s.motionMode = 1;
 s.noiseMode = 0;
 s.noiseDist = 1;
-s.coherence = 0.8;
+s.coherence = 1;
 s.lifetime = 10;
 s.duration = Inf;
 s.size = 2;
@@ -89,7 +93,7 @@ s.maxRadius = 8;
 c.add(s);
 
 
-% c.order(f,s);
+
 k = plugins.nafcResponse('key');
 c.add(k);
 k.keys = {'a' 'z'};
@@ -109,41 +113,34 @@ k.endsTrial = true;
 
 
 c.addFactorial('myFactorial',...
-    {'dots','coherence',{0.1 0.9}}) ;
-
+    {'dots','coherence',{1 0.9}});
+c.addRSVP('myRSVP',{100,400,'fix','angle',{0 90 180 270}})
 c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 
-c.add(plugins.output);
-
-
-
+% c.add(plugins.output);
+% % 
 % b = plugins.fixate;
 % c.add(b);
 % c.add(plugins.reward);
-
+% 
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
-f1 = plugins.fixate('f1');
-f1.X = 0;
-f1.Y = 0;
-f1.duration = 500;
-c.add(f1);
-f2 = plugins.fixate('f2');
-
-f2.X = 5;
-f2.Y = 0;
-c.add(f2);
-
-s=plugins.saccade('sac1',f1,f2);
-c.add(s);
-
-e = plugins.eyelink;
-e.useMouse = true;
-c.add(e);
-
-
-c.add(plugins.reward);
+% f1 = plugins.fixate('f1');
+% f1.X = 0;
+% f1.Y = 0;
+% f1.duration = 500;
+% c.add(f1);
+% f2 = plugins.fixate('f2');
+% 
+% f2.X = 5;
+% f2.Y = 0;
+% c.add(f2);
+% 
+% s=plugins.saccade('sac1',f1,f2);
+% c.add(s);
+% 
+% c.add(plugins.reward);
 
 c.run;
 

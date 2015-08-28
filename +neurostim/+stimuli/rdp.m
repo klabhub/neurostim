@@ -41,22 +41,22 @@ classdef rdp < neurostim.stimulus
         function o = rdp(name)
             o = o@neurostim.stimulus(name); 
             o.listenToEvent({'BEFOREFRAME','AFTERFRAME','BEFORETRIAL'});
-            o.listenToKeyStroke('s');
-            o.addProperty('size',5);
-            o.addProperty('maxRadius',100);
-            o.addProperty('speed',5);
-            o.addProperty('xspeed',0);
-            o.addProperty('yspeed',0);
-            o.addProperty('direction',0);
-            o.addProperty('nrDots',100);
-            o.addProperty('coherence',0.5);
-            o.addProperty('motionMode',1);      %Spiral, linear
-            o.addProperty('lifetime',50);
-            o.addProperty('dwellTime',1);
-            o.addProperty('coordSystem',2);
-            o.addProperty('noiseMode',0);       % proportion, distribution
-            o.addProperty('noiseDist',0);       % gaussian, uniform
-            o.addProperty('noiseWidth',50);
+%             o.listenToKeyStroke('s');
+            o.addProperty('size',5,'',@isnumeric);
+            o.addProperty('maxRadius',100,'',@isnumeric);
+            o.addProperty('speed',5,'',@isnumeric);
+            o.addProperty('xspeed',0,'',@isnumeric);
+            o.addProperty('yspeed',0,'',@isnumeric);
+            o.addProperty('direction',0,'',@isnumeric);
+            o.addProperty('nrDots',100,'',@isnumeric);
+            o.addProperty('coherence',0.5,'',@(x)x<=1&&x>=0);
+            o.addProperty('motionMode',1,'',@(x)x==0||x==1);      %Spiral, linear
+            o.addProperty('lifetime',50,'',@isnumeric);
+            o.addProperty('dwellTime',1,'',@isnumeric);
+            o.addProperty('coordSystem',0,'',@(x)x==0||x==1);
+            o.addProperty('noiseMode',0,'',@(x)x==0||x==1);       % proportion, distribution
+            o.addProperty('noiseDist',0,'',@(x)x==0||x==1);       % gaussian, uniform
+            o.addProperty('noiseWidth',50,'',@isnumeric);
             
           
         end
@@ -98,7 +98,11 @@ classdef rdp < neurostim.stimulus
             if ~strcmpi(o.noiseMode,'distribution') && o.noiseMode ~= 1 && ~strcmpi(o.noiseMode,'dist')
                 o.framesLeft = o.framesLeft - 1;
             end
-            
+            if o.coordSystem == 1
+                [o.direction, o.speed] = cart2pol(o.xspeed, o.yspeed);
+            else
+                [o.xspeed, o.yspeed] = pol2cart((o.direction.*pi./180), o.speed);
+            end
             moveDots(o);
             
 

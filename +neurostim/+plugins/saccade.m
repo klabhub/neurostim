@@ -18,12 +18,12 @@ classdef saccade < neurostim.plugins.behavior
         function o=saccade(name,varargin)
             o=o@neurostim.plugins.behavior(name);
             o.continuous = true;
-            o.addProperty('startX',0);
-            o.addProperty('startY',0);
-            o.addProperty('endX',[5 -5]);   % end possibilities - calculated as an OR
-            o.addProperty('endY',[5 5]);
-            o.addProperty('minLatency',80);
-            o.addProperty('maxLatency',500);
+            o.addProperty('startX',0,'',@isnumeric);
+            o.addProperty('startY',0,'',@isnumeric);
+            o.addProperty('endX',[5 -5],'',@isnumeric);   % end possibilities - calculated as an OR
+            o.addProperty('endY',[5 5],'',@(x) isnumeric(x) && all(size(x)==size(o.endX)));
+            o.addProperty('minLatency',80,'',@isnumeric);
+            o.addProperty('maxLatency',500,'',@isnumeric);
             if nargin == 3   % two fixation inputs
                 o.fix1 = varargin{1};
                 o.fix2 = varargin{2};
