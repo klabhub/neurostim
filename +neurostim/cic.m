@@ -473,7 +473,7 @@ classdef cic < neurostim.plugin
                 %    error(['This name (' o.name ') already exists in CIC.']);
                 % Update existing
             elseif  isprop(c,o.name)
-                error(['Please use a different name for your stimulus. ' o.nae ' is reserved'])
+                error(['Please use a different name for your stimulus. ' o.name ' is reserved'])
             else
                 h = c.addprop(o.name); % Make it a dynamic property
                 c.(o.name) = o;
@@ -506,76 +506,7 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function addRSVP(c,name,varargin)
-            % addRSVP(c,name,{ISI, duration, stimulusName, stimulusProperty, parameters[, repetitions, randomization]})
-            % add a Rapid Serial Visual Presentation
-            % Inputs:
-            % name - name of the RSVP
-            % ISI - inter-stimulus-interval (ms)
-            % duration - RSVP stimlus duration (ms)
-            % stimulusName - stimulus name
-            % stimulusProperty - property of the stimulus to change each RSVP
-            % parameters - cell array of parameters
-            % 
-            % Optional Inputs:
-            % repetitions - number of repetitions (default: until stimulus end-duration)
-            % randomization - type of randomization (default: sequential)
-          
-            nrRSVP = numel(varargin);
-            
-            for a=1:nrRSVP
-               RSVPSpecs = varargin{a};
-               % extract all information
-               isi = RSVPSpecs{1};
-               duration = RSVPSpecs{2};
-               stimName = RSVPSpecs{3};
-               stimProp = RSVPSpecs{4};
-               params = RSVPSpecs{5};
-               if numel(RSVPSpecs)>6
-                       randomization = RSVPSpecs{7};
-                   else
-                       randomization = 'SEQUENTIAL';
-               end
-
-               if c.(stimName).duration ~=Inf %if stimulus duration is not infinite
-                stimEndDur = c.(stimName).duration;
-               else stimEndDur=c.trialDuration; % otherwise, set to trial duration
-               end
-               % set the stimulus on and duration times
-               c.(stimName).on = num2cell(c.(stimName).on:(duration+isi):stimEndDur);
-               c.(stimName).duration = duration;
-               % calculate on which frames the parameters should be set
-               frames = round(cell2mat(c.(stimName).on)*c.screen.framerate/1000);
-               
-               if numel(RSVPSpecs)>5
-                   nrRepeats=RSVPSpecs{6};
-               else nrRepeats = ceil(numel(frames)/numel(params));
-               end
-               
-               if nrRepeats>1 %if parameters need expansion
-                   switch upper(randomization)
-                       case 'SEQUENTIAL'
-                           params = repmat(params,[1,nrRepeats]);
-                       case 'RANDOMWITHREPLACEMENT'
-                           
-                       case 'BLOCKRANDOMWITHREPLACEMENT'
-                           
-                           
-                   end
-               end
-               addlistener(c,'BASEBEFOREFRAME',@(c,evt)rsvpUpdate(c,evt,stimName,stimProp,params,frames));
-            end
-            
-            
-            
-            
-        end
         
-        function rsvpUpdate(c,~,stimulus,prop,parms,frames)
-            if any(c.frame==frames)
-                c.(stimulus).(prop) = parms{c.frame==frames};
-            end
-        end
             
         
         function addFactorial(c,name,varargin)
@@ -603,12 +534,6 @@ classdef cic < neurostim.plugin
             parmValues  = cell(nrFactors,1);
             for f=1:nrFactors
                 factorSpecs =varargin{f};
-                
-%                 if strcmpi(factorSpecs(1),'rsvp') %if this is an rsvp factorial
-%                     isi = factorSpecs(2);
-%                     duration = factorSpecs(3);
-%                     factorSpecs = factorSpecs(4:end);
-%                 end
 
                 if ~all(cellfun(@iscell,factorSpecs(3:3:end)))
                     error('Levels must be specified as cell arrays');
@@ -683,7 +608,7 @@ classdef cic < neurostim.plugin
         
         
         function beforeTrial(c)
-            % Assign values specified in the desing to each of the stimuli.
+            % Assign values specified in the design to each of the stimuli.
             specs = c.conditions(c.condition);
             nrParms = length(specs)/3;
             for p =1:nrParms
@@ -691,10 +616,10 @@ classdef cic < neurostim.plugin
                 varName = specs{3*(p-1)+2};
                 value   = specs{3*(p-1)+3};
                 if strcmpi(stimName,'CIC')
-                    % This codition changes one of the CIC properties
+                    % This condition changes one of the CIC properties
                     c.(varName) = value;
                 else
-                    % Change a stimulus  or plugin property
+                    % Change a stimulus or plugin property
                     stim  = c.(stimName);
                     stim.(varName) = value;
                 end
@@ -759,6 +684,8 @@ classdef cic < neurostim.plugin
                     %                         Screen('CopyWindow',c.window,c.mirror);
                     %                     end
                     beforeTrial(c);
+                    
+                    c.frame=0;
                     notify(c,'BASEBEFORETRIAL');
                     if c.trial>1
                         while (round(c.iti-(GetSecs*1000-c.trialEndTime(c.trial-1)))*c.screen.framerate/1000)>0
@@ -767,7 +694,6 @@ classdef cic < neurostim.plugin
                     end
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
-                    c.frame=0;
                     c.frameStart=GetSecs*1000;
                     while (c.flags.trial && c.flags.experiment)
                         c.frame = c.frame+1;
@@ -781,9 +707,8 @@ classdef cic < neurostim.plugin
                         elseif c.getFlipTime
                             c.flipTime = stimon*1000;
                             c.getFlipTime=false;
-                            c.flipTime = stimon*1000;
-                            c.getFlipTime=false;
                         end
+                        
                         c.frameStart = flip*1000;
                         c.frameDeadline = (flip*1000)+(1000/c.screen.framerate);
                         
@@ -802,7 +727,6 @@ classdef cic < neurostim.plugin
                     end % Trial running
                     
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
-%                     if (c.PROFILE); tic;end
                     vbl=Screen('Flip', c.window,0,1-c.clear);
                     c.trialEndTime(c.trial) = GetSecs * 1000;
                     trialdur = vbl*1000-time; 

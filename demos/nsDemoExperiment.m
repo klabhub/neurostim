@@ -113,10 +113,10 @@ k.endsTrial = true;
 
 
 c.addFactorial('myFactorial',...
-    {'dots','coherence',{1 0.9}});
-c.addRSVP('myRSVP',{100,400,'fix','angle',{0 90 180 270}})
-c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
-
+    {'fix','RSVP',{{300,100,{'shape',{'CIRC' 'STAR'}}} {200,400,{'shape',{'CIRC' 'STAR'}}}}});
+f.RSVP = {300,100,{'shape',{'CIRC' 'STAR'}}};
+c.addBlock('myBlock','myFactorial',5,'BLOCKRANDOMWITHREPLACEMENT') % Add a block in whcih we run all conditions in the factorial 10 times.
+% c.add(plugins.mcc);
 % c.add(plugins.output);
 % % 
 % b = plugins.fixate;

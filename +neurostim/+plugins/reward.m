@@ -10,27 +10,28 @@ classdef reward < neurostim.plugin
        soundIncorrectFile;
        soundCorrect;
        soundIncorrect;
-       soundReady = false;
        mccChannel;
        correctBuffer;
        incorrectBuffer;
    end
    
    properties (SetObservable, AbortSet)
-       rewardData = struct('type','SOUND','dur',100,'when','IMMEDIATE','respondTo',{'correct','incorrect'},'answer',true)
+       rewardData = struct('type','SOUND','dur',100,'when','AFTERTRIAL','respondTo',{'correct','incorrect'},'answer',true)
    end
    
    properties (Access=protected)
-      paHandle; 
+      paHandle;
+      queue = [];
    end
    
    methods (Access=public)
        function o=reward
            o=o@neurostim.plugin('reward');
            
-           o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GETREWARD','AFTERTRIAL'})
+           o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GETREWARD','AFTERTRIAL','AFTERFRAME'})
            o.soundCorrectFile = 'nsSounds\sounds\correct.wav';
            o.soundIncorrectFile = 'nsSounds\sounds\incorrect.wav';
+           o.addPostSet('rewardData',[]);
        end
        
        
@@ -41,7 +42,7 @@ classdef reward < neurostim.plugin
        
        
        function beforeExperiment(o,c,evt)
-          if any(arrayfun(@(n) strcmpi(o.rewardData(n).type,'sound'),1:numel(o.rewardData)))    %if sound is set, initialise
+          if any(arrayfun(@(n) strcmpi(n.type,'sound'),o.rewardData))    %if sound is set, initialise
               InitializePsychSound(1);
               o.paHandle = PsychPortAudio('Open');
               [y,~] = audioread(o.soundCorrectFile);
@@ -66,16 +67,42 @@ classdef reward < neurostim.plugin
           end
        end
        
+       function afterFrame(o,c,evt)
+           a = arrayfun(@(n)strcmpi(n.when,'immediate'),o.queue);
+           if any(a)
+               for b = 1:sum(a)
+                   if strcmpi(o.queue(b).type,'SOUND')
+                       soundReward(o,o.queue(b).response);
+                   end
+                   if strcmpi(o.queue(b).type,'LIQUID')
+                       liquidReward(o,o.queue(b).response);
+                   end
+                   o.queue(b) = [];
+               end
+           end
+       end
+       
        function afterExperiment(o,c,evt)
-           if any(arrayfun(@(n) strcmpi(o.rewardData(n).type,'sound'),1:numel(o.rewardData)))   %if sound was set, close.
+           if any(arrayfun(@(n) strcmpi(n.type,'sound'),o.rewardData))   %if sound was set, close.
                PsychPortAudio('Close', o.paHandle);
            end
        end
        
        function afterTrial(o,c,evt)
-           if o.soundReady && any(arrayfun(@(n) strcmpi(o.rewardData(n).type,'sound'),1:numel(o.rewardData)))  % if sound is ready and was set
-               PsychPortAudio('Start', o.paHandle);
-               o.soundReady = false;    %reset soundReady flag.
+           a = arrayfun(@(n)strcmpi(n.when,'aftertrial'),o.queue);
+          if any(a)
+              remove = [];
+               for b = 1:sum(a)
+                   if strcmpi(o.queue(b).type,'SOUND')
+                       soundReward(o,o.queue(b).response);
+                       remove = [remove b];
+                   end
+                   if strcmpi(o.queue(b).type,'LIQUID')
+                       liquidReward(o,o.queue(b).response);
+                       remove = [remove b];
+                   end
+               end
+               o.queue(remove) = [];
            end
            
        end
@@ -95,16 +122,7 @@ classdef reward < neurostim.plugin
                        (any(strcmpi(o.rewardData(a).respondTo,'incorrect') && ~o.rewardData(a).answer))
                    % if respond to correct (and answer is correct) or respond
                    % to incorrect (and answer is incorrect)
-                   
-                   if any(strcmpi(o.rewardData(a).type,'sound'))   % if respond to sound, call function
-                       o.soundReward(o.rewardData(a));
-                   end
-                   
-                   if any(strcmpi(o.rewardData(a).type,'liquid')) && o.rewardData(a).answer
-                       o.liquidReward(o.rewardData(a));
-                   end
-                   
-                   
+                   o.rewardQueue(o.rewardData(a));
                end
            end
        end
@@ -114,31 +132,34 @@ classdef reward < neurostim.plugin
    
    methods (Access=protected)
        
-       function soundReward(o,rewardData)
-           % function soundReward(o,rewardData)
-           % Fills buffer with sound, conducts playback if immediate is
-           % set.
+       function rewardQueue(o,rewardData)
+           % adds rewardData specifics to queue for later use.
+           a = numel(o.queue);
+           o.queue(a+1).response = rewardData.answer;
+           o.queue(a+1).type = rewardData.type;
+           o.queue(a+1).when = rewardData.when;
+       end
+       
+       function soundReward(o,response)
+           % function soundReward(o,response)
+           % Fills buffer with sound and conducts immediate playback.
            % Inputs:
-           % rewardData - the specific rewardData struct.
-           if rewardData.answer
+           % response - true/false, indicates whether to give a correct or
+           % incorrect sound response.
+           if response
                PsychPortAudio('FillBuffer', o.paHandle,o.correctBuffer);
            else
                PsychPortAudio('FillBuffer', o.paHandle, o.incorrectBuffer);
            end
-           
-           if strcmpi(rewardData.when,'IMMEDIATE')
-               PsychPortAudio('Start', o.paHandle,1,0,0,inf,1);
-%                PsychPortAudio('Stop',o.paHandle,1);
-           elseif strcmpi(rewardData.when,'AFTERTRIAL')
-               o.soundReady = true;
-           end
-           
+           PsychPortAudio('Start',o.paHandle);
        end
        
-       function liquidReward(o,rewardData)
-           % function liquidReward(o,rewardData)
+       function liquidReward(o,response)
+           % function liquidReward(o,response)
            % delegates to the MCC
-           if rewardData.answer
+           if response
+               
+           else
                
            end
                

@@ -1,4 +1,4 @@
-classdef behavior < neurostim.plugin & neurostim.plugins.reward
+classdef behavior < neurostim.plugin
     % Simple behavioral class which adds properties, event listeners and function wrappers
     % for all behavioral subclasses.
     % Properties:
@@ -6,11 +6,15 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
     % beforeframe, afterframe), case insensitive.
     % reward - struct containing type, duration, etc.
     
+    events
+        GETREWARD
+    end
+    
     properties
     acquireEvent = {};    % checks behaviour, for acquiring data
     validateEvent = {'afterFrame'}; % checks whether this behaviour is 'correct'
     endsTrial = true;  %does violating behaviour end trial?
-    rewardOn = false;
+    rewardOn = true;
     data;
     prevOn = false;
     end
@@ -28,13 +32,13 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
             o.addPostSet('done',[]);
             o.addPostSet('on',[]);
             o.addProperty('response',[]);
-            o.addProperty('continuous',false);
-            o.addProperty('duration',1000);
-            o.addProperty('from',0);
-            o.addProperty('X',0);
-            o.addProperty('Y',0);
-            o.addProperty('Z',0);
-            o.addProperty('tolerance',1);
+            o.addProperty('continuous',false,[],@islogical);
+            o.addProperty('duration',1000,[],@isnumeric);
+            o.addProperty('from',0,[],@isnumeric);
+            o.addProperty('X',0,[],@isnumeric);
+            o.addProperty('Y',0,[],@isnumeric);
+            o.addProperty('Z',0,[],@isnumeric);
+            o.addProperty('tolerance',1,[],@isnumeric);
             o.addPostSet('startTime',[]);
             
             o.listenToEvent('BEFORETRIAL');
@@ -49,10 +53,6 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
             
             if any(strcmpi('beforeframe',[o.validateEvent o.acquireEvent]))
                 o.listenToEvent('BEFOREFRAME');
-            end
-            
-            if any(strcmpi('afterexperiment',[o.validateEvent o.acquireEvent]))
-                o.listenToEvent('AFTEREXPERIMENT');
             end
          end
         
@@ -69,6 +69,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
         function beforeFrame(o,c,evt)
             if any(strcmpi('beforeframe',o.validateEvent))
                 processBehavior(o,c);
+                
             end
             
             if any(strcmpi('beforeframe',o.acquireEvent))
@@ -84,10 +85,10 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
             if any(strcmpi('afterframe',o.acquireEvent))
                 getBehavior(o,c);
             end
+            
         end
         
         function afterTrial(o,c,evt)
-            
             if any(strcmpi('afterTrial',o.validateEvent))
                 processBehavior(o,c);
             end
@@ -95,6 +96,7 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
             if any(strcmpi('afterTrial',o.acquireEvent))
                 getBehavior(o,c);
             end
+            
         end
         
         function afterExperiment(o,c,evt)
@@ -156,9 +158,8 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                         o.startTime = Inf;      % reset start time and done flag
                         o.done = true;
                         o.prevOn = false;
-%                         display('wrong');
+% %                         display('wrong');
                         if o.rewardOn       % if we want to trigger rewards
-                            [o.rewardData.answer] = deal(false);
                             notify(o,'GETREWARD');
                         end
                         if o.endsTrial    % if we want failure to end trial
@@ -170,10 +171,9 @@ classdef behavior < neurostim.plugin & neurostim.plugins.reward
                     if ~o.done && o.on && (((GetSecs*1000)-o.startTime>=o.duration) || o.endTime~=Inf)   % if duration has been met and behaviour is still on
                         o.done = true;  % set done flag
                         o.endTime = GetSecs*1000;
-%                         display('right')
+% %                         display('right')
                         if o.rewardOn   % if we want to trigger rewards
-                            [o.rewardData.answer] = deal(true);
-                            notify(o,'GETREWARD');
+                            notify(o.cic.reward,'GETREWARD');
                         end
                     end
                 else    % if behaviour is discrete

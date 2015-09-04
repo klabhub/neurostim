@@ -37,17 +37,24 @@ classdef rdp < neurostim.stimulus
         truncateGauss = -1;
     end
     
+    properties (Access=public,AbortSet,SetObservable)
+        xspeed = 0;
+        yspeed = 0;
+        speed = 5;
+        direction = 0;
+    end
+    
     methods (Access = public)
         function o = rdp(name)
             o = o@neurostim.stimulus(name); 
-            o.listenToEvent({'BEFOREFRAME','AFTERFRAME','BEFORETRIAL'});
+            o.listenToEvent({'BEFOREFRAME','AFTERFRAME'});
 %             o.listenToKeyStroke('s');
             o.addProperty('size',5,'',@isnumeric);
             o.addProperty('maxRadius',100,'',@isnumeric);
-            o.addProperty('speed',5,'',@isnumeric);
-            o.addProperty('xspeed',0,'',@isnumeric);
-            o.addProperty('yspeed',0,'',@isnumeric);
-            o.addProperty('direction',0,'',@isnumeric);
+            o.addPostSet('speed','',@isnumeric);
+            o.addPostSet('xspeed','',@isnumeric);
+            o.addPostSet('yspeed','',@isnumeric);
+            o.addPostSet('direction','',@isnumeric);
             o.addProperty('nrDots',100,'',@isnumeric);
             o.addProperty('coherence',0.5,'',@(x)x<=1&&x>=0);
             o.addProperty('motionMode',1,'',@(x)x==0||x==1);      %Spiral, linear
