@@ -7,14 +7,15 @@ classdef behavior < neurostim.plugin
     % reward - struct containing type, duration, etc.
     
     events
-        GETREWARD
+        GIVEREWARD
     end
     
     properties
     acquireEvent = {};    % checks behaviour, for acquiring data
     validateEvent = {'afterFrame'}; % checks whether this behaviour is 'correct'
-    endsTrial = true;  %does violating behaviour end trial?
+    endsTrial = false;  %does violating behaviour end trial?
     rewardOn = true;
+    reward;
     data;
     prevOn = false;
     end
@@ -160,7 +161,8 @@ classdef behavior < neurostim.plugin
                         o.prevOn = false;
 % %                         display('wrong');
                         if o.rewardOn       % if we want to trigger rewards
-                            notify(o,'GETREWARD');
+                            o.cic.reward.rewardAnswer=false;
+                            notify(o.cic.reward,'GIVEREWARD');
                         end
                         if o.endsTrial    % if we want failure to end trial
 %                             keyboard;
@@ -173,7 +175,8 @@ classdef behavior < neurostim.plugin
                         o.endTime = GetSecs*1000;
 % %                         display('right')
                         if o.rewardOn   % if we want to trigger rewards
-                            notify(o.cic.reward,'GETREWARD');
+                            o.cic.reward.rewardAnswer=true;
+                            notify(o.cic.reward,'GIVEREWARD');
                         end
                     end
                 else    % if behaviour is discrete
@@ -181,11 +184,11 @@ classdef behavior < neurostim.plugin
                     if o.rewardOn && o.done  % if we want to trigger rewards
                         %                         if ~ischar(o.response)
                         if o.response
-                            [o.rewardData.answer] = deal(true);
-                            notify(o,'GETREWARD');
+                            o.cic.reward.rewardAnswer=true;
+                            notify(o.cic.reward,'GIVEREWARD');
                         else
-                            [o.rewardData.answer] = deal(false);
-                            notify(o,'GETREWARD');
+                            o.cic.reward.rewardAnswer=false;
+                            notify(o.cic.reward,'GIVEREWARD');
                         end
                         %                         end
                     end

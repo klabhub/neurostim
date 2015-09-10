@@ -113,9 +113,9 @@ k.endsTrial = true;
 
 
 c.addFactorial('myFactorial',...
-    {'fix','RSVP',{{300,100,{'shape',{'CIRC' 'STAR'}}} {200,400,{'shape',{'CIRC' 'STAR'}}}}});
+    {'fix','shape',{'CIRC' 'STAR'}});
 f.RSVP = {300,100,{'shape',{'CIRC' 'STAR'}}};
-c.addBlock('myBlock','myFactorial',5,'BLOCKRANDOMWITHREPLACEMENT') % Add a block in whcih we run all conditions in the factorial 10 times.
+c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 % c.add(plugins.mcc);
 % c.add(plugins.output);
 % % 
@@ -126,21 +126,23 @@ c.addBlock('myBlock','myFactorial',5,'BLOCKRANDOMWITHREPLACEMENT') % Add a block
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
-% f1 = plugins.fixate('f1');
-% f1.X = 0;
-% f1.Y = 0;
-% f1.duration = 500;
-% c.add(f1);
-% f2 = plugins.fixate('f2');
-% 
-% f2.X = 5;
-% f2.Y = 0;
-% c.add(f2);
-% 
-% s=plugins.saccade('sac1',f1,f2);
-% c.add(s);
-% 
-% c.add(plugins.reward);
+f1 = plugins.fixate('f1');
+f1.X = 0;
+f1.Y = 0;
+f1.duration = 500;
+c.add(f1);
+f2 = plugins.fixate('f2');
+
+f2.X = 5;
+f2.Y = 0;
+c.add(f2);
+
+s=plugins.saccade('sac1',f1,f2);
+c.add(s);
+
+c.add(plugins.liquidReward);
+c.add(plugins.mcc);
+% c.add(plugins.soundReward);
 
 c.run;
 

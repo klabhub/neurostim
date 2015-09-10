@@ -58,7 +58,7 @@ classdef cic < neurostim.plugin
         FIRSTFRAME;
         
         %%
-        GETREWARD;
+        GIVEREWARD;
         
     end
     %% Constants
@@ -380,10 +380,10 @@ classdef cic < neurostim.plugin
                for i=1:length(o.evts)
                    if isa(o,'neurostim.plugin')
                        % base events allow housekeeping before events
-                       % trigger, but getReward and firstFrame do not require a
+                       % trigger, but giveReward and firstFrame do not require a
                        % baseEvent.
-                       if strcmpi(o.evts{i},'GETREWARD')
-                            h=@(c,evt)(o.getReward(o.cic,evt));
+                        if strcmpi(o.evts{i},'GIVEREWARD')
+                            h=@(c,evt)(o.giveReward(o.cic,evt));
                        elseif strcmpi(o.evts{i},'FIRSTFRAME')
                            h=@(c,evt)(o.firstFrame(o.cic,evt));
                        else
@@ -680,9 +680,9 @@ classdef cic < neurostim.plugin
                     c.trial = c.trial+1;
                     %                     disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
                     
-                    %                     if ~isempty(c.mirror)
-                    %                         Screen('CopyWindow',c.window,c.mirror);
-                    %                     end
+                                        if ~isempty(c.mirror)
+                                            Screen('CopyWindow',c.window,c.mirror);
+                                        end
                     beforeTrial(c);
                     
                     c.frame=0;
@@ -718,9 +718,9 @@ classdef cic < neurostim.plugin
                             ititime = vbl*1000-ititime;
                             time = vbl*1000;
                         end
-                        %                         if ~isempty(c.mirror)
-                        %                             Screen('CopyWindow',c.window,c.mirror);
-                        %                         end
+                                                if ~isempty(c.mirror)
+                                                    Screen('CopyWindow',c.window,c.mirror);
+                                                end
                         if (floor(c.trialDuration/c.screen.framerate))<= ((GetSecs*1000-c.trialStartTime(c.trial))/c.screen.framerate)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
                         end

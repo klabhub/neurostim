@@ -10,6 +10,7 @@ classdef stimulus < neurostim.plugin
     
     properties (SetAccess = public,GetAccess=public)
         quest@struct;
+        subConditions;
     end
     properties (SetAccess=private,GetAccess=public)
         beforeFrameListenerHandle =[];
@@ -31,6 +32,7 @@ classdef stimulus < neurostim.plugin
         stimNum = 1;
         RSVPStimProp;
         RSVPParms;
+        RSVPList;
     end
     
     methods
@@ -84,6 +86,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
             s.addProperty('endTime',Inf);   % first time the stimulus does not appear after being run
             s.addProperty('RSVP',{},[],@(x)iscell(x)||isempty(x));
+            s.addProperty('currSubCond',[]);
             s.listenToEvent({'BEFORETRIAL'});
         
         end                      
@@ -227,18 +230,24 @@ classdef stimulus < neurostim.plugin
                % calculate on which frames the parameters should be set
                frames = round(cell2mat(s.on)*s.cic.screen.framerate/1000);
                
+
+               
+               s.subConditions = 1:numel(s.RSVPParms);
+               
                if numel(RSVPSpecs)>2
                    nrRepeats=RSVPSpecs{3};
-               else nrRepeats = ceil(numel(frames)/numel(s.RSVPParms));
+               else nrRepeats = ceil(numel(frames)/numel(s.subConditions));
                end
                
                if nrRepeats>1 %if parameters need expansion
                    switch upper(randomization)
                        case 'SEQUENTIAL'
-                           s.RSVPParms = repmat(s.RSVPParms,[1,nrRepeats]);
+                           s.RSVPList = repmat(s.subConditions,[1,nrRepeats]);
                        case 'RANDOMWITHREPLACEMENT'
-                           s.RSVPParms = repmat(s.RSVPParms,[1 nrRepeats]);
-                           s.RSVPParms = s.RSVPParms(randperm(numel(s.RSVPParms)));
+                           s.RSVPList = datasample(s.subConditions,(numel(s.subConditions)*nrRepeats));
+                       case 'RANDOMWITHOUTREPLACEMENT'
+                           s.RSVPList = repmat(s.subConditions,[1 nrRepeats]);
+                           s.RSVPList = s.RSVPList(randperm(numel(s.RSVPList)));
                    end
                end
         end
@@ -258,9 +267,11 @@ classdef stimulus < neurostim.plugin
                     if c.frame==1
                         s.stimNum=1;
                         if ~isempty(s.RSVP)
-                        s.(s.RSVPStimProp) = s.RSVPParms{s.stimNum};
+                            s.currSubCond = s.RSVPList(s.stimNum);
+                        s.(s.RSVPStimProp) = s.RSVPParms{s.currSubCond};
                         end
                     end
+                    
 
                     % get the stimulus end time
                     if c.frame==s.offFrame+2
@@ -284,8 +295,9 @@ classdef stimulus < neurostim.plugin
                         s.stimstart=false;
                         s.stimNum = s.stimNum+1;
                         if ~isempty(s.RSVP)
-                            if s.stimNum<=numel(s.RSVPParms)
-                                s.(s.RSVPStimProp) = s.RSVPParms{s.stimNum};
+                            if s.stimNum<=numel(s.RSVPList)
+                                s.currSubCond = s.RSVPList(s.stimNum);
+                                s.(s.RSVPStimProp) = s.RSVPParms{s.currSubCond};
                             else
                                 s.stimNum=1;
                             end
