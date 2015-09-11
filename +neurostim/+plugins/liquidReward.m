@@ -6,7 +6,7 @@ classdef liquidReward < neurostim.plugins.reward
     
     methods (Access=public)
         function o=liquidReward
-            o=o@neurostim.plugins.reward;
+            o=o@neurostim.plugins.reward('liquid');
         end
         
         function afterTrial(o,c,evt)
@@ -26,9 +26,12 @@ classdef liquidReward < neurostim.plugins.reward
         
         function activateReward(o,response,varargin)
             % activateReward(o,response,duration)
-            duration = varargin{1};
-            
-            o.cic.mcc.digitalOut(o.mccChannel,true,duration);
+            if response
+                duration = varargin{1};
+                if duration>0
+                    o.cic.mcc.digitalOut(o.mccChannel,true,duration);
+                end
+            end
         end
         
     end

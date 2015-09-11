@@ -140,9 +140,10 @@ c.add(f2);
 s=plugins.saccade('sac1',f1,f2);
 c.add(s);
 
+
 c.add(plugins.liquidReward);
 c.add(plugins.mcc);
-% c.add(plugins.soundReward);
+c.add(plugins.soundReward);
 
 c.run;
 

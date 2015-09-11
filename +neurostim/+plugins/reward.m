@@ -18,8 +18,8 @@ classdef reward < neurostim.plugin
    end
    
    methods (Access=public)
-       function o=reward
-           o=o@neurostim.plugin('reward');
+       function o=reward(name)
+           o=o@neurostim.plugin(['reward_' name]);
            
            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GIVEREWARD','AFTERTRIAL','AFTERFRAME'})
            

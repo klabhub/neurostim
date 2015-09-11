@@ -18,6 +18,7 @@ classdef behavior < neurostim.plugin
     reward;
     data;
     prevOn = false;
+    rewardNames;
     end
     
     properties (Access=public,SetObservable=true,GetObservable=true,AbortSet)
@@ -64,6 +65,12 @@ classdef behavior < neurostim.plugin
             o.startTime = Inf;
             o.prevOn = false;
             o.endTime = Inf;
+            
+            if o.rewardOn
+                temp=fieldnames(c);
+                temp2 = strfind(temp,'reward_');
+                o.rewardNames = temp(find(~cellfun('isempty',temp2)));
+            end
         end
             
         
@@ -159,10 +166,12 @@ classdef behavior < neurostim.plugin
                         o.startTime = Inf;      % reset start time and done flag
                         o.done = true;
                         o.prevOn = false;
-% %                         display('wrong');
+                        % %                         display('wrong');
                         if o.rewardOn       % if we want to trigger rewards
-                            o.cic.reward.rewardAnswer=false;
-                            notify(o.cic.reward,'GIVEREWARD');
+                            for a=1:numel(o.rewardNames)
+                                o.cic.(o.rewardNames{a}).rewardAnswer=false;
+                                notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
+                            end
                         end
                         if o.endsTrial    % if we want failure to end trial
 %                             keyboard;
@@ -175,20 +184,27 @@ classdef behavior < neurostim.plugin
                         o.endTime = GetSecs*1000;
 % %                         display('right')
                         if o.rewardOn   % if we want to trigger rewards
-                            o.cic.reward.rewardAnswer=true;
-                            notify(o.cic.reward,'GIVEREWARD');
+                            for a=1:numel(o.rewardNames)
+                                o.cic.(o.rewardNames{a}).rewardAnswer=true;
+                                notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
+                            end
                         end
                     end
                 else    % if behaviour is discrete
                     o.done = o.on;
                     if o.rewardOn && o.done  % if we want to trigger rewards
                         %                         if ~ischar(o.response)
+                        
                         if o.response
-                            o.cic.reward.rewardAnswer=true;
-                            notify(o.cic.reward,'GIVEREWARD');
+                            for a=1:numel(o.rewardNames)
+                                o.cic.(o.rewardNames{a}).rewardAnswer=true;
+                                notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
+                            end
                         else
-                            o.cic.reward.rewardAnswer=false;
-                            notify(o.cic.reward,'GIVEREWARD');
+                            for a=1:numel(o.rewardNames)
+                                o.cic.(o.rewardNames{a}).rewardAnswer=false;
+                                notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
+                            end
                         end
                         %                         end
                     end

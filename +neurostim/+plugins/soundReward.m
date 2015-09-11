@@ -14,7 +14,7 @@ classdef soundReward < neurostim.plugins.reward
     
     methods (Access=public)
         function o=soundReward
-            o=o@neurostim.plugins.reward;
+            o=o@neurostim.plugins.reward('sound');
             o.soundCorrectFile = 'nsSounds\sounds\correct.wav';
             o.soundIncorrectFile = 'nsSounds\sounds\incorrect.wav';
         end
