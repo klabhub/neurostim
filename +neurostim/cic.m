@@ -58,7 +58,7 @@ classdef cic < neurostim.plugin
         FIRSTFRAME;
         
         %%
-        GETREWARD;
+        GIVEREWARD;
         
     end
     %% Constants
@@ -81,10 +81,10 @@ classdef cic < neurostim.plugin
         trialDuration@double    = 1000;  % Trial Duration (ms)
         screen                  = struct('pixels',[],'physical',[],'color',struct('text',[1/3 1/3 50],...
                                     'background',[1/3 1/3 5]),'colorMode','xyL',...
-                                    'framerate',[]);    %screen-related parameters.
+                                    'framerate',60);    %screen-related parameters.
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to getg the frame flip time.
-        requiredSlack = 1;  % required slack time in frame loop (stops all plugins after this time has passed)
+        requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
     end
     
     %% Protected properties.
@@ -113,6 +113,7 @@ classdef cic < neurostim.plugin
         trialEndTime = [];
         stopTime = [];
         frameStart = 0;
+        frameDeadline;
         %data@sib;
         
         %% Profiling information.
@@ -272,6 +273,7 @@ classdef cic < neurostim.plugin
             c.allKeyHelp  = {};
             % Keys handled by CIC
             addKeyStroke(c,KbName('q'),'Quit',c);
+            c.addProperty('missedFrame',[]);
         end
         
         function addScript(c,when, fun,keys)
@@ -378,10 +380,10 @@ classdef cic < neurostim.plugin
                for i=1:length(o.evts)
                    if isa(o,'neurostim.plugin')
                        % base events allow housekeeping before events
-                       % trigger, but getReward and firstFrame do not require a
+                       % trigger, but giveReward and firstFrame do not require a
                        % baseEvent.
-                       if strcmpi(o.evts{i},'GETREWARD')
-                            h=@(c,evt)(o.getReward(o.cic,evt));
+                        if strcmpi(o.evts{i},'GIVEREWARD')
+                            h=@(c,evt)(o.giveReward(o.cic,evt));
                        elseif strcmpi(o.evts{i},'FIRSTFRAME')
                            h=@(c,evt)(o.firstFrame(o.cic,evt));
                        else
@@ -471,7 +473,7 @@ classdef cic < neurostim.plugin
                 %    error(['This name (' o.name ') already exists in CIC.']);
                 % Update existing
             elseif  isprop(c,o.name)
-                error(['Please use a different name for your stimulus. ' o.nae ' is reserved'])
+                error(['Please use a different name for your stimulus. ' o.name ' is reserved'])
             else
                 h = c.addprop(o.name); % Make it a dynamic property
                 c.(o.name) = o;
@@ -504,6 +506,9 @@ classdef cic < neurostim.plugin
             end
         end
         
+        
+            
+        
         function addFactorial(c,name,varargin)
             % Add a factor to the design.
             % name = name of the factorial
@@ -529,6 +534,7 @@ classdef cic < neurostim.plugin
             parmValues  = cell(nrFactors,1);
             for f=1:nrFactors
                 factorSpecs =varargin{f};
+
                 if ~all(cellfun(@iscell,factorSpecs(3:3:end)))
                     error('Levels must be specified as cell arrays');
                 end
@@ -538,7 +544,7 @@ classdef cic < neurostim.plugin
                 else
                     nrLevels(f) =  thisNrLevels;
                 end
-                parmValues{f} = varargin{f}(3:3:end);
+                parmValues{f} = factorSpecs{3:3:end};
             end
             conditionsInFactorial = 1:prod(nrLevels);
             subs = cell(1,nrFactors);
@@ -602,7 +608,7 @@ classdef cic < neurostim.plugin
         
         
         function beforeTrial(c)
-            % Assign values specified in the desing to each of the stimuli.
+            % Assign values specified in the design to each of the stimuli.
             specs = c.conditions(c.condition);
             nrParms = length(specs)/3;
             for p =1:nrParms
@@ -610,10 +616,10 @@ classdef cic < neurostim.plugin
                 varName = specs{3*(p-1)+2};
                 value   = specs{3*(p-1)+3};
                 if strcmpi(stimName,'CIC')
-                    % This codition changes one of the CIC properties
+                    % This condition changes one of the CIC properties
                     c.(varName) = value;
                 else
-                    % Change a stimulus  or plugin property
+                    % Change a stimulus or plugin property
                     stim  = c.(stimName);
                     stim.(varName) = value;
                 end
@@ -674,10 +680,12 @@ classdef cic < neurostim.plugin
                     c.trial = c.trial+1;
                     %                     disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
                     
-                    %                     if ~isempty(c.mirror)
-                    %                         Screen('CopyWindow',c.window,c.mirror);
-                    %                     end
+                                        if ~isempty(c.mirror)
+                                            Screen('CopyWindow',c.window,c.mirror);
+                                        end
                     beforeTrial(c);
+                    
+                    c.frame=0;
                     notify(c,'BASEBEFORETRIAL');
                     if c.trial>1
                         while (round(c.iti-(GetSecs*1000-c.trialEndTime(c.trial-1)))*c.screen.framerate/1000)>0
@@ -686,7 +694,6 @@ classdef cic < neurostim.plugin
                     end
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
-                    c.frame=0;
                     c.frameStart=GetSecs*1000;
                     while (c.flags.trial && c.flags.experiment)
                         c.frame = c.frame+1;
@@ -694,14 +701,16 @@ classdef cic < neurostim.plugin
                         Screen('DrawingFinished',c.window);
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
-                        [vbl,stimon,~,missed] = Screen('Flip', c.window,0,1-c.clear);
-                        if missed>0
-                            disp(['Missed Frame ' num2str(c.frame)])
+                        [vbl,stimon,flip,missed] = Screen('Flip', c.window,0,1-c.clear);
+                        if c.frame>1 && abs(c.frameDeadline-(flip*1000)) > (100/c.screen.framerate)
+                            c.missedFrame = c.frame;
                         elseif c.getFlipTime
                             c.flipTime = stimon*1000;
                             c.getFlipTime=false;
                         end
-                        c.frameStart = GetSecs*1000;
+                        
+                        c.frameStart = flip*1000;
+                        c.frameDeadline = (flip*1000)+(1000/c.screen.framerate);
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
@@ -709,16 +718,15 @@ classdef cic < neurostim.plugin
                             ititime = vbl*1000-ititime;
                             time = vbl*1000;
                         end
-                        %                         if ~isempty(c.mirror)
-                        %                             Screen('CopyWindow',c.window,c.mirror);
-                        %                         end
+                                                if ~isempty(c.mirror)
+                                                    Screen('CopyWindow',c.window,c.mirror);
+                                                end
                         if (floor(c.trialDuration/c.screen.framerate))<= ((GetSecs*1000-c.trialStartTime(c.trial))/c.screen.framerate)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
                         end
                     end % Trial running
                     
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
-%                     if (c.PROFILE); tic;end
                     vbl=Screen('Flip', c.window,0,1-c.clear);
                     c.trialEndTime(c.trial) = GetSecs * 1000;
                     trialdur = vbl*1000-time; 
@@ -895,32 +903,36 @@ classdef cic < neurostim.plugin
             subplot(2,2,1)
             x = c.profile.BEFOREFRAME;
             low = 5;high=95;
-            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            hist(1000*x,bins)
+            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            %             hist(1000*x,bins)
+            hist(1000*x)
             xlabel 'Time (ms)'
             ylabel '#'
             title 'BeforeFrame'
             
             subplot(2,2,2)
             x = c.profile.AFTERFRAME;
-            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            hist(1000*x,bins)
+            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            %             hist(1000*x,bins)
+            hist(1000*x)
             xlabel 'Time (ms)'
             ylabel '#'
             title 'AfterFrame'
             
             subplot(2,2,4)
             x = c.profile.AFTERTRIAL;
-            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            hist(1000*x,bins)
+            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            %             hist(1000*x,bins)
+            hist(1000*x)
             xlabel 'Time (ms)'
             ylabel '#'
             title 'AfterTrial'
             
             subplot(2,2,3)
             x = c.profile.BEFORETRIAL;
-            bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            hist(1000*x,bins)
+            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+            %             hist(1000*x,bins)
+            hist(1000*x)
             xlabel 'Time (ms)'
             ylabel '#'
             title 'BeforeTrial'

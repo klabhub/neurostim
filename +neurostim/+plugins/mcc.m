@@ -18,6 +18,7 @@ classdef mcc < neurostim.plugin
         devices;
         daq;
         mapList;
+        timer;
     end
     
     
@@ -76,7 +77,8 @@ classdef mcc < neurostim.plugin
         end
         
         
-        function  digitalOut(o,channel,value)
+        function  digitalOut(o,channel,value,varargin)
+            % digitalOut(o,channel,value [,duration])
             % Output the value to the digital channel
             % o.digitalOut(0,unit8(2)) will write '2' to port A
             % o.digitalOut(3,false) will set bit #3 to false.
@@ -94,6 +96,13 @@ classdef mcc < neurostim.plugin
             else
                 error('Huh?')
             end
+            if size(varargin) == 1
+                duration = varargin{1};
+                % timer function may override other functions when time is met
+                % and could cause problems for time-critical tasks
+                o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current(port)));
+                start(o.timer);
+            end
         end
         
         % Read the digital channel now
@@ -108,7 +117,19 @@ classdef mcc < neurostim.plugin
                 v = bitget(data(2),channel-8);
             end
         end
-        
+    end
+    
+    methods (Access=public)
+        function outputToggle(o,channel,value)
+            % outputToggle(o,channel,value)
+            % togges the output back to its previous value once time has
+            % been reached
+            port = (channel>8)+1;
+            DaqDOut(o.daq,port-1,value);
+        end
+    end
+    
+    methods
         % Read the specified analog channel now
         function v= analogIn(o,channel)
             % range scales differential recordings. Not using for

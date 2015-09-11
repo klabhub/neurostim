@@ -438,10 +438,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if c.PROFILE; c.addProfile('BEFOREFRAME',toc);end;
                     
                 case 'BASEAFTERFRAME'
-%                     if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
-%                         display(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) ' due to framerate limitations.']);
-%                         return;
-%                     end
+                    if c.requiredSlack ~= 0
+                        if c.frame ~=1 && GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
+                            display(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) ' due to framerate limitations.']);
+                            return;
+                        end
+                    end
                     notify(o,'AFTERFRAME');
                     if c.PROFILE; c.addProfile('AFTERFRAME',toc);end;
                     

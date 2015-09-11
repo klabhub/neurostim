@@ -15,7 +15,7 @@ methods
         o.listenToEvent('AFTERFRAME');
         o.addProperty('eyeClockTime',[]);
         o.addProperty('hardwareModel',[]);
-        o.addProperty('sampleRate',1000);
+        o.addProperty('sampleRate',1000,[],@isnumeric);
         o.addProperty('backgroundColor',[]);
         o.addProperty('foregroundColor',[]);
         o.addProperty('clbTargetColor',[]);

@@ -16,12 +16,11 @@ classdef nafcResponse < neurostim.plugins.behavior
             o = o@neurostim.plugins.behavior(name); 
             o.continuous = false;
             o.listenToEvent('BEFORETRIAL');
-            o.addProperty('correctResponse',{});
-            o.addProperty('keyLabel',{});
-            o.addProperty('keys',{'a'});
+            o.addProperty('correctResponse',{},'',@iscellstr);
+            o.addProperty('keyLabel',{},'',@iscellstr);
+            o.addProperty('keys',{'a'},'',@iscellstr);
             o.addProperty('responseLabel',[]);
             
-%             o.addProperty('eval',struct);
        end
        
        function beforeTrial(o,c,evt)

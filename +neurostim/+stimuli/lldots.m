@@ -6,8 +6,8 @@ classdef lldots < neurostim.stimulus
         function o = lldots(name)
             o = o@neurostim.stimulus(name);
             o.listenToEvent('BEFOREFRAME');
-            o.addProperty('size',5);
-            o.addProperty('radius',50);
+            o.addProperty('size',5,'',@isnumeric);
+            o.addProperty('radius',50,'',@isnumeric);
             o.addProperty('speed',25);
             o.addProperty('nrDots',100);
             o.addProperty('coherence',0.2);

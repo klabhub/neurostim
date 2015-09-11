@@ -6,10 +6,10 @@ classdef fixation < neurostim.stimulus
     methods (Access = public)
         function o = fixation(name)
             o = o@neurostim.stimulus(name);
-            o.addProperty('size',15);
-            o.addProperty('size2',5);
-            o.addProperty('color2',[0 0]);
-            o.addProperty('luminance2',0);
+            o.addProperty('size',15,'',@isnumeric);
+            o.addProperty('size2',5,'',@isnumeric);
+            o.addProperty('color2',[0 0],'',@isnumeric);
+            o.addProperty('luminance2',0,'',@isnumeric);
             o.addProperty('shape','CIRC','',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR'}))) ;               
             o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT'});
             o.on = 0;
