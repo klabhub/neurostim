@@ -66,7 +66,7 @@ classdef output < neurostim.plugin
                 saveVariables = {'screen','subjectNr','paradigm',...
                     'iti','trialDuration','nrStimuli','nrConditions','nrTrials',...
                     'fullFile','subject','blocks','responseKeys','trial','condition','block',...
-                    'startTime','stopTime','trialStartTime','trialEndTime', 'pluginOrder'};
+                    'startTime','stopTime','trialStartTime','trialEndTime', 'pluginOrder','missedFrame'};
                 
                 for a = 1:length(c.stimuli) % runs through and saves all stimuli to o.data
                     stimulus = c.stimuli{a};
@@ -81,7 +81,7 @@ classdef output < neurostim.plugin
                     o.data.(horzcat('save',num2str(o.trial))).(variable) = c.(variable);
                 end
                 
-                for a = 1:length(c.plugins) % saves all plugins to o.data
+                for a = 1:length({c.plugins 'cic'}) % saves all plugins to o.data
                     plugin = c.plugins{a};
                     if ~isempty(c.(plugin).log.parms)
                         o.variableSize.(plugin) = max(size(c.(stimulus).log.parms));

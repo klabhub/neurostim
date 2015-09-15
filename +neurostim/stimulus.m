@@ -84,10 +84,10 @@ classdef stimulus < neurostim.plugin
             s.addProperty('ry',0,[],@isnumeric);
             s.addProperty('rz',1,[],@isnumeric);
             s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
-            s.addProperty('endTime',Inf);   % first time the stimulus does not appear after being run
+            s.addProperty('endTime',0);   % first time the stimulus does not appear after being run
             s.addProperty('RSVP',{},[],@(x)iscell(x)||isempty(x));
             s.addProperty('currSubCond',[]);
-            s.listenToEvent({'BEFORETRIAL'});
+            s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
         
         end                      
         
@@ -175,9 +175,14 @@ classdef stimulus < neurostim.plugin
     
     methods (Access= public)
            function beforeTrial(s,c,evt)
-            % to be overloaded in subclasses; necessary for BaseBeforeTrial
-            % 
-        end
+            % to be overloaded in subclasses; necessary for baseBeforeTrial
+            % (RSVP re-check)
+           end
+           
+           function afterTrial(s,c,evt)
+               % to be overloaded in subclasses; needed for baseAfterTrial
+               % (stimulus endTime check)
+           end
     end
         
     %% Methods that the user cannot change. 
@@ -230,22 +235,20 @@ classdef stimulus < neurostim.plugin
                % calculate on which frames the parameters should be set
                frames = round(cell2mat(s.on)*s.cic.screen.framerate/1000);
                
-
-               
                s.subConditions = 1:numel(s.RSVPParms);
                
-               if numel(RSVPSpecs)>2
+               if numel(RSVPSpecs)>2 % if nrRepeats is supplied
                    nrRepeats=RSVPSpecs{3};
                else nrRepeats = ceil(numel(frames)/numel(s.subConditions));
                end
                
                if nrRepeats>1 %if parameters need expansion
                    switch upper(randomization)
-                       case 'SEQUENTIAL'
+                       case 'SEQUENTIAL' % repeats sequentially
                            s.RSVPList = repmat(s.subConditions,[1,nrRepeats]);
-                       case 'RANDOMWITHREPLACEMENT'
+                       case 'RANDOMWITHREPLACEMENT' % repeats randomly (with replacement)
                            s.RSVPList = datasample(s.subConditions,(numel(s.subConditions)*nrRepeats));
-                       case 'RANDOMWITHOUTREPLACEMENT'
+                       case 'RANDOMWITHOUTREPLACEMENT' % repeats randomly (without replacement)
                            s.RSVPList = repmat(s.subConditions,[1 nrRepeats]);
                            s.RSVPList = s.RSVPList(randperm(numel(s.RSVPList)));
                    end
@@ -268,7 +271,7 @@ classdef stimulus < neurostim.plugin
                         s.stimNum=1;
                         if ~isempty(s.RSVP)
                             s.currSubCond = s.RSVPList(s.stimNum);
-                        s.(s.RSVPStimProp) = s.RSVPParms{s.currSubCond};
+                            s.(s.RSVPStimProp) = s.RSVPParms{s.currSubCond};
                         end
                     end
                     
@@ -276,6 +279,16 @@ classdef stimulus < neurostim.plugin
                     % get the stimulus end time
                     if c.frame==s.offFrame+2
                         s.endTime=c.flipTime;
+                        
+                        s.stimNum = s.stimNum+1;
+                        if ~isempty(s.RSVP)
+                            if s.stimNum<=numel(s.RSVPList)
+                                s.currSubCond = s.RSVPList(s.stimNum);
+                                s.(s.RSVPStimProp) = s.RSVPParms{s.currSubCond};
+                            else
+                                s.stimNum=1;
+                            end
+                        end
                     end
 
 
@@ -293,15 +306,6 @@ classdef stimulus < neurostim.plugin
                         % get the next screen flip for endTime
                         c.getFlipTime=true;
                         s.stimstart=false;
-                        s.stimNum = s.stimNum+1;
-                        if ~isempty(s.RSVP)
-                            if s.stimNum<=numel(s.RSVPList)
-                                s.currSubCond = s.RSVPList(s.stimNum);
-                                s.(s.RSVPStimProp) = s.RSVPParms{s.currSubCond};
-                            else
-                                s.stimNum=1;
-                            end
-                        end
                     end
                     Screen('glLoadIdentity', c.window);
                 case 'BASEAFTERFRAME'
@@ -312,10 +316,13 @@ classdef stimulus < neurostim.plugin
                     if ~isempty(s.RSVP)
                         s.addRSVP(s.RSVP{1},s.RSVP{2},s.RSVP{3},s.RSVP{4:end})
                     end
-                    
+
                     notify(s,'BEFORETRIAL');
 
                 case 'BASEAFTERTRIAL'
+                    if s.endTime<c.trialStartTime(c.trial)
+                        s.endTime=c.trialEndTime(c.trial);
+                    end
                     notify(s,'AFTERTRIAL');
 
                 case 'BASEBEFOREEXPERIMENT'
@@ -323,7 +330,6 @@ classdef stimulus < neurostim.plugin
 
                 case 'BASEAFTEREXPERIMENT'    
                     notify(s,'AFTEREXPERIMENT');
-                    
 
             end
         end        

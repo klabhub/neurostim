@@ -23,8 +23,8 @@ classdef reward < neurostim.plugin
            
            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','GIVEREWARD','AFTERTRIAL','AFTERFRAME'})
            
-           o.addProperty('duration',100);
-           o.addProperty('when','IMMEDIATE');
+           o.addProperty('duration',100,[],@isnumeric);
+           o.addProperty('when','IMMEDIATE',[],@(x)ischar(x)&&any(strcmpi(x,{'IMMEDIATE','AFTERTRIAL'}))); %
            o.addProperty('respondTo',{'correct','incorrect'},[],@iscellstr);
        end
        
@@ -54,6 +54,7 @@ classdef reward < neurostim.plugin
        end
        
        function afterTrial(o,c,evt)
+           if isstruct(o.queue)
            a=strcmpi({o.queue.when},'AFTERTRIAL');
            if any(a)
                for b = 1:sum(a)
@@ -61,6 +62,7 @@ classdef reward < neurostim.plugin
                end
            end
            o.queue(a)=[];
+           end
        end
                
        

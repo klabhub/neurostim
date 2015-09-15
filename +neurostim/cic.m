@@ -85,6 +85,8 @@ classdef cic < neurostim.plugin
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to getg the frame flip time.
         requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
+        
+        
     end
     
     %% Protected properties.
@@ -644,7 +646,6 @@ classdef cic < neurostim.plugin
         end
         
         function run(c)
-            
             %Add a generic output plug-in (there may be others already added)
             c.add(neurostim.plugins.output);
             
@@ -670,7 +671,7 @@ classdef cic < neurostim.plugin
             notify(c,'BASEBEFOREEXPERIMENT');
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
-            ititime = GetSecs*1000;
+%             ititime = GetSecs*1000;
             for blockNr=1:nrBlocks
                 c.flags.block = true;
                 c.block = blockNr;
@@ -679,19 +680,14 @@ classdef cic < neurostim.plugin
                     c.condition = conditionNr;
                     c.trial = c.trial+1;
                     %                     disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
-                    
-                                        if ~isempty(c.mirror)
-                                            Screen('CopyWindow',c.window,c.mirror);
-                                        end
                     beforeTrial(c);
-                    
-                    c.frame=0;
                     notify(c,'BASEBEFORETRIAL');
                     if c.trial>1
                         while (round(c.iti-(GetSecs*1000-c.trialEndTime(c.trial-1)))*c.screen.framerate/1000)>0
                             Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
+                    c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     c.frameStart=GetSecs*1000;
@@ -703,7 +699,7 @@ classdef cic < neurostim.plugin
                         c.KbQueueCheck;
                         [vbl,stimon,flip,missed] = Screen('Flip', c.window,0,1-c.clear);
                         if c.frame>1 && abs(c.frameDeadline-(flip*1000)) > (100/c.screen.framerate)
-                            c.missedFrame = c.frame;
+                            c.missedFrame = [c.missedFrame c.frame];
                         elseif c.getFlipTime
                             c.flipTime = stimon*1000;
                             c.getFlipTime=false;
@@ -715,12 +711,7 @@ classdef cic < neurostim.plugin
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime(c.trial) = vbl*1000; % for trialDuration check
-                            ititime = vbl*1000-ititime;
-                            time = vbl*1000;
                         end
-                                                if ~isempty(c.mirror)
-                                                    Screen('CopyWindow',c.window,c.mirror);
-                                                end
                         if (floor(c.trialDuration/c.screen.framerate))<= ((GetSecs*1000-c.trialStartTime(c.trial))/c.screen.framerate)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
                         end
@@ -729,8 +720,6 @@ classdef cic < neurostim.plugin
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     vbl=Screen('Flip', c.window,0,1-c.clear);
                     c.trialEndTime(c.trial) = GetSecs * 1000;
-                    trialdur = vbl*1000-time; 
-                    ititime = vbl*1000;
                     notify(c,'BASEAFTERTRIAL');
                     afterTrial(c);
                 end %conditions in block
@@ -740,10 +729,9 @@ classdef cic < neurostim.plugin
                 c.trialEndTime(c.trial) = GetSecs * 1000;
             end
             c.stopTime = now;
-            notify(c,'BASEAFTEREXPERIMENT');
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.window);
-            Priority(0);
+            notify(c,'BASEAFTEREXPERIMENT');
             Screen('glLoadIdentity',c.window);
             c.KbQueueStop;
             KbWait;
@@ -855,6 +843,7 @@ classdef cic < neurostim.plugin
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
             % Unrestricted color range
             PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');
+
             switch upper(c.screen.colorMode)
                 case 'XYL'
                     % Use builtin xyYToXYZ() plugin for xyY -> XYZ conversion:
@@ -874,16 +863,21 @@ classdef cic < neurostim.plugin
                     
             end
             
+            screens=Screen('Screens');
+            screenNumber=max(screens);
             
             % if bitspp
             %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
             
-            
-            % end
-            screens=Screen('Screens');
-            screenNumber=max(screens);
-            c.window = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
-            
+            if ~isempty(c.mirrorPixels)
+                % add a mirror by spanning both screens.
+                PsychImaging('AddTask','General','MirrorDisplayToSingleSplitWindow');
+                c.mirrorPixels = [c.screen.pixels(1) c.screen.pixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
+                c.window = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.mirrorPixels);
+            else % otherwise open screen as normal
+                c.window = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
+            end
+
             switch upper(c.screen.colorMode)
                 case 'XYL'
                     PsychColorCorrection('SetSensorToPrimary', c.window, cal);
@@ -891,10 +885,8 @@ classdef cic < neurostim.plugin
                     %Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             end
             
-            
-            if ~isempty(c.mirrorPixels)
-                c.mirror = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.mirrorPixels);
-            end
+
+
         end
     end
     

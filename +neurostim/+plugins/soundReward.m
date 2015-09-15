@@ -13,13 +13,14 @@ classdef soundReward < neurostim.plugins.reward
     end
     
     methods (Access=public)
-        function o=soundReward
-            o=o@neurostim.plugins.reward('sound');
+        function o=soundReward(name)
+            o=o@neurostim.plugins.reward(name);
             o.soundCorrectFile = 'nsSounds\sounds\correct.wav';
             o.soundIncorrectFile = 'nsSounds\sounds\incorrect.wav';
         end
         
         function beforeExperiment(o,c,evt)
+            % Sound initialization
             InitializePsychSound(1);
             o.paHandle = PsychPortAudio('Open');
             [y,~] = audioread(o.soundCorrectFile);
@@ -38,6 +39,7 @@ classdef soundReward < neurostim.plugins.reward
                 o.soundIncorrect = y';
             end
             
+            % store correct and incorrect sounds in pre-allocated buffers
             o.correctBuffer = PsychPortAudio('CreateBuffer',o.paHandle,o.soundCorrect);
             o.incorrectBuffer = PsychPortAudio('CreateBuffer',o.paHandle,o.soundIncorrect);
             
@@ -48,15 +50,18 @@ classdef soundReward < neurostim.plugins.reward
         end
         
         function afterTrial(o,c,evt)
-            a=strcmpi({o.queue.when},'AFTERTRIAL');
-          if any(a)
-              if any([o.queue(a).response] == 0)
-                  o.activateReward(false);
-              else
-                  o.activateReward(true);
-              end
-              o.queue(a) = [];
-          end
+            if isstruct(o.queue)
+                a=strcmpi({o.queue.when},'AFTERTRIAL');
+                if any(a)
+                    % if any behavior was wrong, play the incorrect sound
+                    if any([o.queue(a).response] == 0)
+                        o.activateReward(false);
+                    else % otherwise, play correct sound.
+                        o.activateReward(true);
+                    end
+                    o.queue(a) = [];
+                end
+            end
         end
     end
     
@@ -73,6 +78,7 @@ classdef soundReward < neurostim.plugins.reward
            else
                PsychPortAudio('FillBuffer', o.paHandle, o.incorrectBuffer);
            end
+           % play sound immediately.
            PsychPortAudio('Start',o.paHandle);
         end
        

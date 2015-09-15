@@ -140,24 +140,11 @@ c.add(f2);
 s=plugins.saccade('sac1',f1,f2);
 c.add(s);
 
-
-c.add(plugins.liquidReward);
-c.add(plugins.mcc);
-c.add(plugins.soundReward);
+% b = plugins.liquidReward('liquid');
+% b.when='AFTERTRIAL';
+% c.add(b);
+% c.add(plugins.mcc);
+d = plugins.soundReward('sound');
+c.add(d);
 
 c.run;
-
-% f=fixate;
-% f.from = 100;
-% f.to = 1000;
-% f.X = 0;
-% f.Y = 0;
-% f.Z = 0;
-% f.reward.type = 'LIQUID';
-% f.reward.dur = 100;
-% f.reward.when = 'TRIALEND';
-% f.reward.when = 'IMMEDIATE';
-% c.add(f);
-% 
-% r = reward
-% r.type = 

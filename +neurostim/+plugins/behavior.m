@@ -18,7 +18,6 @@ classdef behavior < neurostim.plugin
     reward;
     data;
     prevOn = false;
-    rewardNames;
     end
     
     properties (Access=public,SetObservable=true,GetObservable=true,AbortSet)
@@ -42,6 +41,7 @@ classdef behavior < neurostim.plugin
             o.addProperty('Z',0,[],@isnumeric);
             o.addProperty('tolerance',1,[],@isnumeric);
             o.addPostSet('startTime',[]);
+            o.addProperty('rewardNames',{},[],@iscellstr);
             
             o.listenToEvent('BEFORETRIAL');
             
@@ -66,7 +66,8 @@ classdef behavior < neurostim.plugin
             o.prevOn = false;
             o.endTime = Inf;
             
-            if o.rewardOn
+            if o.rewardOn && isempty(o.rewardNames)
+                % collects reward plugin names in a cell array of strings
                 temp=fieldnames(c);
                 temp2 = strfind(temp,'reward_');
                 o.rewardNames = temp(find(~cellfun('isempty',temp2)));
@@ -193,7 +194,6 @@ classdef behavior < neurostim.plugin
                 else    % if behaviour is discrete
                     o.done = o.on;
                     if o.rewardOn && o.done  % if we want to trigger rewards
-                        %                         if ~ischar(o.response)
                         
                         if o.response
                             for a=1:numel(o.rewardNames)
@@ -206,7 +206,6 @@ classdef behavior < neurostim.plugin
                                 notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
                             end
                         end
-                        %                         end
                     end
                     if o.done && o.endsTrial
                         c.nextTrial;
