@@ -4,7 +4,7 @@ import neurostim.*
 % Factorweights.
 commandwindow;
 Screen('Preference', 'SkipSyncTests', 0);
-Screen('Preference', 'ConserveVRAM', 32);
+% Screen('Preference', 'ConserveVRAM', 32);
 
 % c = myConfig('Eyelink',false);
 % c = cic;                            % Create Command and Intelligence Center...
@@ -15,9 +15,9 @@ Screen('Preference', 'ConserveVRAM', 32);
 % c.trialDuration = inf;
 c = myConfig;
 
-e = plugins.eyelink;
-e.useMouse = true;
-c.add(e);
+% e = plugins.eyelink;
+% e.useMouse = true;
+% c.add(e);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
 
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
@@ -68,19 +68,21 @@ fl = stimuli.fixation('fix1');
 fl.on = 0;
 fl.duration = Inf;
 fl.shape = 'CIRC';
-fl.X = 5;
-fl.Y = 0;
+fl.X = -10;
+fl.Y = 10;
+f1.color=[1/3 1/3];
+f1.luminance=100;
 
 c.add(fl);
 
 
-m = stimuli.mouse('mouse');
-c.add(m);
+% m = stimuli.mouse('mouse');
+% c.add(m);
 
 
 %  
 s = stimuli.rdp('dots');
-s.color = [1/3 1/3];
+s.color = [1 1];
 s.luminance = 100;
 s.motionMode = 1;
 s.noiseMode = 0;
@@ -94,14 +96,15 @@ c.add(s);
 
 
 
-k = plugins.nafcResponse('key');
-c.add(k);
-k.keys = {'a' 'z'};
+% k = plugins.nafcResponse('key');
+% c.add(k);
+% k.keys = {'a' 'z'};
 % k.stimName = 'dots';
 % k.var = 'direction';
-k.correctResponse = {'@(dots) dots.direction<300 & dots.direction>180' '@(dots) dots.direction>300 | dots.direction<180'};
-k.keyLabel = {'clockwise', 'counterclockwise'};
-k.endsTrial = true;
+% k.correctResponse = {'@(dots) dots.direction<300 & dots.direction>180' '@(dots) dots.direction>300 | dots.direction<180'};
+% k.keyLabel = {'clockwise', 'counterclockwise'};
+% k.endsTrial = true;
+
 % s = stimuli.shadlendots('dots2');
 % s.apertureD = 20;
 % s.color = [1 1];
@@ -114,7 +117,7 @@ k.endsTrial = true;
 
 c.addFactorial('myFactorial',...
     {'fix','shape',{'CIRC' 'STAR'}});
-f.RSVP = {300,100,{'shape',{'CIRC' 'STAR'}}};
+% f.RSVP = {300,100,{'shape',{'CIRC' 'STAR'}}};
 c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 % c.add(plugins.mcc);
 % c.add(plugins.output);
@@ -126,25 +129,27 @@ c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
-f1 = plugins.fixate('f1');
-f1.X = 0;
-f1.Y = 0;
-f1.duration = 500;
-c.add(f1);
-f2 = plugins.fixate('f2');
-
-f2.X = 5;
-f2.Y = 0;
-c.add(f2);
-
-s=plugins.saccade('sac1',f1,f2);
-c.add(s);
+% f1 = plugins.fixate('f1');
+% f1.X = 0;
+% f1.Y = 0;
+% f1.duration = 500;
+% c.add(f1);
+% f2 = plugins.fixate('f2');
+% 
+% f2.X = 5;
+% f2.Y = 0;
+% c.add(f2);
+% 
+% g = plugins.gui;
+% c.add(g);
+% s=plugins.saccade('sac1',f1,f2);
+% c.add(s);
 
 % b = plugins.liquidReward('liquid');
 % b.when='AFTERTRIAL';
 % c.add(b);
 % c.add(plugins.mcc);
-d = plugins.soundReward('sound');
-c.add(d);
+% d = plugins.soundReward('sound');
+% c.add(d);
 
 c.run;

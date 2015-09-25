@@ -191,7 +191,7 @@ classdef stimulus < neurostim.plugin
     % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
     % the derived class an oppurtunity to respond to changes that this 
     % base functionality makes.
-    methods (Sealed) 
+    methods (Access=public) 
         
         function addRSVP(s,isi,duration,varargin)
             % addRSVP(s,isi,duration,RSVP [,repetitions] [,randomization])

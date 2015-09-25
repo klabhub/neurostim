@@ -43,5 +43,15 @@ methods
         end
     end
     
+    function afterFrame(o,c,evt)
+        if o.useMouse
+            [x,y,buttons] = c.getMouse;
+            if buttons(1)
+                o.x=x;
+                o.y=y;
+            end
+        end
+    end
+    
 end
 end
