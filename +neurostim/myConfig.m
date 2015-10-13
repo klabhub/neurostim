@@ -17,7 +17,7 @@ c.screen.color.background = [0 0 0];
 c.screen.colorMode = 'xyl';
 c.iti = 1000;
 c.trialDuration = 3000;
-% c.mirrorPixels = [1920 0 3600 1080];
+c.mirrorPixels = [1920 0 3600 1080];
 
 % if p.Eyelink
 %     e = plugins.eyelink;

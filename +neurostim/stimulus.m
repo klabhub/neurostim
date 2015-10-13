@@ -261,7 +261,7 @@ classdef stimulus < neurostim.plugin
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
                     
-                    glScreenSetup(c);
+                    glScreenSetup(c,c.window);
                     
                     %Apply stimulus transform
                     Screen('glTranslate',c.window,s.X,s.Y,s.Z);
@@ -276,7 +276,6 @@ classdef stimulus < neurostim.plugin
                         end
                     end
                     
-
                     % get the stimulus end time
                     if c.frame==s.offFrame+2
                         s.endTime=c.flipTime;
@@ -291,7 +290,6 @@ classdef stimulus < neurostim.plugin
                             end
                         end
                     end
-
 
                     s.flags.on = c.frame >s.onFrame && c.frame < s.offFrame;
                     if s.flags.on 

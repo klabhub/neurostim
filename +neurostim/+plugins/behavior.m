@@ -155,7 +155,7 @@ classdef behavior < neurostim.plugin
             
         function processBehavior(o,c)
             % processes all behavioural responses.
-            if ~o.done && ~ischar(o.from) && ~isempty(o.from) && c.frame > 1 && GetSecs*1000-c.trialStartTime(c.trial) >=o.from 
+            if ~o.done && ~ischar(o.from) && ~isempty(o.from) && GetSecs*1000-c.trialStartTime(c.trial) >=o.from 
                 o.on = validateBehavior(o);   %returns o.on = true if true.
                 if o.continuous % if the behaviour needs to be continuous (i.e. has a duration)
                     if o.on && ~o.prevOn  % if behaviour is on for the first time

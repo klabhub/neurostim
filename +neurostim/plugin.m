@@ -427,7 +427,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     
                 case 'BASEBEFORETRIAL'
                     notify(o,'BEFORETRIAL');
-                    if c.PROFILE; c.addProfile('BEFORETRIAL',toc);end;
+                    if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,toc);end;
                     
                 case 'BASEBEFOREFRAME'
                     if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
@@ -437,7 +437,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         return;
                     end
                     notify(o,'BEFOREFRAME');
-                    if c.PROFILE; c.addProfile('BEFOREFRAME',toc);end;
+                    if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,toc);end;
                     
                 case 'BASEAFTERFRAME'
                     if c.requiredSlack ~= 0
@@ -449,11 +449,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         end
                     end
                     notify(o,'AFTERFRAME');
-                    if c.PROFILE; c.addProfile('AFTERFRAME',toc);end;
+                    if c.PROFILE; c.addProfile('AFTERFRAME',o.name,toc);end;
                     
                 case 'BASEAFTERTRIAL'
                     notify(o,'AFTERTRIAL');
-                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',toc);end;
+                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',o.name,toc);end;
                     
                 case 'BASEAFTEREXPERIMENT'
                     notify(o,'AFTEREXPERIMENT');

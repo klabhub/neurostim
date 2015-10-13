@@ -58,7 +58,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         
         function beforeExperiment(o,c,evt)
             
-            o.el=EyelinkInitDefaults(o.cic.window);
+            o.el=EyelinkInitDefaults(o.cic.onscreenWindow);
             
             [result,dummy] = EyelinkInit(o.useMouse);
             if result~=1

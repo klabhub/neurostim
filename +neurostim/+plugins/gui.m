@@ -1,4 +1,4 @@
-classdef gui <neurostim.stimulus
+classdef gui <neurostim.plugin
     % Class to create GUI-like functionality in the PTB window.
     % EXAMPLE:
     % If c is your CIC, add this plugin, then, for instance tell it to
@@ -15,7 +15,7 @@ classdef gui <neurostim.stimulus
         xAlign@char = 'right';          % 'left', or 'right'
         yAlign@char = '';         % center
         spacing@double = 1;             % Space between lines
-        nrCharsPerLine@double= 25;      % Number of chars per line
+        nrCharsPerLine@double= 100;      % Number of chars per line
         font@char = 'Courier New';      % Font
         fontSize@double = 15;           % Font size
         positionX;
@@ -25,6 +25,9 @@ classdef gui <neurostim.stimulus
         feedY;
         feedBox;
         mirrorRect;
+        mirrorOverlay;
+        guiText;
+        toleranceColor=[1 1 50];
         
         props ={'file','paradigm','startTimeStr','blockName','nrConditions','condition','nrTrials','trial'}; % List of properties to monitor
         header@char  = '';              % Header to add.
@@ -37,8 +40,10 @@ classdef gui <neurostim.stimulus
         paramText@char = '';
         currentText@char = ''; %Internal storage for the current display
         keyLegend@char= '';      % Internal storage for the key stroke legend
-        guiTexture;
         guiRect;
+        behaviors={};
+        tolerances=[];
+        toleranceSquare=[];
     end
     
     methods %Set/Get
@@ -65,30 +70,34 @@ classdef gui <neurostim.stimulus
     methods (Access = public)
         function o = gui
             % Construct a GUI plugin
-            o = o@neurostim.stimulus('gui');
+            o = o@neurostim.plugin('gui');
             o.listenToEvent({'BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT','BEFOREEXPERIMENT','BEFORETRIAL','AFTERFRAME'});
-            o.on=0;
-            o.duration =Inf;
+%             o.on=0;
+%             o.duration =Inf;
         end
         function afterFrame(o,c,evt)
             if (o.updateEachFrame)
                 updateParams(o,c);
+                updateBehavior(o,c);
             end
         end
         
         function beforeExperiment(o,c,evt)
             % Handle beforeExperiment setup
             c.guiOn=true;
+            c.mirror=Screen('OpenOffscreenWindow',c.window,c.screen.color.background);
+            o.mirrorOverlay=Screen('OpenOffscreenWindow',c.window,[c.screen.color.background 0]);
+            
+            Screen('BlendFunction', c.mirror, 'GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA');
             o.guiRect = [c.screen.pixels(3) c.mirrorPixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
-%             o.guiKeyTexture = Screen('OpenOffscreenWindow',-1,c.screen.color.background,o.guiRect);
-            setupKeyLegend(o,c);
+            o.guiText=Screen('OpenOffscreenWindow',c.window,[c.screen.color.background 0]);
             switch (o.xAlign)
                 case 'right'
-                    o.positionX=(c.mirrorPixels(3))*3/4;
+                    o.positionX=(c.screen.pixels(3))*1/2;
                 case 'left'
                     o.positionX = c.mirrorPixels(3)/2;
                 otherwise
-                    o.positionX=(c.mirrorPixels(3))*3/4;
+                    o.positionX=(c.screen.pixels(3))*1/2;
             end
             
             switch (o.yAlign)
@@ -100,27 +109,33 @@ classdef gui <neurostim.stimulus
             slack=10;
             o.feedX=c.screen.pixels(3)+slack;
             o.feedY=c.mirrorPixels(4)*.5+slack;
-            o.feedBox = [c.screen.pixels(3) c.mirrorPixels(4)/2 o.mirrorRect(3)-slack c.mirrorPixels(4)-slack];
-            o.paramsBox = [o.mirrorRect(3) slack c.mirrorPixels(3)-slack o.mirrorRect(4)/2-slack];
+            o.feedBox = [slack c.mirrorPixels(4)/2 c.screen.pixels(3)-slack c.mirrorPixels(4)-slack];
+            o.paramsBox = [c.screen.pixels(3)/2 slack c.screen.pixels(3)-slack o.mirrorRect(4)/2-slack];
             o.writeToFeed('Started Experiment \n');
+            
         end
         function beforeFrame(o,c,evt)
             % Draw
             Screen('glLoadIdentity', c.onscreenWindow);
             drawParams(o,c);
             drawFeed(o,c);
-            Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,o.mirrorRect,[],0);
+            drawMirror(o,c);
+            Screen('DrawTexture',c.onscreenWindow,c.mirror,c.screen.pixels,o.mirrorRect,[],0);
         end
         
         function beforeTrial(o,c,evt)
             % Update
             updateParams(o,c);
+            setupKeyLegend(o,c);
+            setupBehavior(o,c);
         end
         
         function afterTrial(o,c,evt)
             updateParams(o,c);
             drawParams(o,c);
             drawFeed(o,c);
+            updateBehavior(o,c);
+            drawMirror(o,c);
         end
         
         function afterExperiment(o,c,evt)
@@ -170,16 +185,13 @@ classdef gui <neurostim.stimulus
                 tmpstring{d}=[tmpName{1},': \n',tmpstr{:} '\n'];
             end
             o.keyLegend = ['Keys: \n\n',tmpstring{:}];
-            end
+            DrawFormattedText(o.guiText,o.keyLegend,o.positionX,o.feedY,WhiteIndex(c.onscreenWindow));
+            Screen('FrameRect',o.guiText,WhiteIndex(c.onscreenWindow),[o.paramsBox' o.feedBox']);
+        end
         
         function drawParams(o,c)
-            % DrawFormattedText(win, tstring [, sx][, sy][, color][, wrapat][, flipHorizontal][, flipVertical][, vSpacing][, righttoleft][, winRect])
-            DrawFormattedText(c.onscreenWindow, o.paramText, o.positionX,o.positionY, c.screen.color.text,o.nrCharsPerLine,[],[],o.spacing);
-            % The bbox does not seem to fit... add some slack 
-            Screen('FrameRect',c.onscreenWindow,WhiteIndex(c.onscreenWindow),o.paramsBox);
-            %draw key text
-            DrawFormattedText(c.onscreenWindow,o.keyLegend,o.positionX,o.feedY,c.screen.color.text,o.nrCharsPerLine,[],[],o.spacing);
-%             DrawFormattedText(c.onscreenWindow,o.string,o.positionX,800,c.screen.color.text);
+            Screen('DrawTexture',c.onscreenWindow,o.guiText,[],o.guiRect);
+%             DrawFormattedText(win, tstring [, sx][, sy][, color][, wrapat][, flipHorizontal][, flipVertical][, vSpacing][, righttoleft][, winRect])
         end
         
         function updateParams(o,c)
@@ -195,6 +207,14 @@ classdef gui <neurostim.stimulus
                 o.paramText = [o.paramText o.props{i} ': ' tmp '\n'];
             end
             o.paramText=[o.paramText o.footer];
+            %draw to offscreen window
+            Screen('FillRect',o.guiText,c.screen.color.background,o.paramsBox);
+            DrawFormattedText(o.guiText, o.paramText, o.positionX,o.positionY, WhiteIndex(c.onscreenWindow),o.nrCharsPerLine,[],[],o.spacing);
+            % The bbox does not seem to fit... add some slack 
+            
+            %draw key text
+            
+%           
         end
         
 
@@ -202,16 +222,95 @@ classdef gui <neurostim.stimulus
         function drawFeed(o,c)
             %drawFeed(o,c)
             % draws the bottom textbox using currentText.
-            DrawFormattedText(c.onscreenWindow, o.currentText, o.feedX,o.feedY, c.screen.color.text,o.nrCharsPerLine,[],[],o.spacing);
+            DrawFormattedText(c.onscreenWindow, o.currentText, o.feedX,o.feedY, WhiteIndex(c.onscreenWindow),o.nrCharsPerLine,[],[],o.spacing);
             
-            Screen('FrameRect',c.onscreenWindow,WhiteIndex(c.onscreenWindow),o.feedBox);
             
         end
         
-        function drawBehavior(o,c)
+        function setupBehavior(o,c)
+            o.tolerances=[];
+            o.toleranceSquare=[];
+            for a=1:numel(c.plugins)
+               if isa(c.(c.plugins{a}),'neurostim.plugins.behavior') 
+                   o.behaviors=[o.behaviors c.plugins{a}];
+                   if isa(c.(c.plugins{a}),'neurostim.plugins.fixate')
+                       % if is a fixation dot, find the corners of the rect
+                       % which the fixation tolerance allows
+                       oval=[c.(c.plugins{a}).X-c.(c.plugins{a}).tolerance; c.(c.plugins{a}).Y-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).X+c.(c.plugins{a}).tolerance;c.(c.plugins{a}).Y+c.(c.plugins{a}).tolerance];
+                       % convert to pixel dimensions
+                       [oval(1,1),oval(2,1)]=c.physical2Pixel(oval(1,1),oval(2,1));
+                       [oval(3,1),oval(4,1)]=c.physical2Pixel(oval(3,1),oval(4,1));
+                        o.tolerances=[o.tolerances oval];
+                   elseif isa(c.(c.plugins{a}),'neurostim.plugins.saccade')
+                      % if is a saccade, find the start and end circles
+                      oval1=[c.(c.plugins{a}).startX-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).startY-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).startX+c.(c.plugins{a}).tolerance;c.(c.plugins{a}).startY+c.(c.plugins{a}).tolerance];
+                      % convert to pixel dimensions
+                      [oval1(1,1),oval1(2,1)]=c.physical2Pixel(oval1(1,1),oval1(2,1));
+                      [oval1(3,1),oval1(4,1)]=c.physical2Pixel(oval1(3,1),oval1(4,1));
+                      oval2=[c.(c.plugins{a}).endX-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).endY-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).endX+c.(c.plugins{a}).tolerance;c.(c.plugins{a}).endY+c.(c.plugins{a}).tolerance];
+                      [oval2(1,1),oval2(2,1)]=c.physical2Pixel(oval2(1,1),oval2(2,1));
+                      [oval2(3,1),oval2(4,1)]=c.physical2Pixel(oval2(3,1),oval2(4,1));
+                      o.tolerances=[o.tolerances oval1 oval2];
+                      % find the rectangle between the two fixation points
+                      square = [c.(c.plugins{a}).startX;c.(c.plugins{a}).startY-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).endX;c.(c.plugins{a}).endY+c.(c.plugins{a}).tolerance];
+                      % convert to pixel dimensions
+                      [square(1,1),square(2,1)]=c.physical2Pixel(square(1,1),square(2,1));
+                      [square(3,1),square(4,1)]=c.physical2Pixel(square(3,1),square(4,1));
+                      if square(3)<square(1)
+                          tmp=square(1);
+                          square(1)=square(3);
+                          square(1)=tmp;
+                      end
+                      if square(4)<square(2)
+                          tmp=square(2);
+                          square(2)=square(4);
+                          square(4)=tmp;
+                      end
+                      o.toleranceSquare=[o.toleranceSquare square];
+                   end
+               end
+            end
+        end
+        
+        function drawMirror(o,c)
+            %drawBehavior(o,c)
+            % draws any behavior tolerance circles.
+            Screen('DrawTexture',c.mirror,c.window,[],[],[],0);
+            Screen('FillOval',o.mirrorOverlay,[o.toleranceColor],o.tolerances,50);
+            if ~isempty(o.toleranceSquare)
+                Screen('FillRect',o.mirrorOverlay,[o.toleranceColor],o.toleranceSquare);
+            end
+            if c.frame>1
+            [eyeX eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
+            xsize=30;
+%             eyeX=500;eyeY=500;
+%             cross=[-xsize xsize 0 0;0 0 ];
+            Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,WhiteIndex(c.onscreenWindow),[eyeX eyeY]);
+            end
+            Screen('DrawTexture',c.mirror,o.mirrorOverlay,[],[],[],0,0.4);
             
-            
-            
+
+        end
+        
+        function updateBehavior(o,c)
+            %updateBehavior(o,c)
+            %updates behavior circles
+%             o.tolerances=[];
+%             o.toleranceSquare=[];
+            for a=o.behaviors
+                if isa(c.(a{:}),'neurostim.plugins.fixate')
+                    
+                    oval=[c.(a{:}).X-c.(a{:}).tolerance; c.(a{:}).Y-c.(a{:}).tolerance;c.(a{:}).X+c.(a{:}).tolerance;c.(a{:}).Y+c.(a{:}).tolerance];
+                    
+                    o.tolerances=[o.tolerances oval];
+                elseif isa(c.(a{:}),'neurostim.plugins.saccade')
+                    oval1=[c.(a{:}).startX-c.(a{:}).tolerance; c.(a{:}).startY-c.(a{:}).tolerance;c.(a{:}).startX+c.(a{:}).tolerance;c.(a{:}).startY+c.(a{:}).tolerance];
+                    oval2=[c.(a{:}).endX-c.(a{:}).tolerance; c.(a{:}).endY-c.(a{:}).tolerance;c.(a{:}).endX+c.(a{:}).tolerance;c.(a{:}).endY+c.(a{:}).tolerance];
+                    o.tolerances=[o.tolerances oval1 oval2];
+                    square=[c.(a{:}).startX;c.(a{:}).startY;c.(a{:}).endX;c.(a{:}).endY];
+                    o.toleranceSquare=[o.toleranceSquare square];
+                end
+            end
         end
     end
 end

@@ -44,7 +44,7 @@ classdef output < neurostim.plugin
     
     
     methods (Access = public)
-        function o = output(name)
+        function o = output
             o = o@neurostim.plugin('output');
             o.listenToEvent({'AFTERTRIAL','AFTEREXPERIMENT','BEFOREEXPERIMENT'});            
 %             o.listenToEvent({'BASEAFTEREXPERIMENT'});          
@@ -57,7 +57,7 @@ classdef output < neurostim.plugin
                 saveVariables = {'screen','subjectNr','paradigm',...
                     'nrStimuli','nrConditions','nrTrials',...
                     'fullFile','subject','blocks','responseKeys','trial','condition','block',...
-                    'startTime','stopTime','trialStartTime','trialEndTime', 'pluginOrder'};
+                    'startTime','stopTime','trialStartTime','trialEndTime', 'pluginOrder','missedFrame','profile'};
                 
                 for a = 1:length(c.stimuli) % runs through and saves all stimuli to o.data
                     stimulus = c.stimuli{a};
@@ -192,7 +192,7 @@ classdef output < neurostim.plugin
         function beforeExperiment(o,c,evt)
             % Always set at the start of the experiment so that we can 
             % check that we can save.
-            o.setFile;
+             o.setFile;
             o.counter = o.saveFrequency;  
         end  
     end
@@ -215,11 +215,11 @@ classdef output < neurostim.plugin
                     % e.g. root/2015/06/13/150523.mat for an experiment
                     % that started at 3:05 PM on June 13th, 2015.
                     today = fullfile(datestr(now,'yyyy'),datestr(now,'mm'),datestr(now,'dd'));
-                    neurostim.events.output.createDir(o.root,today);
+                    neurostim.plugins.output.createDir(o.root,today);
                     f = fullfile(o.root,today,o.timeName);
                 case 'ROOT'
                     % Create a timed file in the root directory
-                    neurostim.output.createDir(o.root);
+                    neurostim.plugins.output.createDir(o.root);
                     f = fullfile(o.root,o.timeName);
             end
             if exist(f,'file')

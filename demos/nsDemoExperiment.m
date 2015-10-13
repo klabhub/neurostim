@@ -4,6 +4,7 @@ import neurostim.*
 % Factorweights.
 commandwindow;
 Screen('Preference', 'SkipSyncTests', 0);
+Screen('Preference','TextRenderer',1);
 % Screen('Preference', 'ConserveVRAM', 32);
 
 % c = myConfig('Eyelink',false);
@@ -14,12 +15,12 @@ Screen('Preference', 'SkipSyncTests', 0);
 % c.iti = 2000;
 % c.trialDuration = inf;
 c = myConfig;
-
-% e = plugins.eyelink;
-% e.useMouse = true;
-% c.add(e);
+c.output.saveFrequency=2;
+e = plugins.eyelink;
+e.useMouse = true;
+c.add(e);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
-
+% c.add(plugins.output);
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
 % g.color = [1/3 1/3];
 % g.luminance = 30;
@@ -129,27 +130,26 @@ c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
-% f1 = plugins.fixate('f1');
-% f1.X = 0;
-% f1.Y = 0;
-% f1.duration = 500;
-% c.add(f1);
-% f2 = plugins.fixate('f2');
-% 
-% f2.X = 5;
-% f2.Y = 0;
-% c.add(f2);
-% 
-% g = plugins.gui;
-% c.add(g);
-% s=plugins.saccade('sac1',f1,f2);
-% c.add(s);
+f1 = plugins.fixate('f1');
+f1.X = 0;
+f1.Y = 0;
+f1.duration = 500;
+c.add(f1);
+f2 = plugins.fixate('f2');
+
+f2.X = 5;
+f2.Y = 0;
+c.add(f2);
+
+c.add(plugins.gui);
+s=plugins.saccade('sac1',f1,f2);
+c.add(s);
 
 % b = plugins.liquidReward('liquid');
 % b.when='AFTERTRIAL';
 % c.add(b);
 % c.add(plugins.mcc);
-% d = plugins.soundReward('sound');
-% c.add(d);
-
+d = plugins.soundReward('sound');
+c.add(d);
+c.order('dots','fix','fix1','gui');
 c.run;
