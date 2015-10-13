@@ -118,7 +118,7 @@ c.add(s);
 
 c.addFactorial('myFactorial',...
     {'fix','shape',{'CIRC' 'STAR'}});
-% f.RSVP = {300,100,{'shape',{'CIRC' 'STAR'}}};
+f.rsvp = {{'shape',{'CIRC' 'STAR'}},'duration',100,'isi',0,'randomization','SEQUENTIAL'};
 c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 % c.add(plugins.mcc);
 % c.add(plugins.output);

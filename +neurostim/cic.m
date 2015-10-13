@@ -322,7 +322,6 @@ classdef cic < neurostim.plugin
             p.parse(varargin{:});
             addKeyStroke(c,KbName(key),p.Results.keyHelp,c);
             c.responseKeys(key) = p.Results;
-            c.add(neurostim.plugins.output);
         end
         
         function keyboard(c,key,time)
@@ -436,7 +435,7 @@ classdef cic < neurostim.plugin
                     
                     [~,indpos]=ismember(c.pluginOrder,a);
                     reorder=c.pluginOrder(logical(indpos));
-                    [b,i]=sort(indpos(indpos>0));
+                    [~,i]=sort(indpos(indpos>0));
                     reorder=fliplr(reorder(i));
                     neworder=cell(size(c.pluginOrder));
                     neworder(~indpos)=c.pluginOrder(~indpos);

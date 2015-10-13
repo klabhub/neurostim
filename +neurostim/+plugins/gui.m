@@ -281,11 +281,9 @@ classdef gui <neurostim.plugin
                 Screen('FillRect',o.mirrorOverlay,[o.toleranceColor],o.toleranceSquare);
             end
             if c.frame>1
-            [eyeX eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
-            xsize=30;
-%             eyeX=500;eyeY=500;
-%             cross=[-xsize xsize 0 0;0 0 ];
-            Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,WhiteIndex(c.onscreenWindow),[eyeX eyeY]);
+                [eyeX eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
+                xsize=30;
+                Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,WhiteIndex(c.onscreenWindow),[eyeX eyeY]);
             end
             Screen('DrawTexture',c.mirror,o.mirrorOverlay,[],[],[],0,0.4);
             

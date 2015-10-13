@@ -193,7 +193,7 @@ classdef stimulus < neurostim.plugin
     % base functionality makes.
     methods (Access=public) 
         
-        function addRSVP(s,rsvpFactorial,optionalArgs)
+        function addRSVP(s,rsvpFactorial,varargin)
 %           addRSVP(s,rsvpFactorial,[optionalArgs])
 %
 %           Rapid Serial Visual Presentation
@@ -207,7 +207,7 @@ classdef stimulus < neurostim.plugin
 %           'duration'  [100]   - duration of each stimulus in the sequence
 %           'isi'       [0]     - inter-stimulus interval
 %           'randomization' ['RANDOMWITHREPLACEMENT'] - ordering of stimuli
-
+            optionalArgs=varargin;
             p=inputParser;
             p.addRequired('rsvpFactorial',@(x) iscell(x));
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
@@ -279,7 +279,8 @@ classdef stimulus < neurostim.plugin
                     % get the stimulus end time
                     if c.frame==s.offFrame+2
                         s.endTime=c.flipTime;
-                        
+                    end
+                    if c.frame==s.offFrame
                         s.stimNum = s.stimNum+1;
                         if ~isempty(s.rsvp)
                             if s.stimNum<=numel(s.rsvpList)
@@ -301,7 +302,7 @@ classdef stimulus < neurostim.plugin
                         s.stimstart = true;
                         c.getFlipTime=true; % get the next flip time for startTime
                         end
-                    elseif s.stimstart && (c.frame==s.offFrame+1)% if the stimulus will not be shown, 
+                    elseif s.stimstart && (c.frame==s.offFrame)% if the stimulus will not be shown, 
                         % get the next screen flip for endTime
                         c.getFlipTime=true;
                         s.stimstart=false;
