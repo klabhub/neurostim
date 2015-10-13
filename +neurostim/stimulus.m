@@ -30,9 +30,9 @@ classdef stimulus < neurostim.plugin
         stimstop = false;
         prevOn@logical = false;
         stimNum = 1;
-        RSVPStimProp;
-        RSVPParms;
-        RSVPList;
+        rsvpStimProp;
+        rsvpParms;
+        rsvpList;
     end
     
     methods
@@ -85,8 +85,8 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rz',1,[],@isnumeric);
             s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
             s.addProperty('endTime',0);   % first time the stimulus does not appear after being run
-            s.addProperty('RSVP',{},[],@(x)iscell(x)||isempty(x));
-            s.addProperty('currSubCond',[]);
+            s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
+            s.addProperty('subCond',[]);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
         
         end                      
@@ -193,66 +193,67 @@ classdef stimulus < neurostim.plugin
     % base functionality makes.
     methods (Access=public) 
         
-        function addRSVP(s,isi,duration,varargin)
-            % addRSVP(s,isi,duration,RSVP [,repetitions] [,randomization])
-            % add a Rapid Serial Visual Presentation
-            % Inputs:
-            % name - name of the RSVP
-            % ISI - inter-stimulus-interval (ms)
-            % duration - RSVP stimulus duration (ms)
-            % RSVP contains:
-            % stimulusProperty - property of the stimulus to change each RSVP
-            % parameters - cell array of parameters
-            % 
-            % Optional Inputs:
-            % repetitions - number of repetitions (default: until stimulus end-duration)
-            % randomization - type of randomization (default: sequential)
-               RSVPSpecs = varargin{1,1};
-               % extract all information
-               s.RSVPStimProp = RSVPSpecs{1};
-               s.RSVPParms = RSVPSpecs{2};
-               
-               if numel(RSVPSpecs)>3
-                   randomization = RSVPSpecs{4};
-               else
-                   randomization = 'SEQUENTIAL';
-               end
-               if s.duration <s.cic.trialDuration %if stimulus duration is not infinite
-                   if numel(s.on)>1
-                       stimEndDur=s.on{end}+s.duration;
-                   else
-                       stimEndDur = s.duration;
-                   end
-               else stimEndDur=s.cic.trialDuration; % otherwise, set to trial duration
-               end
-               % set the stimulus on and duration times
-               if numel(s.on)==1
-                    s.on = num2cell(s.on:(duration+isi):stimEndDur);
-               else
-                   s.on = num2cell(s.on{1}:(duration+isi):stimEndDur);
-               end
-               s.duration = duration;
-               % calculate on which frames the parameters should be set
-               frames = round(cell2mat(s.on)*s.cic.screen.framerate/1000);
-               
-               s.subConditions = 1:numel(s.RSVPParms);
-               
-               if numel(RSVPSpecs)>2 % if nrRepeats is supplied
-                   nrRepeats=RSVPSpecs{3};
-               else nrRepeats = ceil(numel(frames)/numel(s.subConditions));
-               end
-               
-               if nrRepeats>1 %if parameters need expansion
-                   switch upper(randomization)
-                       case 'SEQUENTIAL' % repeats sequentially
-                           s.RSVPList = repmat(s.subConditions,[1,nrRepeats]);
-                       case 'RANDOMWITHREPLACEMENT' % repeats randomly (with replacement)
-                           s.RSVPList = datasample(s.subConditions,(numel(s.subConditions)*nrRepeats));
-                       case 'RANDOMWITHOUTREPLACEMENT' % repeats randomly (without replacement)
-                           s.RSVPList = repmat(s.subConditions,[1 nrRepeats]);
-                           s.RSVPList = s.RSVPList(randperm(numel(s.RSVPList)));
-                   end
-               end
+        function addRSVP(s,rsvpFactorial,optionalArgs)
+%           addRSVP(s,rsvpFactorial,[optionalArgs])
+%
+%           Rapid Serial Visual Presentation
+%           rsvpFactorial is a cell specifying the parameter(s) to be maniupulated in the stream
+%           The format of rsvpFactorial is the same as for c.addFactorial.
+%
+%           optionalArgs = {'param1',value,'param2',value,...}
+%         
+%           Optional parameters [default]:
+%
+%           'duration'  [100]   - duration of each stimulus in the sequence
+%           'isi'       [0]     - inter-stimulus interval
+%           'randomization' ['RANDOMWITHREPLACEMENT'] - ordering of stimuli
+
+            p=inputParser;
+            p.addRequired('rsvpFactorial',@(x) iscell(x));
+            p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
+            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
+            p.addParameter('randomization','RANDOMWITHOUTREPLACEMENT',@(x) any(strcmpi(x,{'RANDOMWITHOUTREPLACEMENT', 'RANDOMWITHREPLACEMENT','SEQUENTIAL'})));
+            p.parse(rsvpFactorial,optionalArgs{:});
+            duration = p.Results.duration;
+            isi = p.Results.isi;
+            randomization = p.Results.randomization;
+            
+            % extract all informations
+            s.rsvpStimProp = rsvpFactorial{1};
+            s.rsvpParms = rsvpFactorial{2};
+            
+            if s.duration <s.cic.trialDuration %if stimulus duration is not infinite
+                if numel(s.on)>1
+                    stimEndDur=s.on{end}+s.duration;
+                else
+                    stimEndDur = s.duration;
+                end
+            else stimEndDur=s.cic.trialDuration; % otherwise, set to trial duration
+            end
+            % set the stimulus on and duration times
+            if numel(s.on)==1
+                s.on = num2cell(s.on:(duration+isi):stimEndDur);
+            else
+                s.on = num2cell(s.on{1}:(duration+isi):stimEndDur);
+            end
+            s.duration = duration;
+            % calculate on which frames the parameters should be set
+            frames = round(cell2mat(s.on)*s.cic.screen.framerate/1000);
+            
+            s.subConditions = 1:numel(s.rsvpParms);
+            
+
+            nrRepeats = ceil(numel(frames)/numel(s.subConditions));
+
+            switch upper(randomization)
+                case 'SEQUENTIAL' % repeats sequentially
+                    s.rsvpList = repmat(s.subConditions,[1,nrRepeats]);
+                case 'RANDOMWITHREPLACEMENT' % repeats randomly (with replacement)
+                    s.rsvpList = datasample(s.subConditions,(numel(s.subConditions)*nrRepeats));
+                case 'RANDOMWITHOUTREPLACEMENT' % repeats randomly (without replacement)
+                    s.rsvpList = repmat(s.subConditions,[1 nrRepeats]);
+                    s.rsvpList = s.rsvpList(randperm(numel(s.rsvpList)));
+            end
         end
         
         
@@ -269,9 +270,9 @@ classdef stimulus < neurostim.plugin
                     
                     if c.frame==1
                         s.stimNum=1;
-                        if ~isempty(s.RSVP)
-                            s.currSubCond = s.RSVPList(s.stimNum);
-                            s.(s.RSVPStimProp) = s.RSVPParms{s.currSubCond};
+                        if ~isempty(s.rsvp)
+                            s.subCond = s.rsvpList(s.stimNum);
+                            s.(s.rsvpStimProp) = s.rsvpParms{s.subCond};
                         end
                     end
                     
@@ -281,10 +282,10 @@ classdef stimulus < neurostim.plugin
                         s.endTime=c.flipTime;
                         
                         s.stimNum = s.stimNum+1;
-                        if ~isempty(s.RSVP)
-                            if s.stimNum<=numel(s.RSVPList)
-                                s.currSubCond = s.RSVPList(s.stimNum);
-                                s.(s.RSVPStimProp) = s.RSVPParms{s.currSubCond};
+                        if ~isempty(s.rsvp)
+                            if s.stimNum<=numel(s.rsvpList)
+                                s.subCond = s.rsvpList(s.stimNum);
+                                s.(s.rsvpStimProp) = s.rsvpParms{s.subCond};
                             else
                                 s.stimNum=1;
                             end
@@ -313,8 +314,8 @@ classdef stimulus < neurostim.plugin
                         notify(s,'AFTERFRAME');
                     end
                 case 'BASEBEFORETRIAL'
-                    if ~isempty(s.RSVP)
-                        s.addRSVP(s.RSVP{1},s.RSVP{2},s.RSVP{3},s.RSVP{4:end})
+                    if ~isempty(s.rsvp)
+                        s.addRSVP(s.rsvp{:})
                     end
 
                     notify(s,'BEFORETRIAL');

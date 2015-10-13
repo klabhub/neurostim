@@ -647,7 +647,8 @@ classdef cic < neurostim.plugin
         
         function run(c)
             %Add a generic output plug-in (there may be others already added)
-            c.add(neurostim.plugins.output);
+            c.add(neurostim.plugins.output('default'));
+            c.output.saveFrequency = 2;
             
             if isempty(c.screen.physical)
                 % Assuming code is in pixels
@@ -659,8 +660,6 @@ classdef cic < neurostim.plugin
             c.createEventListeners;
             % Setup PTB
             PsychImaging(c);
-            c.trialEndTime = zeros(1,c.nrTrials);
-            c.trialStartTime = zeros(1,c.nrTrials);
             c.KbQueueCreate;
             c.KbQueueStart;
             c.getFramerate;
@@ -700,7 +699,7 @@ classdef cic < neurostim.plugin
                         c.KbQueueCheck;
                         [vbl,stimon,flip,missed] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
                         if c.frame>1 && abs(c.frameDeadline-(flip*1000)) > (100/c.screen.framerate)
-                            c.missedFrame = [c.missedFrame c.frame];
+                            c.missedFrame = c.frame;
                             if c.guiOn
                                 c.gui.writeToFeed('Missed Frame\n');
                             end
@@ -911,7 +910,7 @@ classdef cic < neurostim.plugin
                     cal = SetGammaMethod(cal,0);
                     
                 case 'RGB'
-                    
+                    cal = []; %Placeholder. Nothing implemented.
             end
         end
     end
