@@ -50,6 +50,21 @@ classdef output < neurostim.plugin
 %             o.listenToEvent({'BASEAFTEREXPERIMENT'});          
         end
         
+        function saveData(o,stimName,thisLog,varargin)
+            % function saveData(o,stimName,thisLog, [,startAt])
+            % saves parameters into o.data.(dumpLabel).events.(stimName)
+            % data from thisLog.parms/values/t (startAt:end)
+           if nargin==4
+               startAt=varargin{1};
+           else
+               startAt=1;
+           end
+           
+           o.data.(o.dumpLabel).events.(stimName)(1,:)=thisLog.parms(startAt:end);
+           o.data.(o.dumpLabel).events.(stimName)(2,:)=thisLog.values(startAt:end);
+           o.data.(o.dumpLabel).events.(stimName)(3,:)=num2cell(thisLog.t(startAt:end));
+        end
+        
             
         function collectData(o,c)
 
@@ -58,69 +73,35 @@ classdef output < neurostim.plugin
                     'nrStimuli','nrConditions','nrTrials',...
                     'fullFile','subject','blocks','responseKeys','trial','condition','block',...
                     'startTime','stopTime','trialStartTime','trialEndTime', 'pluginOrder','profile'};
+            else %if we are just appending data
+                saveVariables = {'trial','condition','block','trialStartTime','trialEndTime'};
+            end
                 
-                for a = 1:length(c.stimuli) % runs through and saves all stimuli to o.data
-                    stimulus = c.stimuli{a};
-                    o.variableSize.(stimulus) = size(c.(stimulus).log.parms,2);
-                    o.data.(o.dumpLabel).events.(stimulus)(1,:) = c.(stimulus).log.parms;
-                    o.data.(o.dumpLabel).events.(stimulus)(2,:) = c.(stimulus).log.values;
-                    o.data.(o.dumpLabel).events.(stimulus)(3,:) = num2cell(c.(stimulus).log.t);
-                end
+                allSaveLogs=[c.stimuli c.plugins 'cic']; %combine all stimuli and plugins to save
+                nolog=cellfun(@(plgin) ~isa(c.(plgin),'neurostim.plugins.output'), allSaveLogs);
+                allSaveLogs(~nolog)=[]; % don't save output logs
                 
-                for var = saveVariables % saves all variables to o.data
-                    o.data.(o.dumpLabel).(var{1}) = c.(var{1});
-                end
                 
-                %Log data from the plug-ins (excluding any output plugins)
-                pluginsToLog = horzcat(c.plugins,'cic');
-                stay = cellfun(@(plgin) ~isa(c.(plgin),'neurostim.plugins.output'), pluginsToLog);
-                pluginsToLog(~stay) = [];
-                
-                for i = 1:numel(pluginsToLog) % saves all plugins to o.data
-                    thisPlg = pluginsToLog{i};
+                for a = 1:numel(allSaveLogs) % runs through and saves all stimuli and plugins
+                    thisPlg = allSaveLogs{a};
                     if strcmp(thisPlg,'cic')
                         thisLog = c.log;
                     else
                         thisLog = c.(thisPlg).log;
                     end
-                    if ~isempty(thisLog.parms)
+                    if ~isempty(thisLog.parms) %if there are logs to save
+                        if ~o.last && isfield(o.variableSize,thisPlg)
+                            o.saveData(thisPlg,thisLog,o.variableSize.(thisPlg)+1);
+                        else
+                            o.saveData(thisPlg,thisLog);
+                        end
                         o.variableSize.(thisPlg) = size(thisLog.parms,2);
-                        o.data.(o.dumpLabel).events.(thisPlg)(1,:) = thisLog.parms;
-                        o.data.(o.dumpLabel).events.(thisPlg)(2,:) = thisLog.values;
-                        o.data.(o.dumpLabel).events.(thisPlg)(3,:) = num2cell(thisLog.t);
                     end
                 end
-            else    %append to file, just save relevant information
-                saveVariables = {'trial','condition','block','trialStartTime','trialEndTime'};
                 
-                for a = 1:length(c.stimuli)
-                    stimulus = c.stimuli{a};
-                    o.data.(o.dumpLabel).events.(stimulus)(1,:) = c.(stimulus).log.parms((o.variableSize.(stimulus)+1):end);
-                    o.data.(o.dumpLabel).events.(stimulus)(2,:) = c.(stimulus).log.values((o.variableSize.(stimulus)+1):end);
-                    o.data.(o.dumpLabel).events.(stimulus)(3,:) = num2cell(c.(stimulus).log.t((o.variableSize.(stimulus)+1):end));
-                    o.variableSize.(stimulus) = max(size(c.(stimulus).log.parms));
+                for var = saveVariables % saves all requested variables to o.data
+                    o.data.(o.dumpLabel).(var{1}) = c.(var{1});
                 end
-                
-                for a = 1:length(saveVariables)
-                    variable = saveVariables{a};
-                    o.data.(o.dumpLabel).(variable) = c.(variable);
-%                     %Teresa: what was this for? (in the previous version, it was being overwritten anyway)
-%                     if strcmpi(variable,'trialStartTime') || strcmpi(variable,'trialEndTime')
-%                         o.data.(o.dumpLabel).(variable) = c.(variable)(end);
-%                     end
-                end
-                
-                for a = 1:length(c.plugins)
-                    plugin = c.plugins{a};
-                    if ~isempty(c.(plugin).log.parms)
-                        o.data.(o.dumpLabel).(plugin)(1,:) = c.(plugin).log.parms((o.variableSize.(plugin)+1):end);
-                        o.data.(o.dumpLabel).(plugin)(2,:) = c.(plugin).log.values((o.variableSize.(plugin)+1):end);
-                        o.data.(o.dumpLabel).(plugin)(3,:) = num2cell(c.(plugin).log.t((o.variableSize.(plugin)+1):end));
-                        o.variableSize.(plugin) = max(size(c.(plugin).log.parms));
-                    end
-                end
-            end
-     
         end
                 
         function saveFileBase(o,c)

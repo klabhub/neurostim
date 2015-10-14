@@ -208,7 +208,7 @@ classdef gui <neurostim.plugin
             end
             o.paramText=[o.paramText o.footer];
             %draw to offscreen window
-            Screen('FillRect',o.guiText,c.screen.color.background,o.paramsBox);
+            Screen('FillRect',o.guiText,c.screen.color.background,[o.paramsBox(1)+2 o.paramsBox(2)+2 o.paramsBox(3)-2 o.paramsBox(4)-2]);
             DrawFormattedText(o.guiText, o.paramText, o.positionX,o.positionY, WhiteIndex(c.onscreenWindow),o.nrCharsPerLine,[],[],o.spacing);
             % The bbox does not seem to fit... add some slack 
             
@@ -238,38 +238,41 @@ classdef gui <neurostim.plugin
                        % which the fixation tolerance allows
                        oval=[c.(c.plugins{a}).X-c.(c.plugins{a}).tolerance; c.(c.plugins{a}).Y-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).X+c.(c.plugins{a}).tolerance;c.(c.plugins{a}).Y+c.(c.plugins{a}).tolerance];
                        % convert to pixel dimensions
-                       [oval(1,1),oval(2,1)]=c.physical2Pixel(oval(1,1),oval(2,1));
-                       [oval(3,1),oval(4,1)]=c.physical2Pixel(oval(3,1),oval(4,1));
+                       oval=o.phys2Pix(c,oval);
                         o.tolerances=[o.tolerances oval];
                    elseif isa(c.(c.plugins{a}),'neurostim.plugins.saccade')
                       % if is a saccade, find the start and end circles
                       oval1=[c.(c.plugins{a}).startX-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).startY-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).startX+c.(c.plugins{a}).tolerance;c.(c.plugins{a}).startY+c.(c.plugins{a}).tolerance];
                       % convert to pixel dimensions
-                      [oval1(1,1),oval1(2,1)]=c.physical2Pixel(oval1(1,1),oval1(2,1));
-                      [oval1(3,1),oval1(4,1)]=c.physical2Pixel(oval1(3,1),oval1(4,1));
+                      oval1=o.phys2Pix(c,oval1);
+                      
                       oval2=[c.(c.plugins{a}).endX-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).endY-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).endX+c.(c.plugins{a}).tolerance;c.(c.plugins{a}).endY+c.(c.plugins{a}).tolerance];
-                      [oval2(1,1),oval2(2,1)]=c.physical2Pixel(oval2(1,1),oval2(2,1));
-                      [oval2(3,1),oval2(4,1)]=c.physical2Pixel(oval2(3,1),oval2(4,1));
+                      oval2=o.phys2Pix(c,oval2);
                       o.tolerances=[o.tolerances oval1 oval2];
                       % find the rectangle between the two fixation points
                       square = [c.(c.plugins{a}).startX;c.(c.plugins{a}).startY-c.(c.plugins{a}).tolerance;c.(c.plugins{a}).endX;c.(c.plugins{a}).endY+c.(c.plugins{a}).tolerance];
                       % convert to pixel dimensions
-                      [square(1,1),square(2,1)]=c.physical2Pixel(square(1,1),square(2,1));
-                      [square(3,1),square(4,1)]=c.physical2Pixel(square(3,1),square(4,1));
-                      if square(3)<square(1)
-                          tmp=square(1);
-                          square(1)=square(3);
-                          square(1)=tmp;
-                      end
-                      if square(4)<square(2)
-                          tmp=square(2);
-                          square(2)=square(4);
-                          square(4)=tmp;
-                      end
+                      square=o.phys2Pix(c,square);
                       o.toleranceSquare=[o.toleranceSquare square];
                    end
                end
             end
+        end
+        
+        function shape=phys2Pix(o,c,v)
+            [x1,y1]=c.physical2Pixel(v(1),v(2));
+            [x2,y2]=c.physical2Pixel(v(3),v(4));
+            if x2<x1
+                tmp=x1;
+                x1=x2;
+                x2=tmp;
+            end
+            if y2<y1
+                tmp=y1;
+                y1=y2;
+                y2=tmp;
+            end
+            shape=[x1;y1;x2;y2];
         end
         
         function drawMirror(o,c)
@@ -281,7 +284,7 @@ classdef gui <neurostim.plugin
                 Screen('FillRect',o.mirrorOverlay,[o.toleranceColor],o.toleranceSquare);
             end
             if c.frame>1
-                [eyeX eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
+                [eyeX,eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
                 xsize=30;
                 Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,WhiteIndex(c.onscreenWindow),[eyeX eyeY]);
             end
@@ -299,7 +302,7 @@ classdef gui <neurostim.plugin
                 if isa(c.(a{:}),'neurostim.plugins.fixate')
                     
                     oval=[c.(a{:}).X-c.(a{:}).tolerance; c.(a{:}).Y-c.(a{:}).tolerance;c.(a{:}).X+c.(a{:}).tolerance;c.(a{:}).Y+c.(a{:}).tolerance];
-                    
+                    oval=o.phys2Pix(c,oval);
                     o.tolerances=[o.tolerances oval];
                 elseif isa(c.(a{:}),'neurostim.plugins.saccade')
                     oval1=[c.(a{:}).startX-c.(a{:}).tolerance; c.(a{:}).startY-c.(a{:}).tolerance;c.(a{:}).startX+c.(a{:}).tolerance;c.(a{:}).startY+c.(a{:}).tolerance];
