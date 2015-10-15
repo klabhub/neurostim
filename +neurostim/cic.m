@@ -100,7 +100,7 @@ classdef cic < neurostim.plugin
         
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         block = 0;      % Current block.
-        condition = 0;  % Current condition
+        condition = [];  % Current condition
         trial = 0;      % Current trial
         frame = 0;      % Current frame
         cursorVisible = false; % Set it through c.cursor =
@@ -114,8 +114,6 @@ classdef cic < neurostim.plugin
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
-        trialStartTime = [];
-        trialEndTime = [];
         stopTime = [];
         frameStart = 0;
         frameDeadline;
@@ -277,6 +275,8 @@ classdef cic < neurostim.plugin
             % Keys handled by CIC
             addKeyStroke(c,KbName('q'),'Quit',c);
             c.addProperty('missedFrame',[]);
+            c.addProperty('trialStartTime',[]);
+            c.addProperty('trialEndTime',[]);
             c.add(neurostim.plugins.output);
         end
         
@@ -685,7 +685,7 @@ classdef cic < neurostim.plugin
                 disp(['Begin Block: ' c.blockName]);
                 for conditionNr = c.blocks(blockNr).conditions
                     
-                    c.condition = conditionNr;
+                    c.condition = [c.condition conditionNr];
                     c.trial = c.trial+1;
                     %                     disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
                     beforeTrial(c);
@@ -873,7 +873,7 @@ classdef cic < neurostim.plugin
                 end
                 c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.mirrorPixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
-                PsychColorCorrection('SetSensorToPrimary', c.onscreenWindow, cal);
+%               
             
             elseif ~isempty(c.mirrorPixels) % add a mirror by spanning both screens.
                 PsychImaging('AddTask','General','MirrorDisplayToSingleSplitWindow');

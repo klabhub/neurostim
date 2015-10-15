@@ -3,8 +3,8 @@ function  nsDemoExperiment
 import neurostim.*
 % Factorweights.
 commandwindow;
-Screen('Preference', 'SkipSyncTests', 0);
-Screen('Preference','TextRenderer',1);
+Screen('Preference', 'SkipSyncTests', 1);
+Screen('Preference','TextRenderer',0);
 % Screen('Preference', 'ConserveVRAM', 32);
 
 % c = myConfig('Eyelink',false);
@@ -49,12 +49,16 @@ f=stimuli.fixation('fix');           % Create a fixation stimulus.
 % f.on = 0;
 % f.duration = 100;
 f.duration = Inf;
-f.luminance = 50;
-f.color = [1 1];
+f.color = [1 1 50];
 % f.color = '@(cic,fix) [cic.screen.color.background(1) fix.color(1)]';
 f.shape = 'STAR';
 f.size = 1; 
 f.size2 = 1;
+function thisFunction(c)
+c.fix.X = c.fix.X + 5;
+end
+f.keyFun('r',@thisFunction);
+
 
 % f.rsvp(30,30,{'angle',{0 45 90 135 180 225 270 315 360}});
 % f.angle = '@(cic) cic.frame';
@@ -83,8 +87,7 @@ c.add(fl);
 
 %  
 s = stimuli.rdp('dots');
-s.color = [1 1];
-s.luminance = 100;
+s.color = [1 1 100];
 s.motionMode = 1;
 s.noiseMode = 0;
 s.noiseDist = 1;
@@ -118,7 +121,7 @@ c.add(s);
 
 c.addFactorial('myFactorial',...
     {'fix','shape',{'CIRC' 'STAR'}});
-f.rsvp = {{'shape',{'CIRC' 'STAR'}},'duration',500,'isi',0,'randomization','SEQUENTIAL'};
+f.rsvp = {{'shape',{'CIRC' 'STAR' 'CIRC'}},'duration',500,'isi',0};
 c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 % c.add(plugins.mcc);
 % c.add(plugins.output);
@@ -153,3 +156,5 @@ d = plugins.soundReward('sound');
 c.add(d);
 c.order('dots','fix','fix1','gui');
 c.run;
+
+end

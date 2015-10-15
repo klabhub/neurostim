@@ -33,6 +33,8 @@ classdef stimulus < neurostim.plugin
         rsvpStimProp;
         rsvpParms;
         rsvpList;
+        rsvpRand;
+        startOn=[];
     end
     
     methods
@@ -75,8 +77,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('Z',0,[],@isnumeric);  
             s.addProperty('on',0,[],@(x) isnumeric(x) || iscell(x));  
             s.addProperty('duration',Inf,[],@(x) isnumeric(x) || iscell(x));  
-            s.addProperty('color',[1/3 1/3],[],@isnumeric);
-            s.addProperty('luminance',50,[],@isnumeric);
+            s.addProperty('color',[1/3 1/3 50],[],@isnumeric);
             s.addProperty('alpha',1,[],@(x)x<=1&&x>=0);
             s.addProperty('scale',struct('x',1,'y',1,'z',1));
             s.addProperty('angle',0,[],@isnumeric);
@@ -86,6 +87,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
             s.addProperty('endTime',0);   % first time the stimulus does not appear after being run
             s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
+            s.addProperty('isi',[],[],@isnumeric);
             s.addProperty('subCond',[]);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
         
@@ -214,48 +216,38 @@ classdef stimulus < neurostim.plugin
             p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
             p.addParameter('randomization','RANDOMWITHOUTREPLACEMENT',@(x) any(strcmpi(x,{'RANDOMWITHOUTREPLACEMENT', 'RANDOMWITHREPLACEMENT','SEQUENTIAL'})));
             p.parse(rsvpFactorial,optionalArgs{:});
-            duration = p.Results.duration;
-            isi = p.Results.isi;
-            randomization = p.Results.randomization;
-            
-            % extract all informations
+            s.duration = p.Results.duration;
+            s.isi = p.Results.isi;
+            s.rsvpRand = p.Results.randomization;
+            if isempty(s.startOn)
+                s.startOn=s.on;
+            end
+            % extract all information
             s.rsvpStimProp = rsvpFactorial{1};
             s.rsvpParms = rsvpFactorial{2};
             
-            if s.duration <s.cic.trialDuration %if stimulus duration is not infinite
-                if numel(s.on)>1
-                    stimEndDur=s.on{end}+s.duration;
-                else
-                    stimEndDur = s.duration;
-                end
-            else stimEndDur=s.cic.trialDuration; % otherwise, set to trial duration
-            end
-            % set the stimulus on and duration times
-            if numel(s.on)==1
-                s.on = num2cell(s.on:(duration+isi):stimEndDur);
-            else
-                s.on = num2cell(s.on{1}:(duration+isi):stimEndDur);
-            end
-            s.duration = duration;
-            % calculate on which frames the parameters should be set
-            frames = round(cell2mat(s.on)*s.cic.screen.framerate/1000);
-            
             s.subConditions = 1:numel(s.rsvpParms);
-            
 
-            nrRepeats = ceil(numel(frames)/numel(s.subConditions));
-
-            switch upper(randomization)
+            switch upper(s.rsvpRand)
                 case 'SEQUENTIAL' % repeats sequentially
-                    s.rsvpList = repmat(s.subConditions,[1,nrRepeats]);
+                    s.rsvpList = s.subConditions;
                 case 'RANDOMWITHREPLACEMENT' % repeats randomly (with replacement)
-                    s.rsvpList = datasample(s.subConditions,(numel(s.subConditions)*nrRepeats));
+                    s.rsvpList = datasample(s.subConditions,(numel(s.subConditions)));
                 case 'RANDOMWITHOUTREPLACEMENT' % repeats randomly (without replacement)
-                    s.rsvpList = repmat(s.subConditions,[1 nrRepeats]);
-                    s.rsvpList = s.rsvpList(randperm(numel(s.rsvpList)));
+                    s.rsvpList = s.subConditions(randperm(numel(s.subConditions)));
             end
         end
         
+        function reshuffleRSVP(s)
+           switch upper(s.rsvpRand)
+               case 'SEQUENTIAL'
+                   return;
+               case 'RANDOMWITHREPLACEMENT'
+                   s.rsvpList=datasample(s.rsvpList,numel(s.rsvpList));
+               case 'RANDOMWITHOUTREPLACEMENT'
+                   s.rsvpList=Shuffle(s.rsvpList);
+           end
+        end
         
         function baseEvents(s,c,evt)
             switch evt.EventName
@@ -269,32 +261,39 @@ classdef stimulus < neurostim.plugin
                     Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
                     
                     if c.frame==1
+                        % setup any RSVP conditions
                         s.stimNum=1;
                         if ~isempty(s.rsvp)
+                            if ~isempty(s.startOn)
+                                s.on=s.startOn;
+                            end
+                            s.reshuffleRSVP;
                             s.subCond = s.rsvpList(s.stimNum);
                             s.(s.rsvpStimProp) = s.rsvpParms{s.subCond};
                         end
                     end
                     
                     % get the stimulus end time
-                    if c.frame==s.offFrame+2
+                    if c.frame==s.offFrame+1
                         s.endTime=c.flipTime;
                     end
                     if c.frame==s.offFrame
+                        % change RSVP conditions
                         s.stimNum = s.stimNum+1;
                         if ~isempty(s.rsvp)
-                            if s.stimNum<=numel(s.rsvpList)
-                                s.subCond = s.rsvpList(s.stimNum);
-                                s.(s.rsvpStimProp) = s.rsvpParms{s.subCond};
-                            else
+                            if s.stimNum>numel(s.rsvpList)
                                 s.stimNum=1;
+                                s.reshuffleRSVP;
                             end
+                            s.subCond = s.rsvpList(s.stimNum);
+                            s.(s.rsvpStimProp) = s.rsvpParms{s.subCond};
+                            s.on=s.off+s.isi;
                         end
                     end
 
-                    s.flags.on = c.frame >s.onFrame && c.frame < s.offFrame;
+                    s.flags.on = c.frame>=s.onFrame && c.frame <s.offFrame;
                     if s.flags.on 
-                        if c.frame==s.onFrame+2 % get stimulus on time
+                        if c.frame==s.onFrame+1 % get stimulus on time
                             s.startTime = c.flipTime;
                         end
                         notify(s,'BEFOREFRAME');

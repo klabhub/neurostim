@@ -41,6 +41,7 @@ classdef gui <neurostim.plugin
         currentText@char = ''; %Internal storage for the current display
         keyLegend@char= '';      % Internal storage for the key stroke legend
         guiRect;
+        guiFeed;
         behaviors={};
         tolerances=[];
         toleranceSquare=[];
@@ -87,6 +88,7 @@ classdef gui <neurostim.plugin
             c.guiOn=true;
             c.mirror=Screen('OpenOffscreenWindow',c.window,c.screen.color.background);
             o.mirrorOverlay=Screen('OpenOffscreenWindow',c.window,[c.screen.color.background 0]);
+            o.guiFeed=Screen('OpenOffScreenWindow',c.window,[c.screen.color.background 0]);
             
             Screen('BlendFunction', c.mirror, 'GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA');
             o.guiRect = [c.screen.pixels(3) c.mirrorPixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
@@ -157,6 +159,7 @@ classdef gui <neurostim.plugin
                 else
                     o.currentText=o.currentText(length(tmp)+2:end);
                 end
+                
             end
             o.currentText=[o.currentText text];
         end
@@ -284,9 +287,11 @@ classdef gui <neurostim.plugin
                 Screen('FillRect',o.mirrorOverlay,[o.toleranceColor],o.toleranceSquare);
             end
             if c.frame>1
+                if any(cellfun(@(plgin) isa(c.(plgin),'neurostim.plugins.eyetracker'), c.plugins))
                 [eyeX,eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
                 xsize=30;
                 Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,WhiteIndex(c.onscreenWindow),[eyeX eyeY]);
+                end
             end
             Screen('DrawTexture',c.mirror,o.mirrorOverlay,[],[],[],0,0.4);
             

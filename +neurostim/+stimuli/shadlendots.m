@@ -55,7 +55,7 @@ classdef shadlendots < neurostim.stimulus
         
         function beforeFrame(o,c,evt)
             % draw dots on Screen
-            Screen('DrawDots',c.window,o.dots2Display,o.dotSize,[o.color o.luminance]);
+            Screen('DrawDots',c.window,o.dots2Display,o.dotSize,o.color);
             
         end
 
