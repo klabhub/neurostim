@@ -49,23 +49,29 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         
         
         function keyboard(o,key,time)
-            % Generic keyboard handler to warn the end user/developer.
-            % If keys are added using keyFun, this is the main function
-            % handler.
+            % Generic keyboard handler; when keys are added using keyFun,
+            % this evaluates the function attached.
             
-            if any(strcmp(key,fieldnames(o.keyFunc)))
-               o.keyFunc.(key)(o.cic); 
+            if any(strcmpi(key,fieldnames(o.keyFunc)))
+               o.keyFunc.(key)(o,key);
             end
             
         end
         
         
-        function keyFun(o,key,fnHandle)
-            % keyFun(key, fnHandle)
+        function addKey(o,key,fnHandle,varargin)
+            % addKey(key, fnHandle [,keyHelp])
             % Runs a function in response to a specific key press.
             % key - a single key (string)
             % fnHandle - function handle of function to run.
-            o.listenToKeyStroke(key,func2str(fnHandle));
+            % Function must be of the format @fn(o,key).
+            if nargin < 4
+                keyhelp = func2str(fnHandle);
+            else
+                keyhelp = varargin{1};
+            end
+            
+            o.listenToKeyStroke(key,keyhelp);
             o.keyFunc.(key) = fnHandle;
         end
         

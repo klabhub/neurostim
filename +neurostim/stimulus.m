@@ -89,8 +89,11 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
             s.addProperty('isi',[],[],@isnumeric);
             s.addProperty('subCond',[]);
+            s.addProperty('rngSeed',[],[],@isnumeric);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
-        
+            
+            s.rngSeed=GetSecs;
+            rng(s.rngSeed);
         end                      
         
         % Setup threshold estimation for one of the parameters. The user

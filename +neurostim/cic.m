@@ -278,6 +278,8 @@ classdef cic < neurostim.plugin
             c.addProperty('trialStartTime',[]);
             c.addProperty('trialEndTime',[]);
             c.add(neurostim.plugins.output);
+            c.addKey('q',@keyboardResponse,'Quit');
+            c.addKey('n',@keyboardResponse,'Next Trial');
         end
         
         function addScript(c,when, fun,keys)
@@ -324,10 +326,9 @@ classdef cic < neurostim.plugin
             c.responseKeys(key) = p.Results;
         end
         
-        function keyboard(c,key,time)
+        function keyboardResponse(c,key)
 %             CIC Responses to keystrokes.
 %             q = quit experiment
-            
             switch (key)
                 case 'q'
                     c.flags.experiment = false;
@@ -711,7 +712,7 @@ classdef cic < neurostim.plugin
                         if c.frame>1 && abs(c.frameDeadline-(flip*1000)) > (100/c.screen.framerate)
                             c.missedFrame = c.frame;
                             if c.guiOn
-                                c.gui.writeToFeed('Missed Frame\n');
+                                c.gui.writeToFeed('Missed Frame');
                             end
                         elseif c.getFlipTime
                             c.flipTime = stimon*1000;
@@ -871,7 +872,8 @@ classdef cic < neurostim.plugin
                 else
                     c.mirrorPixels = [c.screen.pixels(1) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
                 end
-                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.mirrorPixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
+                % *****
+                c.onscreenWindow = PsychImaging('OpenWindow',0, c.screen.color.background, c.mirrorPixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
 %               
             

@@ -3,8 +3,8 @@ function  nsDemoExperiment
 import neurostim.*
 % Factorweights.
 commandwindow;
-Screen('Preference', 'SkipSyncTests', 1);
-Screen('Preference','TextRenderer',0);
+Screen('Preference', 'SkipSyncTests', 0);
+Screen('Preference','TextRenderer',1);
 % Screen('Preference', 'ConserveVRAM', 32);
 
 % c = myConfig('Eyelink',false);
@@ -54,10 +54,10 @@ f.color = [1 1 50];
 f.shape = 'STAR';
 f.size = 1; 
 f.size2 = 1;
-function thisFunction(c)
-c.fix.X = c.fix.X + 5;
+function thisFunction(o,key)
+o.X = o.X + 5;
 end
-f.keyFun('r',@thisFunction);
+f.addKey('r',@thisFunction);
 
 
 % f.rsvp(30,30,{'angle',{0 45 90 135 180 225 270 315 360}});
@@ -69,16 +69,15 @@ f.keyFun('r',@thisFunction);
 c.add(f);
 % 
 
-fl = stimuli.fixation('fix1');
-fl.on = 0;
-fl.duration = Inf;
-fl.shape = 'CIRC';
-fl.X = -10;
-fl.Y = 10;
-f1.color=[1/3 1/3];
-f1.luminance=100;
+f1 = stimuli.fixation('fix1');
+f1.on = 0;
+f1.duration = Inf;
+f1.shape = 'CIRC';
+f1.X = -10;
+f1.Y = 10;
+f1.color=[1/3 1/3 1/3];
 
-c.add(fl);
+c.add(f1);
 
 
 % m = stimuli.mouse('mouse');
@@ -100,14 +99,12 @@ c.add(s);
 
 
 
-% k = plugins.nafcResponse('key');
-% c.add(k);
-% k.keys = {'a' 'z'};
-% k.stimName = 'dots';
-% k.var = 'direction';
-% k.correctResponse = {'@(dots) dots.direction<300 & dots.direction>180' '@(dots) dots.direction>300 | dots.direction<180'};
-% k.keyLabel = {'clockwise', 'counterclockwise'};
-% k.endsTrial = true;
+k = plugins.nafcResponse('key');
+c.add(k);
+k.keys = {'a' 'z'};
+k.correctResponse = {'@(dots) dots.direction<300 & dots.direction>180' '@(dots) dots.direction>300 | dots.direction<180'};
+k.keyLabel = {'clockwise', 'counterclockwise'};
+k.endsTrial = true;
 
 % s = stimuli.shadlendots('dots2');
 % s.apertureD = 20;

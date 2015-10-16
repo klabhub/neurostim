@@ -72,10 +72,6 @@ classdef shadlendots < neurostim.stimulus
         function createinitialdots(o,c)
             % sets all the initial variables needed.
             
-            % random number seed
-            rseed = sum(100*clock);
-            rng(rseed,'v5uniform');
-            
             % set initial variables
             o.loopi = 1;
             apD = o.apertureD;
