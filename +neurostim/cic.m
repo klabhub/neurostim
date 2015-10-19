@@ -673,10 +673,10 @@ classdef cic < neurostim.plugin
             c.KbQueueCreate;
             c.KbQueueStart;
             c.getFramerate;
+            notify(c,'BASEBEFOREEXPERIMENT');
             DrawFormattedText(c.onscreenWindow, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.onscreenWindow));
             Screen('Flip', c.onscreenWindow);
             KbWait();
-            notify(c,'BASEBEFOREEXPERIMENT');
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
 %             ititime = GetSecs*1000;
