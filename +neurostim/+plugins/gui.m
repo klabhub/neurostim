@@ -15,7 +15,7 @@ classdef gui <neurostim.plugin
         xAlign@char = 'right';          % 'left', or 'right'
         yAlign@char = '';         % center
         spacing@double = 1;             % Space between lines
-        nrCharsPerLine@double= 100;      % Number of chars per line
+        nrCharsPerLine@double= 50;      % Number of chars per line
         font@char = 'Courier New';      % Font
         fontSize@double = 15;           % Font size
         positionX;
@@ -42,9 +42,12 @@ classdef gui <neurostim.plugin
         keyLegend@char= '';      % Internal storage for the key stroke legend
         guiRect;
         guiFeed;
+        guiFeedBack;
         behaviors={};
         tolerances=[];
         toleranceSquare=[];
+        textHeight;
+        feedBottom=0;
     end
     
     methods %Set/Get
@@ -88,11 +91,11 @@ classdef gui <neurostim.plugin
             c.guiOn=true;
             c.mirror=Screen('OpenOffscreenWindow',c.window,c.screen.color.background);
             o.mirrorOverlay=Screen('OpenOffscreenWindow',c.window,[c.screen.color.background 0]);
-            o.guiFeed=Screen('OpenOffScreenWindow',c.window,[c.screen.color.background 0]);
+            o.guiFeed=Screen('OpenOffScreenWindow',c.onscreenWindow,c.screen.color.background);
             
             Screen('BlendFunction', c.mirror, 'GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA');
             o.guiRect = [c.screen.pixels(3) c.mirrorPixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
-            o.guiText=Screen('OpenOffscreenWindow',c.window,[c.screen.color.background 0]);
+            o.guiText=Screen('OpenOffscreenWindow',-1, c.screen.color.background,o.guiRect);
             switch (o.xAlign)
                 case 'right'
                     o.positionX=(c.screen.pixels(3))*1/2;
@@ -109,33 +112,42 @@ classdef gui <neurostim.plugin
                     o.positionY=50;
             end
             slack=10;
-            o.feedX=c.screen.pixels(3)+slack;
+            sampleText=Screen('TextBounds',o.guiFeed,'QTUVWqpgyid');
+            o.textHeight=sampleText(4)-sampleText(2);
+            o.feedX=c.screen.pixels(3)/2+2*slack;
             o.feedY=c.mirrorPixels(4)*.5+slack;
-            o.feedBox = [slack c.mirrorPixels(4)/2 c.screen.pixels(3)-slack c.mirrorPixels(4)-slack];
+            o.feedBox = [slack o.feedY-slack c.screen.pixels(3)-slack c.mirrorPixels(4)-(4*slack)];
             o.paramsBox = [c.screen.pixels(3)/2 slack c.screen.pixels(3)-slack o.mirrorRect(4)/2-slack];
-            o.writeToFeed('Started Experiment \n');
+            
+            o.writeToFeed('Started Experiment');
             
         end
+        
+        
         function beforeFrame(o,c,evt)
             % Draw
             Screen('glLoadIdentity', c.onscreenWindow);
-            drawParams(o,c);
-            drawFeed(o,c);
+            
+%             drawParams(o,c);
             drawMirror(o,c);
-            Screen('DrawTexture',c.onscreenWindow,c.mirror,c.screen.pixels,o.mirrorRect,[],0);
+            box=[o.guiRect(1)-c.screen.pixels(3) o.guiRect(2) o.guiRect(3)-c.screen.pixels(3) o.guiRect(4)];
+            Screen('DrawTextures',c.onscreenWindow,[o.guiText c.mirror],[box' c.screen.pixels'],[o.guiRect' o.mirrorRect'],[],[1 0]);
+%             Screen('DrawTexture',c.onscreenWindow,c.mirror,c.screen.pixels,o.mirrorRect,[],0);
         end
         
         function beforeTrial(o,c,evt)
             % Update
+            o.writeToFeed(['Trial #' num2str(c.trial)]);
+            o.writeToFeed('Start');
             updateParams(o,c);
             setupKeyLegend(o,c);
             setupBehavior(o,c);
         end
         
         function afterTrial(o,c,evt)
+            o.writeToFeed('End');
             updateParams(o,c);
             drawParams(o,c);
-            drawFeed(o,c);
             updateBehavior(o,c);
             drawMirror(o,c);
         end
@@ -143,25 +155,40 @@ classdef gui <neurostim.plugin
         function afterExperiment(o,c,evt)
             updateParams(o,c);
             drawParams(o,c);
-            drawFeed(o,c);
         end
         
         
         function writeToFeed(o,text)
             %writeToFeed(o,text)
-            % adds a line of text to currentText.
-            text=WrapString(text);
-            length = strfind(o.currentText,'\n');
-            if numel(length)>27
-                tmp = numel(strfind(text,'\n'));
-                if tmp<=1
-                    o.currentText=o.currentText(length(1)+2:end);
-                else
-                    o.currentText=o.currentText(length(tmp)+2:end);
-                end
+            % adds a line of text to the feed.
+            text=WrapString(text,o.nrCharsPerLine);
+            newLines=strfind(text,'\n');
+            if o.feedBottom+o.textHeight*(numel(newLines)+1)>=(o.feedBox(4)-o.feedBox(2))
+                text=strsplit(text,'\n');
+                o.feedBottom=o.feedBottom-(o.textHeight*(numel(text)+1));
+                o.guiFeedBack=Screen('OpenOffScreenWindow',o.cic.window,o.cic.screen.color.background);
+                Screen('DrawTexture',o.guiFeedBack,o.guiText,[o.feedBox(1)+2 o.feedBox(2)+(o.textHeight*(numel(text)+1))+2 o.feedBox(3)/2 o.feedBox(4)-2],[o.feedBox(1)+2 o.feedBox(2)+2 o.feedBox(3)/2 o.feedBox(4)-(o.textHeight*(numel(text)+1))-2]);
+                Screen('FillRect',o.guiText,o.cic.screen.color.background,[o.feedBox(1)+5 o.feedBox(2)+8 o.feedBox(3)/2-5 o.feedBox(4)-5]);
+%                 Screen('FillRect',o.guiFeed,o.cic.screen.color.background,[o.feedBox(1)+5 o.feedBox(2)+5 o.feedBox(3)/2-5 o.feedBox(4)-5]);
                 
+
+                for a=1:numel(text)
+                    %                         o.cic.mirrorPixels(3)/2
+                    Screen('DrawText',o.guiFeedBack,text{a},o.feedBox(1)+10,o.feedY+o.feedBottom,WhiteIndex(o.cic.onscreenWindow));
+
+                    o.feedBottom=o.feedBottom+o.textHeight;
+
+                end
+                Screen('DrawTexture',o.guiText,o.guiFeedBack,[o.feedBox(1)+2 o.feedBox(2)+2 o.feedBox(3)/2 o.feedBox(4)-2],[o.feedBox(1)+2 o.feedBox(2)+2 o.feedBox(3)/2 o.feedBox(4)-2]);
+%                                         hi=Screen('GetImage',o.guiText);
+%                                         figure;
+%                                         image(hi);
+                Screen('Close',o.guiFeedBack);
+            else
+                Screen('DrawText',o.guiText,text,o.feedBox(1)+10,o.feedY+o.feedBottom,WhiteIndex(o.cic.onscreenWindow));
+                o.feedBottom=o.feedBottom+o.textHeight;
             end
-            o.currentText=[o.currentText text];
+
         end
         
     end
@@ -193,7 +220,10 @@ classdef gui <neurostim.plugin
         end
         
         function drawParams(o,c)
+            Screen('FillRect',c.onscreenWindow,c.screen.color.background,o.guiRect);
+                        
             Screen('DrawTexture',c.onscreenWindow,o.guiText,[],o.guiRect);
+
 %             DrawFormattedText(win, tstring [, sx][, sy][, color][, wrapat][, flipHorizontal][, flipVertical][, vSpacing][, righttoleft][, winRect])
         end
         
@@ -215,8 +245,6 @@ classdef gui <neurostim.plugin
             DrawFormattedText(o.guiText, o.paramText, o.positionX,o.positionY, WhiteIndex(c.onscreenWindow),o.nrCharsPerLine,[],[],o.spacing);
             % The bbox does not seem to fit... add some slack 
             
-            %draw key text
-            
 %           
         end
         
@@ -224,10 +252,8 @@ classdef gui <neurostim.plugin
         
         function drawFeed(o,c)
             %drawFeed(o,c)
-            % draws the bottom textbox using currentText.
-            DrawFormattedText(c.onscreenWindow, o.currentText, o.feedX,o.feedY, WhiteIndex(c.onscreenWindow),o.nrCharsPerLine,[],[],o.spacing);
-            
-            
+            % draws the bottom textbox from a texture.
+%             Screen('DrawTexture',c.onscreenWindow,o.guiFeed,[],o.guiRect);
         end
         
         function setupBehavior(o,c)
@@ -288,9 +314,9 @@ classdef gui <neurostim.plugin
             end
             if c.frame>1
                 if any(cellfun(@(plgin) isa(c.(plgin),'neurostim.plugins.eyetracker'), c.plugins))
-                [eyeX,eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
-                xsize=30;
-                Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,WhiteIndex(c.onscreenWindow),[eyeX eyeY]);
+                    [eyeX,eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
+                    xsize=30;
+                    Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,WhiteIndex(c.onscreenWindow),[eyeX eyeY]);
                 end
             end
             Screen('DrawTexture',c.mirror,o.mirrorOverlay,[],[],[],0,0.4);

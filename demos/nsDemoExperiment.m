@@ -3,7 +3,7 @@ function  nsDemoExperiment
 import neurostim.*
 % Factorweights.
 commandwindow;
-Screen('Preference', 'SkipSyncTests', 0);
+Screen('Preference', 'SkipSyncTests', 1);
 Screen('Preference','TextRenderer',1);
 % Screen('Preference', 'ConserveVRAM', 32);
 
@@ -116,9 +116,13 @@ k.endsTrial = true;
 % c.add(s);
 
 
-c.addFactorial('myFactorial',...
-    {'fix','shape',{'CIRC' 'STAR'}});
+% c.addFactorial('myFactorial',...
+%     {'fix','Y',{-5 5 -5},'fix','X',{-10,-10, 10}},{'dots','direction',{-90 90 0}});
 f.rsvp = {{'shape',{'CIRC' 'STAR' 'CIRC'}},'duration',500,'isi',0};
+myFac.fac1.fix.X={-10 -10 10};
+myFac.fac1.dots.direction={-90 90 0};
+myFac.fac2.fix.Y={5 -5 5};
+c.addFactorial('myFactorial',myFac);
 c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 % c.add(plugins.mcc);
 % c.add(plugins.output);

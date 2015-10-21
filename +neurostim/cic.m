@@ -543,22 +543,43 @@ classdef cic < neurostim.plugin
             % factorial specs into specs for individual conditions and stores
             % those just like individual conditions would have been. So this is
             % merely a convenience function for the user.
-            nrFactors =numel(varargin);
+            if isstruct(varargin{1})
+                factorial=varargin{1};
+                list=fieldnames(factorial);
+                nrFactors=numel(list);
+                factorSpecs={};
+                for f=1:numel(list)
+                    list2=fieldnames(factorial.(list{f}));
+                    for g=1:numel(list2)
+                        list3=fieldnames(factorial.(list{f}).(list2{g}));
+                        for h=1:numel(list3)
+                        factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+1}=list2{g};
+                        factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+2}=list3{h};
+                        factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+3}=factorial.(list{f}).(list2{g}).(list3{h});
+                        end
+                    end
+                end
+            else  
+                nrFactors =numel(varargin);
+                for f=1:nrFactors
+                    factorSpecs.(['fac' num2str(f)]) =varargin{f};
+                end
+            end
             nrLevels = nan(nrFactors,1);
             parmValues  = cell(nrFactors,1);
-            for f=1:nrFactors
-                factorSpecs =varargin{f};
-
-                if ~all(cellfun(@iscell,factorSpecs(3:3:end)))
+            
+             for f=1:nrFactors
+                currSpecs=factorSpecs.(['fac' num2str(f)]);
+                if ~all(cellfun(@iscell,currSpecs(3:3:end)))
                     error('Levels must be specified as cell arrays');
                 end
-                thisNrLevels = unique(cellfun(@numel,factorSpecs(3:3:end)));
+                thisNrLevels = unique(cellfun(@numel,currSpecs(3:3:end)));
                 if length(thisNrLevels)>1
                     error(['The number of levels in factor ' num2str(f) ' is not consistent across variables']);
                 else
                     nrLevels(f) =  thisNrLevels;
                 end
-                parmValues{f} = factorSpecs{3:3:end};
+                parmValues{f} = currSpecs{3:3:end};
             end
             conditionsInFactorial = 1:prod(nrLevels);
             subs = cell(1,nrFactors);
@@ -567,11 +588,11 @@ classdef cic < neurostim.plugin
                 conditionName = [name num2str(thisCond)];
                 conditionSpecs= {};
                 for f=1:nrFactors
-                    factorSpecs =varargin{f};
-                    nrParms = numel(factorSpecs)/3;
+                    currSpecs =factorSpecs.(['fac' num2str(f)]);
+                    nrParms = numel(currSpecs)/3;
                     for p=1:nrParms
-                        value = factorSpecs{3*p}{subs{f}};
-                        specs = factorSpecs(3*p-2:3*p);
+                        value = currSpecs{3*p}{subs{f}};
+                        specs = currSpecs(3*p-2:3*p);
                         specs{3} = value;
                         conditionSpecs = cat(2,conditionSpecs,specs);
                     end
@@ -623,7 +644,7 @@ classdef cic < neurostim.plugin
         
         function beforeTrial(c)
             % Assign values specified in the design to each of the stimuli.
-            specs = c.conditions(c.condition);
+            specs = c.conditions(c.condition(end));
             nrParms = length(specs)/3;
             for p =1:nrParms
                 stimName =specs{3*(p-1)+1};
@@ -877,10 +898,6 @@ classdef cic < neurostim.plugin
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
 %               
             
-            elseif ~isempty(c.mirrorPixels) % add a mirror by spanning both screens.
-                PsychImaging('AddTask','General','MirrorDisplayToSingleSplitWindow');
-                
-                c.window = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.mirrorPixels);
             else% otherwise open screen as normal
                 c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);

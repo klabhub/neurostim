@@ -455,7 +455,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 case 'BASEBEFOREFRAME'
                     if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
                         if c.guiOn
-                        o.cic.gui.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) ' due to framerate limitations.\n']);
+                        o.cic.gui.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
                         end
                         return;
                     end
@@ -466,7 +466,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if c.requiredSlack ~= 0
                         if c.frame ~=1 && GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
                             if c.guiOn
-                            o.cic.gui.writeToFeed(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) ' due to framerate limitations.\n']);
+                            o.cic.gui.writeToFeed(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) '.']);
                             end
                             return;
                         end
