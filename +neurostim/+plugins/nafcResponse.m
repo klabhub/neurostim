@@ -36,7 +36,7 @@ classdef nafcResponse < neurostim.plugins.behavior
            % add key listener for all keys.
            for i = 1:max(size(o.keys))
                if ~ismember(KbName(o.keys{i}),c.allKeyStrokes)
-                o.listenToKeyStroke(o.keys{i},o.keyLabel{i});
+                o.addKey(o.keys{i},@getResponse,o.keyLabel{i})
                end
            end
            
@@ -49,7 +49,7 @@ classdef nafcResponse < neurostim.plugins.behavior
        end
 
        
-       function keyboard(o,key,time)
+       function getResponse(o,key)
            % Generic keyboard handler
            for i = 1:max(size(o.keys))  % runs through each key in the array
                if strcmpi(key,o.keys{i}) % compares key pressed with key array

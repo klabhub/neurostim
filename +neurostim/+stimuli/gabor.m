@@ -63,7 +63,7 @@ classdef gabor < neurostim.stimulus
             end
             aux = [o.phase, o.frequency, o.sigma, pad; o.contrast 0 0 0]';
 
-            Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.luminance o.alpha] , textureShader,specialFlags, aux);
+            Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.alpha] , textureShader,specialFlags, aux);
 
         end
         

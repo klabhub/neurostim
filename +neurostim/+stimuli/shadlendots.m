@@ -55,7 +55,7 @@ classdef shadlendots < neurostim.stimulus
         
         function beforeFrame(o,c,evt)
             % draw dots on Screen
-            Screen('DrawDots',c.window,o.dots2Display,o.dotSize,[o.color o.luminance]);
+            Screen('DrawDots',c.window,o.dots2Display,o.dotSize,o.color);
             
         end
 
@@ -71,10 +71,6 @@ classdef shadlendots < neurostim.stimulus
         
         function createinitialdots(o,c)
             % sets all the initial variables needed.
-            
-            % random number seed
-            rseed = sum(100*clock);
-            rng(rseed,'v5uniform');
             
             % set initial variables
             o.loopi = 1;

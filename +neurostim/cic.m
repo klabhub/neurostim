@@ -86,7 +86,9 @@ classdef cic < neurostim.plugin
         getFlipTime@logical = false; %flag to notify whether to getg the frame flip time.
         requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
         
-        
+        profile=struct;
+        guiOn@logical=false;
+        mirror =[]; % The experimenters copy
     end
     
     %% Protected properties.
@@ -94,10 +96,11 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =protected)
         %% Program Flow
         window =[]; % The PTB window
-        mirror =[]; % The experimenters copy
+        onscreenWindow=[]; % The display/onscreen window
+        
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         block = 0;      % Current block.
-        condition = 0;  % Current condition
+        condition = [];  % Current condition
         trial = 0;      % Current trial
         frame = 0;      % Current frame
         cursorVisible = false; % Set it through c.cursor =
@@ -111,15 +114,12 @@ classdef cic < neurostim.plugin
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
-        trialStartTime = [];
-        trialEndTime = [];
         stopTime = [];
         frameStart = 0;
         frameDeadline;
         %data@sib;
         
         %% Profiling information.
-        profile@struct =  struct('BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[]);
         
         %% Keyboard interaction
         allKeyStrokes          = []; % PTB numbers for each key that is handled.
@@ -129,7 +129,6 @@ classdef cic < neurostim.plugin
         
         
         pluginOrder = {};
-        
         
     end
     
@@ -276,6 +275,11 @@ classdef cic < neurostim.plugin
             % Keys handled by CIC
             addKeyStroke(c,KbName('q'),'Quit',c);
             c.addProperty('missedFrame',[]);
+            c.addProperty('trialStartTime',[]);
+            c.addProperty('trialEndTime',[]);
+            c.add(neurostim.plugins.output);
+            c.addKey('q',@keyboardResponse,'Quit');
+            c.addKey('n',@keyboardResponse,'Next Trial');
         end
         
         function addScript(c,when, fun,keys)
@@ -320,13 +324,11 @@ classdef cic < neurostim.plugin
             p.parse(varargin{:});
             addKeyStroke(c,KbName(key),p.Results.keyHelp,c);
             c.responseKeys(key) = p.Results;
-            
         end
         
-        function keyboard(c,key,time)
+        function keyboardResponse(c,key)
 %             CIC Responses to keystrokes.
 %             q = quit experiment
-            
             switch (key)
                 case 'q'
                     c.flags.experiment = false;
@@ -347,15 +349,15 @@ classdef cic < neurostim.plugin
         end
         
         function [x,y,buttons] = getMouse(c)
-              [x,y,buttons] = GetMouse(c.window);            
+              [x,y,buttons] = GetMouse(c.onscreenWindow);            
               [x,y] = c.pixel2Physical(x,y);
         end
         
         
-        function glScreenSetup(c)            
-            Screen('glLoadIdentity', c.window);
-            Screen('glTranslate', c.window,c.screen.pixels(3)/2,c.screen.pixels(4)/2);
-            Screen('glScale', c.window,c.screen.pixels(3)/c.screen.physical(1), -c.screen.pixels(4)/c.screen.physical(2));
+        function glScreenSetup(c,window)            
+            Screen('glLoadIdentity', window);
+            Screen('glTranslate', window,c.screen.pixels(3)/2,c.screen.pixels(4)/2);
+            Screen('glScale', window,c.screen.pixels(3)/c.screen.physical(1), -c.screen.pixels(4)/c.screen.physical(2));
         end
         
         
@@ -419,27 +421,34 @@ classdef cic < neurostim.plugin
             % Returns pluginOrder when no input is given.
             % Inputs: lists name of plugins in the order they are requested
             % to be executed in.
-            if nargin>2
-                if isempty(c.pluginOrder)
+                 if isempty(c.pluginOrder)
                     c.pluginOrder = c.defaultPluginOrder;
                 end
-                if iscellstr(varargin)
-                    a = varargin;
-                else
-                    for j = 1:nargin-1
-                        a{j} = varargin{j}.name;
-                    end
-                end
-                for j = 1:length(a)-1
-                    ind1 = find(strcmp(c.pluginOrder,a{j}));
-                    ind2 = find(strcmp(c.pluginOrder,a{j+1}));
-                    if ind2>ind1
-                        c.pluginOrder(ind1) = [];
-                        c.pluginOrder = [c.pluginOrder(1:ind2-1) a{j} c.pluginOrder(ind2:end)];
-                    end
-                end
                 
-            end
+                if nargin>1
+                    if iscellstr(varargin)
+                        a = varargin;
+                    else
+                        for j = 1:nargin-1
+                            a{j} = varargin{j}.name;
+                        end
+                    end
+                    
+                    [~,indpos]=ismember(c.pluginOrder,a);
+                    reorder=c.pluginOrder(logical(indpos));
+                    [~,i]=sort(indpos(indpos>0));
+                    reorder=fliplr(reorder(i));
+                    neworder=cell(size(c.pluginOrder));
+                    neworder(~indpos)=c.pluginOrder(~indpos);
+                    neworder(logical(indpos))=reorder;
+                    c.pluginOrder=neworder;
+                    
+                end
+                if numel(c.pluginOrder)<numel(c.defaultPluginOrder)
+                   b=ismember(c.defaultPluginOrder,c.pluginOrder);
+                   index=find(~b);
+                   c.pluginOrder=[c.pluginOrder(1:index-1) c.defaultPluginOrder(index) c.pluginOrder(index:end)];
+                end
             pluginOrder = c.pluginOrder;
         end
         
@@ -483,6 +492,9 @@ classdef cic < neurostim.plugin
                 c.(nm) = cat(2,c.(nm),o.name);
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
+                if strcmp(nm,'plugins') && c.PROFILE
+                    c.profile.(o.name)=struct('BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[]);
+                end
             end
             
             % Call the keystroke function
@@ -531,22 +543,43 @@ classdef cic < neurostim.plugin
             % factorial specs into specs for individual conditions and stores
             % those just like individual conditions would have been. So this is
             % merely a convenience function for the user.
-            nrFactors =numel(varargin);
+            if isstruct(varargin{1})
+                factorial=varargin{1};
+                list=fieldnames(factorial);
+                nrFactors=numel(list);
+                factorSpecs={};
+                for f=1:numel(list)
+                    list2=fieldnames(factorial.(list{f}));
+                    for g=1:numel(list2)
+                        list3=fieldnames(factorial.(list{f}).(list2{g}));
+                        for h=1:numel(list3)
+                        factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+1}=list2{g};
+                        factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+2}=list3{h};
+                        factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+3}=factorial.(list{f}).(list2{g}).(list3{h});
+                        end
+                    end
+                end
+            else  
+                nrFactors =numel(varargin);
+                for f=1:nrFactors
+                    factorSpecs.(['fac' num2str(f)]) =varargin{f};
+                end
+            end
             nrLevels = nan(nrFactors,1);
             parmValues  = cell(nrFactors,1);
-            for f=1:nrFactors
-                factorSpecs =varargin{f};
-
-                if ~all(cellfun(@iscell,factorSpecs(3:3:end)))
+            
+             for f=1:nrFactors
+                currSpecs=factorSpecs.(['fac' num2str(f)]);
+                if ~all(cellfun(@iscell,currSpecs(3:3:end)))
                     error('Levels must be specified as cell arrays');
                 end
-                thisNrLevels = unique(cellfun(@numel,factorSpecs(3:3:end)));
+                thisNrLevels = unique(cellfun(@numel,currSpecs(3:3:end)));
                 if length(thisNrLevels)>1
                     error(['The number of levels in factor ' num2str(f) ' is not consistent across variables']);
                 else
                     nrLevels(f) =  thisNrLevels;
                 end
-                parmValues{f} = factorSpecs{3:3:end};
+                parmValues{f} = currSpecs{3:3:end};
             end
             conditionsInFactorial = 1:prod(nrLevels);
             subs = cell(1,nrFactors);
@@ -555,11 +588,11 @@ classdef cic < neurostim.plugin
                 conditionName = [name num2str(thisCond)];
                 conditionSpecs= {};
                 for f=1:nrFactors
-                    factorSpecs =varargin{f};
-                    nrParms = numel(factorSpecs)/3;
+                    currSpecs =factorSpecs.(['fac' num2str(f)]);
+                    nrParms = numel(currSpecs)/3;
                     for p=1:nrParms
-                        value = factorSpecs{3*p}{subs{f}};
-                        specs = factorSpecs(3*p-2:3*p);
+                        value = currSpecs{3*p}{subs{f}};
+                        specs = currSpecs(3*p-2:3*p);
                         specs{3} = value;
                         conditionSpecs = cat(2,conditionSpecs,specs);
                     end
@@ -611,7 +644,7 @@ classdef cic < neurostim.plugin
         
         function beforeTrial(c)
             % Assign values specified in the design to each of the stimuli.
-            specs = c.conditions(c.condition);
+            specs = c.conditions(c.condition(end));
             nrParms = length(specs)/3;
             for p =1:nrParms
                 stimName =specs{3*(p-1)+1};
@@ -647,7 +680,6 @@ classdef cic < neurostim.plugin
         
         function run(c)
             %Add a generic output plug-in (there may be others already added)
-            c.add(neurostim.plugins.output);
             
             if isempty(c.screen.physical)
                 % Assuming code is in pixels
@@ -657,18 +689,15 @@ classdef cic < neurostim.plugin
             % Set up order and event listeners
             c.order;
             c.createEventListeners;
-            
             % Setup PTB
             PsychImaging(c);
-            c.trialEndTime = zeros(1,c.nrTrials);
-            c.trialStartTime = zeros(1,c.nrTrials);
             c.KbQueueCreate;
             c.KbQueueStart;
             c.getFramerate;
-            DrawFormattedText(c.window, 'Press any key to start...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.window);
-            KbWait();
             notify(c,'BASEBEFOREEXPERIMENT');
+            DrawFormattedText(c.onscreenWindow, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.onscreenWindow));
+            Screen('Flip', c.onscreenWindow);
+            KbWait();
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
 %             ititime = GetSecs*1000;
@@ -677,14 +706,15 @@ classdef cic < neurostim.plugin
                 c.block = blockNr;
                 disp(['Begin Block: ' c.blockName]);
                 for conditionNr = c.blocks(blockNr).conditions
-                    c.condition = conditionNr;
+                    
+                    c.condition = [c.condition conditionNr];
                     c.trial = c.trial+1;
                     %                     disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
                     beforeTrial(c);
                     notify(c,'BASEBEFORETRIAL');
                     if c.trial>1
                         while (round(c.iti-(GetSecs*1000-c.trialEndTime(c.trial-1)))*c.screen.framerate/1000)>0
-                            Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            Screen('Flip',c.onscreenWindow,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
                     c.frame=0;
@@ -695,11 +725,16 @@ classdef cic < neurostim.plugin
                         c.frame = c.frame+1;
                         notify(c,'BASEBEFOREFRAME');
                         Screen('DrawingFinished',c.window);
+                        Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
+                        Screen('DrawingFinished',c.onscreenWindow);
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
-                        [vbl,stimon,flip,missed] = Screen('Flip', c.window,0,1-c.clear);
+                        [vbl,stimon,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
                         if c.frame>1 && abs(c.frameDeadline-(flip*1000)) > (100/c.screen.framerate)
-                            c.missedFrame = [c.missedFrame c.frame];
+                            c.missedFrame = c.frame;
+                            if c.guiOn
+                                c.gui.writeToFeed('Missed Frame');
+                            end
                         elseif c.getFlipTime
                             c.flipTime = stimon*1000;
                             c.getFlipTime=false;
@@ -715,10 +750,15 @@ classdef cic < neurostim.plugin
                         if (floor(c.trialDuration/c.screen.framerate))<= ((GetSecs*1000-c.trialStartTime(c.trial))/c.screen.framerate)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
                         end
+                        if c.clear
+                            Screen('FillRect',c.window,c.screen.color.background);
+                        end
                     end % Trial running
                     
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
-                    vbl=Screen('Flip', c.window,0,1-c.clear);
+                    Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
+
+                    vbl=Screen('Flip', c.onscreenWindow,0,1-c.clear);
                     c.trialEndTime(c.trial) = GetSecs * 1000;
                     notify(c,'BASEAFTERTRIAL');
                     afterTrial(c);
@@ -729,14 +769,14 @@ classdef cic < neurostim.plugin
                 c.trialEndTime(c.trial) = GetSecs * 1000;
             end
             c.stopTime = now;
-            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.window);
+            DrawFormattedText(c.onscreenWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
+            Screen('Flip', c.onscreenWindow);
             notify(c,'BASEAFTEREXPERIMENT');
             Screen('glLoadIdentity',c.window);
             c.KbQueueStop;
             KbWait;
             Screen('CloseAll');
-            if c.PROFILE; report(c);end
+%             if c.PROFILE; report(c);end
         end
         
         
@@ -838,6 +878,47 @@ classdef cic < neurostim.plugin
         %% PTB Imaging Pipeline Setup
         function PsychImaging(c)
             AssertOpenGL;
+            
+            cal=setupScreen(c);
+%             PsychImaging('PrepareConfiguration');
+            screens=Screen('Screens');
+            screenNumber=max(screens);
+            
+            % if bitspp
+            %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
+            PsychImaging('AddTask','General','UseFastOffscreenWindows');
+            if any(strcmpi(c.plugins,'gui'))%if gui is added
+                if ~isempty(c.mirrorPixels)
+                c.mirrorPixels = [c.screen.pixels(1) c.screen.pixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
+                else
+                    c.mirrorPixels = [c.screen.pixels(1) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
+                end
+                % *****
+                c.onscreenWindow = PsychImaging('OpenWindow',0, c.screen.color.background, c.mirrorPixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
+                c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
+%               
+            
+            else% otherwise open screen as normal
+                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
+                c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
+                
+            end
+
+            switch upper(c.screen.colorMode)
+                case 'XYL'
+                    PsychColorCorrection('SetSensorToPrimary', c.onscreenWindow, cal);
+%                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                case 'RGB'
+%                     Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            end
+            
+
+
+        end
+        
+        
+        
+        function cal=setupScreen(c)
             PsychImaging('PrepareConfiguration');
             % 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
@@ -860,33 +941,8 @@ classdef cic < neurostim.plugin
                     cal = SetGammaMethod(cal,0);
                     
                 case 'RGB'
-                    
+                    cal = []; %Placeholder. Nothing implemented.
             end
-            
-            screens=Screen('Screens');
-            screenNumber=max(screens);
-            
-            % if bitspp
-            %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
-            
-            if ~isempty(c.mirrorPixels)
-                % add a mirror by spanning both screens.
-                PsychImaging('AddTask','General','MirrorDisplayToSingleSplitWindow');
-                c.mirrorPixels = [c.screen.pixels(1) c.screen.pixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
-                c.window = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.mirrorPixels);
-            else % otherwise open screen as normal
-                c.window = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
-            end
-
-            switch upper(c.screen.colorMode)
-                case 'XYL'
-                    PsychColorCorrection('SetSensorToPrimary', c.window, cal);
-                case 'RGB'
-                    %Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            end
-            
-
-
         end
     end
     
@@ -930,8 +986,8 @@ classdef cic < neurostim.plugin
             title 'BeforeTrial'
             
         end
-        function addProfile(c,what,duration)
-            c.profile.(what) = [c.profile.(what) duration];
+        function addProfile(c,what,name,duration)
+            c.profile.(name).(what) = [c.profile.(name).(what) duration];
         end
         
 

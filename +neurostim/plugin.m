@@ -19,7 +19,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     properties (SetAccess=private, GetAccess=public)
-        
+        keyFunc = struct; % structure for functions assigned to keys.
         keyStrokes  = {}; % Cell array of keys that his plugin will respond to
         keyHelp     = {}; % Copy in the plugin allows easier setup of keyboard handling by stimuli and other derived classes.
         evts        = {}; % Events that this plugin will respond to.
@@ -49,12 +49,31 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         
         
         function keyboard(o,key,time)
-            % Generic keyboard handler to warn the end user/developer.
-            disp (['Please define a keyboard function to handle  ' key ' in '  o.name ])
+            % Generic keyboard handler; when keys are added using keyFun,
+            % this evaluates the function attached.
+            
+            if any(strcmpi(key,fieldnames(o.keyFunc)))
+               o.keyFunc.(key)(o,key);
+            end
+            
         end
         
         
-        
+        function addKey(o,key,fnHandle,varargin)
+            % addKey(key, fnHandle [,keyHelp])
+            % Runs a function in response to a specific key press.
+            % key - a single key (string)
+            % fnHandle - function handle of function to run.
+            % Function must be of the format @fn(o,key).
+            if nargin < 4
+                keyhelp = func2str(fnHandle);
+            else
+                keyhelp = varargin{1};
+            end
+            
+            o.listenToKeyStroke(key,keyhelp);
+            o.keyFunc.(key) = fnHandle;
+        end
         
         function write(o,name,value)
             % User callable write function.
@@ -151,6 +170,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
             
         end
+        
+        
+
+            
         
         % Add properties that will be time-logged automatically, fun
         % is an optional argument that can be used to modify the parameter
@@ -365,7 +388,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 if ischar(keyHelp), keyHelp = {keyHelp};end
             end
             
-            if nargin<3
+            if nargin<3 % if keyHelp is empty
                 keyHelp = cell(1,length(keys));
                 [keyHelp{:}] = deal('?');
             else
@@ -427,29 +450,33 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     
                 case 'BASEBEFORETRIAL'
                     notify(o,'BEFORETRIAL');
-                    if c.PROFILE; c.addProfile('BEFORETRIAL',toc);end;
+                    if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,toc);end;
                     
                 case 'BASEBEFOREFRAME'
                     if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
-                        display(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) ' due to framerate limitations.']);
+                        if c.guiOn
+                        o.cic.gui.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
+                        end
                         return;
                     end
                     notify(o,'BEFOREFRAME');
-                    if c.PROFILE; c.addProfile('BEFOREFRAME',toc);end;
+                    if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,toc);end;
                     
                 case 'BASEAFTERFRAME'
                     if c.requiredSlack ~= 0
                         if c.frame ~=1 && GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
-                            display(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) ' due to framerate limitations.']);
+                            if c.guiOn
+                            o.cic.gui.writeToFeed(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) '.']);
+                            end
                             return;
                         end
                     end
                     notify(o,'AFTERFRAME');
-                    if c.PROFILE; c.addProfile('AFTERFRAME',toc);end;
+                    if c.PROFILE; c.addProfile('AFTERFRAME',o.name,toc);end;
                     
                 case 'BASEAFTERTRIAL'
                     notify(o,'AFTERTRIAL');
-                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',toc);end;
+                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',o.name,toc);end;
                     
                 case 'BASEAFTEREXPERIMENT'
                     notify(o,'AFTEREXPERIMENT');

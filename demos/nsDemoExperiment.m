@@ -3,8 +3,9 @@ function  nsDemoExperiment
 import neurostim.*
 % Factorweights.
 commandwindow;
-Screen('Preference', 'SkipSyncTests', 0);
-Screen('Preference', 'ConserveVRAM', 32);
+Screen('Preference', 'SkipSyncTests', 1);
+Screen('Preference','TextRenderer',1);
+% Screen('Preference', 'ConserveVRAM', 32);
 
 % c = myConfig('Eyelink',false);
 % c = cic;                            % Create Command and Intelligence Center...
@@ -14,12 +15,12 @@ Screen('Preference', 'ConserveVRAM', 32);
 % c.iti = 2000;
 % c.trialDuration = inf;
 c = myConfig;
-
+c.output.saveFrequency=2;
 e = plugins.eyelink;
 e.useMouse = true;
 c.add(e);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
-
+% c.add(plugins.output);
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
 % g.color = [1/3 1/3];
 % g.luminance = 30;
@@ -48,12 +49,16 @@ f=stimuli.fixation('fix');           % Create a fixation stimulus.
 % f.on = 0;
 % f.duration = 100;
 f.duration = Inf;
-f.luminance = 50;
-f.color = [1 1];
+f.color = [1 1 50];
 % f.color = '@(cic,fix) [cic.screen.color.background(1) fix.color(1)]';
 f.shape = 'STAR';
 f.size = 1; 
 f.size2 = 1;
+function thisFunction(o,key)
+o.X = o.X + 5;
+end
+f.addKey('r',@thisFunction);
+
 
 % f.rsvp(30,30,{'angle',{0 45 90 135 180 225 270 315 360}});
 % f.angle = '@(cic) cic.frame';
@@ -64,24 +69,24 @@ f.size2 = 1;
 c.add(f);
 % 
 
-fl = stimuli.fixation('fix1');
-fl.on = 0;
-fl.duration = Inf;
-fl.shape = 'CIRC';
-fl.X = 5;
-fl.Y = 0;
+f1 = stimuli.fixation('fix1');
+f1.on = 0;
+f1.duration = Inf;
+f1.shape = 'CIRC';
+f1.X = -10;
+f1.Y = 10;
+f1.color=[1/3 1/3 1/3];
 
-c.add(fl);
+c.add(f1);
 
 
-m = stimuli.mouse('mouse');
-c.add(m);
+% m = stimuli.mouse('mouse');
+% c.add(m);
 
 
 %  
 s = stimuli.rdp('dots');
-s.color = [1/3 1/3];
-s.luminance = 100;
+s.color = [1 1 100];
 s.motionMode = 1;
 s.noiseMode = 0;
 s.noiseDist = 1;
@@ -97,11 +102,10 @@ c.add(s);
 k = plugins.nafcResponse('key');
 c.add(k);
 k.keys = {'a' 'z'};
-% k.stimName = 'dots';
-% k.var = 'direction';
 k.correctResponse = {'@(dots) dots.direction<300 & dots.direction>180' '@(dots) dots.direction>300 | dots.direction<180'};
 k.keyLabel = {'clockwise', 'counterclockwise'};
 k.endsTrial = true;
+
 % s = stimuli.shadlendots('dots2');
 % s.apertureD = 20;
 % s.color = [1 1];
@@ -112,9 +116,13 @@ k.endsTrial = true;
 % c.add(s);
 
 
-c.addFactorial('myFactorial',...
-    {'fix','shape',{'CIRC' 'STAR'}});
-f.RSVP = {300,100,{'shape',{'CIRC' 'STAR'}}};
+% c.addFactorial('myFactorial',...
+%     {'fix','Y',{-5 5 -5},'fix','X',{-10,-10, 10}},{'dots','direction',{-90 90 0}});
+f.rsvp = {{'shape',{'CIRC' 'STAR' 'CIRC'}},'duration',500,'isi',0};
+myFac.fac1.fix.X={-10 -10 10};
+myFac.fac1.dots.direction={-90 90 0};
+myFac.fac2.fix.Y={5 -5 5};
+c.addFactorial('myFactorial',myFac);
 c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
 % c.add(plugins.mcc);
 % c.add(plugins.output);
@@ -137,6 +145,7 @@ f2.X = 5;
 f2.Y = 0;
 c.add(f2);
 
+c.add(plugins.gui);
 s=plugins.saccade('sac1',f1,f2);
 c.add(s);
 
@@ -146,5 +155,7 @@ c.add(s);
 % c.add(plugins.mcc);
 d = plugins.soundReward('sound');
 c.add(d);
-
+c.order('dots','fix','fix1','gui');
 c.run;
+
+end
