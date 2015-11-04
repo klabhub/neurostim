@@ -431,11 +431,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function listenToEvent(o,evts)
             % Add  an event that this plugin will respond to. Note that the
             % user must implement the events function to do the work
+            % Checks to make sure function is called in constructor.
+            callStack = dbstack;
+            tmp=strsplit(callStack(2).name,'.');
+            if ~strcmp(tmp{1},tmp{2})
+                error('Cannot create event listener outside constructor.')
+            else
             if ischar(evts);evts= {evts};end
             if isempty(evts)
                 o.evts = {};
             else
                 o.evts = cat(2,o.evts,evts);
+            end
             end
         end
         
