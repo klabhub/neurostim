@@ -231,8 +231,8 @@ classdef cic < neurostim.plugin
         end
         
         function getFramerate(c)
-            if isempty(c.screen.framerate) && ~isempty(c.window)
-                frameDur = Screen('GetFlipInterval',c.window);
+            if isempty(c.screen.framerate) && ~isempty(c.onscreenWindow)
+                frameDur = Screen('GetFlipInterval',c.onscreenWindow);
                 c.screen.framerate = 1/frameDur;
             end
         end
@@ -611,6 +611,8 @@ classdef cic < neurostim.plugin
         end
         
         function run(c,varargin)
+            % varargin is sent straight to c.createSession(); see that help
+            % for input details.
             %Add a generic output plug-in (there may be others already added)
             
             if isempty(c.screen.physical)

@@ -162,11 +162,10 @@ classdef factorial < dynamicprops
             % c - pass in a reference to cic.
             % nrFactors - number of factors (for property creation)
             if nargin<2
-                o.nrFactors=1;
-            else
-                o.nrFactors=nrFactors;
+                nrFactors=1;
             end
             o.name=name;
+            o.nrFactors=nrFactors;
             % levels under the name 'fac1','fac2',etc.
                 for a=1:nrFactors
 %                     o.addProperty(['fac' num2str(a)],struct('weights',[]),[],@(x)(all(ismember(fieldnames(x),[c.stimuli 'weights']))))

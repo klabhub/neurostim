@@ -434,7 +434,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Checks to make sure function is called in constructor.
             callStack = dbstack;
             tmp=strsplit(callStack(2).name,'.');
-            if ~strcmp(tmp{1},tmp{2})
+            if ~strcmp(tmp{1},tmp{2}) && ~strcmpi(tmp{2},'addScript')
                 error('Cannot create event listener outside constructor.')
             else
             if ischar(evts);evts= {evts};end
