@@ -20,10 +20,9 @@ e = plugins.eyelink;
 e.useMouse = true;
 c.add(e);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
-% c.add(plugins.output);
+c.add(plugins.output);
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
-% g.color = [1/3 1/3];
-% g.luminance = 30;
+% g.color = [1/3 1/3 30];
 % g.X = 0;                          % Position the Gabor
 % g.Y = 0;                          
 % g.sigma = 25;                       % Set the sigma of the Gabor.
@@ -117,13 +116,30 @@ k.endsTrial = true;
 
 
 % c.addFactorial('myFactorial',...
-%     {'fix','Y',{-5 5 -5},'fix','X',{-10,-10, 10}},{'dots','direction',{-90 90 0}});
+%     {'fix','Y',{-5 5 -5},'fix','X',{-10,-10, 10}},{'dots','direction',{-90 90 0}},{'fix','shape',{'CIRC','STAR'}},{'dots','color',{[1/3 1/3 1], [1/3 1/3 5], [1/3 1/3 50]}});
 f.rsvp = {{'shape',{'CIRC' 'STAR' 'CIRC'}},'duration',500,'isi',0};
+myFac=factorial('myFactorial',2);
 myFac.fac1.fix.X={-10 -10 10};
 myFac.fac1.dots.direction={-90 90 0};
-myFac.fac2.fix.Y={5 -5 5};
-c.addFactorial('myFactorial',myFac);
-c.addBlock('myBlock','myFactorial',5,'SEQUENTIAL') % Add a block in whcih we run all conditions in the factorial 10 times.
+myFac.fac2.fix.Y={5 -5};
+myFac.fac2.weights=[2 1];
+myFac.fac1.weights=[1 1 1];
+myFac2=factorial('myFactorial2',1);
+myFac2.fac1.fix.shape={'CIRC','STAR'};
+% c.addFactorial('myFactorial',myFac);
+
+myBlock=block('myBlock',myFac,myFac2);
+myBlock.weights=[1 1];
+myBlock.randomization='SEQUENTIAL';
+myBlock.nrRepeats=1;
+
+myFac3=factorial('myFactorial3',1);
+myFac3.fac1.dots.size={1 2};
+myBlock2=block('myBlock2',myFac3);
+myBlock2.nrRepeats=2;
+
+% c.createSession(myBlock,myBlock);
+% c.addBlock('myBlock',myBlock) % Add a block in whcih we run all conditions in the factorial 10 times.
 % c.add(plugins.mcc);
 % c.add(plugins.output);
 % % 
@@ -145,7 +161,7 @@ f2.X = 5;
 f2.Y = 0;
 c.add(f2);
 
-c.add(plugins.gui);
+% c.add(plugins.gui);
 s=plugins.saccade('sac1',f1,f2);
 c.add(s);
 
@@ -156,6 +172,6 @@ c.add(s);
 d = plugins.soundReward('sound');
 c.add(d);
 c.order('dots','fix','fix1','gui');
-c.run;
+c.run(myBlock,myBlock2);
 
 end

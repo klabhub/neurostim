@@ -156,7 +156,7 @@ classdef cic < neurostim.plugin
             v= length(c.stimuli);
         end
         function v= get.nrTrials(c)
-            v= length(c.blocks.conditions);
+            v= length(c.blocks(c.block).conditions);
         end
         function v= get.nrConditions(c)
             v= length(c.conditions);
@@ -525,140 +525,73 @@ classdef cic < neurostim.plugin
         
         
         %% -- Specify conditions -- %%
-        function addCondition(c,name,specs)
-            % Add one condition
-            % name  =  name of the condition
-            % parms = triplets {'stimulus name','variable', value}
-            stimNames = specs(1:3:end);
-            unknownStimuli = ~ismember(stimNames,cat(2,c.stimuli,'cic'));
-            if any(unknownStimuli)
-                error(['These stimuli are unknown, add them first: ' specs{3*(find(unknownStimuli)-1)+1}]);
+        function createSession(c,varargin)
+            % createSession(c,block1,...blockEnd,'input',...)
+            % Creates an experimental session
+            % Inputs:
+            % blocks - input blocks directly created from block('name')
+            % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
+            % 'nrRepeats' - number of repeats total
+            % 'weights' - weighting of blocks
+            p=inputParser;
+            p.addParameter('randomization','SEQUENTIAL',@(x)any(strcmpi(x,{'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT'})));
+            p.addParameter('nrRepeats',1,@isnumeric);
+            p.addParameter('weights',1,@isnumeric);
+           if nargin>2 %if there is more than one block
+               blocks=[];
+               for a=2:nargin
+                   if isa(varargin{a-1},'neurostim.block')
+                        blocks=[blocks varargin{a-1}]; % collect all blocks
+                   else
+                       parse(p,varargin{a-1:end}); %parse the remainder.
+                       break;
+                   end
+        
+               end
+               parse(p);
             else
-                c.conditions(name) = specs;
+               blocks=varargin{1};
+               parse(p);
+           end
+           % assign all variables.
+           randomization=p.Results.randomization;
+            nrRepeats=p.Results.nrRepeats;
+           if numel(p.Results.weights)==numel(blocks) 
+               weights=p.Results.weights;
+           else
+               weights=ones(1,numel(blocks));
+           end
+           blocklist=[];
+           nrCond=0;
+           for a=1:numel(blocks)
+               blck.name=blocks(a).name;
+               blck.conditions=blocks(a).conditionList+nrCond;
+               nrCond=max(blck.conditions);
+               tmp=blocks(a).conditions;
+               c.conditions([tmp.keys c.conditions.keys])=[tmp.values c.conditions.values];
+               for b=1:weights(a)
+                    blocklist=[blocklist,blck];
+               end
+           end
+           condKeys=c.conditions.keys;
+           for a=1:length(c.conditions)
+               values=c.conditions(condKeys{a});
+               stimNames=values(1:3:end);
+               unknownStimuli=~ismember(stimNames,[c.stimuli 'cic']);
+               if any(unknownStimuli)
+                   error(['These stimuli in ' condKeys{a}(1:end-1) ' are unknown, add them first: ' values{3*(find(unknownStimuli)-1)+1}]);
+               end
+           end
+           for a=1:nrRepeats
+               switch randomization
+                   case 'RANDOMWITHOUTREPLACEMENT'
+                       blocklist=Shuffle(blocklist);
+                   otherwise
+               end
+               c.blocks=cat(1,c.blocks,blocklist);
             end
-        end
-        
-        
-        
-        
-        function addFactorial(c,name,varargin)
-            % Add a factor to the design.
-            % name = name of the factorial
-            % parms  = A cell array specifying the factorial with elements
-            % specifying the stimulus name, the variable, and the values.
-            % Note that the values must be specified as a cell array.
-            % A single one-way factorial varying coherence:
-            %    addFactorial(c,'coherenceFactorial',{'lldots','coherence',{0 0.5 1}};
-            % Or to vary both the coherence and the position together:
-            %    addFactorial(c,'coherenceFactorial',{'lldots','coherence',{0 0.5 1},'lldots','X',[-1 0 1]};
-            % To specify a two-way factorial, simply add multipe specs cell
-            % arrays as the argument:
-            % E.g. a two-way [3x2] with 6 conditions
-            %    addFactorial(c,'coherenceFactorial',
-            %                   {'lldots','coherence',[0 0.5 1]};
-            %                   {'lldots','X',[-1 1]});
-            % Implementation note: this function simply translates the
-            % factorial specs into specs for individual conditions and stores
-            % those just like individual conditions would have been. So this is
-            % merely a convenience function for the user.
-            if isstruct(varargin{1})
-                factorial=varargin{1};
-                list=fieldnames(factorial);
-                nrFactors=numel(list);
-                factorSpecs={};
-                for f=1:numel(list)
-                    list2=fieldnames(factorial.(list{f}));
-                    for g=1:numel(list2)
-                        list3=fieldnames(factorial.(list{f}).(list2{g}));
-                        for h=1:numel(list3)
-                            factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+1}=list2{g};
-                            factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+2}=list3{h};
-                            factorSpecs.(['fac' num2str(f)]){1,(g-1)*3+3}=factorial.(list{f}).(list2{g}).(list3{h});
-                        end
-                    end
-                end
-            else
-                nrFactors =numel(varargin);
-                for f=1:nrFactors
-                    factorSpecs.(['fac' num2str(f)]) =varargin{f};
-                end
-            end
-            nrLevels = nan(nrFactors,1);
-            parmValues  = cell(nrFactors,1);
             
-            for f=1:nrFactors
-                currSpecs=factorSpecs.(['fac' num2str(f)]);
-                if ~all(cellfun(@iscell,currSpecs(3:3:end)))
-                    error('Levels must be specified as cell arrays');
-                end
-                thisNrLevels = unique(cellfun(@numel,currSpecs(3:3:end)));
-                if length(thisNrLevels)>1
-                    error(['The number of levels in factor ' num2str(f) ' is not consistent across variables']);
-                else
-                    nrLevels(f) =  thisNrLevels;
-                end
-                parmValues{f} = currSpecs{3:3:end};
-            end
-            conditionsInFactorial = 1:prod(nrLevels);
-            subs = cell(1,nrFactors);
-            for thisCond=conditionsInFactorial;
-                [subs{:}]= ind2sub(nrLevels',thisCond);
-                conditionName = [name num2str(thisCond)];
-                conditionSpecs= {};
-                for f=1:nrFactors
-                    currSpecs =factorSpecs.(['fac' num2str(f)]);
-                    nrParms = numel(currSpecs)/3;
-                    for p=1:nrParms
-                        value = currSpecs{3*p}{subs{f}};
-                        specs = currSpecs(3*p-2:3*p);
-                        specs{3} = value;
-                        conditionSpecs = cat(2,conditionSpecs,specs);
-                    end
-                end
-                c.addCondition(conditionName,conditionSpecs);
-            end
         end
-        
-        function addBlock(c,blockName,conditionNames,nrRepeats,randomization)
-            % Select certain conditions to be part of a block.
-            % blockName = a descriptive name for this block
-            % conditionNames = which (existing) condtions or factorials should
-            % be run in this block. (Char or cell array of names)
-            % nrRepeats = how often should these conditions/factorials be
-            % repeated
-            % randomization = how should conditions be randomized across trials
-            
-            
-            blck.name = blockName;
-            blck.nrRepeats = nrRepeats;
-            blck.randomization = randomization;
-            conditionNames = strcat('^',conditionNames,'\d*');
-            conditionNumbers = index(c.conditions,conditionNames);
-            if any(isnan(conditionNumbers))
-                notFound = unique(conditionNames(isnan(conditionNumbers)));
-                notFound = strrep(notFound,'^','');notFound = strrep(notFound,'\d*','');
-                disp('These Conditions are undefined: ' );
-                notFound
-                error('Conditions not found');
-            end
-            switch (randomization)
-                case 'SEQUENTIAL'
-                    blck.conditions = repmat(conditionNumbers,[1 nrRepeats]);
-                case 'RANDOMWITHREPLACEMENT'
-                    blck.conditions = repmat(conditionNumbers,[1 nrRepeats]);
-                    blck.conditions = blck.conditions(randperm(numel(blck.conditions)));
-                case 'BLOCKRANDOMWITHREPLACEMENT'
-                    blck.conditions = zeros(1,0);
-                    for i=1:nrRepeats
-                        blck.conditions = cat(2,blck.conditions, conditionNumbers(randperm(numel(conditionNumbers))));
-                    end
-                otherwise
-                    error(['This randomization mode is unknown: ' randomization ]);
-            end
-            c.blocks = cat(1,c.blocks,blck);
-        end
-        
-        
         
         function beforeTrial(c)
             % Assign values specified in the design to each of the stimuli.
@@ -696,7 +629,9 @@ classdef cic < neurostim.plugin
             
         end
         
-        function run(c)
+        function run(c,varargin)
+            % varargin is sent straight to c.createSession(); see that help
+            % for input details.
             if isempty(c.screen.physical)
                 % Assuming code is in pixels
                 c.screen.physical = c.screen.pixels(3:4);
@@ -705,7 +640,7 @@ classdef cic < neurostim.plugin
             % Set up order and event listeners
             c.order;
             c.createEventListeners;
-            
+            c.createSession(varargin{:});
             % Setup PTB
             PsychImaging(c);
             c.KbQueueCreate;
@@ -723,7 +658,6 @@ classdef cic < neurostim.plugin
                 c.block = blockNr;
                 disp(['Begin Block: ' c.blockName]);
                 for conditionNr = c.blocks(blockNr).conditions
-                    
                     c.condition = [c.condition conditionNr];
                     c.trial = c.trial+1;
                     %                     disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);

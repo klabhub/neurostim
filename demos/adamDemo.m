@@ -2,8 +2,9 @@ function adamDemo
 
 import neurostim.*
 commandwindow;
-% Screen('Preference', 'SkipSyncTests', 1);
-Screen('Preference', 'ConserveVRAM', 32);
+Screen('Preference', 'SkipSyncTests', 0);
+Screen('Preference','TextRenderer',1);
+%Screen('Preference', 'ConserveVRAM', 32);
 
 %% ========= Specify rig configuration  =========
 c = adamsConfig;
@@ -67,13 +68,13 @@ e.useMouse = true;
 c.add(e);
 
 %Maintain gaze on the fixation point
-g = plugins.fixate('f1');
+% g = plugins.fixate('f1');
 g.from = 3000;
 g.duration = 5000;
-g.X = '@(fix) fix.X';
-g.Y = '@(fix) fix.Y';
-g.tolerance = 1.5;
-c.add(g);
+% g.X = '@(fix) fix.X';
+% g.Y = '@(fix) fix.Y';
+% g.tolerance = 1.5;
+% c.add(g);
 
 
 c.add(plugins.reward('defaultReward'));
@@ -90,4 +91,5 @@ c.addFactorial('myFactorial', {'fix','X',{-10 10}},{'dots','direction',{90 -90}}
 c.addBlock('myBlock','myFactorial',2,'SEQUENTIAL');
 
 %% Run the experiment.
+c.order('fix','target','dots','octagon','choice','gui');
 c.run;
