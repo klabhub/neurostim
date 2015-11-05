@@ -4,27 +4,26 @@ classdef behavior < neurostim.plugin
     % Properties:
     % on - true when conditions met, false when not.
     % beforeframe, afterframe), case insensitive.
-    % reward - struct containing type, duration, etc.
     
     events
         GIVEREWARD
     end
     
     properties
-    acquireEvent = {};    % checks behaviour, for acquiring data
-    validateEvent = {'afterFrame'}; % checks whether this behaviour is 'correct'
-    endsTrial = false;  %does violating behaviour end trial?
-    rewardOn = true;
-    reward;
-    data;
-    prevOn = false;
+        sampleEvent =   {'afterFrame'}; %Event(s) upon which we will obtain measurements of the behaviour (e.g. eye position)
+        validateEvent = {'afterFrame'}; %Event(s) upon which we will check whether the behavior satisfies the criteria.
+        success = false;
+        endsTrial = true;               %Does violating behaviour end trial?
+        rewardOn = true;
+        rewardPlugins = [];
+        prevOn = false;
     end
     
     properties (Access=public,SetObservable=true,GetObservable=true,AbortSet)
-       on@logical = false;
-       done@logical=false;
-       endTime;
-       startTime;
+        on@logical = false;
+        done@logical=false;
+        endTime;
+        startTime;
     end
     
     methods
@@ -41,22 +40,10 @@ classdef behavior < neurostim.plugin
             o.addProperty('Z',0,[],@isnumeric);
             o.addProperty('tolerance',1,[],@isnumeric);
             o.addPostSet('startTime',[]);
-            o.addProperty('rewardNames',{},[],@iscellstr);
             
             o.listenToEvent('BEFORETRIAL');
-            
-            if any(strcmpi('afterframe',[o.validateEvent o.acquireEvent]))
-                o.listenToEvent('AFTERFRAME');
-            end
-            
-            if any(strcmpi('aftertrial',[o.validateEvent o.acquireEvent]))
-                o.listenToEvent('AFTERTRIAL');
-            end
-            
-            if any(strcmpi('beforeframe',[o.validateEvent o.acquireEvent]))
-                o.listenToEvent('BEFOREFRAME');
-            end
-         end
+            o.listenToEvent(unique(upper([o.validateEvent o.sampleEvent])));
+        end
         
         function beforeTrial(o,c,evt)
             % reset all flags
@@ -65,160 +52,140 @@ classdef behavior < neurostim.plugin
             o.startTime = Inf;
             o.prevOn = false;
             o.endTime = Inf;
+            o.success = false;
             
-            if o.rewardOn && isempty(o.rewardNames)
-                % collects reward plugin names in a cell array of strings
-                temp=fieldnames(c);
-                temp2 = strfind(temp,'reward_');
-                o.rewardNames = temp(find(~cellfun('isempty',temp2)));
+            if o.rewardOn && isempty(o.rewardPlugins)
+                % collect reward plugin pointers in a cell array
+                o.rewardPlugins = pluginsByClass(c,'neurostim.plugins.reward');
             end
         end
-            
+        
         
         function beforeFrame(o,c,evt)
-            if any(strcmpi('beforeframe',o.validateEvent))
-                processBehavior(o,c);
-                
+            
+            if any(strcmpi('beforeframe',o.sampleEvent))
+                sampleBehavior(o);
             end
             
-            if any(strcmpi('beforeframe',o.acquireEvent))
-                getBehavior(o,c);
+            if any(strcmpi('beforeframe',o.validateEvent))
+                processBehavior(o,c);
             end
         end
         
         function afterFrame(o,c,evt)
+            
+            if any(strcmpi('afterframe',o.sampleEvent))
+                sampleBehavior(o);
+            end
+            
             if any(strcmpi('afterframe',o.validateEvent))
                 processBehavior(o,c);
             end
-            
-            if any(strcmpi('afterframe',o.acquireEvent))
-                getBehavior(o,c);
-            end
-            
         end
         
         function afterTrial(o,c,evt)
+            
+            if any(strcmpi('afterTrial',o.sampleEvent))
+                sampleBehavior(o);
+            end
+            
             if any(strcmpi('afterTrial',o.validateEvent))
                 processBehavior(o,c);
             end
-            
-            if any(strcmpi('afterTrial',o.acquireEvent))
-                getBehavior(o,c);
-            end
-            
         end
         
         function afterExperiment(o,c,evt)
             
+            if any(strcmpi('afterExperiment',o.sampleEvent))
+                sampleBehavior(o);
+            end
+            
             if any(strcmpi('afterExperiment',o.validateEvent))
                 processBehavior(o,c);
             end
-            
-            if any(strcmpi('afterExperiment',o.acquireEvent))
-                getBehavior(o,c);
-            end
         end
         
-        
-%         function events(o,src,evt)
-%             
-%             if any(strcmpi(evt.Name,o.validateEvent))
-%                 processBehavior(o,c);
-%             end
-%             
-%             if any(strcmpi(evt.Name,o.acquireEvent))
-%                 getBehavior(o,c);
-%             end
-%             
-%         end
-            
-            
-        function data = acquireBehavior(o)
-            % wrapper for acquireBehavior function, to be overloaded in
-            % subclasses. This should return the current value(s) of the
-            % requested behaviour (i.e. eye position, mouse position) to be
-            % stored in matrix o.data for later processing by
-            % validateBehavior(o).
+        function o = sampleBehavior(o,c)
+            % wrapper for sampleBehavior function, to be overloaded in
+            % subclasses. This should store some value(s) of the
+            % requested behaviour (i.e. eye position, mouse position) 
+            % to be later checked by validateBehavior(o).
         end
         
         function on = validateBehavior(o)
-           % wrapper for checkBehavior function, to be overloaded in
-           % subclasses. Should return true if behavior is satisfied and false if not.
-            
+            % wrapper for checkBehavior function, to be overloaded in
+            % subclasses. Should return true if behavior is satisfied and false if not.
         end
         
-        function getBehavior(o,c)
-            % to call and store acquireBehavior result
-            
-            
-        end
-            
         function processBehavior(o,c)
             % processes all behavioural responses.
-            if ~o.done && c.frame>1 && ~ischar(o.from) && ~isempty(o.from) && GetSecs*1000-c.trialStartTime(c.trial) >=o.from 
-                o.on = validateBehavior(o);   %returns o.on = true if true.
-                if o.continuous % if the behaviour needs to be continuous (i.e. has a duration)
-                    if o.on && ~o.prevOn  % if behaviour is on for the first time
-                        o.startTime = GetSecs*1000;     % set start time.
-%                         display(['startTime of ' o.name ' is ' num2str(o.startTime)]);
-                        o.prevOn = true;
-                    end
-                    if ~o.on && o.prevOn       % if behaviour is not on, but was on previously
-                        o.startTime = Inf;      % reset start time and done flag
-                        o.done = true;
-                        o.prevOn = false;
-                        % %                         display('wrong');
-                        if o.rewardOn       % if we want to trigger rewards
-                            for a=1:numel(o.rewardNames)
-                                o.cic.(o.rewardNames{a}).rewardAnswer=false;
-                                notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
-                            end
-                        end
-                        if o.endsTrial    % if we want failure to end trial
-%                             keyboard;
-                            c.nextTrial;  % quit trial
-                            return;
-                        end
-                    end
-                    if ~o.done && o.on && (((GetSecs*1000)-o.startTime>=o.duration) || o.endTime~=Inf)   % if duration has been met and behaviour is still on
-                        o.done = true;  % set done flag
-                        o.endTime = GetSecs*1000;
-% %                         display('right')
-                        if o.rewardOn   % if we want to trigger rewards
-                            for a=1:numel(o.rewardNames)
-                                o.cic.(o.rewardNames{a}).rewardAnswer=true;
-                                notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
-                            end
-                        end
-                    end
-                else    % if behaviour is discrete
-                    o.done = o.on;
-                    if o.rewardOn && o.done  % if we want to trigger rewards
-                        
-                        if o.response
-                            for a=1:numel(o.rewardNames)
-                                o.cic.(o.rewardNames{a}).rewardAnswer=true;
-                                notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
-                            end
-                        else
-                            for a=1:numel(o.rewardNames)
-                                o.cic.(o.rewardNames{a}).rewardAnswer=false;
-                                notify(o.cic.(o.rewardNames{a}),'GIVEREWARD');
-                            end
-                        end
-                    end
-                    if o.done && o.endsTrial
-                        c.nextTrial;
+            if ~o.done && c.frame>1 && ~ischar(o.from) && ~isempty(o.from) && c.trialTime >=o.from
+                
+                %Check whether the behavioural criteria are currently being met
+                o.on = validateBehavior(o);   %returns true if so.
+                
+                %If the behaviour extends over an interval of time
+                if o.continuous 
+                    
+                    %If the FROM deadline is reached without commencement of behavior
+                    if ~o.on && ~o.prevOn
+                        %Violation! Should have started by now.
+                        o.success = false;
+                        handleOutcome(o,o.success,o.endsTrial);
                         return;
                     end
-                        
+                    
+                    %If behaviour is on for the first time, log the the start time
+                    if o.on && ~o.prevOn  
+                        o.startTime = c.trialTime;
+                        o.prevOn = true;
+                        return;
+                    end
+                    
+                    %If behaviour commenced, but has been interrupted
+                    if ~o.on && o.prevOn
+                        %Violation!
+                        o.success = false;
+                        o.done = true;
+                        handleOutcome(o,o.success,o.endsTrial);
+                        return;
+                    end
+                    
+                    %If behaviour completed
+                    if ~o.done && o.on && ((c.trialTime-o.startTime)>=o.duration || o.endTime~=Inf)   % if duration has been met and behaviour is still on
+                        %Hooray!
+                        o.success = true;
+                        o.done = true;
+                        o.endTime = c.trialTime;
+                        handleOutcome(o,o.success,false);
+                        return;
+                    end
+                else
+                    % if behaviour is discrete
+                    o.done = o.on;
+                    if o.done
+                        handleOutcome(o,o.response,o.endsTrial);
+                    end
+                end
+            end
+        end
+        
+        
+        function handleOutcome(o,answer, endTrial)
+            
+            %Schedule all rewards, positive or negative
+            if o.rewardOn
+                for a=1:numel(o.rewardPlugins)
+                    rewPlg = o.rewardPlugins{a};
+                    rewPlg.rewardAnswer = answer;
+                    notify(rewPlg,'GIVEREWARD');
                 end
             end
             
+            %If requested, set the flag to end the trial
+            if endTrial
+                o.cic.nextTrial;
+            end
         end
-    end
-    
-   
-    
-    
+    end   
 end

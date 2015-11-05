@@ -46,7 +46,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     methods
         function o = eyelink
             Eyelink; % Check that the EyelinkToolBox is available.
-            clear Eyelink;
+            %clear Eyelink;
             o = o@neurostim.plugins.eyetracker;
             o.listenToKeyStroke('F9','DriftCorrect');
             o.listenToKeyStroke('F8','EyelinkSetup');
@@ -60,14 +60,19 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             o.el=EyelinkInitDefaults(o.cic.onscreenWindow);
             
-            [result,dummy] = EyelinkInit(o.useMouse);
-            if result~=1
-                o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
-                ok = false;
+            %Initialise connection to Eyelink. Currently not allowing dummy
+            %mode, because dialog box comes up behind PTB screen.
+            if ~o.useMouse
+                result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
+            else
+                %Iniatilise dummy mode.
+                Eyelink('InitializeDummy', 'PsychEyelinkDispatchCallback')
                 return;
             end
-            if dummy
-                o.useMouse = true; %Eyelink Toolbox offers user dummy connection if it fails to connect, so oblige.
+            
+            if result~=1
+                o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
+                return;
             end
             
             % setup sample rate

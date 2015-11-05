@@ -13,19 +13,18 @@ Screen('Preference', 'SkipSyncTests', 0); % Not in  production mode; this is jus
 
 %% Setup CIC and the stimuli.
 c = cic;                            % Create Command and Intelligence Center...
-c.screen.pixels    = [0 0 500 500];        % Set the position and size of the window
+c.screen.pixels    = [0 0 1000 1000];        % Set the position and size of the window
 c.screen.physical  = [15 15];              % Set the physical size of the window (centimeters)
 c.screen.color.background= [0.5 0.5 0.5];
 c.screen.colorMode = 'RGB';                % Tell CIC that we'll use RGB colors
 c.trialDuration  = inf;
-c.add(plugins.gui); 
+%c.add(plugins.gui); 
 
  
 % Create a grating stimulus. This will be used to map out the psychometric
 % curve (hence 'test')
 g=stimuli.gabor('test');           
-g.color = [0.5 0.5];
-g.luminance = 0.5;
+g.color = [0.5 0.5 0.5];
 g.contrast = 0.5;
 g.Y = 0; 
 g.X = 0;
@@ -56,8 +55,7 @@ g4.contrast = 1;
 
 % Red fixation point
 f = stimuli.fixation('fix');        % Add a fixation point stimulus
-f.color = [1 0];                    % Red
-f.luminance = 0;
+f.color = [1 0 0];                    % Red
 f.shape = 'CIRC';                  % Shape of the fixation point
 f.size = 1;
 f.X = 0;

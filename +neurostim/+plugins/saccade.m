@@ -34,8 +34,8 @@ classdef saccade < neurostim.plugins.behavior
                 o.startY = ['@(' o.fix1.name ') ' o.fix1.name '.Y'];
                 o.endX = ['@(' o.fix2.name ') ' o.fix2.name '.X'];
                 o.endY = ['@(' o.fix2.name ') ' o.fix2.name '.Y'];
-                o.from = ['@(' o.fix1.name ', cic) ' o.fix1.name '.endTime - cic.trialStartTime(cic.trial)'];
-                o.fix1.cic.(o.fix2.name).from = ['@(' o.name ', cic) ' o.name '.endTime - cic.trialStartTime(cic.trial)'];
+                o.from = ['@(' o.fix1.name ', cic) ' o.fix1.name '.endTime - cic.trialTime'];
+                o.fix1.cic.(o.fix2.name).from = ['@(' o.name ', cic) ' o.name '.endTime - cic.trialTime'];
                 
             elseif nargin == 2
                 error('Only one fixation object supplied.')
@@ -52,18 +52,18 @@ classdef saccade < neurostim.plugins.behavior
             for a = 1:numel(o.endX)
                 xvec = [o.startX; o.endX(a)];
                 yvec = [o.startY; o.endY(a)];
-                if sqrt((X-o.startX)^2+(Y-o.startY)^2)<=o.tolerance && (GetSecs*1000)<=(o.startTime+o.maxLatency)
+                if sqrt((X-o.startX)^2+(Y-o.startY)^2)<=o.tolerance && (o.cic.clockTime)<=(o.startTime+o.maxLatency)
                     % if point is within tolerance of start position before
                     % max latency has passed
                     on = true;
                     break;
-                elseif sqrt((X-o.endX(a))^2+(Y-o.endY(a))^2)<=o.tolerance && (GetSecs*1000)>=o.startTime+o.minLatency && (GetSecs*1000)<=(o.startTime+o.maxLatency)
+                elseif sqrt((X-o.endX(a))^2+(Y-o.endY(a))^2)<=o.tolerance && (o.cic.clockTime)>=o.startTime+o.minLatency && (o.cic.clockTime)<=(o.startTime+o.maxLatency)
                     % if point is within tolerance of end position
                     % after min latency has passed
                     on = true;
-                    o.endTime = GetSecs*1000;
+                    o.endTime = o.cic.clockTime;
                     break;
-                elseif Y>=min(yvec) && Y<=max(yvec) && (GetSecs*1000)<=(o.startTime+o.maxLatency)
+                elseif Y>=min(yvec) && Y<=max(yvec) && (o.cic.clockTime)<=(o.startTime+o.maxLatency)
                     % calculate using distance formula
                     distance = abs((yvec(2)-yvec(1))*X - (xvec(2)-xvec(1))*Y...
                         + xvec(2)*yvec(1) - yvec(2)*xvec(1))/(sqrt(yvec(2)-yvec(1))^2+(xvec(2)-xvec(1))^2);
@@ -71,7 +71,7 @@ classdef saccade < neurostim.plugins.behavior
                     if on
                         break;
                     end
-                elseif X>=min(xvec) && X<=max(xvec) && (GetSecs*1000)<=(o.startTime+o.maxLatency)% else if point is within these two points
+                elseif X>=min(xvec) && X<=max(xvec) && (o.cic.clockTime)<=(o.startTime+o.maxLatency)% else if point is within these two points
                     % calculate using distance formula
                     distance = abs((yvec(2)-yvec(1))*X - (xvec(2)-xvec(1))*Y...
                         + xvec(2)*yvec(1) - yvec(2)*xvec(1))/(sqrt(yvec(2)-yvec(1))^2+(xvec(2)-xvec(1))^2);

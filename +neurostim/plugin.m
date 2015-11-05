@@ -253,7 +253,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function addToLog(o,name,value)
             o.log.parms{end+1}  = name;
             o.log.values{end+1} = value;
-            o.log.t(end+1)      = GetSecs*1000;
+            o.log.t(end+1)      = o.cic.clockTime;
         end
         
         
@@ -435,7 +435,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             if isempty(evts)
                 o.evts = {};
             else
-                o.evts = cat(2,o.evts,evts);
+                o.evts = union(o.evts,evts)';    %Only adds if not already listed.
             end
         end
         
@@ -453,7 +453,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,toc);end;
                     
                 case 'BASEBEFOREFRAME'
-                    if GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
+                    if c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
                         if c.guiOn
                         o.cic.gui.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
                         end
@@ -464,7 +464,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     
                 case 'BASEAFTERFRAME'
                     if c.requiredSlack ~= 0
-                        if c.frame ~=1 && GetSecs*1000-c.frameStart>(1000/c.screen.framerate - c.requiredSlack)
+                        if c.frame ~=1 && c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
                             if c.guiOn
                             o.cic.gui.writeToFeed(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) '.']);
                             end

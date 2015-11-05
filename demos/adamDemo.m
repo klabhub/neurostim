@@ -8,28 +8,30 @@ Screen('Preference', 'ConserveVRAM', 32);
 %% ========= Specify rig configuration  =========
 c = adamsConfig;
 c.add(plugins.debug);
-c.trialDuration = 5000;
+c.trialDuration = Inf;
+
 %% ============== Add stimuli ==================
 
 %Fixation dot
 f=stimuli.fixation('fix');
 f.shape = 'CIRC';
 f.size = 0.5;
-f.color = [1 1];
+f.color = [1 1 50];
 f.on=0;
-f.duration = '@(fix) fix.on + initialFix';
+f.duration = 1000;
 c.add(f);
 
 %Saccade target
 t = duplicate(f,'target');
 t.shape = 'STAR';
+t.size = 3;
 t.X = '@(fix) -fix.X';
 c.add(t);
 
 %Random dot pattern
 s = stimuli.rdp('dots');
 s.duration = Inf;
-s.color = [0.3 0.3];
+s.color = [0.3 0.3 100];
 s.size = 6;
 s.nrDots = 200;
 s.maxRadius = 8;
@@ -42,12 +44,12 @@ c.add(s);
 
 %% Create a novel stimulus
 a = stimuli.convPoly('octagon');
-a.on = 1000;
+a.on = '@(f1) f1.startTime';
 a.nSides = 8;
-a.color = [0.3 0.3];
+a.color = [0.5 1 50];
 %a.X = '@(cic,fix) -fix.X + 2*sin(cic.frame/10)';
 a.X = 0;
-a.rsvp = {{'nSides',{3 4 5 6 7 8 9 100}},'duration',300,'isi',0};
+%a.rsvp = {{'nSides',{3 4 5 6 7 8 9 100},{'color',{[1 0.5 50],[0.5 1 50]}}},'duration',250,'isi',0};
 c.add(a);
 
 %% ========== Add required behaviours =========
@@ -60,17 +62,24 @@ k.keyLabel = {'up', 'down'};
 k.endsTrial = true;
 c.add(k);
 
-% c.add(neurostim.plugins.eyelink);
-% c.add(neurostim.plugins.gui);
+e = neurostim.plugins.eyelink;
+e.useMouse = true;
+c.add(e);
 
 %Maintain gaze on the fixation point
 g = plugins.fixate('f1');
-g.from = 500;
-g.duration = 800;
+g.from = 3000;
+g.duration = 5000;
 g.X = '@(fix) fix.X';
 g.Y = '@(fix) fix.Y';
 g.tolerance = 1.5;
 c.add(g);
+
+
+c.add(plugins.reward('defaultReward'));
+% b = plugins.liquidReward('liquid');
+% b.when='AFTERTRIAL';
+% c.add(b);
 
 %% Experimental design
 

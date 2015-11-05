@@ -67,7 +67,7 @@ classdef mouse < neurostim.stimulus
         function beforeFrame(o,c,evt)
             
            [o.mousex,o.mousey,buttons] = c.getMouse();
-           o.time = GetSecs;
+           o.time = c.trialTime;
 
            if any(buttons)~=0   % if any button is pressed
                o.clickx = o.X;
