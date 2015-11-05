@@ -17,7 +17,7 @@ classdef block < dynamicprops
     
     properties
         randomization='SEQUENTIAL';
-        factorials;
+        factorials={};
         weights=[];
         nrRepeats=1;
         name;
@@ -85,8 +85,15 @@ classdef block < dynamicprops
     
     
     methods
-        function o=block(name)
+        function o=block(name,fac1,varargin)
             o.name=name;
+            o.factorials={fac1};
+            if nargin>2
+                tmp=varargin{1};
+                for a=1:(nargin-2)
+                    o.factorials=[o.factorials {tmp(a)}];
+                end
+            end
         end
         
         

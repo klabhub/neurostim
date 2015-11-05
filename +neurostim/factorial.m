@@ -119,7 +119,7 @@ classdef factorial < dynamicprops
             for a=1:o.nrConditions
                conditionName=[o.name num2str(a)];
                conditionSpecs= {};
-               [subs{:}]= ind2sub(o.nrLevels',a);
+               [subs{:}]= ind2sub(o.nrLevels,a);
                 for f=1:o.nrFactors
                     currSpecs =o.factorSpecs.(['fac' num2str(f)]);
                     nrParms = numel(currSpecs)/3;

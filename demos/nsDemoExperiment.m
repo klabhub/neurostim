@@ -20,10 +20,9 @@ e = plugins.eyelink;
 e.useMouse = true;
 c.add(e);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
-% c.add(plugins.output);
+c.add(plugins.output);
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
-% g.color = [1/3 1/3];
-% g.luminance = 30;
+% g.color = [1/3 1/3 30];
 % g.X = 0;                          % Position the Gabor
 % g.Y = 0;                          
 % g.sigma = 25;                       % Set the sigma of the Gabor.
@@ -129,16 +128,14 @@ myFac2=factorial('myFactorial2',1);
 myFac2.fac1.fix.shape={'CIRC','STAR'};
 % c.addFactorial('myFactorial',myFac);
 
-myBlock=block('myBlock');
+myBlock=block('myBlock',myFac,myFac2);
 myBlock.weights=[1 1];
-myBlock.factorials={myFac, myFac2};
 myBlock.randomization='SEQUENTIAL';
 myBlock.nrRepeats=1;
 
 myFac3=factorial('myFactorial3',1);
 myFac3.fac1.dots.size={1 2};
-myBlock2=block('myBlock2');
-myBlock2.factorials={myFac3};
+myBlock2=block('myBlock2',myFac3);
 myBlock2.nrRepeats=2;
 
 % c.createSession(myBlock,myBlock);
@@ -164,7 +161,7 @@ f2.X = 5;
 f2.Y = 0;
 c.add(f2);
 
-c.add(plugins.gui);
+% c.add(plugins.gui);
 s=plugins.saccade('sac1',f1,f2);
 c.add(s);
 
