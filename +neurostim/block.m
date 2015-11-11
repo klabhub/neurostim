@@ -1,7 +1,7 @@
 classdef block < dynamicprops
     % Class for establishing blocks and default properties.
     % Constructor:
-    % myBlock=block('name');
+    % myBlock=block(name,fac1[,...facLast]);
     % 
     % Inputs:
     % name - name of the block.
@@ -12,7 +12,6 @@ classdef block < dynamicprops
     % 
     % Fields should be of the format:
     % myBlock.weights = [a b]
-    % myBlock.factorials = {fac1 fac2}
     % wherein the weights correspond to the equivalent factorial.
     
     properties
@@ -86,6 +85,7 @@ classdef block < dynamicprops
     
     methods
         function o=block(name,fac1,varargin)
+            % o=block(name,fac1[,...facLast]);
             o.name=name;
             o.factorials={fac1};
             if nargin>2

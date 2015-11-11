@@ -98,9 +98,7 @@ classdef cic < neurostim.plugin
         onscreenWindow=[]; % The display/onscreen window
         
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
-        block = 0;      % Current block.
-        condition = [];  % Current condition
-        trial = 0;      % Current trial
+        
         frame = 0;      % Current frame
         cursorVisible = false; % Set it through c.cursor =
         vbl = [];
@@ -259,7 +257,7 @@ classdef cic < neurostim.plugin
         end
         
         function v= get.trialTime(c)
-            v = c.clockTime-c.trialStartTime(c.trial);
+            v = (c.frame-1)*c.screen.frameDur;
         end
         
     end
@@ -287,6 +285,9 @@ classdef cic < neurostim.plugin
             c.addProperty('frameDrop',[]);
             c.addProperty('trialStartTime',[]);
             c.addProperty('trialEndTime',[]);
+            c.addProperty('condition',[]);
+            c.addProperty('block',0);
+            c.addProperty('trial',0);
             c.add(neurostim.plugins.output);
             c.addKey('q',@keyboardResponse,'Quit');
             c.addKey('n',@keyboardResponse,'Next Trial');
@@ -549,7 +550,7 @@ classdef cic < neurostim.plugin
         
                end
                parse(p);
-            else
+           else
                blocks=varargin{1};
                parse(p);
            end
@@ -658,7 +659,7 @@ classdef cic < neurostim.plugin
                 c.block = blockNr;
                 disp(['Begin Block: ' c.blockName]);
                 for conditionNr = c.blocks(blockNr).conditions
-                    c.condition = [c.condition conditionNr];
+                    c.condition = conditionNr;
                     c.trial = c.trial+1;
                     %                     disp(['Begin Trial #' num2str(c.trial) ' Condition: ' c.conditionName]);
                     beforeTrial(c);
@@ -666,7 +667,7 @@ classdef cic < neurostim.plugin
                     
                     %ITI - wait 
                     if c.trial>1
-                        nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialEndTime(c.trial-1)));
+                        nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialEndTime));
                         for i=1:nFramesToWait
                             Screen('Flip',c.onscreenWindow,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
@@ -684,13 +685,14 @@ classdef cic < neurostim.plugin
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
+                        
                         if c.frame>1 && ((flip*1000-c.frameDeadline) > (1.1*c.screen.frameDur))
                             c.frameDrop = c.frame;
                             if c.guiOn
                                 c.gui.writeToFeed('Missed Frame');
                             end
                         elseif c.getFlipTime
-                            c.flipTime = stimOn*1000;
+                            c.flipTime = stimOn*1000-c.trialStartTime;
                             c.getFlipTime=false;
                         end
                         
@@ -699,7 +701,7 @@ classdef cic < neurostim.plugin
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
-                            c.trialStartTime(c.trial) = vbl*1000; % for trialDuration check
+                            c.trialStartTime = vbl*1000; % for trialDuration check
                         end
                         
                         if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
@@ -713,16 +715,15 @@ classdef cic < neurostim.plugin
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
                     
-                    vbl=Screen('Flip', c.onscreenWindow,0,1-c.clear);
-                    c.trialEndTime(c.trial) = c.clockTime;
+                    [vbl,stimOn,flip,~]=Screen('Flip', c.onscreenWindow,0,1-c.clear);
+                    c.trialEndTime = stimOn*1000;
+                    c.frame = c.frame+1;
                     notify(c,'BASEAFTERTRIAL');
                     afterTrial(c);
                 end %conditions in block
                 if ~c.flags.experiment;break;end
             end %blocks
-            if length(c.trialEndTime)<c.trial
-                c.trialEndTime(c.trial) = c.clockTime;
-            end
+            c.trialEndTime = c.clockTime;
             c.stopTime = now;
             DrawFormattedText(c.onscreenWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.onscreenWindow);
@@ -881,7 +882,7 @@ classdef cic < neurostim.plugin
                     PsychColorCorrection('SetSensorToPrimary', c.onscreenWindow, cal);
                     %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
                 case 'RGB'
-                    %                     Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                   Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             end
             
             

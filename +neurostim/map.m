@@ -1,4 +1,4 @@
-classdef  map <handle
+classdef  map <handle & containers.Map
     
 properties (Constant)
     CHUNK = 10;             % Log size increase (NIY).
