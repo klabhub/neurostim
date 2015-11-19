@@ -5,7 +5,6 @@ classdef debug < neurostim.plugin
     methods
         function o = debug
             o = o@neurostim.plugin('debug');
-            o.addKey('n',@keyboardResponse,'Next Trial');
             o.addKey('e',@keyboardResponse,'Toggle Erase');
             o.addKey('c',@keyboardResponse,'Toggle Cursor');
         end

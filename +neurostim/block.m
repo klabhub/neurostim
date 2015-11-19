@@ -20,6 +20,10 @@ classdef block < dynamicprops
         weights=[];
         nrRepeats=1;
         name;
+        beforeMessage@char='';
+        afterMessage@char='';
+        beforeFunction; % function handle which takes cic as first arg
+        afterFunction;
     end
     
     

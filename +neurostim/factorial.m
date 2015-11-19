@@ -117,7 +117,7 @@ classdef factorial < dynamicprops
             conditions=neurostim.map;
             subs = cell(1,o.nrFactors);
             for a=1:o.nrConditions
-               conditionName=[o.name num2str(a)];
+               conditionName=[o.name '_' num2str(a)];
                conditionSpecs= {};
                [subs{:}]= ind2sub(o.nrLevels,a);
                 for f=1:o.nrFactors

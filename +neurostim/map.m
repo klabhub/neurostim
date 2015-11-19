@@ -61,10 +61,10 @@ end
         
         % Determine whether this char or cell array of chars is a key.
         function value = iskey(m,key)
-            if size(m,1)>0
+            if ischar(key)
                 value = ismember(key,m.keys);
             else
-                value = false;
+                value=false;
             end
         end
         
@@ -134,6 +134,8 @@ end
                             else
                             value= m.log;
                             end
+                        case 'nrKeys'
+                            value=m.nrKeys;
                         otherwise 
                             error('NIY');
                     end

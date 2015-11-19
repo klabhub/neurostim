@@ -74,7 +74,7 @@ classdef reward < neurostim.plugin
             % deliverReward(o,response,varargin)
             % wrapper for deliverReward function in subclasses.
             % In subclass, this should create and give reward immediately.
-            disp(['Reward ' num2str(response) ' would be given now.']);
+%             disp(['Reward ' num2str(response) ' would be given now.']);
         end
         
         function deliverQueued(o,scheduleType)

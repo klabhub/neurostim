@@ -66,7 +66,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
             else
                 %Iniatilise dummy mode.
-                Eyelink('InitializeDummy', 'PsychEyelinkDispatchCallback')
+                Eyelink('InitializeDummy', 'PsychEyelinkDispatchCallback');
                 return;
             end
             

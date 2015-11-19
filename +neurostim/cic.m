@@ -144,7 +144,7 @@ classdef cic < neurostim.plugin
         conditionName;  % The name of the current condition.
         blockName;      % Name of the current block
         defaultPluginOrder;
-        trialTime       % Time elapsed (ms) since the start of the trial
+        trialTime;       % Time elapsed (ms) since the start of the trial
     end
     
     %% Public methods
@@ -219,10 +219,10 @@ classdef cic < neurostim.plugin
                 value = -1;
             end
             if value==-1  % neurostim convention -1 or 'none'
-                HideCursor(c.window);
+                HideCursor(c.onscreenWindow);
                 c.cursorVisible = false;
             else
-                ShowCursor(value,c.window);
+                ShowCursor(value,c.onscreenWindow);
                 c.cursorVisible = true;
             end
         end
@@ -269,7 +269,7 @@ classdef cic < neurostim.plugin
             c = c@neurostim.plugin('cic');
             % Some very basic PTB settings that are enforced for all
             KbName('UnifyKeyNames'); % Same key names across OS.
-            % c.cursor = 'none';
+            c.cursor = 'none';
             % Initialize empty
             c.startTime     = now;
             c.stimuli       = {};
@@ -281,7 +281,6 @@ classdef cic < neurostim.plugin
             c.allKeyStrokes = [];
             c.allKeyHelp  = {};
             % Keys handled by CIC
-            addKeyStroke(c,KbName('q'),'Quit',c);
             c.addProperty('frameDrop',[]);
             c.addProperty('trialStartTime',[]);
             c.addProperty('trialEndTime',[]);
@@ -557,10 +556,10 @@ classdef cic < neurostim.plugin
            % assign all variables.
            randomization=p.Results.randomization;
             nrRepeats=p.Results.nrRepeats;
-           if numel(p.Results.weights)==numel(blocks) 
+           if numel(p.Results.weights)==numel(blocks) % if there are weights eq to blocks
                weights=p.Results.weights;
            else
-               weights=ones(1,numel(blocks));
+               weights=ones(1,numel(blocks)); % otherwise assign weight to 1
            end
            blocklist=[];
            nrCond=0;
@@ -596,7 +595,7 @@ classdef cic < neurostim.plugin
         
         function beforeTrial(c)
             % Assign values specified in the design to each of the stimuli.
-            specs = c.conditions(c.condition(end));
+            specs = c.conditions(c.condition);
             nrParms = length(specs)/3;
             for p =1:nrParms
                 stimName =specs{3*(p-1)+1};
@@ -613,6 +612,16 @@ classdef cic < neurostim.plugin
             end
             
             
+        end
+        
+        function nextCondition(c,cond)
+           % assigns the next condition to the value/condition given.
+           if ischar(cond)
+               c.blocks(c.block).conditions=[c.blocks(c.block).conditions(1:c.trial), index(c.conditions,cond),c.blocks(c.block).conditions(c.trial+1:end)]; 
+           else
+               
+           end
+               
         end
         
         function afterTrial(c)
@@ -685,7 +694,11 @@ classdef cic < neurostim.plugin
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
-                        
+                        if c.frame == 1
+                            notify(c,'FIRSTFRAME');
+                            c.trialStartTime = stimOn*1000; % for trialDuration check
+                            c.flipTime=0;
+                        end
                         if c.frame>1 && ((flip*1000-c.frameDeadline) > (1.1*c.screen.frameDur))
                             c.frameDrop = c.frame;
                             if c.guiOn
@@ -696,13 +709,11 @@ classdef cic < neurostim.plugin
                             c.getFlipTime=false;
                         end
                         
+                        
                         c.frameStart = flip*1000;
                         c.frameDeadline = (flip*1000)+c.screen.frameDur;
                         
-                        if c.frame == 1
-                            notify(c,'FIRSTFRAME');
-                            c.trialStartTime = vbl*1000; % for trialDuration check
-                        end
+
                         
                         if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
@@ -823,6 +834,9 @@ classdef cic < neurostim.plugin
         function KbQueueStart(c)
             KbQueueStart(c.keyDeviceIndex);
         end
+    end
+    
+    methods (Access=private)
         
         function KbQueueStop(c)
             KbQueueStop(c.keyDeviceIndex);
@@ -866,12 +880,12 @@ classdef cic < neurostim.plugin
                 else
                     c.mirrorPixels = [c.screen.pixels(1) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
                 end
-                % *****
+                
                 c.onscreenWindow = PsychImaging('OpenWindow',0, c.screen.color.background, c.mirrorPixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
                 %
                 
-            else% otherwise open screen as normal
+            else% otherwise open screens as normal
                 c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
                 

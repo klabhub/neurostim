@@ -398,15 +398,21 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 
             end
             
-            if any(size(o.cic))
+            if any(size(o.cic)) || strcmpi(o.name,'cic')
+                if strcmpi(o.name,'cic')
+                    cicref=o;
+                else
+                    cicref=o.cic;
+                end
                 % Pass the information to CIC which keeps track of
                 % keystrokes
                 for a = 1:numel(keys)
-                    addKeyStroke(o.cic,keys{a},keyHelp{a},o);
+                    addKeyStroke(cicref,keys{a},keyHelp{a},o);
                 end
-                KbQueueCreate(o.cic);
-                KbQueueStart(o.cic);
+                KbQueueCreate(cicref);
+                KbQueueStart(cicref);
             end
+                    
             
             if ~isempty(keys)
                 o.keyStrokes= cat(2,o.keyStrokes,keys);
