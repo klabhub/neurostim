@@ -733,7 +733,7 @@ classdef cic < neurostim.plugin
                     PsychHID('KbQueueFlush');
                     c.frameStart=c.clockTime;
 %                     profile RESUME
-                    tmp=GetSecs;
+%                     tmp=GetSecs;
                     while (c.flags.trial && c.flags.experiment)
                         c.frame = c.frame+1;
                         notify(c,'BASEBEFOREFRAME');
@@ -744,9 +744,9 @@ classdef cic < neurostim.plugin
                         c.KbQueueCheck;
                         
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
-                        if c.frame>1
-                            tmp(c.frame)=GetSecs;
-                        end
+%                         if c.frame>1
+%                             tmp(c.frame)=GetSecs;
+%                         end
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime = stimOn*1000; % for trialDuration check
@@ -777,7 +777,7 @@ classdef cic < neurostim.plugin
                     Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
                     Screen('FillRect',c.window,c.screen.color.background);
 %                     profile OFF
-                    keyboard;
+%                     keyboard;
                     [vbl,stimOn,flip,~]=Screen('Flip', c.onscreenWindow,0,1-c.clear);
                     c.trialEndTime = stimOn*1000;
                     c.frame = c.frame+1;
