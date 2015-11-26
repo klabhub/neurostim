@@ -112,8 +112,8 @@ classdef shadlendots < neurostim.stimulus
 
             % Compute new locations, how many dots move coherently
             L = rand(o.ndots,1) < o.coherence;
-            dxdy = repmat((o.speed/10) * (10/o.apertureD) * o.dxdymultiplier *...
-                [cos(pi*o.direction/180.0), -sin(pi*o.direction/180.0)], o.ndots,1);   
+            dxdy = repmat((o.speed/10).* (10/o.apertureD).* o.dxdymultiplier.*...
+                [cos(pi.*o.direction/180.0), -sin(pi.*o.direction/180.0)], o.ndots,1);   
             
             % Offset the selected dots
             o.this_s(L,:) = bsxfun(@plus,o.this_s(L,:),dxdy(L,:));

@@ -13,6 +13,19 @@ classdef block < dynamicprops
     % Fields should be of the format:
     % myBlock.weights = [a b]
     % wherein the weights correspond to the equivalent factorial.
+    %
+    % myBlock.beforeMessage - a string containing a message which will
+    % write to screen before the block begins, and wait for a keypress.
+    % myBlock.afterMessage - a string containing a message which will write
+    % to screen after the block ends. (and wait for keypress)
+    %
+    % myBlock.beforeFunction - function handle to a function to run before the block.
+    %           out=myFunction(c)
+    % Output: true or false, whether run() should wait for a keypress
+    % before continuing
+    % Input: cic - use to reference other properties as required.
+    %
+    % myBlock.afterFunction - same format as beforeFunction.
     
     properties
         randomization='SEQUENTIAL';

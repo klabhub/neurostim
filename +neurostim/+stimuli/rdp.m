@@ -44,6 +44,7 @@ classdef rdp < neurostim.stimulus
         direction = 0;
     end
     
+    
     methods (Access = public)
         function o = rdp(name)
             o = o@neurostim.stimulus(name); 
@@ -102,7 +103,7 @@ classdef rdp < neurostim.stimulus
         function afterFrame(o,c,evt)
 
             % reduce lifetime by 1
-            if ~strcmpi(o.noiseMode,'distribution') && o.noiseMode ~= 1 && ~strcmpi(o.noiseMode,'dist')
+            if o.noiseMode ~= 1
                 o.framesLeft = o.framesLeft - 1;
             end
             if o.coordSystem == 1
@@ -122,99 +123,102 @@ classdef rdp < neurostim.stimulus
             % rotates vectors xprev and yprev by angle arg and outputs new
             % values in xnew and ynew.
             
-            R = [cos(arg) -sin(arg) sin(arg) cos(arg)];
             % create a matrix with all rotation matrices in a column
-            
-            R2 = zeros(2*max(size(xprev)),2);
-            R2(1:2:end) = R(:,1:2);
-            R2(2:2:end) = R(:,3:4);
-            
-            % create a diagonal matrix of zeros with rotation matrices
-            % along the diagonal
-            R = mat2cell(R2,2*ones(max(size(xprev)),1),2);
-            R = blkdiag(R{:});
-            
-            
-            xyprev = reshape([xprev(:) yprev(:)]',2*size(xprev,1),[]);
-            
-            xynew = R*xyprev;
-            
-            xnew = xynew(1:2:end);
-            ynew = xynew(2:2:end);
-            
+            if max(size(xprev))==1
+                R=[cos(arg) -sin(arg);sin(arg) cos(arg)];
+                xynew=R*[xprev;yprev];
+                xnew=xynew(1);
+                ynew=xynew(2);
+            else
+                for a=1:max(size(xprev))
+                R=[cos(arg(a)) -sin(arg(a));sin(arg(a)) cos(arg(a))];
+                xynew=R*[xprev(a);yprev(a)];
+                xnew(a,1)=xynew(1);
+                ynew(a,1)=xynew(2);
+                end
+            end
         end
         
         
         function initialiseDots(o,pos)
             % initialises dots in the array positions given by logical
             % array pos.
-            
+            nnzpos=nnz(pos);
             o.framesLeft(pos,1) = o.lifetime;
-            o.radius(pos,1) = (sqrt(rand(nnz(pos),1).*o.maxRadius.*o.maxRadius));
+            o.radius(pos,1) = sqrt(rand(nnzpos,1).*o.maxRadius.*o.maxRadius);
             randAngle = rand(o.nrDots,1).*360;
-            
+            tmp=ceil(o.coherence*o.nrDots);
             switch o.motionMode
-                case {0, lower('spiral')} % spiral
+                case 0 % spiral
                     
                     o.phiOffset(pos,1) = randAngle(pos);
                     
-                    if (ceil(o.coherence*o.nrDots)-1)>=1 && any(pos(1:ceil(o.coherence*o.nrDots)))
-                        o.dR(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.screen.frameRate;
-                        o.dphi(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.screen.frameRate;
+                    if tmp>=1 && any(pos(1:tmp))
+                        o.dR(pos(1:tmp),1) = o.xspeed/o.cic.screen.frameRate;
+                        o.dphi(pos(1:tmp),1) = o.xspeed/o.cic.screen.frameRate;
                     end
-                    if o.coherence == 0 || (o.coherence ~= 1 && any(pos(ceil(o.coherence*o.nrDots):end)))
+                    if o.coherence == 0 || (o.coherence ~= 1 && any(pos(tmp:end)))
                         index = find(pos)>=o.coherence*o.nrDots;
                         o.dR(index,1) = -o.xspeed/o.cic.screen.frameRate;
                         o.dphi(index,1)=-o.yspeed/o.cic.screen.frameRate;
                     end
                     
-                    o.x(pos,1) = o.radius(pos).*cosd(randAngle(pos));
-                    o.y(pos,1) = o.radius(pos).*sind(randAngle(pos));
+                    [o.x(pos,1), o.y(pos,1)] = o.setXY(pos,randAngle);
                     
                     
-                case {1, lower('linear')}  % linear
-                    o.x(pos,1) = o.radius(pos).*cosd(randAngle(pos));
-                    o.y(pos,1) = o.radius(pos).*sind(randAngle(pos));
+                case 1  % linear
+                    [o.x(pos,1), o.y(pos,1)] = o.setXY(pos,randAngle);
                     
                     switch o.noiseMode
-                        case {0, lower('proportion'), lower('prop')} %proportion
+                        case 0 %proportion
                             
-                            if (ceil(o.coherence*o.nrDots))>=1 && any(pos(1:ceil(o.coherence*o.nrDots)))
-                               o.dx(pos(1:ceil(o.coherence*o.nrDots)),1) = o.xspeed/o.cic.screen.frameRate;
-                               o.dy(pos(1:ceil(o.coherence*o.nrDots)),1) = o.yspeed/o.cic.screen.frameRate;
+                            if (tmp)>=1 && any(pos(1:tmp))
+                                o.dx(pos(1:tmp),1) = o.xspeed./o.cic.screen.frameRate;
+                                o.dy(pos(1:tmp),1) = o.yspeed./o.cic.screen.frameRate;
                             end
                             
-                            if o.coherence == 0 || (o.coherence ~= 1 && any(pos(ceil(o.coherence*o.nrDots):end)))
-                               index = find(pos)>=o.coherence*o.nrDots;
-                               randAngle(index) = rand(nnz(index),1).*360;
-                               o.dx(index,1) = cosd(randAngle(index)).*o.speed/o.cic.screen.frameRate;
-                               o.dy(index,1) = sind(randAngle(index)).*o.speed/o.cic.screen.frameRate;
+                            if o.coherence==1
+                                return;
+                            end
+                            if o.coherence == 0 || any(pos(tmp:end))
+                                index = find(pos)>=o.coherence*o.nrDots;
+                                randAngle(index) = rand(nnz(index),1).*360;
+                                o.dx(index,1) = cosd(randAngle(index)).*o.speed/o.cic.screen.frameRate;
+                                o.dy(index,1) = sind(randAngle(index)).*o.speed/o.cic.screen.frameRate;
                             end
                             
                             
-                        case {1, lower('distribution'), lower('dist')} %distribution
+                        case 1 %distribution
                             switch o.noiseDist
-                                case {0, lower('gaussian'), lower('gauss')}  %gaussian
+                                case 0  %gaussian
                                     randAngle = o.noiseWidth.*randn(nnz(pos),1);
                                     if o.truncateGauss ~= -1
                                         a = abs(randAngle/o.noiseWidth)>o.truncateGauss;
                                         while max(a)
-                                        randAngle(a) = o.noiseWidth.*randn(sum(a),1);
-                                        a = abs(randAngle/o.noiseWidth)>o.truncateGauss;
+                                            randAngle(a) = o.noiseWidth.*randn(sum(a),1);
+                                            a = abs(randAngle/o.noiseWidth)>o.truncateGauss;
                                         end
                                     end
-                                case {1, lower('uniform')} %uniform
+                                case 1 %uniform
                                     randAngle = rand(nnz(pos),1).*o.noiseWidth - repmat(o.noiseWidth/2, nnz(pos),1);
                                 otherwise
-                                    error('Unknown noiseDist')
+                                    error('Unknown noiseDist');
                             end
                             
                             randAngle = o.direction + randAngle;
                             [o.dx(pos,1), o.dy(pos,1)] = pol2cart(randAngle.*(pi./180),o.speed/o.cic.screen.frameRate);
-                    
+                        otherwise
+                            error('Unknown noiseMode');
                             
                     end
+                otherwise
+                    error('Unknown motionMode');
             end
+        end
+        
+        function [x,y]=setXY(o,pos,randAngle)
+            x=o.radius(pos).*cosd(randAngle(pos));
+            y=o.radius(pos).*sind(randAngle(pos));
         end
     
         
@@ -227,14 +231,14 @@ classdef rdp < neurostim.stimulus
                     futureX = o.x+o.dwellTime.*o.dx;
                     futureY = o.y+o.dwellTime.*o.dy;
                     futureRad = sqrt(futureX.^2 + futureY.^2);
-                    
-                    if any(futureRad>o.maxRadius)   % if any new dots are outside the max radius
+                    tmp=futureRad>o.maxRadius;
+                    if any(tmp)   % if any new dots are outside the max radius
                         % move dots
-                        [dotDir,~] = cart2pol(o.dx(~~(futureRad>o.maxRadius)),o.dy(logical(futureRad>o.maxRadius)));
-                        [xr, yr] = rotateXY(o,o.x(logical(futureRad>o.maxRadius)),o.y(logical(futureRad>o.maxRadius)),-dotDir);
+                        [dotDir,~] = cart2pol(o.dx(logical(tmp)),o.dy(logical(tmp)));
+                        [xr, yr] = rotateXY(o,o.x(logical(tmp)),o.y(logical(tmp)),-dotDir);
                         chordLength = 2*sqrt(o.maxRadius^2 - yr.^2);
                         xr = xr - chordLength;
-                        [o.x(logical(futureRad>o.maxRadius)), o.y(logical(futureRad>o.maxRadius))] = rotateXY(o,xr,yr,dotDir);
+                        [o.x(logical(tmp)), o.y(logical(tmp))] = rotateXY(o,xr,yr,dotDir);
                     end
                     
                 case {0, lower('spiral')} %spiral
@@ -256,13 +260,13 @@ classdef rdp < neurostim.stimulus
             end
             
             switch o.motionMode
-                case {0, lower('spiral')} %spiral
+                case 0 %spiral
                     o.phiOffset = o.phiOffset + o.dwellTime.*o.dphi;
                     o.radius = o.radius + o.dwellTime.*o.dR;
                     o.x = o.radius.*cosd(o.phiOffset);
                     o.y = o.radius.*sind(o.phiOffset);
                     
-                case {1, lower('linear')}  %linear
+                case 1  %linear
                     o.x = o.x + o.dwellTime.*o.dx;
                     o.y = o.y + o.dwellTime.*o.dy;
             end

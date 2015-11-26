@@ -43,11 +43,19 @@ classdef stimulus < neurostim.plugin
             v = o.on+o.duration;
         end
         function v=get.onFrame(s)
+            if s.on==0
+                v=1;
+            else
                 v = s.cic.ms2frames(s.on)+1;
+            end
         end
         
         function v=get.offFrame(s)
+            if s.off==Inf
+                v=Inf;
+            else
                 v=s.onFrame+s.cic.ms2frames(s.duration);
+            end
         end
     end
     

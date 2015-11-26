@@ -25,11 +25,12 @@ classdef gui <neurostim.plugin
         feedY;
         feedBox;
         mirrorRect;
+        mirrorBox;
         mirrorOverlay;
         guiText;
         toleranceColor=[1 1 50];
         
-        props ={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial'}; % List of properties to monitor
+        props ={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial','blockTrial/nrTrials','trial/fullNrTrials'}; % List of properties to monitor
         header@char  = '';              % Header to add.
         footer@char  = '';              % Footer to add.
         showKeys@logical = true;        % Show defined keystrokes
@@ -48,6 +49,9 @@ classdef gui <neurostim.plugin
         toleranceLine=[];
         textHeight;
         feedBottom=0;
+        eyetrackers=[];
+        behaviours=[];
+        lastFrameDrop=0;
     end
     
     methods %Set/Get
@@ -117,7 +121,14 @@ classdef gui <neurostim.plugin
             o.feedBox = [slack o.feedY-slack c.screen.pixels(3)-slack c.mirrorPixels(4)-(4*slack)];
             o.paramsBox = [c.screen.pixels(3)/2 slack c.screen.pixels(3)-slack o.mirrorRect(4)/2-slack];
             
+            
+            o.mirrorBox=[0 0 o.mirrorRect(3)-o.mirrorRect(1) o.mirrorRect(4)-o.mirrorRect(2)];
+            
+            o.eyetrackers=c.pluginsByClass('neurostim.plugins.eyetracker');
+            o.behaviours=c.pluginsByClass('neurostim.plugins.behavior');
             o.writeToFeed('Started Experiment');
+            
+            
             
         end
         
@@ -147,6 +158,7 @@ classdef gui <neurostim.plugin
             drawParams(o,c);
             updateBehavior(o,c);
             drawMirror(o,c);
+            checkFrameDrops(o,c);
         end
         
         function afterExperiment(o,c,evt)
@@ -171,7 +183,7 @@ classdef gui <neurostim.plugin
 
                 for a=1:numel(text)
                     %                         o.cic.mirrorPixels(3)/2
-                    Screen('DrawText',o.guiFeedBack,text{a},o.feedBox(1)+10,o.feedY+o.feedBottom,WhiteIndex(o.cic.onscreenWindow));
+                    Screen('DrawText',o.guiFeedBack,text{a},o.feedBox(1)+10,o.feedY+o.feedBottom,o.cic.screen.color.text);
 
                     o.feedBottom=o.feedBottom+o.textHeight;
 
@@ -179,7 +191,7 @@ classdef gui <neurostim.plugin
                 Screen('DrawTexture',o.guiText,o.guiFeedBack,[o.feedBox(1)+2 o.feedBox(2)+2 o.feedBox(3)/2 o.feedBox(4)-2],[o.feedBox(1)+2 o.feedBox(2)+2 o.feedBox(3)/2 o.feedBox(4)-2],[],0,1);
                 Screen('FillRect',o.guiFeedBack,o.cic.screen.color.background);
             else
-                Screen('DrawText',o.guiText,text,o.feedBox(1)+10,o.feedY+o.feedBottom,WhiteIndex(o.cic.onscreenWindow));
+                Screen('DrawText',o.guiText,text,o.feedBox(1)+10,o.feedY+o.feedBottom,o.cic.screen.color.text);
                 o.feedBottom=o.feedBottom+o.textHeight;
             end
         end
@@ -208,8 +220,8 @@ classdef gui <neurostim.plugin
                 tmpstring{d}=[tmpName{1},': \n',tmpstr{:} '\n'];
             end
             o.keyLegend = ['Keys: \n\n',tmpstring{:}];
-            DrawFormattedText(o.guiText,o.keyLegend,o.positionX,o.feedY,WhiteIndex(c.onscreenWindow),[],[],[],o.spacing);
-            Screen('FrameRect',o.guiText,WhiteIndex(c.onscreenWindow),[o.paramsBox' o.feedBox']);
+            DrawFormattedText(o.guiText,o.keyLegend,o.positionX,o.feedY,c.screen.color.text,[],[],[],o.spacing);
+        
         end
         
         function drawParams(o,c)
@@ -224,18 +236,30 @@ classdef gui <neurostim.plugin
             % Update the text with the current values of the parameters.
             o.paramText  = o.header;
             for i=1:numel(o.props)
-                tmp = getProp(c,o.props{i}); % getProp allows calls like c.(stim.value)
-                if isnumeric(tmp)
-                    tmp = num2str(tmp);
-                elseif islogical(tmp)
-                    if (tmp);tmp = 'true';else tmp='false';end
+                str=strsplit(o.props{i},'/');
+                for j=1:numel(str)
+                    tmp = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
+                    if isnumeric(tmp)
+                        tmp = num2str(tmp);
+                    elseif islogical(tmp)
+                        if (tmp);tmp = 'true';else tmp='false';end
+                    end
+                    if numel(str)>1
+                        if j==1
+                            o.paramText=[o.paramText o.props{i} ': ' tmp];
+                        else
+                            o.paramText=[o.paramText '/' tmp];
+                        end
+                    else
+                        o.paramText = [o.paramText o.props{i} ': ' tmp];
+                    end
                 end
-                o.paramText = [o.paramText o.props{i} ': ' tmp '\n'];
+                o.paramText=[o.paramText '\n'];
             end
             o.paramText=[o.paramText o.footer];
             %draw to offscreen window
             Screen('FillRect',o.guiText,c.screen.color.background,[o.paramsBox(1)+2 o.paramsBox(2)+2 o.paramsBox(3)-2 o.paramsBox(4)-2]);
-            DrawFormattedText(o.guiText, o.paramText, o.positionX,o.positionY, WhiteIndex(c.onscreenWindow),o.nrCharsPerLine,[],[],o.spacing);
+            DrawFormattedText(o.guiText, o.paramText, o.positionX,o.positionY, c.screen.color.text,o.nrCharsPerLine,[],[],o.spacing);
             % The bbox does not seem to fit... add some slack 
             
 %           
@@ -252,7 +276,8 @@ classdef gui <neurostim.plugin
         function setupBehavior(o,c)
             o.tolerances=[];
             o.toleranceLine=[];
-            for a=c.pluginsByClass('neurostim.plugins.behavior')
+            if ~isempty(o.behaviours)
+            for a=o.behaviours
                    if isa(a{:},'neurostim.plugins.fixate')
                        % if is a fixation dot, find the corners of the rect
                        % which the fixation tolerance allows
@@ -264,11 +289,11 @@ classdef gui <neurostim.plugin
                       % find the line between the two fixation points
                       line = [a{:}.startX;a{:}.startY;a{:}.endX;a{:}.endY];
                       % convert to pixel dimensions
-                      [linea,lineb]=c.physical2Pixel(line(1),line(2));
-                      [linec,lined]=c.physical2Pixel(line(3),line(4));
-                      line=[linea lineb;linec lined];
+                      line=o.phys2Pix(c,line);
+                      line=[line(1) line(2);line(3) line(4)];
                       o.toleranceLine=[o.toleranceLine line];
                    end
+            end
             end
         end
         
@@ -292,19 +317,19 @@ classdef gui <neurostim.plugin
             %drawBehavior(o,c)
             % draws any behavior tolerance circles.
             Screen('DrawTexture',c.mirror,c.window,[],[],[],0);
-            Screen('FrameOval',c.mirror,[o.toleranceColor],o.tolerances);
-            if ~isempty(o.toleranceLine)
-                Screen('DrawLines',c.mirror,o.toleranceLine',[],[o.toleranceColor]);
+            if ~isempty(o.tolerances)
+            Screen('FrameOval',c.mirror,[o.toleranceColor],o.tolerances,2);
             end
-            if c.frame>1
-                if ~isempty(c.pluginsByClass('neurostim.plugins.eyetracker'))
+            if ~isempty(o.toleranceLine)
+                Screen('DrawLines',c.mirror,o.toleranceLine',2,[o.toleranceColor]);
+            end
+            if c.frame>1 && ~isempty(o.eyetrackers)
                     [eyeX,eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
                     xsize=30;
-                    Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,WhiteIndex(c.onscreenWindow),[eyeX eyeY]);
-                end
-            end            
-            Screen('DrawTexture',c.onscreenWindow,c.mirror,c.screen.pixels,o.mirrorRect,[],0);
-
+                    Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,c.screen.color.text,[eyeX eyeY]);
+            end
+            Screen('DrawTexture',o.guiText,c.mirror,c.screen.pixels,o.mirrorBox,[],0);
+            Screen('FrameRect',o.guiText,c.screen.color.text,o.mirrorBox);
         end
         
         function updateBehavior(o,c)
@@ -312,18 +337,30 @@ classdef gui <neurostim.plugin
             %updates behavior circles
             o.tolerances=[];
             o.toleranceLine=[];
-            for a=c.pluginsByClass('neurostim.plugins.behavior')
+            if ~isempty(o.behaviors)
+            for a=o.behaviors
                 if isa(a{:},'neurostim.plugins.fixate')
                     oval=[a{:}.X-a{:}.tolerance; a{:}.Y-a{:}.tolerance;a{:}.X+a{:}.tolerance;a{:}.Y+a{:}.tolerance];
                     oval=o.phys2Pix(c,oval);
                     o.tolerances=[o.tolerances oval];
                 elseif isa(a{:},'neurostim.plugins.saccade')
-                    line=[a{:}.startX;a{:}.startY; a{:}.endX;a{:}.endY];
-                    [linea,lineb]=c.physical2Pixel(line(1),line(2));
-                    [linec,lined]=c.physical2Pixel(line(3),line(4));
-                    line=[linea lineb;linec lined];
+                    line = [a{:}.startX;a{:}.startY;a{:}.endX;a{:}.endY];
+                    line=o.phys2Pix(c,line);
+                    line=[line(1) line(2);line(3) line(4)];
                     o.toleranceLine=[o.toleranceLine line];
                 end
+            end
+            end
+        end
+        
+        function checkFrameDrops(o,c)
+            %checkFrameDrops(c)
+            % checks log for frame drops
+            framedrop=strcmpi(c.log.parms,'frameDrop');
+            frames=sum(framedrop)-1-o.lastFrameDrop;
+            if frames>1
+                o.writeToFeed(['Missed Frames: ' num2str(frames)])
+                o.lastFrameDrop=o.lastFrameDrop+frames;
             end
         end
     end
