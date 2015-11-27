@@ -466,6 +466,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,toc);end;
                     
                 case 'BASEBEFOREFRAME'
+                    if strcmp(o.name,'gui')
+                        if ~mod(c.frame,c.guiFlipEvery)
+                            return;
+                        end
+                    end
                     if c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
                         if c.guiOn
                         o.cic.gui.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
@@ -476,6 +481,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,toc);end;
                     
                 case 'BASEAFTERFRAME'
+                    if strcmp(o.name,'gui')
+                        if ~mod(c.frame,c.guiFlipEvery)
+                            return;
+                        end
+                    end
                     if c.requiredSlack ~= 0
                         if c.frame ~=1 && c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
                             if c.guiOn

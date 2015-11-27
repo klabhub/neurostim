@@ -11,15 +11,16 @@ p.parse(varargin{:});
 p = p.Results;
 
 c = cic;
-c.screen.pixels = [0 0 1920 1080];
+c.screen.pixels = [0 0 1280 1024];
 % c.screen.pixels=[0 0 1680 1050];
 c.screen.physical = [50 31.25];
 c.screen.color.background = [0 0 0];
 c.screen.colorMode = 'xyl';
-c.iti = 20;
-c.trialDuration = 20000;
-c.mirrorPixels = [1920 0 3600 1080];
-% c.mirrorPixels=[1680 0 3360 1050];
+c.iti = 50;
+c.trialDuration = 500;
+c.mirrorPixels=[0 0 1680 1050];
+c.screen.frameRate=85;
+% c.guiFlipEvery=2;
 % if p.Eyelink
 %     e = plugins.eyelink;
 %     e.useMouse = true;

@@ -87,6 +87,8 @@ classdef cic < neurostim.plugin
         
         profile=struct;
         guiOn@logical=false;
+        guiFlipEvery=[];
+        guiWindow;
         mirror =[]; % The experimenters copy
     end
     
@@ -252,6 +254,15 @@ classdef cic < neurostim.plugin
             else
                 c.screen.frameRate = 1000/frInterval;
                 c.screen.frameDur = frInterval;
+            end
+            
+            if ~isempty(c.pluginsByClass('neurostim.plugins.gui'))
+                frInterval=Screen('GetFlipInterval',c.guiWindow)*1000;
+                if isempty(c.guiFlipEvery)
+                    c.guiFlipEvery=ceil(frInterval/c.screen.frameDur);
+                elseif c.guiFlipEvery<ceil(frInterval/c.screen.frameDur);
+                    error('GUI flip interval is too small; this will cause frame drops in experimental window.')
+                end
             end
         end
         
@@ -690,8 +701,8 @@ classdef cic < neurostim.plugin
             DrawFormattedText(c.onscreenWindow, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.onscreenWindow));
             Screen('Flip', c.onscreenWindow);
             KbWait();
-%             profile ON
-%             profile OFF
+            profile ON
+            profile OFF
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
             %             ititime = c.clockTime;
@@ -732,7 +743,7 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     c.frameStart=c.clockTime;
-%                     profile RESUME
+                    profile RESUME
 %                     tmp=GetSecs;
                     while (c.flags.trial && c.flags.experiment)
                         c.frame = c.frame+1;
@@ -747,6 +758,7 @@ classdef cic < neurostim.plugin
 %                         if c.frame>1
 %                             tmp(c.frame)=GetSecs;
 %                         end
+                        
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime = stimOn*1000; % for trialDuration check
@@ -771,12 +783,17 @@ classdef cic < neurostim.plugin
                         if c.clear
                             Screen('FillRect',c.window,c.screen.color.background);
                         end
-                        
+                        if c.guiOn
+                            if mod(c.frame,c.guiFlipEvery)==0
+                                    Screen('Flip',c.guiWindow,0,[],2);
+                            end
+                        end
                     end % Trial running
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
                     Screen('FillRect',c.window,c.screen.color.background);
 %                     profile OFF
+%                     profile VIEWER
 %                     keyboard;
                     [vbl,stimOn,flip,~]=Screen('Flip', c.onscreenWindow,0,1-c.clear);
                     c.trialEndTime = stimOn*1000;
@@ -800,8 +817,8 @@ classdef cic < neurostim.plugin
             end %blocks
             c.trialEndTime = c.clockTime;
             c.stopTime = now;
-%             profile VIEWER
-%             keyboard;
+            profile VIEWER
+            keyboard;
             DrawFormattedText(c.onscreenWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.onscreenWindow);
             notify(c,'BASEAFTEREXPERIMENT');
@@ -941,16 +958,26 @@ classdef cic < neurostim.plugin
             %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
             PsychImaging('AddTask','General','UseFastOffscreenWindows');
             if any(strcmpi(c.plugins,'gui'))%if gui is added
-                if ~isempty(c.mirrorPixels)
-                    c.mirrorPixels = [c.screen.pixels(1) c.screen.pixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
-                else
-                    c.mirrorPixels = [c.screen.pixels(1) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
-                end
+%                 if ~isempty(c.mirrorPixels)
+%                     c.mirrorPixels = [c.screen.pixels(3) c.screen.pixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
+%                 else
+%                     c.mirrorPixels = [c.screen.pixels(3) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
+%                 end
                 
-                c.onscreenWindow = PsychImaging('OpenWindow',0, c.screen.color.background,c.mirrorPixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
+                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background,c.screen.pixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
                 %
+                cal=setupScreen(c);
+                PsychImaging('AddTask','General','UseFastOffscreenWindows');
                 
+                c.guiWindow=PsychImaging('OpenWindow',screenNumber-1,c.screen.color.background);
+                switch upper(c.screen.colorMode)
+                    case 'XYL'
+                        PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
+                        %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                    case 'RGB'
+%                         Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                end
             else% otherwise open screens as normal
                 c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);

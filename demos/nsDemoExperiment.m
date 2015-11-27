@@ -14,19 +14,19 @@ Screen('Preference', 'ConserveVRAM', 397312);
 % c.iti = 2000;
 % c.trialDuration = inf;
 c = myConfig;
-c.output.saveFrequency=2;
+c.output.saveFrequency=5;
 % e = plugins.eyelink;
 % e.useMouse = true;
 % c.add(e);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
 c.add(plugins.output);
-g=stimuli.gabor('gabor');           % Create a gabor stimulus.
-g.color = [1/3 1/3 30];
-g.X = 0;                          % Position the Gabor
-g.Y = 0;                          
-g.sigma = 25;                       % Set the sigma of the Gabor.
-g.phaseSpeed = 10;
-c.add(g);
+% g=stimuli.gabor('gabor');           % Create a gabor stimulus.
+% g.color = [1/3 1/3 30];
+% g.X = 0;                          % Position the Gabor
+% g.Y = 0;                          
+% g.sigma = 25;                       % Set the sigma of the Gabor.
+% g.phaseSpeed = 10;
+% c.add(g);
 
 
 

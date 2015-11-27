@@ -66,11 +66,11 @@ classdef gui <neurostim.plugin
         end
         
         function v=get.mirrorRect(o)
-            topx = o.cic.mirrorPixels(3)/2;
-            topy = 0;
-            bottomx = (o.cic.mirrorPixels(3)+topx)/2;
-            bottomy=o.cic.mirrorPixels(4)/2;
-            v=[topx topy bottomx bottomy];
+            x1=o.cic.mirrorPixels(1);
+            y1=o.cic.mirrorPixels(2);
+            x2=o.cic.mirrorPixels(1)+o.cic.screen.pixels(3)/2;
+            y2=o.cic.mirrorPixels(2)+o.cic.screen.pixels(4)/2;
+            v=[x1 y1 x2 y2];
         end
     end
     
@@ -94,17 +94,18 @@ classdef gui <neurostim.plugin
             % Handle beforeExperiment setup
             c.guiOn=true;
             c.mirror=Screen('OpenOffscreenWindow',c.window,c.screen.color.background);
-            o.guiFeedBack=Screen('OpenOffScreenWindow',o.cic.window,o.cic.screen.color.background);
-            o.guiRect = [c.screen.pixels(3) c.mirrorPixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
+            o.guiFeedBack=Screen('OpenOffScreenWindow',c.guiWindow,o.cic.screen.color.background);
+            o.guiRect = c.mirrorPixels;
             
             o.guiText=Screen('OpenOffscreenWindow',-1, c.screen.color.background,o.guiRect);
+            slack=10;
             switch (o.xAlign)
                 case 'right'
-                    o.positionX=(c.screen.pixels(3))*1/2;
+                    o.positionX=(c.mirrorPixels(3))*1/2;
                 case 'left'
                     o.positionX = c.mirrorPixels(3)/2;
                 otherwise
-                    o.positionX=(c.screen.pixels(3))*1/2;
+                    o.positionX=(c.mirrorPixels(3))*1/2;
             end
             
             switch (o.yAlign)
@@ -113,14 +114,13 @@ classdef gui <neurostim.plugin
                 otherwise
                     o.positionY=50;
             end
-            slack=10;
+            
             sampleText=Screen('TextBounds',o.guiText,'QTUVWqpgyid');
             o.textHeight=sampleText(4)-sampleText(2);
-            o.feedX=c.screen.pixels(3)/2+2*slack;
+            o.feedX=c.mirrorPixels(3)/2+2*slack;
             o.feedY=c.mirrorPixels(4)*.5+slack;
             o.feedBox = [slack o.feedY-slack c.screen.pixels(3)-slack c.mirrorPixels(4)-(4*slack)];
-            o.paramsBox = [c.screen.pixels(3)/2 slack c.screen.pixels(3)-slack o.mirrorRect(4)/2-slack];
-            
+            o.paramsBox = [c.screen.pixels(3)/2+slack slack c.mirrorPixels(3)-slack o.mirrorRect(4)/2-slack];
             
             o.mirrorBox=[0 0 o.mirrorRect(3)-o.mirrorRect(1) o.mirrorRect(4)-o.mirrorRect(2)];
             
@@ -227,7 +227,7 @@ classdef gui <neurostim.plugin
         function drawParams(o,c)
 %             Screen('FillRect',c.onscreenWindow,c.screen.color.background,o.guiRect);
             
-            Screen('DrawTexture',c.onscreenWindow,o.guiText,[],o.guiRect,[],0);
+            Screen('DrawTexture',c.guiWindow,o.guiText,[],o.guiRect,[],0);
 
 %             DrawFormattedText(win, tstring [, sx][, sy][, color][, wrapat][, flipHorizontal][, flipVertical][, vSpacing][, righttoleft][, winRect])
         end
