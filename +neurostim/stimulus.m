@@ -43,21 +43,18 @@ classdef stimulus < neurostim.plugin
             v = o.on+o.duration;
         end
         function v=get.onFrame(s)
-            if numel(s.on)>1
-                if s.stimNum <= numel(s.on)
-                    v = s.cic.ms2frames(s.on{s.stimNum});
-                else
-                    v=0;
-                end
+
+            if s.on==0
+                v=1;
             else
-                v = s.cic.ms2frames(s.on);
+                v = s.cic.ms2frames(s.on)+1;
             end
         end
+        
         function v=get.offFrame(s)
-            if numel(s.duration)>1
-                if s.stimNum <= numel(s.duration)
-                    v = s.onFrame+s.cic.ms2frames(s.duration{s.stimNum});
-                end
+
+            if s.off==Inf
+                v=Inf;
             else
                 v=s.onFrame+s.cic.ms2frames(s.duration);
             end
@@ -71,8 +68,8 @@ classdef stimulus < neurostim.plugin
             s.addProperty('X',0,[],@isnumeric);
             s.addProperty('Y',0,[],@isnumeric);
             s.addProperty('Z',0,[],@isnumeric);  
-            s.addProperty('on',0,[],@(x) isnumeric(x) || iscell(x));  
-            s.addProperty('duration',Inf,[],@(x) isnumeric(x) || iscell(x));  
+            s.addProperty('on',0,[],@(x) isnumeric(x));  
+            s.addProperty('duration',Inf,[],@(x) isnumeric(x));  
             s.addProperty('color',[1/3 1/3 50],[],@isnumeric);
             s.addProperty('alpha',1,[],@(x)x<=1&&x>=0);
             s.addProperty('scale',struct('x',1,'y',1,'z',1));
@@ -273,12 +270,15 @@ classdef stimulus < neurostim.plugin
                     end
                     
                     % get the stimulus end time
-                    if c.frame==s.offFrame+1
+                    if s.prevOn
                         s.endTime=c.flipTime;
+                        s.prevOn=false;
                     end
+                    
                     if c.frame==s.offFrame
                         % change RSVP conditions
                         s.stimNum = s.stimNum+1;
+                        s.prevOn=true;
                         if ~isempty(s.rsvp)
                             if s.stimNum>numel(s.rsvpList)
                                 s.stimNum=1;
@@ -301,7 +301,9 @@ classdef stimulus < neurostim.plugin
                         notify(s,'BEFOREFRAME');
                         if s.stimstart ~= true
                         s.stimstart = true;
-                        c.getFlipTime=true; % get the next flip time for startTime
+                        end
+                        if c.frame==s.onFrame
+                            c.getFlipTime=true; % get the next flip time for startTime
                         end
                     elseif s.stimstart && (c.frame==s.offFrame)% if the stimulus will not be shown, 
                         % get the next screen flip for endTime
@@ -321,8 +323,9 @@ classdef stimulus < neurostim.plugin
                     notify(s,'BEFORETRIAL');
 
                 case 'BASEAFTERTRIAL'
-                    if s.endTime<c.trialStartTime(c.trial)
-                        s.endTime=c.trialEndTime(c.trial);
+                    if isempty(s.endTime) || s.offFrame>=c.frame
+                        s.endTime=c.trialEndTime-c.trialStartTime;
+                        s.prevOn=false;
                     end
                     notify(s,'AFTERTRIAL');
 

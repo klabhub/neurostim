@@ -3,10 +3,9 @@ function  nsDemoExperiment
 import neurostim.*
 % Factorweights.
 commandwindow;
-Screen('Preference', 'SkipSyncTests', 1);
+Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference','TextRenderer',1);
-% Screen('Preference', 'ConserveVRAM', 32);
-
+Screen('Preference', 'ConserveVRAM', 397312);
 % c = myConfig('Eyelink',false);
 % c = cic;                            % Create Command and Intelligence Center...
 % c.screen.pixels = [0 0 1600 1000];         % Set the position and size of the window
@@ -15,10 +14,10 @@ Screen('Preference','TextRenderer',1);
 % c.iti = 2000;
 % c.trialDuration = inf;
 c = myConfig;
-c.output.saveFrequency=2;
-e = plugins.eyelink;
-e.useMouse = true;
-c.add(e);
+c.output.saveFrequency=5;
+% e = plugins.eyelink;
+% e.useMouse = true;
+% c.add(e);
 c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
 c.add(plugins.output);
 % g=stimuli.gabor('gabor');           % Create a gabor stimulus.
@@ -58,7 +57,7 @@ o.X = o.X + 5;
 end
 f.addKey('r',@thisFunction);
 
-
+% 
 % f.rsvp(30,30,{'angle',{0 45 90 135 180 225 270 315 360}});
 % f.angle = '@(cic) cic.frame';
 % f.Y = '@(mouse) mouse.mousey';
@@ -69,7 +68,7 @@ c.add(f);
 % 
 
 f1 = stimuli.fixation('fix1');
-f1.on = 0;
+f1.on = 200;
 f1.duration = Inf;
 f1.shape = 'CIRC';
 f1.X = -10;
@@ -101,23 +100,22 @@ c.add(s);
 k = plugins.nafcResponse('key');
 c.add(k);
 k.keys = {'a' 'z'};
-k.correctResponse = {'@(dots) dots.direction<300 & dots.direction>180' '@(dots) dots.direction>300 | dots.direction<180'};
-k.keyLabel = {'clockwise', 'counterclockwise'};
-k.endsTrial = true;
+k.correctKey = '@(dots) double(dots.direction < 0) + 1';
+k.keyLabels = {'clockwise', 'counterclockwise'};
 
-% s = stimuli.shadlendots('dots2');
-% s.apertureD = 20;
-% s.color = [1 1];
-% s.luminance = 1;
-% s.coherence = 0.8;
-% s.speed = 10;
-% s.direction = 0;
-% c.add(s);
+
+s = stimuli.shadlendots('dots2');
+s.apertureD = 20;
+s.color = [1 1 1];
+s.coherence = 0.8;
+s.speed = 10;
+s.direction = 0;
+c.add(s);
 
 
 % c.addFactorial('myFactorial',...
 %     {'fix','Y',{-5 5 -5},'fix','X',{-10,-10, 10}},{'dots','direction',{-90 90 0}},{'fix','shape',{'CIRC','STAR'}},{'dots','color',{[1/3 1/3 1], [1/3 1/3 5], [1/3 1/3 50]}});
-f.rsvp = {{'shape',{'CIRC' 'STAR' 'CIRC'}},'duration',500,'isi',0};
+% f.rsvp = {{'shape',{'CIRC' 'STAR' 'CIRC'}},'duration',200,'isi',0};
 myFac=factorial('myFactorial',2);
 myFac.fac1.fix.X={-10 -10 10};
 myFac.fac1.dots.direction={-90 90 0};
@@ -128,15 +126,28 @@ myFac2=factorial('myFactorial2',1);
 myFac2.fac1.fix.shape={'CIRC','STAR'};
 % c.addFactorial('myFactorial',myFac);
 
+
+
 myBlock=block('myBlock',myFac,myFac2);
 myBlock.weights=[1 1];
 myBlock.randomization='SEQUENTIAL';
 myBlock.nrRepeats=1;
 
+myBlock.afterMessage='wait for keypress';
 myFac3=factorial('myFactorial3',1);
-myFac3.fac1.dots.size={1 2};
+myFac3.fac1.dots.coherence={0.8 1};
 myBlock2=block('myBlock2',myFac3);
 myBlock2.nrRepeats=2;
+% myBlock2.beforeFunction=@myFunc2;
+
+%     function out=myFunc2(c)
+%        out=true;
+%        DrawFormattedText(c.window,'beforemessage',[],[],c.screen.color.text)
+%         
+%     end
+
+
+
 
 % c.createSession(myBlock,myBlock);
 % c.addBlock('myBlock',myBlock) % Add a block in whcih we run all conditions in the factorial 10 times.
@@ -150,28 +161,28 @@ myBlock2.nrRepeats=2;
 % e=plugins.eyelink;
 % e.eyeToTrack = 'binocular';
 
-f1 = plugins.fixate('f1');
-f1.X = 0;
-f1.Y = 0;
-f1.duration = 500;
-c.add(f1);
-f2 = plugins.fixate('f2');
+% f1 = plugins.fixate('f1');
+% f1.X = 0;
+% f1.Y = 0;
+% f1.duration = 500;
+% c.add(f1);
+% f2 = plugins.fixate('f2');
+% f2.X = 5;
+% f2.Y = 0;
+% c.add(f2);
 
-f2.X = 5;
-f2.Y = 0;
-c.add(f2);
+c.add(plugins.gui);
+% s=plugins.saccade('sac1',f1,f2);
+% c.add(s);
 
-% c.add(plugins.gui);
-s=plugins.saccade('sac1',f1,f2);
-c.add(s);
-
+c.cursor='arrow';
 % b = plugins.liquidReward('liquid');
 % b.when='AFTERTRIAL';
 % c.add(b);
 % c.add(plugins.mcc);
-d = plugins.soundReward('sound');
-c.add(d);
+% d = plugins.soundReward('sound');
+% c.add(d);
 c.order('dots','fix','fix1','gui');
-c.run(myBlock,myBlock2);
+c.run(myBlock,'nrRepeats',20);
 
 end

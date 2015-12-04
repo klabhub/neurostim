@@ -398,15 +398,21 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 
             end
             
-            if any(size(o.cic))
+            if any(size(o.cic)) || strcmpi(o.name,'cic')
+                if strcmpi(o.name,'cic')
+                    cicref=o;
+                else
+                    cicref=o.cic;
+                end
                 % Pass the information to CIC which keeps track of
                 % keystrokes
                 for a = 1:numel(keys)
-                    addKeyStroke(o.cic,keys{a},keyHelp{a},o);
+                    addKeyStroke(cicref,keys{a},keyHelp{a},o);
                 end
-                KbQueueCreate(o.cic);
-                KbQueueStart(o.cic);
+                KbQueueCreate(cicref);
+                KbQueueStart(cicref);
             end
+                    
             
             if ~isempty(keys)
                 o.keyStrokes= cat(2,o.keyStrokes,keys);
@@ -460,6 +466,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,toc);end;
                     
                 case 'BASEBEFOREFRAME'
+                    if strcmp(o.name,'gui')
+                        if ~mod(c.frame,c.guiFlipEvery)
+                            return;
+                        end
+                    end
                     if c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
                         if c.guiOn
                         o.cic.gui.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
@@ -470,6 +481,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,toc);end;
                     
                 case 'BASEAFTERFRAME'
+                    if strcmp(o.name,'gui')
+                        if ~mod(c.frame,c.guiFlipEvery)
+                            return;
+                        end
+                    end
                     if c.requiredSlack ~= 0
                         if c.frame ~=1 && c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
                             if c.guiOn

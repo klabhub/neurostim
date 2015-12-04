@@ -54,7 +54,7 @@ classdef gabor < neurostim.stimulus
             % Draw the texture with the current parameter settings
             %Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] [,rotationAngle] [, filterMode] [, globalAlpha] [, modulateColor] [, textureShader] [, specialFlags] [, auxParameters]);
             sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
-            destinationRect=CenterRectOnPoint(o.textureRect, o.X, o.Y);
+            
             %aux parameters need to have 4xn with n<=8 size
             if numel(o.sigma)==1
                 pad = 0;
@@ -63,7 +63,7 @@ classdef gabor < neurostim.stimulus
             end
             aux = [o.phase, o.frequency, o.sigma, pad; o.contrast 0 0 0]';
 
-            Screen('DrawTexture', c.window, o.texture, sourceRect, destinationRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.alpha] , textureShader,specialFlags, aux);
+            Screen('DrawTexture', c.window, o.texture, sourceRect, o.textureRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.alpha] , textureShader,specialFlags, aux);
 
         end
         
@@ -99,6 +99,8 @@ classdef gabor < neurostim.stimulus
             o.texture = Screen('SetOpenGLTexture', o.cic.window, [], 0, GL.TEXTURE_RECTANGLE_EXT, o.width, o.height, 1, o.shader);
             % Query and return its bounding rectangle:
             o.textureRect = Screen('Rect', o.texture);
+            o.textureRect=CenterRectOnPoint(o.textureRect,0,0);
+            
         end
     end
     

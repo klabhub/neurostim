@@ -8,7 +8,7 @@ Screen('Preference','TextRenderer',1);
 %% ========= Specify rig configuration  =========
 c = adamsConfig;
 c.add(plugins.debug);
-c.trialDuration = '@(choice) choice.endTime';
+c.trialDuration = Inf;
 
 %% ============== Add stimuli ==================
 
@@ -59,6 +59,7 @@ g.Y = '@(fix) fix.Y';
 g.tolerance = 3;
 c.add(g);
 
+
 %% Specify rewards and feedback
 
 %Give juice at the end of the trial for completing all fixations
@@ -87,6 +88,6 @@ myBlock=block('myBlock',myFac);
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
-% c.add(neurostim.plugins.gui);
+c.add(neurostim.plugins.gui);
 c.order('fix','target','dots','octagon','choice','gui');
 c.run(myBlock);
