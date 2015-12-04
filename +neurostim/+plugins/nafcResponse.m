@@ -1,74 +1,68 @@
 classdef nafcResponse < neurostim.plugins.behavior
-   % Behavior subclass for receiving a n-alternative forced choice response from
-   % keyboard input for PTB.
-   %
-   % Inputs:
-   % correctResponse - this is a cell array of functions (input as strings) that indicates a
-   %        correct response for each keypress. Default returns the key name.
-   % keyLabel - Cell array of strings which are the labels for the keys declared
-   %        above; in the same order. These are logged in o.responseLabel when the key is
-   %        pressed.
-    
-    
+    % Behavior subclass for receiving a n-alternative forced choice response from
+    % keyboard input for PTB.
+    %
+    % Set:
+    % keys -        cell array of key characters, e.g. {'a','z'}
+    % keyLabel -    cell array of strings which are the labels for the keys declared
+    %               above; in the same order. These are logged in o.responseLabel when the key is
+    %               pressed.
+    % correctKey -  function that returns the index (into 'keys') of the correct key. Usually a function of some stimulus parameter(s).
+    % 
 
    methods (Access = public)
        function o = nafcResponse(name)
             o = o@neurostim.plugins.behavior(name); 
             o.continuous = false;
             o.listenToEvent('BEFORETRIAL');
-            o.addProperty('correctResponse',{},'',@iscellstr);
-            o.addProperty('keyLabel',{},'',@iscellstr);
-            o.addProperty('keys',{'a'},'',@iscellstr);
-            o.addProperty('responseLabel',[]);
+            o.addProperty('keyLabels',{},'',@iscellstr);
+            o.addProperty('keys',{},'',@iscellstr);
+            o.addProperty('correctKey',[],'',@isnumeric);
+            o.addProperty('correct',false);
+            o.addProperty('pressedInd',[]);
+            o.addProperty('pressedKey',[]);
             
+            o.listenToEvent('BEFOREEXPERIMENT');
        end
        
-       function beforeTrial(o,c,evt)
-           beforeTrial@neurostim.plugins.behavior(o,c,evt);
+       function beforeExperiment(o,c,evt)
+           
+           if isempty(o.keyLabels)
+               o.keyLabels = o.keys;
+           end
+           
            % checks for errors.
-           if ~isempty(o.correctResponse) && (max(size(o.keys)) ~= max(size(o.correctResponse)))
-               error('nafcResponse: The number of keys is not the same as the number of key response functions.');
-           end
-           if ~isempty(o.keyLabel) && (max(size(o.keys)) ~=max(size(o.keyLabel)))
-               error('nafcResponse: The number of keylabels is not the same as the number of keys.');
+           if numel(o.keys)~=numel(o.keyLabels)
+               error('nafcResponse: The number of keylabels does not match the number of keys.');
            end
            
-           % add key listener for all keys.
-           for i = 1:max(size(o.keys))
-               if ~ismember(KbName(o.keys{i}),c.allKeyStrokes)
-                   o.addKey(o.keys{i},@getResponse,o.keyLabel{i})
-               end
+           % Add key listener for all keys.
+           for i = 1:numel(o.keys)
+               o.addKey(o.keys{i},@responseHandler,o.keyLabels{i})
            end
-           
-           
-           
        end
        
-       function data = validateBehavior(o)
-          data = o.on;
+       function inProgress = validateBehavior(o)
+          inProgress = o.inProgress;
        end
-
        
-       function getResponse(o,key)
-           % Generic keyboard handler
-           for i = 1:max(size(o.keys))  % runs through each key in the array
-               if strcmpi(key,o.keys{i}) % compares key pressed with key array
-                   o.on = true;
-                   o.responseLabel = o.keyLabel{i}; % saves the keyLabel in a variable (logged)
-                   if isempty(o.correctResponse)    % default case, saves key pressed as response
-                       o.response = key;
-                   else
-                       o.response = o.correctResponse{i};
-                   end
-               end
+       function responseHandler(o,key)
+           
+           %Which key was pressed (index, and label)
+           o.pressedInd = find(strcmpi(key,o.keys));
+           o.pressedKey = o.keyLabels{o.pressedInd};
+           
+           %Is the response correct?
+           if ~isempty(o.correctKey)
+               o.correct = o.pressedInd == o.correctKey;
+           else
+               %No correctness function specified. Probably using as subjective measurement (e.g. PSE)
+               o.correct = true;
            end
+           
+           %Set flag so that behaviour class detects completion next frame
+           o.inProgress = true;
        end
           
-   end
-   
-    
-    
-    
-    
-    
+   end  
 end

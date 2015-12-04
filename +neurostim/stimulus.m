@@ -44,26 +44,22 @@ classdef stimulus < neurostim.plugin
         end
         function v=get.onFrame(s)
             if numel(s.on)>1
-                if s.stimNum< numel(s.on)
-                v = round(s.on{s.stimNum}*s.cic.screen.frameRate/1000);
-                elseif s.stimNum==numel(s.on)
-                    v=round(s.on{end}*s.cic.screen.frameRate/1000);
+                if s.stimNum <= numel(s.on)
+                    v = s.cic.ms2frames(s.on{s.stimNum});
                 else
                     v=0;
                 end
             else
-                v = round(s.on*s.cic.screen.frameRate/1000);
+                v = s.cic.ms2frames(s.on);
             end
         end
         function v=get.offFrame(s)
             if numel(s.duration)>1
-                if s.stimNum< numel(s.duration)
-                    v = s.onFrame+round(s.duration{s.stimNum}*s.cic.screen.frameRate/1000);
-                elseif s.stimNum==numel(s.duration)
-                    v=s.onFrame+round(s.duration{end}*s.cic.screen.frameRate/1000);
+                if s.stimNum <= numel(s.duration)
+                    v = s.onFrame+s.cic.ms2frames(s.duration{s.stimNum});
                 end
             else
-                v=s.onFrame+round(s.duration*s.cic.screen.frameRate/1000);
+                v=s.onFrame+s.cic.ms2frames(s.duration);
             end
         end
     end
@@ -85,7 +81,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('ry',0,[],@isnumeric);
             s.addProperty('rz',1,[],@isnumeric);
             s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
-            s.addProperty('endTime',0);   % first time the stimulus does not appear after being run
+            s.addProperty('endTime',Inf);   % first time the stimulus does not appear after being run
             s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
             s.addProperty('isi',[],[],@isnumeric);
             s.addProperty('subCond',[]);

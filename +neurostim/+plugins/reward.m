@@ -26,13 +26,14 @@ classdef reward < neurostim.plugin
             o.addProperty('duration',100,[],@isnumeric);
             o.addProperty('when','IMMEDIATE',[],@(x)ischar(x)&&any(strcmpi(x,{'IMMEDIATE','AFTERTRIAL'}))); %
             o.addProperty('respondTo',{'correct','incorrect'},[],@iscellstr);
+            
         end  
     end
     
     methods (Access=public)
         
-        
         function beforeExperiment(o,c,evt)
+            el = addlistener(c.f1,'giveReward',@o.myTest);
         end
         
         function afterFrame(o,c,evt)

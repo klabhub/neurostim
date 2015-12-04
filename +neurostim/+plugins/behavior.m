@@ -2,109 +2,74 @@ classdef behavior < neurostim.plugin
     % Simple behavioral class which adds properties, event listeners and function wrappers
     % for all behavioral subclasses.
     % Properties:
-    % on - true when conditions met, false when not.
-    % beforeframe, afterframe), case insensitive.
     
-    events
-        GIVEREWARD
-    end
     
     properties
-        sampleEvent =   {'afterFrame'}; %Event(s) upon which we will obtain measurements of the behaviour (e.g. eye position)
-        validateEvent = {'afterFrame'}; %Event(s) upon which we will check whether the behavior satisfies the criteria.
-        success = false;
-        endsTrial = true;               %Does violating behaviour end trial?
-        rewardOn = true;
-        rewardPlugins = [];
-        prevOn = false;
+        failEndsTrial = true;               %Does violating behaviour end trial?
+        started = false;
     end
     
     properties (Access=public,SetObservable=true,GetObservable=true,AbortSet)
-        on@logical = false;
+        inProgress@logical = false;
         done@logical=false;
-        endTime;
-        startTime;
+    end
+    
+    properties (Dependent)
+        enabled;
+    end
+    
+    methods
+        function v= get.enabled(o)
+            v = (o.cic.trialTime >= o.on) && (o.cic.trialTime <= (o.on + o.duration));
+        end
     end
     
     methods
         function o=behavior(name)
             o = o@neurostim.plugin(name);
-            o.addPostSet('done',[]);
-            o.addPostSet('on',[]);
-            o.addProperty('response',[]);
-            o.addProperty('continuous',false,[],@islogical);
-            o.addProperty('duration',1000,[],@isnumeric);
-            o.addProperty('from',0,[],@isnumeric);
-            o.addProperty('X',0,[],@isnumeric);
-            o.addProperty('Y',0,[],@isnumeric);
-            o.addProperty('Z',0,[],@isnumeric);
-            o.addProperty('tolerance',1,[],@isnumeric);
-            o.addPostSet('startTime',[]);
             
-            o.listenToEvent('BEFORETRIAL');
-            o.listenToEvent(unique(upper([o.validateEvent o.sampleEvent])));
+            %User settable
+            o.addProperty('on',0,[],@isnumeric);                %The time the plugin should begin sampling behavior
+            o.addProperty('duration',Inf,[],@isnumeric);        %The time the plugin should stop sampling behavior
+            o.addProperty('continuous',false,[],@islogical);    %Behaviour continues over an interval of time (as opposed to one-shot behavior).
+            o.addProperty('from',Inf,[],@isnumeric);            %The time from which the behaviour *must* be satisfied (for continuous)
+            o.addProperty('to',Inf,[],@isnumeric);              %The time to which the behaviour *must* be satisfied (for continuous).
+            o.addProperty('deadline',Inf,[],@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
+            
+            %Internal
+            o.addProperty('startTime',Inf);                     %The time at which the behaviour was initiated (i.e. in progress).
+            o.addProperty('endTime',Inf);                       %The time at which a result was achieved (good or bad).
+            o.addPostSet('done',[]);                            %True when a result (of any kind) has been achieved.
+            o.addPostSet('inProgress',[]);                      %True if the subject is currently satisfying the requirement
+            o.addProperty('success',false);                     %Whether the behavioral criterion was achieved.
+            o.addProperty('outcome','',[],@ischar);             %For logging different types of outcome 
+            o.addProperty('perfData',{},[],@iscell);            %Stores data that is used by feedback plugins.
+
+            o.listenToEvent({'BEFORETRIAL','AFTERTRIAL','AFTERFRAME'});
         end
         
         function beforeTrial(o,c,evt)
             % reset all flags
-            o.on = false;
+            o.inProgress = false;
             o.done = false;
             o.startTime = Inf;
-            o.prevOn = false;
             o.endTime = Inf;
+            o.started = false;
             o.success = false;
-            
-            if o.rewardOn && isempty(o.rewardPlugins)
-                % collect reward plugin pointers in a cell array
-                o.rewardPlugins = pluginsByClass(c,'neurostim.plugins.reward');
-            end
-        end
-        
-        
-        function beforeFrame(o,c,evt)
-            
-            if any(strcmpi('beforeframe',o.sampleEvent))
-                sampleBehavior(o);
-            end
-            
-            if any(strcmpi('beforeframe',o.validateEvent))
-                processBehavior(o,c);
-            end
+            o.perfData = {};
         end
         
         function afterFrame(o,c,evt)
-            
-            if any(strcmpi('afterframe',o.sampleEvent))
+            if o.enabled
+                
+                %Collect relevant data from a device (e.g. keyboard, eye tracker, touchbar)
                 sampleBehavior(o);
-            end
-            
-            if any(strcmpi('afterframe',o.validateEvent))
-                processBehavior(o,c);
+
+                %Check whether the subject is meeting the requirements
+                checkBehavior(o,c);
             end
         end
-        
-        function afterTrial(o,c,evt)
-            
-            if any(strcmpi('afterTrial',o.sampleEvent))
-                sampleBehavior(o);
-            end
-            
-            if any(strcmpi('afterTrial',o.validateEvent))
-                processBehavior(o,c);
-            end
-        end
-        
-        function afterExperiment(o,c,evt)
-            
-            if any(strcmpi('afterExperiment',o.sampleEvent))
-                sampleBehavior(o);
-            end
-            
-            if any(strcmpi('afterExperiment',o.validateEvent))
-                processBehavior(o,c);
-            end
-        end
-        
+       
         function o = sampleBehavior(o,c)
             % wrapper for sampleBehavior function, to be overloaded in
             % subclasses. This should store some value(s) of the
@@ -114,77 +79,81 @@ classdef behavior < neurostim.plugin
         
         function on = validateBehavior(o)
             % wrapper for checkBehavior function, to be overloaded in
-            % subclasses. Should return true if behavior is satisfied and false if not.
+            % subclasses. Should return true if behavior is currently satisfied and false if not.
         end
         
-        function processBehavior(o,c)
+        function checkBehavior(o,c)
+            
             % processes all behavioural responses.
-            if ~o.done && c.frame>1 && ~ischar(o.from) && ~isempty(o.from) && c.trialTime >=o.from
+            if ~o.done
                 
                 %Check whether the behavioural criteria are currently being met
-                o.on = validateBehavior(o);   %returns true if so.
+                o.inProgress = validateBehavior(o);   %returns true if so.
                 
                 %If the behaviour extends over an interval of time
                 if o.continuous 
                     
-                    %If the FROM deadline is reached without commencement of behavior
-                    if ~o.on && ~o.prevOn
-                        %Violation! Should have started by now.
-                        o.success = false;
-                        handleOutcome(o,o.success,o.endsTrial);
-                        return;
-                    end
-                    
-                    %If behaviour is on for the first time, log the the start time
-                    if o.on && ~o.prevOn  
+                     %If behaviour is on for the first time, log the the start time
+                    if o.inProgress && ~o.started  
                         o.startTime = c.trialTime;
-                        o.prevOn = true;
-                        return;
-                    end
-                    
-                    %If behaviour commenced, but has been interrupted
-                    if ~o.on && o.prevOn
-                        %Violation!
-                        o.success = false;
-                        o.done = true;
-                        handleOutcome(o,o.success,o.endsTrial);
+                        o.started = true;
                         return;
                     end
                     
                     %If behaviour completed
-                    if ~o.done && o.on && ((c.trialTime-o.startTime)>=o.duration || o.endTime~=Inf)   % if duration has been met and behaviour is still on
+                    if o.inProgress && (c.trialTime>=o.to)
                         %Hooray!
-                        o.success = true;
-                        o.done = true;
-                        o.endTime = c.trialTime;
-                        handleOutcome(o,o.success,false);
+                        o.result(true,'COMPLETE',false);
+                        return;
+                    end
+                    
+                    %if the FROM deadline is reached without commencement of behavior
+                    if (c.trialTime >=o.from) && ~o.inProgress
+                        %Violation! Should have started by now.
+                        o.result(false,'FAILEDTOSTART',o.failEndsTrial);
+                        return;
+                    end
+                    
+                    %if behaviour commenced, but has been interrupted
+                    if ~o.inProgress && o.started
+                        %Violation!
+                        o.result(false,'PREMATUREEND',o.failEndsTrial);
                         return;
                     end
                 else
-                    % if behaviour is discrete
-                    o.done = o.on;
-                    if o.done
-                        handleOutcome(o,o.response,o.endsTrial);
+                    % if behaviour is discrete (one-shot)
+                    if o.inProgress
+                        o.result(true,'COMPLETE',false);
+                    elseif c.trialTime >= o.deadline
+                        o.result(false,'FAILEDTOSTART',o.failEndsTrial);
                     end
                 end
             end
         end
         
-        
-        function handleOutcome(o,answer, endTrial)
+        function result(o,success,outcome,endTrial)
             
-            %Schedule all rewards, positive or negative
-            if o.rewardOn
-                for a=1:numel(o.rewardPlugins)
-                    rewPlg = o.rewardPlugins{a};
-                    rewPlg.rewardAnswer = answer;
-                    notify(rewPlg,'GIVEREWARD');
-                end
-            end
+            %Register that an outcome has been reached
+            o.endTime = o.cic.trialTime;
+            o.done = true;
+            
+            %Set a flag indicating success or failure.
+            o.success = success;
+            
+            %Log the outcome as a string (event)
+            o.outcome = outcome;
             
             %If requested, set the flag to end the trial
             if endTrial
                 o.cic.nextTrial;
+            end
+        end
+        
+        function afterTrial(o,c,evt)
+            if ~o.done && o.started
+                %The trial ended before the behaviour could be completed. Treat this as a completion.
+                o.result(true,'COMPLETE',false);
+                o.endTime = c.trialTime;
             end
         end
     end   
