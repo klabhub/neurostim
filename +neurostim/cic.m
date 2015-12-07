@@ -130,6 +130,8 @@ classdef cic < neurostim.plugin
         pluginOrder = {};
         EscPressedTime;
         blockTrial=1;
+        lastFrameDrop=1;
+        propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial','blockTrial/nrTrials','trial/fullNrTrials'};
     end
     
     %% Dependent Properties
@@ -653,6 +655,36 @@ classdef cic < neurostim.plugin
                     stim.(varName) = value;
                 end
             end
+            if ~c.guiOn
+                message=collectPropMessage(c);
+                c.writeToFeed(message);
+            end
+        end
+        
+        
+        function out=collectPropMessage(c)
+            out='';
+            for i=1:numel(c.propsToInform)
+                str=strsplit(c.propsToInform{i},'/');
+                for j=1:numel(str)
+                    tmp = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
+                    if isnumeric(tmp)
+                        tmp = num2str(tmp);
+                    elseif islogical(tmp)
+                        if (tmp);tmp = 'true';else tmp='false';end
+                    end
+                    if numel(str)>1
+                        if j==1
+                            out=[out c.propsToInform{i} ': ' tmp];
+                        else
+                            out=[out '/' tmp];
+                        end
+                    else
+                        out = [out c.propsToInform{i} ': ' tmp];
+                    end
+                end
+                out=[out '\n'];
+            end
         end
         
         function nextCondition(c,cond)
@@ -666,7 +698,7 @@ classdef cic < neurostim.plugin
         end
         
         function afterTrial(c)
-            
+            c.collectFrameDrops;
         end
         
         function error(c,command,msg)
@@ -701,8 +733,6 @@ classdef cic < neurostim.plugin
             DrawFormattedText(c.onscreenWindow, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.onscreenWindow));
             Screen('Flip', c.onscreenWindow);
             KbWait();
-            profile ON
-            profile OFF
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
             %             ititime = c.clockTime;
@@ -743,7 +773,7 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     c.frameStart=c.clockTime;
-                    profile RESUME
+                    
 %                     tmp=GetSecs;
                     while (c.flags.trial && c.flags.experiment)
                         c.frame = c.frame+1;
@@ -755,27 +785,24 @@ classdef cic < neurostim.plugin
                         c.KbQueueCheck;
                         
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
-%                         if c.frame>1
-%                             tmp(c.frame)=GetSecs;
-%                         end
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime = stimOn*1000; % for trialDuration check
                             c.flipTime=0;
                         end
-                        if c.frame>1 && ((flip*1000-c.frameDeadline) > (1.1*c.screen.frameDur))
+                        if c.frame>1 && ((vbl*1000-c.frameDeadline) > (0.1*c.screen.frameDur))
                             c.frameDrop = c.frame;
                             if c.guiOn
-                                c.gui.writeToFeed('Missed Frame');
+                                c.writeToFeed('Missed Frame');
                             end
                         elseif c.getFlipTime
                             c.flipTime = stimOn*1000-c.trialStartTime;
                             c.getFlipTime=false;
                         end
                         
-                        c.frameStart = flip*1000;
-                        c.frameDeadline = (flip*1000)+c.screen.frameDur;
+                        c.frameStart = vbl*1000;
+                        c.frameDeadline = (vbl*1000)+c.screen.frameDur;
                         
                         if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
@@ -817,8 +844,7 @@ classdef cic < neurostim.plugin
             end %blocks
             c.trialEndTime = c.clockTime;
             c.stopTime = now;
-            profile VIEWER
-            keyboard;
+%             keyboard;
             DrawFormattedText(c.onscreenWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.onscreenWindow);
             notify(c,'BASEAFTEREXPERIMENT');
@@ -898,6 +924,27 @@ classdef cic < neurostim.plugin
         function ms = frames2ms(c,frames)
             ms = frames*c.screen.frameDur;
         end
+        
+        %% GUI Functions
+        function writeToFeed(c,message)
+            if c.guiOn
+                c.gui.writeToFeed(message);
+            else
+                message=[num2str(c.trial) ': ' message '\n'];
+                fprintf(message);
+            end
+        end
+        
+        function collectFrameDrops(c)
+            framedrop=strcmpi(c.log.parms,'frameDrop');
+            frames=sum(framedrop)-c.lastFrameDrop;
+            if frames>=1
+                percent=round(frames/c.frame*100);
+                c.writeToFeed(['Missed Frames: ' num2str(frames) ', ' num2str(percent) '%%'])
+                c.lastFrameDrop=c.lastFrameDrop+frames;
+            end
+        end
+            
     end
     
     
@@ -917,6 +964,9 @@ classdef cic < neurostim.plugin
         function KbQueueStart(c)
             KbQueueStart(c.keyDeviceIndex);
         end
+        
+        
+        
     end
     
     methods (Access=private)

@@ -36,7 +36,7 @@ classdef nafcResponse < neurostim.plugins.behavior
            % add key listener for all keys.
            for i = 1:max(size(o.keys))
                if ~ismember(KbName(o.keys{i}),c.allKeyStrokes)
-                   o.addKey(o.keys{i},@getResponse,o.keyLabel{i})
+                   o.addKey(o.keys{i},@getResponse,o.keyLabel{i});
                end
            end
            

@@ -5,7 +5,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     %                       1: keep Eyelink functions using the same colour
     %                       setup as the experiment (i.e. background, foreground).
     %                       0: get Eyelink colour setup from parameters
-    %                       below. - still in progress.
+    %                       below.
     % backgroundColor - background colour for eyelink toolbox functions.
     % foregroundColor - foreground colour for eyelink toolbox functions.
     % clbTargetColor - calibration target color.
@@ -22,7 +22,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     
     properties
         doTrackerSetup@logical  = true;  % Do it before the next trial
-        doDriftCorrect@logical  = true;  % Do it before the next trial
+        doDriftCorrect@logical  = false;  % Do it before the next trial
     end
 
     properties (Dependent)
@@ -70,7 +70,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 return;
             end
             
-            if result~=1
+            if result==-1
                 o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
                 return;
             end
@@ -116,6 +116,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 end
                 EyelinkDoTrackerSetup(o.el); %Need to modify to allow ns to control the background RGB/lum CIE etc.
                 o.doTrackerSetup = false;
+                restoreExperimentSetup(o);
             end
             if o.doDriftCorrect && ~o.useMouse
                 if ~o.keepExperimentSetup
@@ -124,7 +125,10 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.el.TERMINATE_KEY = o.el.ESC_KEY;  % quit using ESC
                 EyelinkDoDriftCorrection(o.el);
                 o.doDriftCorrect = false;
+                restoreExperimentSetup(o);
             end
+            
+
             if ~o.isRecording
                 available = Eyelink('EyeAvailable'); % get eye that's tracked
                 if available == o.el.BINOCULAR 
@@ -142,10 +146,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('Command','record_status_message %s%s%s',c.paradigm, '_TRIAL:',num2str(c.trial));
             Eyelink('Message','%s',['TR:' num2str(c.trial)]);   %will this be used to align clocks later?
             o.eyeClockTime = Eyelink('TrackerTime');
-            if ~o.keepExperimentSetup
-                restoreExperimentSetup(o);
-                EyelinkClearCalDisplay(o.el);
-            end
+
         end
         
         function afterFrame(o,c,evt)
@@ -237,6 +238,8 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.el.foregroundcolour = o.cic.screen.color.text;
             o.el.calibrationtargetcolour = o.el.foregroundcolour;
             PsychEyelinkDispatchCallback(o.el);
+            
+            EyelinkClearCalDisplay(o.el);
         end
         
         function eyelinkSetup(o)

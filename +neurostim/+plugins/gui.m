@@ -96,7 +96,7 @@ classdef gui <neurostim.plugin
             c.mirror=Screen('OpenOffscreenWindow',c.window,c.screen.color.background);
             o.guiFeedBack=Screen('OpenOffScreenWindow',c.guiWindow,o.cic.screen.color.background);
             o.guiRect = c.mirrorPixels;
-            
+
             o.guiText=Screen('OpenOffscreenWindow',-1, c.screen.color.background,o.guiRect);
             slack=10;
             switch (o.xAlign)
@@ -126,7 +126,7 @@ classdef gui <neurostim.plugin
             
             o.eyetrackers=c.pluginsByClass('neurostim.plugins.eyetracker');
             o.behaviours=c.pluginsByClass('neurostim.plugins.behavior');
-            o.writeToFeed('Started Experiment');
+            c.writeToFeed('Started Experiment');
             
             
             
@@ -158,7 +158,6 @@ classdef gui <neurostim.plugin
             drawParams(o,c);
             updateBehavior(o,c);
             drawMirror(o,c);
-            checkFrameDrops(o,c);
         end
         
         function afterExperiment(o,c,evt)
@@ -174,7 +173,11 @@ classdef gui <neurostim.plugin
             text=WrapString(text,o.nrCharsPerLine);
             newLines=strfind(text,'\n');
             if o.feedBottom+o.textHeight*(numel(newLines)+1)>=(o.feedBox(4)-o.feedBox(2))
-                text=strsplit(text,'\n');
+                if newLines>0
+                    text=strsplit(text,'\n');
+                else
+                    text={text};
+                end
                 o.feedBottom=o.feedBottom-(o.textHeight*(numel(text)+1));
                 
                 Screen('FillRect',o.guiFeedBack,o.cic.screen.color.background);
@@ -353,15 +356,5 @@ classdef gui <neurostim.plugin
             end
         end
         
-        function checkFrameDrops(o,c)
-            %checkFrameDrops(c)
-            % checks log for frame drops
-            framedrop=strcmpi(c.log.parms,'frameDrop');
-            frames=sum(framedrop)-1-o.lastFrameDrop;
-            if frames>1
-                o.writeToFeed(['Missed Frames: ' num2str(frames)])
-                o.lastFrameDrop=o.lastFrameDrop+frames;
-            end
-        end
     end
 end

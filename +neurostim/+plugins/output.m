@@ -25,6 +25,8 @@ classdef output < neurostim.plugin
         variableSize = struct;
         m;
         last = 0;
+        allSaveLogs=[];
+        firstSave=true;
     end
     
     
@@ -60,9 +62,9 @@ classdef output < neurostim.plugin
                startAt=1;
            end
            
-           o.data.(o.dumpLabel).events.(stimName)(1,:)=thisLog.parms(startAt:end);
-           o.data.(o.dumpLabel).events.(stimName)(2,:)=thisLog.values(startAt:end);
-           o.data.(o.dumpLabel).events.(stimName)(3,:)=num2cell(thisLog.t(startAt:end));
+           o.data.events.(stimName)(1,:)=thisLog.parms(startAt:end);
+           o.data.events.(stimName)(2,:)=thisLog.values(startAt:end);
+           o.data.events.(stimName)(3,:)=num2cell(thisLog.t(startAt:end));
         end
         
             
@@ -76,14 +78,16 @@ classdef output < neurostim.plugin
             else %if we are just appending data
                 saveVariables = {'trial','condition','block','trialStartTime','trialEndTime'};
             end
+                if isempty(o.allSaveLogs)
+                    o.allSaveLogs=[c.stimuli c.plugins 'cic']; %combine all stimuli and plugins to save
+                    nolog=c.pluginsByClass('neurostim.plugins.output');
+                    for a=1:max(size(nolog))
+                        o.allSaveLogs(strcmpi(o.allSaveLogs,nolog{a}.name))=[];
+                    end
+                end
                 
-                allSaveLogs=[c.stimuli c.plugins 'cic']; %combine all stimuli and plugins to save
-                nolog=cellfun(@(plgin) ~isa(c.(plgin),'neurostim.plugins.output'), allSaveLogs);
-                allSaveLogs(~nolog)=[]; % don't save output logs
-                
-                
-                for a = 1:numel(allSaveLogs) % runs through and saves all stimuli and plugins
-                    thisPlg = allSaveLogs{a};
+                for a = 1:numel(o.allSaveLogs) % runs through and saves all stimuli and plugins
+                    thisPlg = o.allSaveLogs{a};
                     if strcmp(thisPlg,'cic')
                         thisLog = c.log;
                     else
@@ -100,7 +104,7 @@ classdef output < neurostim.plugin
                 end
                 
                 for var = saveVariables % saves all requested variables to o.data
-                    o.data.(o.dumpLabel).(var{1}) = c.(var{1});
+                    o.data.(var{1}) = c.(var{1});
                 end
         end
                 
@@ -126,10 +130,10 @@ classdef output < neurostim.plugin
                 end
             end
             
-            if o.last && success && ~isempty(o.m)
-                %Saving worked, so delete interim dumps.
-                delete(o.m);
-                delete(o.dumpFilename);
+            if o.last && success
+%                 Saving worked, so delete interim dumps.
+                [~,b,~]=fileparts(o.dumpFilename);
+                delete([b '_*']);
             end
         end
         
@@ -139,20 +143,20 @@ classdef output < neurostim.plugin
             %If we are doing interim dumps
             if ~isinf(o.counter)
                 %If the dump file is not yet open
-                if isempty(o.m)
-                    o.m = matfile(o.dumpFilename,'Writable',true);
-                end
                 
                 %Append the current dump
-                o.m.(o.dumpLabel) = o.data.(o.dumpLabel);
+                data=o.data;
+                [~,filename,~]=fileparts(o.dumpFilename);
+                save([filename '_' o.dumpLabel '.mat'],'data','-mat');
             end
          
             %if the last time, save the final output file
             if o.last == 1
-                data = o.data.(o.dumpLabel);
+                data = o.data;
                 save(o.filename,'data','-mat');
                 disp(['Saved to ' o.filename]);
             end
+            o.data=struct;
         end
         
         function afterTrial(o,c,evt)

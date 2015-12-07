@@ -43,8 +43,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function s= duplicate(o,name)
             % This copies the plugin and gives it a new name. See
             % plugin.copyElement
-            s=copy(o);
-            s.name = name;
+            s=copyElement(o,name);
         end
         
         
@@ -58,8 +57,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
         end
         
+
         
-        function addKey(o,key,fnHandle,varargin)
+        function success=addKey(o,key,fnHandle,varargin)
             % addKey(key, fnHandle [,keyHelp])
             % Runs a function in response to a specific key press.
             % key - a single key (string)
@@ -73,6 +73,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             o.listenToKeyStroke(key,keyhelp);
             o.keyFunc.(key) = fnHandle;
+            success=true;
         end
         
         function write(o,name,value)
@@ -85,16 +86,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Move to the next trial
             nextTrial(o.cic);
         end
+        
+
     end
     
-    methods (Access= protected)
-        
-    end
     
     % Only the (derived) class designer should have access to these
     % methods.
     methods (Access = protected, Sealed)        
-        function s= copyElement(o)
+        function s= copyElement(o,name)
             % This protected function is called from the public (sealed)
             % copy member of matlab.mixin.Copyable. We overload it here to
             % copy not just the static properties but also the
@@ -110,9 +110,21 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             % Then setup the dynamic props again.
             dynProps = setdiff(properties(o),properties(s));
+            s.name=name;
             for p=1:numel(dynProps)
                 pName = dynProps{p};
                 s.addProperty(pName,o.(pName));
+                if isfield(o.listenerHandle,'pre') && isfield(o.listenerHandle.pre,pName)
+                    specs=o.listenerHandle.pre.([pName 'specs']);
+                    for a=3:length(specs)
+                        if strcmp(specs{a}(1),o.name)
+                            specs{a}{1}=name;
+                        end
+                    end
+                    h =findprop(s,pName);
+                    h.GetObservable=true;
+                    s.listenerHandle.pre.(pName)=s.addlistener(pName,'PreGet',@(src,evt)evalParmGet(s,src,evt,specs));
+                 end
             end
         end
         
@@ -125,7 +137,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % '@(dots) dots.X + 1'
         %
         function functional(o,prop,funcstring)
-             h =findprop(o,prop);
+            h =findprop(o,prop);
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
@@ -167,6 +179,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 specs{2,1} = horzcat(vars,specs{2,1});
                 specs{2,1} = str2func(specs{2,1});
             end
+            o.listenerHandle.pre.([prop 'specs'])=specs;
             o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
             
         end
@@ -199,6 +212,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             o.(prop) = value; % Set it, this will call the logParmSet function as needed.
         end
         
+
+        
         % For properties that have been added already, you cannot call addProperty again
         % (to prevent duplication and enforce name space consistency)
         % But the user may want to add a postprocessor to a built in property like
@@ -224,11 +239,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
+            % if there is a listener, delete it
+            if (isfield(o.listenerHandle,'pre') && isfield(o.listenerHandle.pre,src.Name))
+                delete(o.listenerHandle.pre.(src.Name));
+            end
+            
             value = o.(src.Name); % The raw value that has just been set
-            % checks if this is a function reference and if the listener
-            % already exists for this function
-            if ischar(value) && any(regexp(value,'@\((\w*)*')) && ~isfield(o.listenerHandle,['pre.' src.Name])
-                % it does not exist, call functional()
+            
+            %if this is a function, add a listener
+            if ischar(value) && any(regexp(value,'@\((\w*)*'))
                 functional(o,src.Name,value);
                 %evaluate
                 value = o.(src.Name);
@@ -261,6 +280,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
         function evalParmGet(o,src,evt,specs)
+            
             if ischar(o.(src.Name)) && ~strcmp(specs{1},o.(src.Name)) %if value is set to a new function
                 delete(o.listenerHandle.pre.(src.Name));
                 functional(o,src.Name,o.(src.Name));
@@ -472,9 +492,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         end
                     end
                     if c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
-                        if c.guiOn
-                        o.cic.gui.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
-                        end
+                        c.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
                         return;
                     end
                     notify(o,'BEFOREFRAME');
@@ -488,9 +506,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     end
                     if c.requiredSlack ~= 0
                         if c.frame ~=1 && c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
-                            if c.guiOn
-                            o.cic.gui.writeToFeed(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) '.']);
-                            end
+                            c.writeToFeed(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) '.']);
                             return;
                         end
                     end

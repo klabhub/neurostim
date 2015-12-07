@@ -6,7 +6,7 @@ properties (Access=public)
     z@double;
     pupilSize@double;
     useMouse@logical=false;
-    keepExperimentSetup = 1;
+    keepExperimentSetup@logical=true;
 end
 
 methods
