@@ -4,7 +4,6 @@ import neurostim.*
 commandwindow;
 Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference','TextRenderer',1);
-%Screen('Preference', 'ConserveVRAM', 32);
 
 %% ========= Specify rig configuration  =========
 c = adamsConfig;
@@ -19,19 +18,13 @@ f.shape = 'CIRC';
 f.size = 0.5;
 f.color = [1 1 50];
 f.on=0;
-f.duration = 1000;
+f.duration = Inf;
 c.add(f);
-
-%Saccade target
-t = duplicate(f,'target');
-t.shape = 'STAR';
-t.size = 3;
-t.X = '@(fix) -fix.X';
-c.add(t);
 
 %Random dot pattern
 s = stimuli.rdp('dots');
-s.duration = Inf;
+s.on = '@(f1) f1.startTime';
+s.duration = 4000;
 s.color = [0.3 0.3 100];
 s.size = 6;
 s.nrDots = 200;
@@ -40,27 +33,17 @@ s.lifetime = Inf;
 s.noiseMode = 1;
 s.X = '@(fix) fix.X';
 s.Y = '@(fix) fix.Y';
-s.on = '@(fix) fix.on + 500';
 c.add(s);
-
-%% Create a novel stimulus
-a = stimuli.convPoly('octagon');
-a.on = '@(f1) f1.startTime';
-a.nSides = 8;
-a.color = [0.5 1 50];
-%a.X = '@(cic,fix) -fix.X + 2*sin(cic.frame/10)';
-a.X = 0;
-%a.rsvp = {{'nSides',{3 4 5 6 7 8 9 100},{'color',{[1 0.5 50],[0.5 1 50]}}},'duration',250,'isi',0};
-c.add(a);
 
 %% ========== Add required behaviours =========
 
 %Subject's 2AFC response
 k = plugins.nafcResponse('choice');
+k.on = '@(dots) dots.on+dots.duration';
+k.deadline = '@(choice) choice.on + 5000';
 k.keys = {'a' 'z'};
-k.correctResponse = {'@(dots) dots.direction==90' '@(dots) dots.direction==-90'};
-k.keyLabel = {'up', 'down'};
-k.endsTrial = true;
+k.keyLabels = {'up', 'down'};
+k.correctKey = '@(dots) double(dots.direction < 0) + 1';  %Function returns 1 or 2
 c.add(k);
 
 e = neurostim.plugins.eyelink;
@@ -68,28 +51,43 @@ e.useMouse = true;
 c.add(e);
 
 %Maintain gaze on the fixation point
-% g = plugins.fixate('f1');
-g.from = 3000;
-g.duration = 5000;
-% g.X = '@(fix) fix.X';
-% g.Y = '@(fix) fix.Y';
-% g.tolerance = 1.5;
-% c.add(g);
+g = plugins.fixate('f1');
+g.from = '@(f1) f1.startTime';
+g.to = '@(dots) dots.endTime';
+g.X = '@(fix) fix.X';
+g.Y = '@(fix) fix.Y';
+g.tolerance = 3;
+c.add(g);
 
 
-c.add(plugins.reward('defaultReward'));
-% b = plugins.liquidReward('liquid');
-% b.when='AFTERTRIAL';
-% c.add(b);
+%% Specify rewards and feedback
+
+%Give juice at the end of the trial for completing all fixations
+% r = plugins.liquid('juice');
+% r.add('duration',100,'when','afterTrial','criterion','@(f1) f1.success');
+% c.add(r);
+
+%Play a correct/incorrect sound for the 2AFC task
+    %Use the sound plugin
+% s = plugins.sound('sound');
+
+    %Add correct/incorrect feedback
+% s.add('waveform','CORRECT','when','afterFrame','criterion','@(choice) choice.done & choice.correct');
+% s.add('waveform','INCORRECT','when','afterFrame','criterion','@(choice) choice.done & ~choice.correct');
+% c.add(s);
 
 %% Experimental design
 
 %Specify experimental conditions
-c.addFactorial('myFactorial', {'fix','X',{-10 10}},{'dots','direction',{90 -90}});
+myFac=factorial('myFactorial',2);
+myFac.fac1.fix.X={-10 10};
+myFac.fac2.dots.direction={-90 90};
 
 %Specify a block of trials
-c.addBlock('myBlock','myFactorial',2,'SEQUENTIAL');
+myBlock=block('myBlock',myFac);
+myBlock.nrRepeats=10;
 
 %% Run the experiment.
+c.add(neurostim.plugins.gui);
 c.order('fix','target','dots','octagon','choice','gui');
-c.run;
+c.run(myBlock);

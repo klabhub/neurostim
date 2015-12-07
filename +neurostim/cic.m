@@ -855,7 +855,10 @@ classdef cic < neurostim.plugin
             %             if c.PROFILE; report(c);end
         end
         
-        
+        function delete(c)
+            %Destructor. Release all resources. Maybe more to add here?
+            Screen('CloseAll');
+        end
         
         %% Keyboard handling routines
         %

@@ -43,6 +43,7 @@ classdef stimulus < neurostim.plugin
             v = o.on+o.duration;
         end
         function v=get.onFrame(s)
+
             if s.on==0
                 v=1;
             else
@@ -51,6 +52,7 @@ classdef stimulus < neurostim.plugin
         end
         
         function v=get.offFrame(s)
+
             if s.off==Inf
                 v=Inf;
             else
@@ -76,7 +78,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('ry',0,[],@isnumeric);
             s.addProperty('rz',1,[],@isnumeric);
             s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
-            s.addProperty('endTime',0);   % first time the stimulus does not appear after being run
+            s.addProperty('endTime',Inf);   % first time the stimulus does not appear after being run
             s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
             s.addProperty('isi',[],[],@isnumeric);
             s.addProperty('subCond',[]);

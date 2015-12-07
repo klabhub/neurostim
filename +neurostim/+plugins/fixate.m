@@ -7,14 +7,17 @@ classdef fixate < neurostim.plugins.behavior
    methods
        function o=fixate(name)
            o=o@neurostim.plugins.behavior(name);
+           o.addProperty('X',0,[],@isnumeric);                 %X,Y,Z - the position of a target for the behaviour (e.g. fixation point)
+           o.addProperty('Y',0,[],@isnumeric);
+           o.addProperty('Z',0,[],@isnumeric);
+           o.addProperty('tolerance',1,[],@isnumeric);
            o.continuous = true;
        end
        
        
-       function on = validateBehavior(o)
-           % validateBehavior returns o.on = true when behavior passes all
-           % checks.
-           on = sqrt((o.cic.eye.x-o.X)^2+(o.cic.eye.y-o.Y)^2)<=o.tolerance;
+       function inProgress = validateBehavior(o)
+           % validateBehavior returns o.on = true when behavior passes all checks.
+           inProgress = sqrt((o.cic.eye.x-o.X)^2+(o.cic.eye.y-o.Y)^2)<=o.tolerance;
        end
    end
     
