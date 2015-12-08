@@ -90,6 +90,43 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
 
     end
     
+    methods (Access= public)
+        
+%         function varargout = subsref(A, S)
+%             
+% %             overload, check for functions? add a notification for
+% %             evaluation???
+%             
+% %             Handle the first indexing on your obj itself
+%             switch S(1).type
+%                 case '.'
+%                     if ismethod(A,S(1).subs)
+%                         if nargout>0
+%                             [varargout{1:nargout}]=builtin('subsref',A,S);
+%                         else
+%                             builtin('subsref',A,S);
+%                         end
+%                         return;
+%                     else
+% %                     Enable normal "." and "{}" behavior
+%                         B = builtin('subsref', A, S(1));
+%                     end
+%                 otherwise
+%                     B = builtin('subsref', A, S(1));
+%             end
+% %             Handle "chaining" (not sure this part is fully correct; it is tricky)
+%             orig_B = B; % hold on to a copy for debugging purposes
+%             if numel(S) > 1
+%                 varargout = subsref(B, S(2:end)); % regular call, not "builtin", to support overrides
+%             else
+%                 varargout={B};
+%             end
+%             if ~iscell(varargout)
+%                 varargout={varargout};
+%             end
+%         end
+        
+    end
     
     % Only the (derived) class designer should have access to these
     % methods.
@@ -114,8 +151,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             for p=1:numel(dynProps)
                 pName = dynProps{p};
                 s.addProperty(pName,o.(pName));
-                if isfield(o.listenerHandle,'pre') && isfield(o.listenerHandle.pre,pName)
-                    specs=o.listenerHandle.pre.([pName 'specs']);
+                if isfield(o.listenerHandle,'pre') && isfield(o.listenerHandle.preGet,pName)
+                    specs=o.listenerHandle.preGet.([pName 'specs']);
                     for a=3:length(specs)
                         if strcmp(specs{a}(1),o.name)
                             specs{a}{1}=name;
@@ -123,7 +160,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     end
                     h =findprop(s,pName);
                     h.GetObservable=true;
-                    s.listenerHandle.pre.(pName)=s.addlistener(pName,'PreGet',@(src,evt)evalParmGet(s,src,evt,specs));
+                    s.listenerHandle.preGet.(pName)=s.addlistener(pName,'PreGet',@(src,evt)evalParmGet(s,src,evt,specs));
                  end
             end
         end
@@ -179,8 +216,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 specs{2,1} = horzcat(vars,specs{2,1});
                 specs{2,1} = str2func(specs{2,1});
             end
-            o.listenerHandle.pre.([prop 'specs'])=specs;
-            o.listenerHandle.pre.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
+            o.listenerHandle.preGet.([prop 'specs'])=specs;
+            o.listenerHandle.preGet.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
             
         end
         
@@ -194,7 +231,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % as its first and the raw value as its second argument.
         % The function should return the desired value. For
         % instance, to add a Gaussian jitter around a set value:
-        % jitterFun = @(obj,value)(value+randn);
+        % jitterFun = @(obj,value)(value+randn);ed
         % or, you can pass a handle to a member function. For instance the
         % @afterFirstFixation member function which will add the frame at
         % which fixation was first obtained to, for instance an on-frame.
@@ -228,7 +265,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
 %             h.SetObservable =true;    % This gives a read-only error -
 %             setObservable in properties beforehand.
-            o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess, validate));
+            o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
             o.(prop) = o.(prop); % Force a call to the postprocessor.
         end
         
@@ -240,9 +277,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
             % if there is a listener, delete it
-            if (isfield(o.listenerHandle,'pre') && isfield(o.listenerHandle.pre,src.Name))
-                delete(o.listenerHandle.pre.(src.Name));
-            end
             
             value = o.(src.Name); % The raw value that has just been set
             
@@ -252,6 +286,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 %evaluate
                 value = o.(src.Name);
             end
+            
             if nargin >=5 && ~isempty(validate)
                 success = validate(value);
                 if ~success
@@ -280,11 +315,29 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
         function evalParmGet(o,src,evt,specs)
-            
             if ischar(o.(src.Name)) && ~strcmp(specs{1},o.(src.Name)) %if value is set to a new function
-                delete(o.listenerHandle.pre.(src.Name));
+                delete(o.listenerHandle.preGet.(src.Name));
                 functional(o,src.Name,o.(src.Name));
             end
+            prevvalues=o.log.values(strcmp(o.log.parms,src.Name));
+            prevvalue=prevvalues{end};
+            if ~strcmp(specs{1},o.(src.Name)) && ((ischar(prevvalue) && ischar(o.(src.Name)) && ~strcmp(prevvalue,o.(src.Name))) || (any(prevvalue~=o.(src.Name)))...
+                    || (isempty(prevvalue) && ~isempty(o.(src.Name))) || (~isempty(prevvalue) && isempty(o.(src.Name))))
+                delete(o.listenerHandle.preGet.(src.Name));
+                return;
+            end
+            value=evalFunction(o,src,evt,specs);
+            
+            % Compare with existing value to see if we need to set?
+            oldValue = o.(src.Name);
+            
+            if (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
+                o.(src.Name) = value; % This calls PostSet and logs the new value
+            end
+        end
+        
+        function value=evalFunction(o,src,evt,specs)
             fun = specs{2}; % Function handle
             nrArgs = length(specs)-2;
             args= cell(1,nrArgs);
@@ -378,13 +431,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 value = fun(args{:});
             catch
                 error(['Could not evaluate ' func2str(fun) ' to get value for ' src.Name ]);
-            end
-            
-            % Compare with existing value to see if we need to set?
-            oldValue = o.(src.Name);
-            if (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
-                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
-                o.(src.Name) = value; % This calls PostSet and logs the new value
             end
         end
         

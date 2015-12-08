@@ -76,8 +76,7 @@ classdef cic < neurostim.plugin
         subjectNr@double        = 0;
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
-        iti@double              = 1000; % Inter-trial Interval (ms) - default 1s.
-        trialDuration@double    = 1000;  % Trial Duration (ms)
+        
         screen                  = struct('pixels',[],'physical',[],'color',struct('text',[1/3 1/3 50],...
             'background',[1/3 1/3 5]),'colorMode','xyL',...
             'frameRate',60,'frameDur',[]);    %screen-related parameters.
@@ -312,6 +311,8 @@ classdef cic < neurostim.plugin
             c.addProperty('condition',[]);
             c.addProperty('block',0);
             c.addProperty('trial',0);
+            c.addProperty('iti',1000,[],@double); %inter-trial interval (ms)
+            c.addProperty('trialDuration',1000,[],@double); % duration (ms)
             c.add(neurostim.plugins.output);
             c.addKey('ESCAPE',@keyboardResponse,'Quit');
             c.addKey('n',@keyboardResponse,'Next Trial');
