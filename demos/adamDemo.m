@@ -24,7 +24,7 @@ c.add(f);
 %Random dot pattern
 s = stimuli.rdp('dots');
 s.on = '@(f1) f1.startTime';
-s.duration = 4000;
+s.duration = 3000;
 s.color = [0.3 0.3 100];
 s.size = 6;
 s.nrDots = 200;
@@ -40,7 +40,7 @@ c.add(s);
 %Subject's 2AFC response
 k = plugins.nafcResponse('choice');
 k.on = '@(dots) dots.on+dots.duration';
-k.deadline = '@(choice) choice.on + 5000';
+k.deadline = '@(choice) choice.on + 3000';
 k.keys = {'a' 'z'};
 k.keyLabels = {'up', 'down'};
 k.correctKey = '@(dots) double(dots.direction < 0) + 1';  %Function returns 1 or 2
@@ -88,6 +88,7 @@ myBlock=block('myBlock',myFac);
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
-c.add(neurostim.plugins.gui);
-c.order('fix','target','dots','octagon','choice','gui');
+% c.add(neurostim.plugins.gui);
+c.cursor = 'arrow';
+c.order('fix','dots','f1','choice','liquid','gui');
 c.run(myBlock);

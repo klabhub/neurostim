@@ -319,7 +319,11 @@ classdef stimulus < neurostim.plugin
                     if ~isempty(s.rsvp)
                         s.addRSVP(s.rsvp{:})
                     end
-
+                    
+                    %Reset variables here?
+                    s.startTime = Inf;
+                    s.endTime = Inf;
+                    
                     notify(s,'BEFORETRIAL');
 
                 case 'BASEAFTERTRIAL'

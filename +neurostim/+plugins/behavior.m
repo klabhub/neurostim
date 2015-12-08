@@ -43,7 +43,6 @@ classdef behavior < neurostim.plugin
             o.addPostSet('inProgress',[]);                      %True if the subject is currently satisfying the requirement
             o.addProperty('success',false);                     %Whether the behavioral criterion was achieved.
             o.addProperty('outcome','',[],@ischar);             %For logging different types of outcome 
-            o.addProperty('perfData',{},[],@iscell);            %Stores data that is used by feedback plugins.
 
             o.listenToEvent({'BEFORETRIAL','AFTERTRIAL','AFTERFRAME'});
         end
@@ -56,11 +55,11 @@ classdef behavior < neurostim.plugin
             o.endTime = Inf;
             o.started = false;
             o.success = false;
-            o.perfData = {};
         end
         
         function afterFrame(o,c,evt)
-            if o.enabled
+            
+            if o.enabled && ~o.done
                 
                 %Collect relevant data from a device (e.g. keyboard, eye tracker, touchbar)
                 sampleBehavior(o);
@@ -83,52 +82,49 @@ classdef behavior < neurostim.plugin
         end
         
         function checkBehavior(o,c)
+                        
+            %Check whether the behavioural criteria are currently being met
+            o.inProgress = validateBehavior(o);   %returns true if so.
             
-            % processes all behavioural responses.
-            if ~o.done
+            %If the behaviour extends over an interval of time
+            if o.continuous
                 
-                %Check whether the behavioural criteria are currently being met
-                o.inProgress = validateBehavior(o);   %returns true if so.
+                %If behaviour is on for the first time, log the the start time
+                if o.inProgress && ~o.started
+                    o.startTime = c.trialTime;
+                    o.started = true;
+                    return;
+                end
                 
-                %If the behaviour extends over an interval of time
-                if o.continuous 
-                    
-                     %If behaviour is on for the first time, log the the start time
-                    if o.inProgress && ~o.started  
-                        o.startTime = c.trialTime;
-                        o.started = true;
-                        return;
-                    end
-                    
-                    %If behaviour completed
-                    if o.inProgress && (c.trialTime>=o.to)
-                        %Hooray!
-                        o.result(true,'COMPLETE',false);
-                        return;
-                    end
-                    
-                    %if the FROM deadline is reached without commencement of behavior
-                    if (c.trialTime >=o.from) && ~o.inProgress
-                        %Violation! Should have started by now.
-                        o.result(false,'FAILEDTOSTART',o.failEndsTrial);
-                        return;
-                    end
-                    
-                    %if behaviour commenced, but has been interrupted
-                    if ~o.inProgress && o.started
-                        %Violation!
-                        o.result(false,'PREMATUREEND',o.failEndsTrial);
-                        return;
-                    end
-                else
-                    % if behaviour is discrete (one-shot)
-                    if o.inProgress
-                        o.result(true,'COMPLETE',false);
-                    elseif c.trialTime >= o.deadline
-                        o.result(false,'FAILEDTOSTART',o.failEndsTrial);
-                    end
+                %If behaviour completed
+                if o.inProgress && (c.trialTime>=o.to)
+                    %Hooray!n
+                    o.result(true,'COMPLETE',false);
+                    return;
+                end
+                
+                %if the FROM deadline is reached without commencement of behavior
+                if (c.trialTime >=o.from) && ~o.started
+                    %Violation! Should have started by now.
+                    o.result(false,'FAILEDTOSTART',o.failEndsTrial);
+                    return;
+                end
+                
+                %if behaviour commenced, but has been interrupted
+                if ~o.inProgress && o.started
+                    %Violation!
+                    o.result(false,'PREMATUREEND',o.failEndsTrial);
+                    return;
+                end
+            else
+                % if behaviour is discrete (one-shot)
+                if o.inProgress
+                    o.result(true,'COMPLETE',false);
+                elseif c.trialTime >= o.deadline
+                    o.result(false,'FAILEDTOSTART',o.failEndsTrial);
                 end
             end
+            
         end
         
         function result(o,success,outcome,endTrial)

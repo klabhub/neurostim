@@ -86,17 +86,11 @@ classdef rdp < neurostim.stimulus
                 o.framesLeft = randi(o.lifetime,o.nrDots,1);
             else o.framesLeft = ones(o.nrDots,1).*Inf;
             end
-            
-            
-            
         end
 
         
         function beforeFrame(o,c,evt)
-            
             Screen('DrawDots',c.window, [o.x o.y]', o.size, o.color);
-
-
         end
         
         
