@@ -16,14 +16,13 @@ classdef sound < neurostim.plugins.feedback
             o.listenToEvent({'BEFOREEXPERIMENT', 'AFTEREXPERIMENT'});
         end
         
-        function add(o,varargin)
+        function chAdd(o,varargin)
 
             %First add standard parts of the new item in parent class
-            args = add@neurostim.plugins.feedback(o,varargin{:});
             
             p=inputParser;                             
             p.addParameter('waveform',[],@(x) isnumeric(x) || ischar(x));     %Waveform data, filename (wav), or label for known (built-in) file (e.g. 'correct')
-            p.parse(args{:});
+            p.parse(varargin{:}{:});
             p = p.Results;
             
             if ischar(p.waveform)

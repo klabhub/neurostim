@@ -35,6 +35,7 @@ classdef stimulus < neurostim.plugin
         rsvpList;
         rsvpRand;
         startOn=[];
+        diodePosition;
     end
     
     methods
@@ -77,13 +78,14 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rx',0,[],@isnumeric);
             s.addProperty('ry',0,[],@isnumeric);
             s.addProperty('rz',1,[],@isnumeric);
-            s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
-            s.addProperty('endTime',Inf);   % first time the stimulus does not appear after being run
+            s.addProperty('startTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus appears on screen
+            s.addProperty('endTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus does not appear after being run
             s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
             s.addProperty('isi',[],[],@isnumeric);
-            s.addProperty('subCond',[]);
+            s.addProperty('subCond',[],[],[],{'neurostim.stimulus'},{'neurostim.plugin'});
             s.addProperty('rngSeed',[],[],@isnumeric);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
+            s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
@@ -245,12 +247,30 @@ classdef stimulus < neurostim.plugin
            end
         end
         
+        function setupDiode(s)
+            pixelsize=s.diode.size*s.cic.screen.pixels(3);
+            if isempty(s.diode.color)
+                s.diode.color=WhiteIndex(s.cic.onscreenWindow);
+            end
+           switch lower(s.diode.location)
+               case 'ne'
+                   s.diodePosition=[s.cic.screen.pixels(3)-pixelsize 0 s.cic.screen.pixels(3) pixelsize];
+               case 'se'
+                   s.diodePosition=[s.cic.screen.pixels(3)-pixelsize s.cic.screen.pixels(4)-pixelsize s.cic.screen.pixels(3) s.cic.screen.pixels(4)];
+               case 'sw'
+                   s.diodePosition=[0 s.cic.screen.pixels(4)-pixelsize pixelsize s.cic.screen.pixels(4)];
+               case 'nw'
+                   s.diodePosition=[0 0 pixelsize pixelsize];
+               otherwise
+                   error(['Diode Location ' s.diode.location ' not supported.'])
+           end
+        end
+        
         function baseEvents(s,c,evt)
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
                     
                     glScreenSetup(c,c.window);
-                    
                     %Apply stimulus transform
                     Screen('glTranslate',c.window,s.X,s.Y,s.Z);
                     Screen('glScale',c.window,s.scale.x,s.scale.y);
@@ -311,6 +331,9 @@ classdef stimulus < neurostim.plugin
                         s.stimstart=false;
                     end
                     Screen('glLoadIdentity', c.window);
+                    if s.diode.on
+                        Screen('FillRect',c.window,s.diode.color,s.diodePosition);
+                    end
                 case 'BASEAFTERFRAME'
                     if s.flags.on 
                         notify(s,'AFTERFRAME');
@@ -334,6 +357,9 @@ classdef stimulus < neurostim.plugin
                     notify(s,'AFTERTRIAL');
 
                 case 'BASEBEFOREEXPERIMENT'
+                    if s.diode.on
+                        setupDiode(s);
+                    end
                     notify(s,'BEFOREEXPERIMENT');
 
                 case 'BASEAFTEREXPERIMENT'    

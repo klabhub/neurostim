@@ -90,13 +90,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
 
     end
     
-    methods (Access= public)
+%     methods (Access= public)
         
 %         function varargout = subsref(A, S)
-%             
+            
 % %             overload, check for functions? add a notification for
 % %             evaluation???
-%             
+% %             
 % %             Handle the first indexing on your obj itself
 %             switch S(1).type
 %                 case '.'
@@ -114,8 +114,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
 %                 otherwise
 %                     B = builtin('subsref', A, S(1));
 %             end
-% %             Handle "chaining" (not sure this part is fully correct; it is tricky)
-%             orig_B = B; % hold on to a copy for debugging purposes
+%             if strcmp(S(end).type,'.')
+%                 keyboard;
+%             end
+%             varargout=builtin('subsref',A,S);
 %             if numel(S) > 1
 %                 varargout = subsref(B, S(2:end)); % regular call, not "builtin", to support overrides
 %             else
@@ -126,7 +128,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
 %             end
 %         end
         
-    end
+%     end
     
     % Only the (derived) class designer should have access to these
     % methods.
@@ -174,7 +176,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % '@(dots) dots.X + 1'
         %
         function functional(o,prop,funcstring)
-            h =findprop(o,prop);
+            subprop=strsplit(prop,{'___','__'});
+            if numel(subprop)>1
+                listenprop=subprop{1};
+                h=findprop(o,subprop{1});
+                if isempty(h)
+                    tmp=subprop{1};
+                    listenprop=tmp(1:end-1);
+                    h=findprop(o,tmp(1:end-1));
+                end
+            else
+                h=findprop(o,prop);
+                listenprop=prop;
+            end
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
@@ -217,7 +231,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 specs{2,1} = str2func(specs{2,1});
             end
             o.listenerHandle.preGet.([prop 'specs'])=specs;
-            o.listenerHandle.preGet.(prop) = o.addlistener(prop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
+            o.listenerHandle.preGet.(prop) = o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
             
         end
         
@@ -235,18 +249,26 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % or, you can pass a handle to a member function. For instance the
         % @afterFirstFixation member function which will add the frame at
         % which fixation was first obtained to, for instance an on-frame.
-        function addProperty(o,prop,value,postprocess,validate)
+        function addProperty(o,prop,value,postprocess,validate,SetAccess,GetAccess)
             h = o.addprop(prop);
             h.SetObservable = true;
-            if nargin <5
-                validate = '';
-                if nargin<4
-                    postprocess = '';
+            if nargin<7
+                GetAccess='public';
+                if nargin<6
+                    SetAccess='public';
+                    if nargin <5
+                        validate = '';
+                        if nargin<4
+                            postprocess = '';
+                        end
+                    end
                 end
             end
             % Setup a listener for logging, validation, and postprocessing
             o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
             o.(prop) = value; % Set it, this will call the logParmSet function as needed.
+            h.GetAccess=GetAccess;
+            h.SetAccess=SetAccess;
         end
         
 
@@ -279,13 +301,30 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % if there is a listener, delete it
             
             value = o.(src.Name); % The raw value that has just been set
-            
+            if iscell(value)
+                for a=1:numel(value)
+                    if ischar(value) && any(regexp(value,'@\((\w*)*'))
+                        prop=[src.Name '__' num2str(a)];
+                        functional(o,prop,value.(a{1}));
+                        value=o.(src.Name);
+                    end
+                end
+            end
+            if isstruct(value)
+                for a=fieldnames(value)
+                    if ischar(value.(a{1})) && any(regexp(value.(a{1}),'@\((\w*)*'))
+                        prop=[src.Name '___' a{1}];
+                        functional(o,prop,value.(a{1}));
+                        value=o.(src.Name);
+                    end
+                end
+            end
             %if this is a function, add a listener
             if ischar(value) && any(regexp(value,'@\((\w*)*'))
                 functional(o,src.Name,value);
-                %evaluate
-                value = o.(src.Name);
+                value=o.(src.Name);
             end
+            
             
             if nargin >=5 && ~isempty(validate)
                 success = validate(value);
@@ -315,35 +354,89 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
         function evalParmGet(o,src,evt,specs)
+            a={};
+            if ~isfield(o.listenerHandle.preGet,src.Name)
+                a=regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match');
+                %%%% rename srcName to subref, change all further
+                %%%% references
+                if numel(a)>1
+                    srcNames=a{2:2:end};
+                    for b=1:numel(srcNames)
+                        if ~isempty(regexp(srcNames{b},'___','ONCE'))
+                            names{b}=regexprep(srcNames{b},'___','.');
+                        elseif ~isempty(regexp(srcNames{b},'__','ONCE'))
+                            names{b}=regexprep(srcNames{b},'__','{');
+                        end
+                    end
+                end
+                srcName=srcNames{1};
+            else
+                srcName=src.Name;
+            end
             if ischar(o.(src.Name)) && ~strcmp(specs{1},o.(src.Name)) %if value is set to a new function
-                delete(o.listenerHandle.preGet.(src.Name));
-                functional(o,src.Name,o.(src.Name));
+                if isfield(o.listenerHandle.preGet,srcName)
+                    delete(o.listenerHandle.preGet.(srcName));
+                    delete(o.listenerHandle.preGet.([srcName 'specs']));
+                end
+                functional(o,srcName,o.(src.Name));
             end
             prevvalues=o.log.values(strcmp(o.log.parms,src.Name));
             prevvalue=prevvalues{end};
-            if ~strcmp(specs{1},o.(src.Name)) && ((ischar(prevvalue) && ischar(o.(src.Name)) && ~strcmp(prevvalue,o.(src.Name))) || (any(prevvalue~=o.(src.Name)))...
+            if numel(a)>0
+                if isstruct(o.(src.Name)) && isstruct(prevvalue) && all(size(o.(src.Name))==size(prevvalue)) && numel(fieldnames(o.(src.Name)))==numel(fieldnames(prevvalue)) && all(strcmp(fieldnames(o.(src.Name)),fieldnames(prevvalue)))
+                    check=fieldnames(prevvalue);
+                    for c=1:numel(check)
+                        if ~strcmp(specs{1},o.(src.Name)(b).(check{c})) && ((ischar(prevvalue(b).(check{c})) && ischar(o.(src.Name)(b).(check{c})) && ~strcmp(prevvalue(b),o.(src.Name)(b).(check{c}))) || (any(prevvalue(b).(check{c})~=o.(src.Name)(b).(check{c})))...
+                                || (isempty(prevvalue(b).(check{c})) && ~isempty(o.(src.Name)(b).(check{c}))) || (~isempty(prevvalue(b).(check{c})) && isempty(o.(src.Name)(b).(check{c}))))
+                            delete(o.listenerHandle.preGet.(srcName));
+                            delete(o.listenerHandle.preGet.([srcName 'specs']));
+                            return;
+                        else
+                            break;
+                        end
+                    end
+                end
+            elseif ~strcmp(specs{1},o.(src.Name)) && ((ischar(prevvalue) && ischar(o.(src.Name)) && ~strcmp(prevvalue,o.(src.Name))) || (any(prevvalue~=o.(src.Name)))...
                     || (isempty(prevvalue) && ~isempty(o.(src.Name))) || (~isempty(prevvalue) && isempty(o.(src.Name))))
-                delete(o.listenerHandle.preGet.(src.Name));
+                delete(o.listenerHandle.preGet.(srcName));
+                delete(o.listenerHandle.preGet.([srcName 'specs']));
                 return;
             end
-            value=evalFunction(o,src,evt,specs);
+            
+            value=evalFunction(o,srcName,evt,specs);
             
             % Compare with existing value to see if we need to set?
             oldValue = o.(src.Name);
             
-            if (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+            if isstruct(value) || iscell(value) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
                     || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
+                    
                 o.(src.Name) = value; % This calls PostSet and logs the new value
             end
         end
         
-        function value=evalFunction(o,src,evt,specs)
+        function value=evalFunction(o,srcName,evt,specs)
             fun = specs{2}; % Function handle
             nrArgs = length(specs)-2;
             args= cell(1,nrArgs);
+            isstruct=false;
+            iscell=false;
+            if ~isempty(regexp(srcName,'___'))
+                tmp=regexprep(srcName,'___','.');
+                postSrcName=tmp(strfind(tmp,'.')+1:end);
+                srcName=tmp(1:strfind(tmp,'.')-1);
+                isstruct=true;
+                value=o.(srcName);
+            elseif ~isempty(regexp(srcName,'__'))
+                tmp=regexprep(srcName,'__','{');
+                postSrcName=str2double(tmp(strfind(tmp,'{')+1:end));
+                srcName=tmp(1:strfind(tmp,'{')-1);
+                iscell=true;
+                value=o.(srcName);
+            end
             try
             for i=1:nrArgs
-                if iscell(specs{2+i})
+                if ~isempty(specs{2+i})
                     if isempty(strfind(specs{i+2}{2},'.')) 
                         %if there is no subproperty reference
                         if ischar(specs{i+2}{1}) && strcmp(specs{i+2}{1},'cic')
@@ -375,7 +468,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         else % if is not an object of cic (plugin/stimulus)
                             args{i} = o.cic.(specs{i+2}{1}).(predot);
                             
-                            if strcmp(specs{i+2}{1},src.Name)
+                            if strcmp(specs{i+2}{1},srcName)
                                 % if the property is self-referential
                                 oldValues = o.log.values(strcmp(o.log.parms,predot));
                                 if isstruct(oldValues{end}) %if is a structure
@@ -428,9 +521,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 
             end
             try
-                value = fun(args{:});
+                if isstruct
+                    value.(postSrcName)=fun(args{:});
+                elseif iscell
+                    value{postSrcName}=fun(args{:});
+                else
+                    value = fun(args{:});
+                end
             catch
-                error(['Could not evaluate ' func2str(fun) ' to get value for ' src.Name ]);
+                error(['Could not evaluate ' func2str(fun) ' to get value for ' srcName ]);
             end
         end
         

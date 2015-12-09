@@ -73,10 +73,12 @@ classdef feedback < neurostim.plugin
             o.item(ind).criterion = p.criterion;
             o.item(ind).delivered = false;
             
-            %Check that the criterion returns a logical
-            if ~islogical(o.item(ind).criterion)
-                error('Feedback criterion is returning something other than a logical');
-            end
+            chAdd(o,childArgs);
+        end
+        
+        function chAdd(o,childArgs)
+           % to be overloaded in child classes. This adds the child plugin
+           % using the arguments not required for the parent class.
         end
         
         function beforeTrial(o,c,evt)

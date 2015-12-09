@@ -774,7 +774,7 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     c.frameStart=c.clockTime;
-                    
+%                     profile ON
 %                     tmp=GetSecs;
                     while (c.flags.trial && c.flags.experiment)
                         c.frame = c.frame+1;
