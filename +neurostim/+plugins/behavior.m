@@ -143,6 +143,10 @@ classdef behavior < neurostim.plugin
             if endTrial
                 o.cic.nextTrial;
             end
+            
+            if ~o.success
+                o.writeToFeed(o.outcome);
+            end
         end
         
         function afterTrial(o,c,evt)

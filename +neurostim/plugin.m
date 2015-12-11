@@ -87,6 +87,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             nextTrial(o.cic);
         end
         
+        %% GUI Functions
+        function writeToFeed(o,message)
+            o.cic.writeToFeed(horzcat(o.name, ': ', message));
+        end
 
     end
     

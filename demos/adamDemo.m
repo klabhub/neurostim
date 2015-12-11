@@ -88,7 +88,7 @@ myBlock=block('myBlock',myFac);
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
-% c.add(neurostim.plugins.gui);
+c.add(neurostim.plugins.gui);
 c.cursor = 'arrow';
 c.order('fix','dots','f1','choice','liquid','gui');
 c.run(myBlock);
