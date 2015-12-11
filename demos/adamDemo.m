@@ -7,8 +7,17 @@ Screen('Preference','TextRenderer',1);
 
 %% ========= Specify rig configuration  =========
 c = adamsConfig;
+
+%Use DEBUG features
 c.add(plugins.debug);
-c.trialDuration = Inf;
+
+%Use the experimenter GUI window
+% c.add(neurostim.plugins.gui);
+
+%Use/simulate Eylink eye tracker
+e = neurostim.plugins.eyelink;
+e.useMouse = true;
+c.add(e);
 
 %% ============== Add stimuli ==================
 
@@ -46,10 +55,6 @@ k.keyLabels = {'up', 'down'};
 k.correctKey = '@(dots) double(dots.direction < 0) + 1';  %Function returns 1 or 2
 c.add(k);
 
-e = neurostim.plugins.eyelink;
-e.useMouse = true;
-c.add(e);
-
 %Maintain gaze on the fixation point
 g = plugins.fixate('f1');
 g.from = '@(f1) f1.startTime';
@@ -59,7 +64,6 @@ g.Y = '@(fix) fix.Y';
 g.tolerance = 3;
 c.add(g);
 
-
 %% Specify rewards and feedback
 
 %Give juice at the end of the trial for completing all fixations
@@ -67,20 +71,21 @@ c.add(g);
 % r.add('duration',100,'when','afterTrial','criterion','@(f1) f1.success');
 % c.add(r);
 
-%Play a correct/incorrect sound for the 2AFC task
-    %Use the sound plugin
-% s = plugins.sound('sound');
+% Play a correct/incorrect sound for the 2AFC task
+%     Use the sound plugin
+s = plugins.sound('sound');
 
-    %Add correct/incorrect feedback
+%     Add correct/incorrect feedback
 % s.add('waveform','CORRECT','when','afterFrame','criterion','@(choice) choice.done & choice.correct');
 % s.add('waveform','INCORRECT','when','afterFrame','criterion','@(choice) choice.done & ~choice.correct');
 % c.add(s);
 
 %% Experimental design
+c.trialDuration = Inf;
 
 %Specify experimental conditions
 myFac=factorial('myFactorial',2);
-myFac.fac1.fix.X={-10 10};
+myFac.fac1.fix.X={-10 0 10};
 myFac.fac2.dots.direction={-90 90};
 
 %Specify a block of trials
@@ -88,7 +93,6 @@ myBlock=block('myBlock',myFac);
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
-c.add(neurostim.plugins.gui);
 c.cursor = 'arrow';
 c.order('fix','dots','f1','choice','liquid','gui');
 c.run(myBlock);

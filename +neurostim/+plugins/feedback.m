@@ -76,11 +76,6 @@ classdef feedback < neurostim.plugin
             chAdd(o,childArgs);
         end
         
-        function chAdd(o,childArgs)
-           % to be overloaded in child classes. This adds the child plugin
-           % using the arguments not required for the parent class.
-        end
-        
         function beforeTrial(o,c,evt)
             %Reset flags for all tiems.
             for i=1:o.nItems
@@ -113,6 +108,12 @@ classdef feedback < neurostim.plugin
     
     
     methods (Access=protected)
+        
+        function chAdd(o,varargin)
+            % to be overloaded in child classes. The user calls o.add(), which adds
+            % a new feedback item in the parent class. Remaining arguments are passed
+            % to chAdd() in the child class.
+        end
         
         function deliver(o,item)
             %Function that should be overloaded in derived class to deliver the feedback.

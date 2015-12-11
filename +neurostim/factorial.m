@@ -32,7 +32,7 @@ classdef factorial < dynamicprops
     % myFac.fac2.dots.position={0 -5 5};
     
     properties
-        randomization='SEQUENTIAL';
+        randomization='RANDOMWITHOUTREPLACEMENT';
         nrFactors;
         name;
     end
