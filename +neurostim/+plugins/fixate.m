@@ -14,7 +14,9 @@ classdef fixate < neurostim.plugins.behavior
            o.continuous = true;
        end
        
-       
+   end
+   
+   methods (Access=protected)
        function inProgress = validateBehavior(o)
            % validateBehavior returns o.on = true when behavior passes all checks.
            inProgress = sqrt((o.cic.eye.x-o.X)^2+(o.cic.eye.y-o.Y)^2)<=o.tolerance;

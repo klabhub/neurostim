@@ -305,12 +305,12 @@ classdef cic < neurostim.plugin
             c.allKeyStrokes = [];
             c.allKeyHelp  = {};
             % Keys handled by CIC
-            c.addProperty('frameDrop',[]);
-            c.addProperty('trialStartTime',[]);
-            c.addProperty('trialEndTime',[]);
-            c.addProperty('condition',[]);
-            c.addProperty('block',0);
-            c.addProperty('trial',0);
+            c.addProperty('frameDrop',[],[],[],'private');
+            c.addProperty('trialStartTime',[],[],[],'private');
+            c.addProperty('trialEndTime',[],[],[],'private');
+            c.addProperty('condition',[],[],[],'private');
+            c.addProperty('block',0,[],[],'private');
+            c.addProperty('trial',0,[],[],'private');
             c.addProperty('iti',1000,[],@double); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,[],@double); % duration (ms)
             c.add(neurostim.plugins.output);

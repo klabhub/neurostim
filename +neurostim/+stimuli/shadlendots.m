@@ -11,7 +11,7 @@ classdef shadlendots < neurostim.stimulus
     %       speed - dot speed 
     %
 
-    properties
+    properties (Access=private)
         % properties for calculations (variable names from Shadlen dots
         % (dotsX).
         this_s;
@@ -67,7 +67,9 @@ classdef shadlendots < neurostim.stimulus
             % calculate dots' new positions
             o.dots2Display = calculatedots(o);
         end
-
+    end
+    
+    methods (Access=private)
         
         function createinitialdots(o,c)
             % sets all the initial variables needed.

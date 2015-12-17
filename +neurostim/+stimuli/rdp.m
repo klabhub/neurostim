@@ -24,7 +24,7 @@ classdef rdp < neurostim.stimulus
     %       moves twice as fast.
     
     
-    properties
+    properties (Access=private)
         x;
         y;
         dx;
@@ -109,9 +109,10 @@ classdef rdp < neurostim.stimulus
             
 
         end
+    end
     
-        
-        
+    methods (Access=private)
+        % Methods only for personal use
         
         function [xnew, ynew] = rotateXY(o,xprev,yprev,arg)
             % rotates vectors xprev and yprev by angle arg and outputs new

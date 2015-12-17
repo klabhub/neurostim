@@ -42,6 +42,11 @@ classdef output < neurostim.plugin
             end
             o.root = v;
         end
+        
+        function v= get.dumpFilename(o)
+            [pathName, fname,ext] = fileparts(o.filename);
+            v = fullfile(pathName, [fname, '_dump',ext]);
+        end
     end
     
     
@@ -51,6 +56,9 @@ classdef output < neurostim.plugin
             o.listenToEvent({'AFTERTRIAL','AFTEREXPERIMENT','BEFOREEXPERIMENT'});            
 %             o.listenToEvent({'BASEAFTEREXPERIMENT'});          
         end
+    end
+    
+    methods (Access=private)
         
         function saveData(o,stimName,thisLog,varargin)
             % function saveData(o,stimName,thisLog, [,startAt])
@@ -159,6 +167,10 @@ classdef output < neurostim.plugin
             o.data=struct;
         end
         
+    end
+    
+    methods (Access=public)
+        
         function afterTrial(o,c,evt)
             if o.counter==1 % if save after trial is triggered
                 o.counter = o.saveFrequency;   % reset counter
@@ -181,13 +193,7 @@ classdef output < neurostim.plugin
             o.counter = o.saveFrequency;  
         end  
     end
-        
-    methods
-        function v= get.dumpFilename(o)
-            [pathName, fname,ext] = fileparts(o.filename);
-            v = fullfile(pathName, [fname, '_dump',ext]);
-        end
-    end
+    
         
      methods (Access = protected)   
         function f = setFile(o)

@@ -18,9 +18,9 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('keyLabels',{},'',@iscellstr);
             o.addProperty('keys',{},'',@iscellstr);
             o.addProperty('correctKey',[],'',@isnumeric);
-            o.addProperty('correct',false);
-            o.addProperty('pressedInd',[]);
-            o.addProperty('pressedKey',[]);
+            o.addProperty('correct',false,[],[],'private');
+            o.addProperty('pressedInd',[],[],[],'private');
+            o.addProperty('pressedKey',[],[],[],'private');
             
             o.listenToEvent('BEFOREEXPERIMENT');
        end
@@ -41,6 +41,9 @@ classdef nafcResponse < neurostim.plugins.behavior
                o.addKey(o.keys{i},@responseHandler,o.keyLabels{i});
            end
        end
+       
+   end
+   methods (Access=protected)
        
        function inProgress = validateBehavior(o)
           inProgress = o.inProgress;

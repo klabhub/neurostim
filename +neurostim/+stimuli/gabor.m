@@ -4,7 +4,7 @@ classdef gabor < neurostim.stimulus
     properties (Constant)
         maskTypes = {'GAUSS','CIRCLE','ANNULUS'};
     end
-    properties
+    properties (Access=private)
         texture;
         shader;
         textureRect;
@@ -74,7 +74,7 @@ classdef gabor < neurostim.stimulus
         
     end
     
-    methods
+    methods (Access=private)
         
         function createProcGabor(o)
             % Copied from PTB

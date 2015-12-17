@@ -4,12 +4,12 @@ classdef behavior < neurostim.plugin
     % Properties:
     
     
-    properties
+    properties (Access=protected)
         failEndsTrial = true;               %Does violating behaviour end trial?
         started = false;
     end
     
-    properties (Access=public,SetObservable=true,GetObservable=true,AbortSet)
+    properties (SetObservable=true,GetObservable=true,AbortSet)
         inProgress@logical = false;
         done@logical=false;
     end
@@ -68,6 +68,18 @@ classdef behavior < neurostim.plugin
                 checkBehavior(o,c);
             end
         end
+        
+        function afterTrial(o,c,evt)
+            if ~o.done && o.started
+                %The trial ended before the behaviour could be completed. Treat this as a completion.
+                o.result(true,'COMPLETE',false);
+                o.endTime = c.trialTime;
+            end
+        end
+        
+    end
+    
+    methods (Access=protected)
        
         function o = sampleBehavior(o,c)
             % wrapper for sampleBehavior function, to be overloaded in
@@ -149,12 +161,6 @@ classdef behavior < neurostim.plugin
             end
         end
         
-        function afterTrial(o,c,evt)
-            if ~o.done && o.started
-                %The trial ended before the behaviour could be completed. Treat this as a completion.
-                o.result(true,'COMPLETE',false);
-                o.endTime = c.trialTime;
-            end
-        end
+        
     end   
 end

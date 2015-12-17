@@ -94,45 +94,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
 
     end
     
-%     methods (Access= public)
-        
-%         function varargout = subsref(A, S)
-            
-% %             overload, check for functions? add a notification for
-% %             evaluation???
-% %             
-% %             Handle the first indexing on your obj itself
-%             switch S(1).type
-%                 case '.'
-%                     if ismethod(A,S(1).subs)
-%                         if nargout>0
-%                             [varargout{1:nargout}]=builtin('subsref',A,S);
-%                         else
-%                             builtin('subsref',A,S);
-%                         end
-%                         return;
-%                     else
-% %                     Enable normal "." and "{}" behavior
-%                         B = builtin('subsref', A, S(1));
-%                     end
-%                 otherwise
-%                     B = builtin('subsref', A, S(1));
-%             end
-%             if strcmp(S(end).type,'.')
-%                 keyboard;
-%             end
-%             varargout=builtin('subsref',A,S);
-%             if numel(S) > 1
-%                 varargout = subsref(B, S(2:end)); % regular call, not "builtin", to support overrides
-%             else
-%                 varargout={B};
-%             end
-%             if ~iscell(varargout)
-%                 varargout={varargout};
-%             end
-%         end
-        
-%     end
+
     
     % Only the (derived) class designer should have access to these
     % methods.
@@ -282,9 +244,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % But the user may want to add a postprocessor to a built in property like
         % X. This function does exactly that
         function addPostSet(o,prop,postprocess,validate)
-            if nargin<4
-                validate ='';
-            end
+            
+                    if nargin <4
+                        validate = '';
+                    end
             h =findprop(o,prop);
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
@@ -315,10 +278,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 end
             end
             if isstruct(value)
-                for a=fieldnames(value)
-                    if ischar(value.(a{1})) && any(regexp(value.(a{1}),'@\((\w*)*'))
-                        prop=[src.Name '___' a{1}];
-                        functional(o,prop,value.(a{1}));
+                a=fieldnames(value);
+                for b=1:numel(fieldnames(value))
+                    if ischar(value.(a{b})) && any(regexp(value.(a{b}),'@\((\w*)*'))
+                        prop=[src.Name '___' a{b}];
+                        functional(o,prop,value.(a{b}));
                         value=o.(src.Name);
                     end
                 end

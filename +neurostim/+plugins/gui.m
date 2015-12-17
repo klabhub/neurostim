@@ -11,23 +11,13 @@ classdef gui <neurostim.plugin
     %
     % BK - April 2014
     %
-    properties (SetAccess =public, GetAccess=public)
+    properties (Access=public)
         xAlign@char = 'right';          % 'left', or 'right'
         yAlign@char = '';         % center
         spacing@double = 1.2;             % Space between lines
         nrCharsPerLine@double= 50;      % Number of chars per line
         font@char = 'Courier New';      % Font
         fontSize@double = 15;           % Font size
-        positionX;
-        positionY;
-        paramsBox;
-        feedX;
-        feedY;
-        feedBox;
-        mirrorRect;
-        mirrorBox;
-        mirrorOverlay;
-        guiText;
         toleranceColor=[1 1 50];
         
         props ={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial','blockTrial/nrTrials','trial/fullNrTrials'}; % List of properties to monitor
@@ -37,7 +27,7 @@ classdef gui <neurostim.plugin
         updateEachFrame = false;        % Set to true to update every frame. (Costly; debug purposes only)
     end
     
-    properties (SetAccess=protected)
+    properties (SetAccess=private)
         paramText@char = '';
         currentText@char = ''; %Internal storage for the current display
         keyLegend@char= '';      % Internal storage for the key stroke legend
@@ -52,6 +42,17 @@ classdef gui <neurostim.plugin
         eyetrackers=[];
         behaviours=[];
         lastFrameDrop=0;
+        
+        positionX;
+        positionY;
+        paramsBox;
+        feedX;
+        feedY;
+        feedBox;
+        mirrorRect;
+        mirrorBox;
+        mirrorOverlay;
+        guiText;
     end
     
     methods %Set/Get
@@ -202,7 +203,7 @@ classdef gui <neurostim.plugin
     end
     
     
-    methods (Access =protected)
+    methods (Access =private)
         
         function setupKeyLegend(o,c)
             b=1;
@@ -266,14 +267,6 @@ classdef gui <neurostim.plugin
             % The bbox does not seem to fit... add some slack 
             
 %           
-        end
-        
-
-        
-        function drawFeed(o,c)
-            %drawFeed(o,c)
-            % draws the bottom textbox from a texture.
-%             Screen('DrawTexture',c.onscreenWindow,o.guiFeed,[],o.guiRect);
         end
         
         function setupBehavior(o,c)

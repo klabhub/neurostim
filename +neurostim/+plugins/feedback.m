@@ -68,10 +68,13 @@ classdef feedback < neurostim.plugin
             end
             
             %Store the details
-            o.item(ind).duration = p.duration;
-            o.item(ind).when = upper(p.when);
-            o.item(ind).criterion = p.criterion;
-            o.item(ind).delivered = false;
+            if ~any(strcmp(['item_' num2str(ind)],properties(o)))
+                o.addProperty((['item_' num2str(ind)]),struct);
+            end
+            o.(['item_' num2str(ind)]).duration = p.duration;
+            o.(['item_' num2str(ind)]).when = upper(p.when);
+            o.(['item_' num2str(ind)]).criterion = p.criterion;
+            o.(['item_' num2str(ind)]).delivered = false;
             
             chAdd(o,childArgs);
         end
@@ -87,7 +90,7 @@ classdef feedback < neurostim.plugin
             
             %Which feedback items should be delivered now?
                 %Check that it's the right time, that it hasn't already been delivered, and that the criterion is satisfied.
-            toDeliver = find(arrayfun(@(thisItem) strcmp(type,thisItem.when) & ~thisItem.delivered & thisItem.criterion,o.item));
+            toDeliver = find(arrayfun(@(thisItem) strcmp(type,thisItem.when) & ~thisItem.delivered & thisItem.criterion,o.item_1));
             
             %If any, do it.
             for i=1:numel(toDeliver)

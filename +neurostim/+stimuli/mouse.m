@@ -27,11 +27,11 @@ classdef mouse < neurostim.stimulus
             
             o.listenToEvent({'BEFOREEXPERIMENT','BEFOREFRAME','AFTERFRAME','AFTERTRIAL'})
             
-            o.addProperty('clickx',[]);
-            o.addProperty('clicky',[]);
-            o.addProperty('clickbutton',[]);
-            o.addProperty('clicktime',[]);
-            o.addProperty('clickNumber',0);
+            o.addProperty('clickx',[],[],[],'private');
+            o.addProperty('clicky',[],[],[],'private');
+            o.addProperty('clickbutton',[],[],[],'private');
+            o.addProperty('clicktime',[],[],[],'private');
+            o.addProperty('clickNumber',0,[],[],'private');
             
         end
         

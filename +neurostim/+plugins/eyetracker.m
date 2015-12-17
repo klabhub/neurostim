@@ -23,6 +23,20 @@ methods
         o.addProperty('eyeToTrack','left');
     end
     
+    
+    
+    function afterFrame(o,c,evt)
+        if o.useMouse
+            [x,y,buttons] = c.getMouse;
+            if buttons(1)
+                o.x=x;
+                o.y=y;
+            end
+        end
+    end
+end
+
+methods (Access=protected)
     function trackedEye(o)
         if ischar(o.eyeToTrack)
             switch lower(o.eyeToTrack)
@@ -40,16 +54,6 @@ methods
         if o.useMouse
             %use the inbuilt mouse function
            [x,y] = c.getMouse;
-        end
-    end
-    
-    function afterFrame(o,c,evt)
-        if o.useMouse
-            [x,y,buttons] = c.getMouse;
-            if buttons(1)
-                o.x=x;
-                o.y=y;
-            end
         end
     end
     
