@@ -325,8 +325,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             a={};
             if ~isfield(o.listenerHandle.preGet,src.Name)
                 a=regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match');
-                %%%% rename srcName to subref, change all further
-                %%%% references
                 if numel(a)>1
                     srcNames=a{2:2:end};
                     for b=1:numel(srcNames)

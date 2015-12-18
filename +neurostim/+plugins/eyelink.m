@@ -217,6 +217,9 @@ classdef eyelink < neurostim.plugins.eyetracker
         % Add an eyelink command that will be executed before the
         % experiment starts. Passing an empty string resets the command
         % list.
+    end
+    
+    methods (Access=protected)
         function command(o,string)
             if isempty(string)
                 o.commands= {};

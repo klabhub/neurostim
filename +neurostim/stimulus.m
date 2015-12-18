@@ -86,7 +86,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rngSeed',[],[],@isnumeric);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
-            
+            s.addProperty('mccChannel',[],[],@isnumeric);
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
         end                      
@@ -191,7 +191,7 @@ classdef stimulus < neurostim.plugin
     % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
     % the derived class an oppurtunity to respond to changes that this 
     % base functionality makes.
-    methods (Access=public) 
+    methods (Access=private) 
         
         function addRSVP(s,rsvpFactorial,varargin)
 %           addRSVP(s,rsvpFactorial,[optionalArgs])
@@ -265,6 +265,10 @@ classdef stimulus < neurostim.plugin
                    error(['Diode Location ' s.diode.location ' not supported.'])
            end
         end
+        
+    end
+    
+    methods (Access=public)
         
         function baseEvents(s,c,evt)
             switch evt.EventName
@@ -359,6 +363,9 @@ classdef stimulus < neurostim.plugin
                 case 'BASEBEFOREEXPERIMENT'
                     if s.diode.on
                         setupDiode(s);
+                    end
+                     if ~isempty(s.mccChannel) && any(strcmp(s.cic.plugins,'mcc'))
+                        s.cic.mcc.map(s,'DIGITAL',s.mccChannel,s.on,'FIRSTFRAME')
                     end
                     notify(s,'BEFOREEXPERIMENT');
 

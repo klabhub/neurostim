@@ -13,7 +13,7 @@ methods
     function o= eyetracker
         o = o@neurostim.plugin('eye'); % Always eye such that it can be accessed through cic.eye
         o.listenToEvent('AFTERFRAME');
-        o.addProperty('eyeClockTime',[]);
+        o.addProperty('eyeClockTime',[],[],[],'private');
         o.addProperty('hardwareModel',[]);
         o.addProperty('sampleRate',1000,[],@isnumeric);
         o.addProperty('backgroundColor',[]);

@@ -84,10 +84,9 @@ classdef cic < neurostim.plugin
         getFlipTime@logical = false; %flag to notify whether to getg the frame flip time.
         requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
         
-        profile=struct;
-        guiOn@logical=false;
-        guiFlipEvery=[];
-        guiWindow;
+        
+        guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
+        guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
     end
     
@@ -131,6 +130,11 @@ classdef cic < neurostim.plugin
         blockTrial=1;
         lastFrameDrop=1;
         propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial','blockTrial/nrTrials','trial/fullNrTrials'};
+        
+        profile=struct;
+        
+        guiWindow;
+    
     end
     
     %% Dependent Properties
@@ -156,8 +160,6 @@ classdef cic < neurostim.plugin
     %% Public methods
     % set and get methods for dependent properties
     methods
-        
-        
         function v=get.fullNrTrials(c)
             v=0;
             for a=1:max(size(c.blocks))
@@ -242,8 +244,28 @@ classdef cic < neurostim.plugin
             end
         end
         
+        function set.screen(c,value)
+            if ~isequal(value.physical,c.screen.physical)
+                if ~isequal(c.screen.pixels(3)/value.physical(1),c.screen.pixels(4)/value.physical(2))
+                    warning('Physical dimensions are not the same aspect ratio as pixel dimensions.');
+                end
+            end
+            c.screen = value;
+        end
+        
+        function v=get.defaultPluginOrder(c)
+            v = [fliplr(c.stimuli) fliplr(c.plugins)];
+        end
+        
+        function v= get.trialTime(c)
+            v = (c.frame-1)*c.screen.frameDur;
+        end
+        
+    end
+    
+    methods (Access=private)
         function checkFrameRate(c)
-
+            
             if isempty(c.screen.frameRate)
                 error('frameRate not specified');
             end
@@ -267,23 +289,72 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function set.screen(c,value)
-            if ~isequal(value.physical,c.screen.physical)
-                if ~isequal(c.screen.pixels(3)/value.physical(1),c.screen.pixels(4)/value.physical(2))
-                    warning('Physical dimensions are not the same aspect ratio as pixel dimensions.');
+        function createEventListeners(c)
+            % creates all Event Listeners
+            if isempty(c.pluginOrder)
+                c.pluginOrder = c.defaultPluginOrder;
+            end
+            for a = 1:numel(c.pluginOrder)
+                o = c.(c.pluginOrder{a});
+                
+                for i=1:length(o.evts)
+                    if isa(o,'neurostim.plugin')
+                        % base events allow housekeeping before events
+                        % trigger, but giveReward and firstFrame do not require a
+                        % baseEvent.
+                        if strcmpi(o.evts{i},'GIVEREWARD')
+                            h=@(c,evt)(o.giveReward(o.cic,evt));
+                        elseif strcmpi(o.evts{i},'FIRSTFRAME')
+                            h=@(c,evt)(o.firstFrame(o.cic,evt));
+                        else
+                            addlistener(c,['BASE' o.evts{i}],@o.baseEvents);
+                            switch upper(o.evts{i})
+                                case 'BEFOREEXPERIMENT'
+                                    h= @(c,evt)(o.beforeExperiment(o.cic,evt));
+                                case 'BEFORETRIAL'
+                                    h= @(c,evt)(o.beforeTrial(o.cic,evt));
+                                case 'BEFOREFRAME'
+                                    h= @(c,evt)(o.beforeFrame(o.cic,evt));
+                                case 'AFTERFRAME'
+                                    h= @(c,evt)(o.afterFrame(o.cic,evt));
+                                case 'AFTERTRIAL'
+                                    h= @(c,evt)(o.afterTrial(o.cic,evt));
+                                case 'AFTEREXPERIMENT'
+                                    h= @(c,evt)(o.afterExperiment(o.cic,evt));
+                            end
+                        end
+                        % Install a listener in the derived class so that it
+                        % can respond to notify calls in the base class
+                        addlistener(o,o.evts{i},h);
+                    end
                 end
             end
-            c.screen = value;
         end
         
-        function v=get.defaultPluginOrder(c)
-            v = [fliplr(c.stimuli) fliplr(c.plugins)];
+        function out=collectPropMessage(c)
+            out='\n';
+            for i=1:numel(c.propsToInform)
+                str=strsplit(c.propsToInform{i},'/');
+                for j=1:numel(str)
+                    tmp = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
+                    if isnumeric(tmp)
+                        tmp = num2str(tmp);
+                    elseif islogical(tmp)
+                        if (tmp);tmp = 'true';else tmp='false';end
+                    end
+                    if numel(str)>1
+                        if j==1
+                            out=[out c.propsToInform{i} ': ' tmp];
+                        else
+                            out=[out '/' tmp];
+                        end
+                    else
+                        out = [out c.propsToInform{i} ': ' tmp];
+                    end
+                end
+                out=[out '\n'];
+            end
         end
-        
-        function v= get.trialTime(c)
-            v = (c.frame-1)*c.screen.frameDur;
-        end
-        
     end
     
     
@@ -416,47 +487,7 @@ classdef cic < neurostim.plugin
         end
         
         
-        function createEventListeners(c)
-            % creates all Event Listeners
-            if isempty(c.pluginOrder)
-                c.pluginOrder = c.defaultPluginOrder;
-            end
-            for a = 1:numel(c.pluginOrder)
-                o = c.(c.pluginOrder{a});
-                
-                for i=1:length(o.evts)
-                    if isa(o,'neurostim.plugin')
-                        % base events allow housekeeping before events
-                        % trigger, but giveReward and firstFrame do not require a
-                        % baseEvent.
-                        if strcmpi(o.evts{i},'GIVEREWARD')
-                            h=@(c,evt)(o.giveReward(o.cic,evt));
-                        elseif strcmpi(o.evts{i},'FIRSTFRAME')
-                            h=@(c,evt)(o.firstFrame(o.cic,evt));
-                        else
-                            addlistener(c,['BASE' o.evts{i}],@o.baseEvents);
-                            switch upper(o.evts{i})
-                                case 'BEFOREEXPERIMENT'
-                                    h= @(c,evt)(o.beforeExperiment(o.cic,evt));
-                                case 'BEFORETRIAL'
-                                    h= @(c,evt)(o.beforeTrial(o.cic,evt));
-                                case 'BEFOREFRAME'
-                                    h= @(c,evt)(o.beforeFrame(o.cic,evt));
-                                case 'AFTERFRAME'
-                                    h= @(c,evt)(o.afterFrame(o.cic,evt));
-                                case 'AFTERTRIAL'
-                                    h= @(c,evt)(o.afterTrial(o.cic,evt));
-                                case 'AFTEREXPERIMENT'
-                                    h= @(c,evt)(o.afterExperiment(o.cic,evt));
-                            end
-                        end
-                        % Install a listener in the derived class so that it
-                        % can respond to notify calls in the base class
-                        addlistener(o,o.evts{i},h);
-                    end
-                end
-            end
-        end
+
         
         
         function pluginOrder = order(c,varargin)
@@ -663,30 +694,7 @@ classdef cic < neurostim.plugin
         end
         
         
-        function out=collectPropMessage(c)
-            out='\n';
-            for i=1:numel(c.propsToInform)
-                str=strsplit(c.propsToInform{i},'/');
-                for j=1:numel(str)
-                    tmp = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
-                    if isnumeric(tmp)
-                        tmp = num2str(tmp);
-                    elseif islogical(tmp)
-                        if (tmp);tmp = 'true';else tmp='false';end
-                    end
-                    if numel(str)>1
-                        if j==1
-                            out=[out c.propsToInform{i} ': ' tmp];
-                        else
-                            out=[out '/' tmp];
-                        end
-                    else
-                        out = [out c.propsToInform{i} ': ' tmp];
-                    end
-                end
-                out=[out '\n'];
-            end
-        end
+        
         
         function nextCondition(c,cond)
            % assigns the next condition to the value/condition given.
@@ -695,7 +703,6 @@ classdef cic < neurostim.plugin
            elseif isnumeric(cond) && cond<=c.nrConditions
                c.blocks(c.block).conditions=[c.blocks(c.block).conditions(1:c.blockTrial), cond,c.blocks(c.block).conditions(c.blockTrial+1:end)];
            end
-               
         end
         
         function afterTrial(c)
