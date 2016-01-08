@@ -279,7 +279,7 @@ classdef cic < neurostim.plugin
                 c.screen.frameDur = frInterval;
             end
             
-            if ~isempty(c.pluginsByClass('neurostim.plugins.gui'))
+            if ~isempty(c.pluginsByClass('gui'))
                 frInterval=Screen('GetFlipInterval',c.guiWindow)*1000;
                 if isempty(c.guiFlipEvery)
                     c.guiFlipEvery=ceil(frInterval/c.screen.frameDur);
@@ -527,11 +527,12 @@ classdef cic < neurostim.plugin
         end
         
         function plgs = pluginsByClass(c,classType)
+            
             %Return pointers to all active plugins of the specified class type.
             ind=1; plgs = [];
             for i=1:numel(c.plugins)
                 thisPlg = c.(c.plugins{i});
-                if isa(thisPlg,classType);
+                if isa(thisPlg,horzcat('neurostim.plugins.',classType));
                     plgs{ind} = thisPlg;
                     ind=ind+1;
                 end
@@ -1025,13 +1026,13 @@ classdef cic < neurostim.plugin
 %                     c.mirrorPixels = [c.screen.pixels(3) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
 %                 end
                 
-                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background,c.screen.pixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
+                c.onscreenWindow = PsychImaging('OpenWindow',3-screenNumber, c.screen.color.background,c.screen.pixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
                 %
                 cal=setupScreen(c);
                 PsychImaging('AddTask','General','UseFastOffscreenWindows');
                 
-                c.guiWindow=PsychImaging('OpenWindow',screenNumber-1,c.screen.color.background);
+                c.guiWindow=PsychImaging('OpenWindow',3-(screenNumber-1),c.screen.color.background);
                 switch upper(c.screen.colorMode)
                     case 'XYL'
                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);

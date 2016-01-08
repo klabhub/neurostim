@@ -88,7 +88,7 @@ classdef output < neurostim.plugin
             end
                 if isempty(o.allSaveLogs)
                     o.allSaveLogs=[c.stimuli c.plugins 'cic']; %combine all stimuli and plugins to save
-                    nolog=c.pluginsByClass('neurostim.plugins.output');
+                    nolog=c.pluginsByClass('output');
                     for a=1:max(size(nolog))
                         o.allSaveLogs(strcmpi(o.allSaveLogs,nolog{a}.name))=[];
                     end
