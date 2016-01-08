@@ -1,12 +1,15 @@
 classdef eyetracker < neurostim.plugin
 
 properties (Access=public)
+    useMouse@logical=false;
+    keepExperimentSetup@logical=true;
+end
+
+properties 
     x@double;
     y@double;
     z@double;
     pupilSize@double;
-    useMouse@logical=false;
-    keepExperimentSetup@logical=true;
 end
 
 methods

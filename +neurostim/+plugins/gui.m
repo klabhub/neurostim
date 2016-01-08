@@ -27,7 +27,7 @@ classdef gui <neurostim.plugin
         updateEachFrame = false;        % Set to true to update every frame. (Costly; debug purposes only)
     end
     
-    properties (SetAccess=private)
+    properties (Access=private)
         paramText@char = '';
         currentText@char = ''; %Internal storage for the current display
         keyLegend@char= '';      % Internal storage for the key stroke legend
@@ -50,8 +50,6 @@ classdef gui <neurostim.plugin
         feedY;
         feedBox;
         mirrorRect;
-        mirrorBox;
-        mirrorOverlay;
         guiText;
     end
     
@@ -69,8 +67,8 @@ classdef gui <neurostim.plugin
         function v=get.mirrorRect(o)
             x1=o.cic.mirrorPixels(1);
             y1=o.cic.mirrorPixels(2);
-            x2=o.cic.mirrorPixels(1)+o.cic.screen.pixels(3)/2;
-            y2=o.cic.mirrorPixels(2)+o.cic.screen.pixels(4)/2;
+            x2=o.cic.mirrorPixels(3)/2;
+            y2=o.cic.mirrorPixels(4)/2;
             v=[x1 y1 x2 y2];
         end
     end
@@ -120,10 +118,8 @@ classdef gui <neurostim.plugin
             o.textHeight=sampleText(4)-sampleText(2);
             o.feedX=c.mirrorPixels(3)/2+2*slack;
             o.feedY=c.mirrorPixels(4)*.5+slack;
-            o.feedBox = [slack o.feedY-slack c.screen.pixels(3)-slack c.mirrorPixels(4)-(4*slack)];
-            o.paramsBox = [c.screen.pixels(3)/2+slack slack c.mirrorPixels(3)-slack o.mirrorRect(4)/2-slack];
-            
-            o.mirrorBox=[0 0 o.mirrorRect(3)-o.mirrorRect(1) o.mirrorRect(4)-o.mirrorRect(2)];
+            o.feedBox = [slack o.feedY-slack c.mirrorPixels(3)-slack c.mirrorPixels(4)-(4*slack)];
+            o.paramsBox = [c.mirrorPixels(3)/2+slack slack c.mirrorPixels(3)-slack o.mirrorRect(4)/2-slack];
             
             o.eyetrackers=c.pluginsByClass('neurostim.plugins.eyetracker');
             o.behaviours=c.pluginsByClass('neurostim.plugins.behavior');
@@ -141,10 +137,6 @@ classdef gui <neurostim.plugin
             drawParams(o,c);
             drawMirror(o,c);
             
-%             box=[o.guiRect(1)-c.screen.pixels(3) o.guiRect(2) o.guiRect(3)-c.screen.pixels(3) o.guiRect(4)];
-
-%             Screen('DrawTextures',c.onscreenWindow,[o.guiText c.mirror],[box' c.screen.pixels'],[o.guiRect' o.mirrorRect'],[],[1 0]);
-
         end
         
         function beforeTrial(o,c,evt)
@@ -230,9 +222,8 @@ classdef gui <neurostim.plugin
         
         function drawParams(o,c)
 %             Screen('FillRect',c.onscreenWindow,c.screen.color.background,o.guiRect);
-            
-            Screen('DrawTexture',c.guiWindow,o.guiText,[],o.guiRect,[],0);
-
+%             Screen('DrawTexture',c.guiWindow,o.guiText,[],o.guiRect,[],0);
+                Screen('DrawTexture',c.guiWindow,o.guiText,[],[],[],0);
 %             DrawFormattedText(win, tstring [, sx][, sy][, color][, wrapat][, flipHorizontal][, flipVertical][, vSpacing][, righttoleft][, winRect])
         end
         
@@ -262,9 +253,8 @@ classdef gui <neurostim.plugin
             end
             o.paramText=[o.paramText o.footer];
             %draw to offscreen window
-            Screen('FillRect',o.guiText,c.screen.color.background,[o.paramsBox(1)+2 o.paramsBox(2)+2 o.paramsBox(3)-2 o.paramsBox(4)-2]);
+            Screen('FillRect',o.guiText,c.screen.color.background,o.paramsBox);
             DrawFormattedText(o.guiText, o.paramText, o.positionX,o.positionY, c.screen.color.text,o.nrCharsPerLine,[],[],o.spacing);
-            % The bbox does not seem to fit... add some slack 
             
 %           
         end
@@ -324,8 +314,8 @@ classdef gui <neurostim.plugin
                     xsize=30;
                     Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,c.screen.color.text,[eyeX eyeY]);
             end
-            Screen('DrawTexture',o.guiText,c.mirror,c.screen.pixels,o.mirrorBox,[],0);
-            Screen('FrameRect',o.guiText,c.screen.color.text,o.mirrorBox);
+            Screen('DrawTexture',o.guiText,c.mirror,c.screen.pixels,o.mirrorRect,[],0);
+            Screen('FrameRect',o.guiText,c.screen.color.text,o.mirrorRect);
         end
         
         function updateBehavior(o,c)

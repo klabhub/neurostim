@@ -48,12 +48,12 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink; % Check that the EyelinkToolBox is available.
             %clear Eyelink;
             o = o@neurostim.plugins.eyetracker;
-            o.listenToKeyStroke('F9','DriftCorrect');
-            o.listenToKeyStroke('F8','EyelinkSetup');
+            o.addKey('F9',@keyboard,'DriftCorrect');
+            o.addKey('F8',@keyboard,'EyelinkSetup');
             o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'}); %The parent class is also listening to the AFTERFRAME event. Intended?
             
             o.addProperty('eyeEvts',struct('time',[],'type',[],'flags',[],'px',[],'py',[],'hx',[],'hy',[],...
-                'pa',[],'gx',[],'gy',[],'rx',[],'ry',[],'status',[],'input',[],'buttons',[],'htype',[],'hdata',[]));
+                'pa',[],'gx',[],'gy',[],'rx',[],'ry',[],'status',[],'input',[],'buttons',[],'htype',[],'hdata',[]),[],[],[],'private');
         end
         
         function beforeExperiment(o,c,evt)
@@ -197,14 +197,6 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
         end
         
-        function events(o,src,evt)
-            switch (evt.EventName)
-                %Nothing to do?
-                otherwise
-                    error(['Unhandled event ' evt.EventName]);
-            end
-        end
-        
         function keyboard(o,key,~)
             switch upper(key)
                 case 'F9'
@@ -214,12 +206,12 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
         end
         
-        % Add an eyelink command that will be executed before the
-        % experiment starts. Passing an empty string resets the command
-        % list.
     end
     
     methods (Access=protected)
+        % Add an eyelink command that will be executed before the
+        % experiment starts. Passing an empty string resets the command
+        % list.
         function command(o,string)
             if isempty(string)
                 o.commands= {};

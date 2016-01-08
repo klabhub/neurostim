@@ -326,17 +326,22 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             if ~isfield(o.listenerHandle.preGet,src.Name)
                 a=regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match');
                 if numel(a)>1
-                    srcNames=a{2:2:end};
+                    srcNames=a(2:2:end);
                     for b=1:numel(srcNames)
                         if ~isempty(regexp(srcNames{b},'___','ONCE'))
-                            names{b}=regexprep(srcNames{b},'___','.');
+                             names{b}=regexprep(srcNames{b},'___','.');
                         elseif ~isempty(regexp(srcNames{b},'__','ONCE'))
                             names{b}=regexprep(srcNames{b},'__','{');
                         end
                     end
                 end
-                srcName=srcNames{1};
+                if numel(names)==1
+                srcName=srcNames{1}{:};
+                else
+                    srcName=srcNames;
+                end
             else
+                srcNames={{src.Name}};
                 srcName=src.Name;
             end
             if ischar(o.(src.Name)) && ~strcmp(specs{1},o.(src.Name)) %if value is set to a new function
@@ -348,28 +353,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             prevvalues=o.log.values(strcmp(o.log.parms,src.Name));
             prevvalue=prevvalues{end};
-            if numel(a)>0
-                if isstruct(o.(src.Name)) && isstruct(prevvalue) && all(size(o.(src.Name))==size(prevvalue)) && numel(fieldnames(o.(src.Name)))==numel(fieldnames(prevvalue)) && all(strcmp(fieldnames(o.(src.Name)),fieldnames(prevvalue)))
-                    check=fieldnames(prevvalue);
-                    for c=1:numel(check)
-                        if ~strcmp(specs{1},o.(src.Name)(b).(check{c})) && ((ischar(prevvalue(b).(check{c})) && ischar(o.(src.Name)(b).(check{c})) && ~strcmp(prevvalue(b),o.(src.Name)(b).(check{c}))) || (any(prevvalue(b).(check{c})~=o.(src.Name)(b).(check{c})))...
-                                || (isempty(prevvalue(b).(check{c})) && ~isempty(o.(src.Name)(b).(check{c}))) || (~isempty(prevvalue(b).(check{c})) && isempty(o.(src.Name)(b).(check{c}))))
-                            delete(o.listenerHandle.preGet.(srcName));
-                            delete(o.listenerHandle.preGet.([srcName 'specs']));
-                            return;
-                        else
-                            break;
-                        end
-                    end
-                end
-            elseif ~strcmp(specs{1},o.(src.Name)) && ((ischar(prevvalue) && ischar(o.(src.Name)) && ~strcmp(prevvalue,o.(src.Name))) || (any(prevvalue~=o.(src.Name)))...
+            if numel(a)==0 && ~strcmp(specs{1},o.(src.Name)) && ((ischar(prevvalue) && ischar(o.(src.Name)) && ~strcmp(prevvalue,o.(src.Name))) || (any(prevvalue~=o.(src.Name)))...
                     || (isempty(prevvalue) && ~isempty(o.(src.Name))) || (~isempty(prevvalue) && isempty(o.(src.Name))))
                 delete(o.listenerHandle.preGet.(srcName));
                 delete(o.listenerHandle.preGet.([srcName 'specs']));
                 return;
             end
-            
-            value=evalFunction(o,srcName,evt,specs);
+            for f=1:numel(srcNames)
+                srcName=srcNames{f}{:};
+                value=evalFunction(o,srcName,evt,specs);
+            end
             
             % Compare with existing value to see if we need to set?
             oldValue = o.(src.Name);
@@ -387,13 +380,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             args= cell(1,nrArgs);
             isstruct=false;
             iscell=false;
-            if ~isempty(regexp(srcName,'___'))
+            if ~isempty(regexp(srcName,'___','ONCE'))
                 tmp=regexprep(srcName,'___','.');
                 postSrcName=tmp(strfind(tmp,'.')+1:end);
                 srcName=tmp(1:strfind(tmp,'.')-1);
                 isstruct=true;
                 value=o.(srcName);
-            elseif ~isempty(regexp(srcName,'__'))
+            elseif ~isempty(regexp(srcName,'__','ONCE'))
                 tmp=regexprep(srcName,'__','{');
                 postSrcName=str2double(tmp(strfind(tmp,'{')+1:end));
                 srcName=tmp(1:strfind(tmp,'{')-1);
