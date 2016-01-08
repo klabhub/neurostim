@@ -73,8 +73,8 @@ c.add(g);
 
 % Play a correct/incorrect sound for the 2AFC task
 %     Use the sound plugin
-s = plugins.sound;
-c.add(s);
+% s = plugins.sound;
+% c.add(s);
 
 %     Add correct/incorrect feedback
 % s = plugins.soundFeedback('soundFeedback');

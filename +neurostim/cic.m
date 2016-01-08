@@ -1026,13 +1026,13 @@ classdef cic < neurostim.plugin
 %                     c.mirrorPixels = [c.screen.pixels(3) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
 %                 end
                 
-                c.onscreenWindow = PsychImaging('OpenWindow',3-screenNumber, c.screen.color.background,c.screen.pixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
+                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background,c.screen.pixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
                 %
                 cal=setupScreen(c);
                 PsychImaging('AddTask','General','UseFastOffscreenWindows');
                 
-                c.guiWindow=PsychImaging('OpenWindow',3-(screenNumber-1),c.screen.color.background);
+                c.guiWindow=PsychImaging('OpenWindow',screenNumber,c.screen.color.background);
                 switch upper(c.screen.colorMode)
                     case 'XYL'
                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
