@@ -40,7 +40,7 @@ classdef soundFeedback < neurostim.plugins.feedback
             end
 
             %Store the waveform
-            o.item(o.nItems).waveform = p.waveform;
+            o.(['item', num2str(o.nItems)]).waveform = p.waveform;
         end
     end
     
@@ -57,7 +57,7 @@ classdef soundFeedback < neurostim.plugins.feedback
             
             %Allocate the audio buffers
             for i=1:o.nItems
-               o.item(i).buffer = o.cic.sound.createBuffer(o.item(i).waveform);
+               o.(['item' num2str(i)]).buffer = o.cic.sound.createBuffer(o.(['item' num2str(i)]).waveform);
             end
         end
 

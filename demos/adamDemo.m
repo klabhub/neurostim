@@ -4,7 +4,6 @@ import neurostim.*
 commandwindow;
 Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference','TextRenderer',1);
-
 %% ========= Specify rig configuration  =========
 c = adamsConfig;
 
@@ -12,7 +11,7 @@ c = adamsConfig;
 c.add(plugins.debug);
 
 %Use the experimenter GUI window
-c.add(neurostim.plugins.gui);
+% c.add(neurostim.plugins.gui);
 
 %Use/simulate Eylink eye tracker
 e = neurostim.plugins.eyelink;
@@ -24,7 +23,7 @@ c.add(e);
 %Fixation dot
 f=stimuli.fixation('fix');
 f.shape = 'CIRC';
-f.size = '@(dots) dots.size';
+f.size = 0.5;
 f.color = [1 1 50];
 f.on=0;
 f.duration = Inf;
@@ -35,7 +34,7 @@ s = stimuli.rdp('dots');
 s.on = '@(f1) f1.startTime';
 s.duration = 1000;
 s.color = [0.3 0.3 100];
-s.size = 23;
+s.size = 6;
 s.nrDots = 200;
 s.maxRadius = 8;
 s.lifetime = Inf;
@@ -73,18 +72,18 @@ c.add(g);
 
 % Play a correct/incorrect sound for the 2AFC task
 %     Use the sound plugin
-% s = plugins.sound;
-% c.add(s);
+s = plugins.sound;
+c.add(s);
 
 %     Add correct/incorrect feedback
-% s = plugins.soundFeedback('soundFeedback');
-% c.add(s);
-% s.add('waveform','CORRECT','when','afterFrame','criterion','@(choice) choice.done & choice.correct');
-% s.add('waveform','INCORRECT','when','afterFrame','criterion','@(choice) choice.done & ~choice.correct');
+s = plugins.soundFeedback('soundFeedback');
+c.add(s);
+s.add('waveform','CORRECT','when','afterFrame','criterion','@(choice) choice.done & choice.correct');
+s.add('waveform','INCORRECT','when','afterFrame','criterion','@(choice) choice.done & ~choice.correct');
 
 
 %% Experimental design
-c.trialDuration = Inf;
+c.trialDuration = '@(choice) choice.endTime';
 
 %Specify experimental conditions
 myFac=factorial('myFactorial',2);

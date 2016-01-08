@@ -25,20 +25,18 @@ classdef feedback < neurostim.plugin
     end
     
     properties (Dependent)
-        nItems % Number of feedback items added. 
+
     end
     
     methods
-        function v= get.nItems(o)
-            v= numel(o.item);
-        end
+
     end
     
     methods (Access=public)
         function o=feedback(name)
             o=o@neurostim.plugin(name);
             o.listenToEvent({'BEFORETRIAL', 'AFTERTRIAL','AFTERFRAME'});
-            o.addProperty('item',struct('criterion',[],'duration',[],'when',[]));
+            o.addProperty('nItems',0);
         end  
     end
     
@@ -61,20 +59,16 @@ classdef feedback < neurostim.plugin
             p = p.Results;
             
             %Which item number is this?
-            if isempty(o.item.duration)
-                ind = 1;
-            else
-                ind = o.nItems + 1;
-            end
+            o.nItems = o.nItems + 1;
             
             %Store the details
-            if ~any(strcmp(['item_' num2str(ind)],properties(o)))
-                o.addProperty((['item_' num2str(ind)]),struct);
-            end
-            o.(['item_' num2str(ind)]).duration = p.duration;
-            o.(['item_' num2str(ind)]).when = upper(p.when);
-            o.(['item_' num2str(ind)]).criterion = p.criterion;
-            o.(['item_' num2str(ind)]).delivered = false;
+            thisItem = ['item' num2str(o.nItems)];
+            o.addProperty(thisItem,struct('duration',Inf,'when',Inf,'criterion',false,'delivered',false));
+            it.duration = p.duration;
+            it.when = upper(p.when);
+            it.criterion = p.criterion;
+            it.delivered = false;
+            o.(thisItem) = it;
             
             chAdd(o,childArgs);
         end
@@ -82,7 +76,7 @@ classdef feedback < neurostim.plugin
         function beforeTrial(o,c,evt)
             %Reset flags for all tiems.
             for i=1:o.nItems
-                o.item(i).delivered = false;
+                o.(['item' num2str(i)]).delivered = false;
             end
         end
           

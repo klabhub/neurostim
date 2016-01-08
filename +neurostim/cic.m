@@ -281,9 +281,9 @@ classdef cic < neurostim.plugin
             
             if ~isempty(c.pluginsByClass('gui'))
                 frInterval=Screen('GetFlipInterval',c.guiWindow)*1000;
-                if isempty(c.guiFlipEvery)
-                    c.guiFlipEvery=ceil(frInterval/c.screen.frameDur);
-                elseif c.guiFlipEvery<ceil(frInterval/c.screen.frameDur);
+                 if isempty(c.guiFlipEvery)
+                    c.guiFlipEvery=ceil(frInterval*0.9/c.screen.frameDur);
+                elseif c.guiFlipEvery<=ceil(frInterval*0.9/c.screen.frameDur);
                     error('GUI flip interval is too small; this will cause frame drops in experimental window.')
                 end
             end
@@ -1025,14 +1025,14 @@ classdef cic < neurostim.plugin
 %                 else
 %                     c.mirrorPixels = [c.screen.pixels(3) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
 %                 end
-                
                 c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background,c.screen.pixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
+
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
                 %
                 cal=setupScreen(c);
                 PsychImaging('AddTask','General','UseFastOffscreenWindows');
                 
-                c.guiWindow=PsychImaging('OpenWindow',screenNumber,c.screen.color.background);
+                c.guiWindow=PsychImaging('OpenWindow',(screenNumber-1),c.screen.color.background);
                 switch upper(c.screen.colorMode)
                     case 'XYL'
                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
@@ -1041,7 +1041,7 @@ classdef cic < neurostim.plugin
 %                         Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 end
             else% otherwise open screens as normal
-                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background, c.screen.pixels);
+                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background,c.screen.pixels);
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
                 
             end

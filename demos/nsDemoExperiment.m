@@ -13,7 +13,7 @@ Screen('Preference', 'ConserveVRAM', 397312);
 % c.screen.colorMode = 'xyl';
 % c.iti = 2000;
 % c.trialDuration = inf;
-c = myConfig;
+c = adamsConfig;
 c.output.saveFrequency=5;
 % e = plugins.eyelink;
 % e.useMouse = true;

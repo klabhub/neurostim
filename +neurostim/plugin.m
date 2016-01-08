@@ -585,6 +585,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     methods (Access = public)
         function baseEvents(o,c,evt)
             if c.PROFILE;tic;end
+            
             switch evt.EventName
                 case 'BASEBEFOREEXPERIMENT'
                     notify(o,'BEFOREEXPERIMENT');
@@ -595,7 +596,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     
                 case 'BASEBEFOREFRAME'
                     if strcmp(o.name,'gui')
-                        if ~mod(c.frame,c.guiFlipEvery)
+                        if mod(c.frame,c.guiFlipEvery)>0
                             return;
                         end
                     end
@@ -608,7 +609,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     
                 case 'BASEAFTERFRAME'
                     if strcmp(o.name,'gui')
-                        if ~mod(c.frame,c.guiFlipEvery)
+                        if mod(c.frame,c.guiFlipEvery)>0
                             return;
                         end
                     end
