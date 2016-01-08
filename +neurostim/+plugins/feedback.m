@@ -84,7 +84,7 @@ classdef feedback < neurostim.plugin
             
             %Which feedback items should be delivered now?
                 %Check that it's the right time, that it hasn't already been delivered, and that the criterion is satisfied.
-            toDeliver = find(arrayfun(@(thisItem) strcmp(type,thisItem.when) & ~thisItem.delivered & thisItem.criterion,o.item_1));
+            toDeliver = find(arrayfun(@(thisItem) strcmp(type,thisItem.when) & ~thisItem.delivered & thisItem.criterion,o.item1));
             
             %If any, do it.
             for i=1:numel(toDeliver)

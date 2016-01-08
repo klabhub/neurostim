@@ -282,8 +282,8 @@ classdef cic < neurostim.plugin
             if ~isempty(c.pluginsByClass('gui'))
                 frInterval=Screen('GetFlipInterval',c.guiWindow)*1000;
                  if isempty(c.guiFlipEvery)
-                    c.guiFlipEvery=ceil(frInterval*0.9/c.screen.frameDur);
-                elseif c.guiFlipEvery<=ceil(frInterval*0.9/c.screen.frameDur);
+                    c.guiFlipEvery=ceil(frInterval*0.95/c.screen.frameDur);
+                elseif c.guiFlipEvery<ceil(frInterval*0.95/c.screen.frameDur);
                     error('GUI flip interval is too small; this will cause frame drops in experimental window.')
                 end
             end

@@ -329,6 +329,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             a={};
             if ~isfield(o.listenerHandle.preGet,src.Name)
                 a=regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match');
+                a=a(~cellfun('isempty',a));
                 if numel(a)>1
                     srcNames=a(2:2:end);
                     for b=1:numel(srcNames)
@@ -397,6 +398,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 iscell=true;
                 value=o.(srcName);
             end
+            if isa(o,'neurostim.cic')
+                root=o;
+            else
+                root=o.cic;
+            end
             try
             for i=1:nrArgs
                 if ~isempty(specs{2+i})
@@ -404,7 +410,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         %if there is no subproperty reference
                         if ischar(specs{i+2}{1}) && strcmp(specs{i+2}{1},'cic')
                             % An object of cic
-                            args{i} = o.cic.(specs{i+2}{2});
+                            args{i} = root.(specs{i+2}{2});
                         else
                             %not an object of cic; must be a plugin/stimulus
                             if strcmp(specs{i+2}{1},o.name) && ~isstruct
@@ -413,10 +419,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                                 if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))
                                     args{i} = oldValues{end-1};
                                 else
-                                    args{i} = o.cic.(specs{i+2}{1}).(specs{i+2}{2});
+                                    args{i} = root.(specs{i+2}{1}).(specs{i+2}{2});
                                 end
                             else % is not self-referential
-                                args{i} = o.cic.(specs{i+2}{1}).(specs{i+2}{2});
+                                args{i} = root.(specs{i+2}{1}).(specs{i+2}{2});
                             end
                         end
                         
@@ -427,9 +433,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         
                         if ischar(specs{i+2}{1}) && strcmp(specs{i+2}{1},'cic')
                             % if is an object of cic
-                            args{i} = o.cic.(predot);
+                            args{i} = root.(predot);
                         else % if is not an object of cic (plugin/stimulus)
-                            args{i} = o.cic.(specs{i+2}{1}).(predot);
+                            args{i} = root.(specs{i+2}{1}).(predot);
                             
                             if strcmp(specs{i+2}{1},srcName)
                                 % if the property is self-referential
