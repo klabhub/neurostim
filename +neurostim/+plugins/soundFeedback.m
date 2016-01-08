@@ -1,4 +1,4 @@
-classdef soundFeedback < neurostim.plugins.feedback & neurostim.plugins.sound
+classdef soundFeedback < neurostim.plugins.feedback
     %Plugin to deliver auditory feedback.
     %Specify either a filename to a wav file, or pass in a mono- (vector) or stereo (matrix) waveform to be played.
     
@@ -9,8 +9,8 @@ classdef soundFeedback < neurostim.plugins.feedback & neurostim.plugins.sound
     methods (Access=public)
         function o=soundFeedback(name)
             o=o@neurostim.plugins.feedback(name);
+            o.listenToEvent({'BEFOREEXPERIMENT'});
         end
-        
     end
     
     methods (Access=protected)
@@ -46,10 +46,18 @@ classdef soundFeedback < neurostim.plugins.feedback & neurostim.plugins.sound
     
     methods (Access=public)
         
-        function audioBufferAllocation(o)
+        function beforeExperiment(o,c,evt)
+            
+            %Check that the sound plugin is enabled
+            snd = c.pluginsByClass('sound');
+            
+            if isempty(snd)
+                error('No "sound" plugin detected. soundFeedback relies on it.');
+            end
+            
             %Allocate the audio buffers
             for i=1:o.nItems
-               o.item(i).buffer = o.bufferSound(o.item(i).waveform); 
+               o.item(i).buffer = o.cic.sound.createBuffer(o.item(i).waveform);
             end
         end
 
@@ -58,42 +66,12 @@ classdef soundFeedback < neurostim.plugins.feedback & neurostim.plugins.sound
             %Read WAV file and return waveform data
             waveformData = audioread(file);
         end
-        
-        function buffered = bufferSound(o,waveform)
-            
-            %If a vector (mono), force to be a row
-            if isvector(waveform)
-                waveform = waveform(:)';
-                waveform = [waveform; waveform];
-            end
-
-            %If neither mono, nor stereo
-            if ~any(size(waveform)==2)
-                error('Waveform data must be either a vector (mono) or two-column matrix (stereo)');
-            end
-            
-            %Ensure 2 x N matrix
-            if size(waveform,2)==2
-                waveform = waveform';
-            end
-            
-            %All good. Create the buffer
-            buffered = PsychPortAudio('CreateBuffer',o.paHandle,waveform);
-        end
-            
-        
-        function delete(o)
-            PsychPortAudio('Close');
-        end
     end
     
     methods (Access=protected)
          
         function deliver(o,item)
-            PsychPortAudio('FillBuffer', o.paHandle,item.buffer);
-            
-            % play sound immediately.
-            PsychPortAudio('Start',o.paHandle);
+            o.cic.sound.play(item.buffer);
         end
  end
         

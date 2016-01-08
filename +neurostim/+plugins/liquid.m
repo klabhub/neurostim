@@ -16,7 +16,7 @@ classdef liquid < neurostim.plugins.feedback
         function beforeExperiment(o,c,evt)
             
             %Check that the MCC plugin is added.
-            o.mcc = pluginsByClass(c,'neurostim.plugins.mcc');
+            o.mcc = pluginsByClass(c,'mcc');
             if numel(o.mcc)==1
                 o.mcc = o.mcc{1};
             else

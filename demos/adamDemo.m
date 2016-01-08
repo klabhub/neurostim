@@ -12,7 +12,7 @@ c = adamsConfig;
 c.add(plugins.debug);
 
 %Use the experimenter GUI window
-% c.add(neurostim.plugins.gui);
+c.add(neurostim.plugins.gui);
 
 %Use/simulate Eylink eye tracker
 e = neurostim.plugins.eyelink;
@@ -24,7 +24,7 @@ c.add(e);
 %Fixation dot
 f=stimuli.fixation('fix');
 f.shape = 'CIRC';
-f.size = 0.5;
+f.size = '@(dots) dots.size';
 f.color = [1 1 50];
 f.on=0;
 f.duration = Inf;
@@ -33,9 +33,9 @@ c.add(f);
 %Random dot pattern
 s = stimuli.rdp('dots');
 s.on = '@(f1) f1.startTime';
-s.duration = 3000;
+s.duration = 1000;
 s.color = [0.3 0.3 100];
-s.size = 6;
+s.size = 23;
 s.nrDots = 200;
 s.maxRadius = 8;
 s.lifetime = Inf;
@@ -73,12 +73,15 @@ c.add(g);
 
 % Play a correct/incorrect sound for the 2AFC task
 %     Use the sound plugin
-s = plugins.sound('sound');
+s = plugins.sound;
+c.add(s);
 
 %     Add correct/incorrect feedback
+% s = plugins.soundFeedback('soundFeedback');
+% c.add(s);
 % s.add('waveform','CORRECT','when','afterFrame','criterion','@(choice) choice.done & choice.correct');
 % s.add('waveform','INCORRECT','when','afterFrame','criterion','@(choice) choice.done & ~choice.correct');
-% c.add(s);
+
 
 %% Experimental design
 c.trialDuration = Inf;
@@ -94,5 +97,5 @@ myBlock.nrRepeats=10;
 
 %% Run the experiment.
 c.cursor = 'arrow';
-c.order('fix','dots','f1','choice','liquid','gui');
+c.order('sound','fix','dots','f1','choice','liquid','soundFeedback','gui');
 c.run(myBlock);
