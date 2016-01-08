@@ -99,7 +99,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('StopRecording');
             Eyelink('CloseFile');
             try
-                status=Eyelink('ReceiveFile',o.edfFile,['c:\temp\' o.cic.file '.edf']); %change to OUTPUT dir
+                status=Eyelink('ReceiveFile',o.edfFile,[o.cic.fullFile '.edf']); %change to OUTPUT dir
             catch
                 error('Eyelink file failed to transfer to the NS computer');
             end

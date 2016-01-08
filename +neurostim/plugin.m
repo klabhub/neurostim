@@ -281,9 +281,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 a=fieldnames(value);
                 for b=1:numel(fieldnames(value))
                     if ischar(value.(a{b})) && any(regexp(value.(a{b}),'@\((\w*)*'))
+                        warning('Setting a function to a structure will evaluate every time the structure is referenced.')
                         prop=[src.Name '___' a{b}];
                         functional(o,prop,value.(a{b}));
                         value=o.(src.Name);
+                        if numel(regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match'))>2
+                            warning('Multiple functions set to the same structure will cause frame drops.')
+                        end
                     end
                 end
             end
@@ -403,7 +407,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                             args{i} = o.cic.(specs{i+2}{2});
                         else
                             %not an object of cic; must be a plugin/stimulus
-                            if strcmp(specs{i+2}{1},o.name)
+                            if strcmp(specs{i+2}{1},o.name) && ~isstruct
                                 % if is self-referential
                                 oldValues = o.log.values(strcmp(o.log.parms,specs{i+2}{2}));    % check old value was not functional
                                 if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))

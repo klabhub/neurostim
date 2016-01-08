@@ -11,9 +11,9 @@ classdef output < neurostim.plugin
     %
     
     properties (GetAccess=public, SetAccess=public)
-        root='c:\temp\';
         mode@char   = 'DAYFOLDERS';
-        saveFrequency = Inf;        
+        saveFrequency = Inf;
+        ext@char='.mat';
     end
     
     properties (GetAccess=public, SetAccess=protected);
@@ -36,12 +36,6 @@ classdef output < neurostim.plugin
         
     
     methods
-        function set.root(o,v)
-            if ~exist(v,'dir')
-                error('The root output directory does not exist. Please create it first');
-            end
-            o.root = v;
-        end
         
         function v= get.dumpFilename(o)
             [pathName, fname,ext] = fileparts(o.filename);
@@ -195,31 +189,23 @@ classdef output < neurostim.plugin
     end
     
         
-     methods (Access = protected)   
+    methods (Access = protected)
         function f = setFile(o)
             % Set the file name based on the mode and the current time.
-            
-            switch (o.mode)
-                case 'DAYFOLDERS'
-                    % Create a year/month/day structure and create a file
-                    % named after the current time.
-                    % e.g. root/2015/06/13/150523.mat for an experiment
-                    % that started at 3:05 PM on June 13th, 2015.
-                    today = fullfile(datestr(now,'yyyy'),datestr(now,'mm'),datestr(now,'dd'));
-                    o.createDir(o.root,today);
-                    f = fullfile(o.root,today,o.timeName);
-                case 'ROOT'
-                    % Create a timed file in the root directory
-                    o.createDir(o.root);
-                    f = fullfile(o.root,o.timeName);
-            end
+            % Create a year/month/day structure and create a file
+            % named after the current time.
+            % e.g. root/2015/06/13/150523.mat for an experiment
+            % that started at 3:05 PM on June 13th, 2015.
+            root=fileparts(o.cic.fullFile);
+            o.createDir(root,'');
+            f = [o.cic.fullFile o.ext];
             if exist(f,'file')
                 error(['This file ' f ' already exists?']);
             else
                 o.filename =f;
                 %Sometimes may even want to create an (empty) file
             end
-        end                
+        end
     end
     
     
