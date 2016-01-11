@@ -13,7 +13,7 @@ Screen('Preference', 'ConserveVRAM', 397312);
 % c.screen.colorMode = 'xyl';
 % c.iti = 2000;
 % c.trialDuration = inf;
-c = adamsConfig;
+c = myConfig;
 c.output.saveFrequency=5;
 % e = plugins.eyelink;
 % e.useMouse = true;
@@ -48,10 +48,13 @@ f=stimuli.fixation('fix');           % Create a fixation stimulus.
 % f.duration = 100;
 f.duration = Inf;
 f.color = [1 1 50];
-% f.color = '@(cic,fix) [cic.screen.color.background(1) fix.color(1)]';
+f.diode.on=true;
+f.diode.size='@(fix) fix.size/100';
+% f.diode.color='@(fix) fix.color';
+% f.color = '@(cic,fix) [cic.screen.color.background(1) fix.color(1) fix.color(3)]';
 f.shape = 'STAR';
 f.size = 1; 
-f.size2 = 1;
+f.size2 = '@(fix) fix.size';
 function thisFunction(o,key)
 o.X = o.X + 5;
 end
@@ -78,8 +81,8 @@ f1.color=[1/3 1/3 1/3];
 c.add(f1);
 
 
-% m = stimuli.mouse('mouse');
-% c.add(m);
+m = stimuli.mouse('mouse');
+c.add(m);
 
 
 %  
@@ -110,6 +113,7 @@ s.color = [1 1 1];
 s.coherence = 0.8;
 s.speed = 10;
 s.direction = 0;
+s.Y='@(mouse) mouse.mousey';
 c.add(s);
 
 
@@ -182,7 +186,7 @@ c.cursor='arrow';
 % c.add(plugins.mcc);
 % d = plugins.soundReward('sound');
 % c.add(d);
-c.order('dots','fix','fix1','gui');
+c.order('dots','dots2','fix','fix1','gui');
 c.run(myBlock,'nrRepeats',20);
 
 end

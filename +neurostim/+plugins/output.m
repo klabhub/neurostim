@@ -220,10 +220,6 @@ classdef output < neurostim.plugin
             cd(thisDir);
         end
         
-        function f= timeName()
-            % Create a file named after the current time (quasi-unique)
-            f= [datestr(now,'HHMMSS') '.mat'];
-        end
         
         function sobj = saveobj(obj)
             sobj = saveobj@super(obj);

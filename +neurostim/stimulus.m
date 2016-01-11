@@ -44,11 +44,11 @@ classdef stimulus < neurostim.plugin
             v = o.on+o.duration;
         end
         function v=get.onFrame(s)
-
-            if s.on==0
+            on=s.on;
+            if on==0
                 v=1;
             else
-                v = s.cic.ms2frames(s.on)+1;
+                v = s.cic.ms2frames(on)+1;
             end
         end
         
@@ -279,7 +279,6 @@ classdef stimulus < neurostim.plugin
                     Screen('glTranslate',c.window,s.X,s.Y,s.Z);
                     Screen('glScale',c.window,s.scale.x,s.scale.y);
                     Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
-                    
                     if c.frame==1
                         % setup any RSVP conditions
                         s.stimNum=1;
@@ -349,7 +348,7 @@ classdef stimulus < neurostim.plugin
                     
                     %Reset variables here?
                     s.startTime = Inf;
-                    s.endTime = Inf;
+                    s.endTime = Inf; 
                     
                     notify(s,'BEFORETRIAL');
 

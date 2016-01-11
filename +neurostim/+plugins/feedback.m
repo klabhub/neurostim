@@ -84,15 +84,15 @@ classdef feedback < neurostim.plugin
 
             %Which feedback items should be delivered now?            
             for i=1:o.nItems
-                thisItem = ['item' num2str(i)];
+                thisItem = o.(['item' num2str(i)]);
                 
                 %Check that it's the right time, that it hasn't already been delivered, and that the criterion is satisfied.
-                deliverNow = strcmpi(o.(thisItem).when,type) & ~o.(thisItem).delivered & o.(thisItem).criterion;
+                deliverNow = strcmpi(thisItem.when,type) & ~thisItem.delivered & thisItem.criterion;
                 
                 %Do it!
                 if deliverNow
-                    o.deliver(o.(thisItem));
-                    o.(thisItem).delivered=true;
+                    o.deliver(thisItem);
+                    thisItem.delivered=true;
                 end
             end
         end

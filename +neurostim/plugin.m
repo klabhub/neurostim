@@ -196,7 +196,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 specs{2,1} = horzcat(vars,specs{2,1});
                 specs{2,1} = str2func(specs{2,1});
             end
-            o.listenerHandle.preGet.([prop 'specs'])=specs;
+            specs{end+1,1}=prop;
             o.listenerHandle.preGet.(prop) = o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
             
         end
@@ -327,51 +327,46 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
         function evalParmGet(o,src,evt,specs)
-            a={};
-            if ~isfield(o.listenerHandle.preGet,src.Name)
-                a=regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match');
-                a=a(~cellfun('isempty',a));
-                if numel(a)>1
-                    srcNames=a(2:2:end);
-                    for b=1:numel(srcNames)
-                        if ~isempty(regexp(srcNames{b},'___','ONCE'))
-                             names{b}=regexprep(srcNames{b},'___','.');
-                        elseif ~isempty(regexp(srcNames{b},'__','ONCE'))
-                            names{b}=regexprep(srcNames{b},'__','{');
+            srcName=src.Name;
+            osrcName=o.(src.Name);
+            if ischar(osrcName) && ~strcmp(specs{1},osrcName) %if value is set to a new function
+                if isfield(o.listenerHandle.preGet,src.Name)
+                    delete(o.listenerHandle.preGet.(src.Name));
+                end
+                functional(o,srcName,osrcName);
+            elseif isstruct(osrcName)
+                a=regexp(specs{end},'___(.)*','tokens');
+                for b=1:numel(a)
+                    if ischar(osrcName.(a{b}{:})) && ~strcmp(specs{1},osrcName.(a{b}{:}))
+                        if isfield(o.listenerHandle.preGet,specs{end})
+                        delete(o.listenerHandle.preGet.(specs{end}));
+                        functional(o,specs{end},osrcName.(a{b}{:}));
                         end
                     end
                 end
-                if numel(names)==1
-                srcName=srcNames{1}{:};
-                else
-                    srcName=srcNames;
-                end
-            else
-                srcNames={{src.Name}};
-                srcName=src.Name;
-            end
-            if ischar(o.(src.Name)) && ~strcmp(specs{1},o.(src.Name)) %if value is set to a new function
-                if isfield(o.listenerHandle.preGet,srcName)
-                    delete(o.listenerHandle.preGet.(srcName));
-                    delete(o.listenerHandle.preGet.([srcName 'specs']));
-                end
-                functional(o,srcName,o.(src.Name));
             end
             prevvalues=o.log.values(strcmp(o.log.parms,src.Name));
             prevvalue=prevvalues{end};
-            if numel(a)==0 && ~strcmp(specs{1},o.(src.Name)) && ((ischar(prevvalue) && ischar(o.(src.Name)) && ~strcmp(prevvalue,o.(src.Name))) || (any(prevvalue~=o.(src.Name)))...
-                    || (isempty(prevvalue) && ~isempty(o.(src.Name))) || (~isempty(prevvalue) && isempty(o.(src.Name))))
+            if isstruct(osrcName) && isstruct(prevvalue)
+                a=regexp(specs{end},'___(.)*','tokens');
+                for b=1:numel(a)
+                    if ~strcmp(specs{1},osrcName.(a{b}{:})) && (ischar(prevvalue.(a{b}{:})) && (ischar(osrcName.(a{b}{:}))) && ~strcmp(prevvalue.(a{b}{:}),osrcName.(a{b}{:})) || any(size(prevvalue.(a{b}{:}))~=size(osrcName.(a{b}{:}))) || (any(prevvalue.(a{b}{:})~=osrcName.(a{b}{:}))))
+                        if isfield(o.listenerHandle.preGet,specs{end})
+                        delete(o.listenerHandle.preGet.(specs{end}));
+                        end
+                    end
+                end
+                
+            elseif ~strcmp(specs{1},osrcName) && ((ischar(prevvalue) && ischar(osrcName) && ~strcmp(prevvalue,osrcName)) || (any(prevvalue~=osrcName))...
+                    || (isempty(prevvalue) && ~isempty(osrcName)) || (~isempty(prevvalue) && isempty(osrcName)))
                 delete(o.listenerHandle.preGet.(srcName));
-                delete(o.listenerHandle.preGet.([srcName 'specs']));
                 return;
             end
-            for f=1:numel(srcNames)
-                srcName=srcNames{f}{:};
-                value=evalFunction(o,srcName,evt,specs);
-            end
+
+            value=evalFunction(o,specs{end},evt,specs);
             
             % Compare with existing value to see if we need to set?
-            oldValue = o.(src.Name);
+            oldValue = osrcName;
             
             if isstruct(value) || iscell(value) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
                     || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
@@ -382,7 +377,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         
         function value=evalFunction(o,srcName,evt,specs)
             fun = specs{2}; % Function handle
-            nrArgs = length(specs)-2;
+            nrArgs = numel(specs)-3;
             args= cell(1,nrArgs);
             isstruct=false;
             iscell=false;
@@ -406,39 +401,42 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             try
             for i=1:nrArgs
+                if (all(size(root)))
                 if ~isempty(specs{2+i})
-                    if isempty(strfind(specs{i+2}{2},'.')) 
+                    plugin=specs{i+2}{1};
+                    prop=specs{i+2}{2};
+                    if isempty(strfind(prop,'.')) 
                         %if there is no subproperty reference
-                        if ischar(specs{i+2}{1}) && strcmp(specs{i+2}{1},'cic')
+                        if ischar(plugin) && strcmp(plugin,'cic')
                             % An object of cic
-                            args{i} = root.(specs{i+2}{2});
+                            args{i} = root.(prop);
                         else
                             %not an object of cic; must be a plugin/stimulus
-                            if strcmp(specs{i+2}{1},o.name) && ~isstruct
+                            if strcmp(plugin,o.name) && ~isstruct
                                 % if is self-referential
-                                oldValues = o.log.values(strcmp(o.log.parms,specs{i+2}{2}));    % check old value was not functional
+                                oldValues = o.log.values(strcmp(o.log.parms,prop));    % check old value was not functional
                                 if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))
                                     args{i} = oldValues{end-1};
                                 else
-                                    args{i} = root.(specs{i+2}{1}).(specs{i+2}{2});
+                                    args{i} = root.(plugin).(prop);
                                 end
                             else % is not self-referential
-                                args{i} = root.(specs{i+2}{1}).(specs{i+2}{2});
+                                args{i} = root.(plugin).(prop);
                             end
                         end
                         
                     else
                         % there is a subproperty reference
-                        a = strfind(specs{i+2}{2},'.'); % a is dot reference numbers
-                        predot = specs{i+2}{2}(1:(a-1)); %get the initial variable
+                        a = strfind(prop,'.'); % a is dot reference numbers
+                        predot = prop(1:(a-1)); %get the initial variable
                         
-                        if ischar(specs{i+2}{1}) && strcmp(specs{i+2}{1},'cic')
+                        if ischar(plugin) && strcmp(plugin,'cic')
                             % if is an object of cic
                             args{i} = root.(predot);
                         else % if is not an object of cic (plugin/stimulus)
-                            args{i} = root.(specs{i+2}{1}).(predot);
+                            args{i} = root.(plugin).(predot);
                             
-                            if strcmp(specs{i+2}{1},srcName)
+                            if strcmp(plugin,srcName)
                                 % if the property is self-referential
                                 oldValues = o.log.values(strcmp(o.log.parms,predot));
                                 if isstruct(oldValues{end}) %if is a structure
@@ -449,13 +447,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                                     oldValue1End = oldValues{end-1};
                                     if length(a)>1
                                         for b = 1:length(a)-1
-                                            postdot = specs{i+2}{2}(a(b)+1:a(b+1)-1);
+                                            postdot = prop(a(b)+1:a(b+1)-1);
                                             oldValueEnd = oldValueEnd.(postdot);
                                             oldValue1End = oldValue1End.(postdot);
                                             args{i} = args{i}.(postdot);
                                         end
                                     end
-                                    postdot = specs{i+2}{2}(a(end)+1:end);
+                                    postdot = prop(a(end)+1:end);
                                     oldValueEnd = oldValueEnd.(postdot);
                                     oldValue1End = oldValue1End.(postdot);
                                     if ischar(oldValueEnd) && any(regexp(oldValueEnd,'@\((\w*)*')) %if the last value was a functional string
@@ -470,16 +468,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         end
                         if length(a)>1  %if there is more than one subproperty ref
                             for b = 1:length(a)-1 % collect all the subproperty refs
-                                postdot = specs{i+2}{2}(a(b)+1:a(b+1)-1);
+                                postdot = prop(a(b)+1:a(b+1)-1);
                                 args{i} = args{i}.(postdot);
                             end
                         end
                         % get the last after-dot reference
-                        postdot = specs{i+2}{2}(a(end)+1:end);
+                        postdot = prop(a(end)+1:end);
                         args{i} = args{i}.(postdot);
                     end
                 else
                     args{i} = specs{i+2};
+                end
+                else
+                    args{i}=[];
                 end
             end
             catch
