@@ -81,15 +81,19 @@ classdef feedback < neurostim.plugin
         end
           
         function deliverPending(o,type)
-            
-            %Which feedback items should be delivered now?
+
+            %Which feedback items should be delivered now?            
+            for i=1:o.nItems
+                thisItem = ['item' num2str(i)];
+                
                 %Check that it's the right time, that it hasn't already been delivered, and that the criterion is satisfied.
-            toDeliver = find(arrayfun(@(thisItem) strcmp(type,thisItem.when) & ~thisItem.delivered & thisItem.criterion,o.item1));
-            
-            %If any, do it.
-            for i=1:numel(toDeliver)
-                o.deliver(o.item(toDeliver(i)));
-                o.item(toDeliver(i)).delivered=true;
+                deliverNow = strcmpi(o.(thisItem).when,type) & ~o.(thisItem).delivered & o.(thisItem).criterion;
+                
+                %Do it!
+                if deliverNow
+                    o.deliver(o.(thisItem));
+                    o.(thisItem).delivered=true;
+                end
             end
         end
         

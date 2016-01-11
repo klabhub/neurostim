@@ -283,9 +283,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if ischar(value.(a{b})) && any(regexp(value.(a{b}),'@\((\w*)*'))
                         warning('Setting a function to a structure will evaluate every time the structure is referenced.')
                         prop=[src.Name '___' a{b}];
-                        functional(o,prop,value.(a{b}));
+                        functional(o,prop,value.(a{b}));sca
+                        
                         value=o.(src.Name);
-                        if numel(regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match'))>2
+                        if sum(~cellfun(@isempty, regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match')))>2
                             warning('Multiple functions set to the same structure will cause frame drops.')
                         end
                     end
@@ -590,7 +591,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     methods (Access = public)
         function baseEvents(o,c,evt)
-            if c.PROFILE;tic;end
+            if c.PROFILE;ticTime = c.clockTime;end
             
             switch evt.EventName
                 case 'BASEBEFOREEXPERIMENT'
@@ -598,7 +599,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     
                 case 'BASEBEFORETRIAL'
                     notify(o,'BEFORETRIAL');
-                    if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,toc);end;
+                    if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,c.clockTime-ticTime);end;
                     
                 case 'BASEBEFOREFRAME'
                     if strcmp(o.name,'gui')
@@ -611,7 +612,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         return;
                     end
                     notify(o,'BEFOREFRAME');
-                    if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,toc);end;
+                    if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,c.clockTime-ticTime);end;
                     
                 case 'BASEAFTERFRAME'
                     if strcmp(o.name,'gui')
@@ -626,11 +627,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         end
                     end
                     notify(o,'AFTERFRAME');
-                    if c.PROFILE; c.addProfile('AFTERFRAME',o.name,toc);end;
+                    if c.PROFILE; c.addProfile('AFTERFRAME',o.name,c.clockTime-ticTime);end;
                     
                 case 'BASEAFTERTRIAL'
                     notify(o,'AFTERTRIAL');
-                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',o.name,toc);end;
+                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
                     
                 case 'BASEAFTEREXPERIMENT'
                     notify(o,'AFTEREXPERIMENT');

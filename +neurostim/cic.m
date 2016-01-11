@@ -861,7 +861,7 @@ classdef cic < neurostim.plugin
             c.KbQueueStop;
             KbWait;
             Screen('CloseAll');
-            %             if c.PROFILE; report(c);end
+                        if c.PROFILE; report(c);end
         end
         
         function delete(c)
@@ -1096,42 +1096,46 @@ classdef cic < neurostim.plugin
     
     methods
         function report(c)
-            subplot(2,2,1)
-            x = c.profile.BEFOREFRAME;
-            low = 5;high=95;
-            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            %             hist(1000*x,bins)
-            hist(1000*x)
-            xlabel 'Time (ms)'
-            ylabel '#'
-            title 'BeforeFrame'
-            
-            subplot(2,2,2)
-            x = c.profile.AFTERFRAME;
-            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            %             hist(1000*x,bins)
-            hist(1000*x)
-            xlabel 'Time (ms)'
-            ylabel '#'
-            title 'AfterFrame'
-            
-            subplot(2,2,4)
-            x = c.profile.AFTERTRIAL;
-            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            %             hist(1000*x,bins)
-            hist(1000*x)
-            xlabel 'Time (ms)'
-            ylabel '#'
-            title 'AfterTrial'
-            
-            subplot(2,2,3)
-            x = c.profile.BEFORETRIAL;
-            %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-            %             hist(1000*x,bins)
-            hist(1000*x)
-            xlabel 'Time (ms)'
-            ylabel '#'
-            title 'BeforeTrial'
+            fields = fieldnames(c.profile);
+            for i=1:numel(fields)
+                figure('Name',fields{i});
+                subplot(2,2,1)
+                x = c.profile.(fields{i}).BEFOREFRAME;
+                low = 5;high=95;
+                %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+                %             hist(1000*x,bins)
+                hist(x)
+                xlabel 'Time (ms)'
+                ylabel '#'
+                title 'BeforeFrame'
+                
+                subplot(2,2,2)
+                x = c.profile.(fields{i}).AFTERFRAME;
+                %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+                %             hist(1000*x,bins)
+                hist(x)
+                xlabel 'Time (ms)'
+                ylabel '#'
+                title 'AfterFrame'
+                
+                subplot(2,2,4)
+                x = c.profile.(fields{i}).AFTERTRIAL;
+                %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+                %             hist(1000*x,bins)
+                hist(x)
+                xlabel 'Time (ms)'
+                ylabel '#'
+                title 'AfterTrial'
+                
+                subplot(2,2,3)
+                x = c.profile.(fields{i}).BEFORETRIAL;
+                %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
+                %             hist(1000*x,bins)
+                hist(x)
+                xlabel 'Time (ms)'
+                ylabel '#'
+                title 'BeforeTrial'
+            end
             
         end
         function addProfile(c,what,name,duration)
