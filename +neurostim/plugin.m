@@ -23,7 +23,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         keyStrokes  = {}; % Cell array of keys that his plugin will respond to
         keyHelp     = {}; % Copy in the plugin allows easier setup of keyboard handling by stimuli and other derived classes.
         evts        = {}; % Events that this plugin will respond to.
-        test=[];
     end
     
     properties (Access = private)
@@ -328,6 +327,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
         function evalParmGet(o,src,evt,specs)
+            
             srcName=src.Name;
             osrcName=o.(src.Name);
             if ischar(osrcName) && ~strcmp(specs{1},osrcName) %if value is set to a new function
@@ -346,9 +346,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     end
                 end
             end
-%             if ~isstruct(osrcName)
-            prevvalues=o.log.values(strcmp(o.log.parms,srcName));
-            prevvalue=prevvalues{end};
+            
+            prevvalues=strcmp(o.log.parms,srcName);
+            prevvalue=o.log.values{find(prevvalues,1,'last')};
+            if ~isequal(osrcName,prevvalue)
             if isstruct(osrcName) && isstruct(prevvalue)
                 a=regexp(specs{end},'___(.)*','tokens');
                 for b=1:numel(a)
@@ -364,10 +365,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 delete(o.listenerHandle.preGet.(srcName));
                 return;
             end
-%             end
-
+            end
+%             test=GetSecs;
             value=evalFunction(o,specs{end},evt,specs);
-            
+%             if (all(size(o.cic)))
+%                 o.cic.test(end+1)=GetSecs-test;
+%                 if GetSecs-test>0.001
+%                     display(srcName);
+%                 end
+%             end
             % Compare with existing value to see if we need to set?
             oldValue = osrcName;
             
@@ -376,25 +382,28 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     
                 o.(srcName) = value; % This calls PostSet and logs the new value
             end
+
         end
         
         function value=evalFunction(o,srcName,evt,specs)
             fun = specs{2}; % Function handle
             nrArgs = numel(specs)-3;
             args= cell(1,nrArgs);
-            isstruct=false;
-            iscell=false;
-            if ~isempty(regexp(srcName,'___','ONCE'))
-                postSrcName=srcName(strfind(srcName,'___')+3:end);
-                srcName=srcName(1:strfind(srcName,'___')-1);
-                isstruct=true;
-                value=o.(srcName);
-            elseif ~isempty(regexp(srcName,'__','ONCE'))
-                tmp=regexprep(srcName,'__','{');
-                postSrcName=str2double(tmp(strfind(tmp,'{')+1:end));
-                srcName=tmp(1:strfind(tmp,'{')-1);
-                iscell=true;
-                value=o.(srcName);
+            isastruct=false;
+            isacell=false;
+            if ~isempty(strfind(srcName,'__'))
+                if ~isempty(strfind(srcName,'___'))
+                    postSrcName=srcName(strfind(srcName,'___')+3:end);
+                    srcName=srcName(1:strfind(srcName,'___')-1);
+                    isastruct=true;
+                    value=o.(srcName);
+                else
+                    tmp=regexprep(srcName,'__','{');
+                    postSrcName=str2double(tmp(strfind(tmp,'{')+1:end));
+                    srcName=tmp(1:strfind(tmp,'{')-1);
+                    isacell=true;
+                    value=o.(srcName);
+                end
             end
             if isa(o,'neurostim.cic')
                 root=o;
@@ -404,17 +413,17 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             try
             for i=1:nrArgs
                 if (all(size(root)))
-                if ~isempty(specs{2+i})
+%                 if ~isempty(specs{2+i})
                     plugin=specs{i+2}{1};
                     prop=specs{i+2}{2};
                     if isempty(strfind(prop,'.')) 
                         %if there is no subproperty reference
-                        if ischar(plugin) && strcmp(plugin,'cic')
+                        if strcmp(plugin,'cic')
                             % An object of cic
                             args{i} = root.(prop);
                         else
                             %not an object of cic; must be a plugin/stimulus
-                            if strcmp(plugin,o.name) && ~isstruct
+                            if isastruct || ~strcmp(plugin,o.name)
                                 % if is self-referential
                                 oldValues = o.log.values(strcmp(o.log.parms,prop));    % check old value was not functional
                                 if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))
@@ -441,7 +450,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                             if strcmp(plugin,srcName)
                                 % if the property is self-referential
                                 oldValues = o.log.values(strcmp(o.log.parms,predot));
-                                if isstruct(oldValues{end}) %if is a structure
+                                if isastruct(oldValues{end}) %if is a structure
                                     % store the last and second-last values
                                     % so that args{} can be set to the
                                     % previous non-functional value.
@@ -478,9 +487,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         postdot = prop(a(end)+1:end);
                         args{i} = args{i}.(postdot);
                     end
-                else
-                    args{i} = specs{i+2};
-                end
+%                 else
+%                     args{i} = specs{i+2};
+%                 end
                 else
                     args{i}=[];
                 end
@@ -494,9 +503,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 
             end
             try
-                if isstruct
+                if isastruct
                     value.(postSrcName)=fun(args{:});
-                elseif iscell
+                elseif isacell
                     value{postSrcName}=fun(args{:});
                 else
                     value = fun(args{:});

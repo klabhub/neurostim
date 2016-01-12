@@ -9,10 +9,11 @@
 
 %% Prerequisites. 
 import neurostim.*
-Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+Screen('Preference', 'SkipSyncTests', 0); % Not in production mode; this is just to run without requiring accurate timing.
+Screen('Preference','TextRenderer',1);
 
 %% Setup CIC and the stimuli.
-c = cic;                            % Create Command and Intelligence Center...
+c = cic;                            % Create Command and Intellige nce Center...
 c.screen.pixels    = [0 0 500 500];        % Set the position and size of the window
 c.screen.physical  = [15 15];              % Set the physical size of the window (centimeters)
 c.screen.color.background= [0.5 0.5 0.5];
@@ -102,7 +103,10 @@ myFac.fac3.test.X={-2.5, 2.5};
 
 myBlock=block('myBlock',myFac);
 myBlock.nrRepeats=10;
- 
+
+
+c.add(plugins.gui);
+c.order('fix','reference', 'gui');
 c.run(myBlock);
 % c.addFactorial('orientation',design{:}) ;
 % c.addBlock('orientation','orientation',10,'RANDOMWITHREPLACEMENT')

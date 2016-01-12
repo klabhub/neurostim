@@ -3,7 +3,6 @@ classdef blackrock < neurostim.plugin
     % Wrapper around CBMEX.
     
    properties
-       dataFile@char = 'test';
        fakeConnection@logical=false;
    end
    
@@ -16,6 +15,7 @@ classdef blackrock < neurostim.plugin
            o.addProperty(eventData,[],[],[],'private');
            o.addProperty(continuousData,[],[],[],'private');
            o.addProperty(bufferResetTime,[],[],[],'private');
+           o.addProperty(mccChannel,[],[],@isnumeric)
            o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERFRAME','AFTERTRIAL','AFTEREXPERIMENT'});
        end
        
@@ -25,10 +25,11 @@ classdef blackrock < neurostim.plugin
            if o.fakeConnection
                return;
            end
-           [connection instrument]=cbmex('open');
-           cbmex('fileconfig',['C:\temp\' o.dataFile],'',0);
+           cbmex('open');
+           cbmex('fileconfig',fullfile,'',0);
            o.blackrockClockTime=cbmex('time');
            cbmex('trialconfig', 1);
+           o.cic.digitalOut(o,o.mccChannel,0);
        end
        
        function afterExperiment(o,c,evt)
@@ -39,7 +40,7 @@ classdef blackrock < neurostim.plugin
        function beforeTrial(o,c,evt)
            
            cbmex('comment', 0, 0, ['TrialStart_T' num2str(c.trial) '_C' num2str(c.condition)])
-           
+           o.cic.digitalOut(o,o.mccChannel,1);
            
        end
        
@@ -50,7 +51,7 @@ classdef blackrock < neurostim.plugin
        function afterTrial(o,c,evt)
 %            [o.eventData, o.bufferResetTime, o.continuousData] = cbmex('trialdata', 1);
            cbmex('comment', 0, 0, 'TrialStop')
-           
+           o.cic.digitalOut(o,o.mccChannel,0);
            
        end
    end

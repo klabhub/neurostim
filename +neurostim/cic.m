@@ -88,6 +88,7 @@ classdef cic < neurostim.plugin
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
+        test=[];
     end
     
     %% Protected properties.
@@ -829,7 +830,7 @@ classdef cic < neurostim.plugin
                     Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
                     Screen('FillRect',c.window,c.screen.color.background);
 %                     
-%                     if c.trial>3
+%                     if c.trial>0
 %                         profile OFF
 %                         profile VIEWER
 %                     keyboard;
