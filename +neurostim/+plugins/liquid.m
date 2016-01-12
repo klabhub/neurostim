@@ -20,7 +20,7 @@ classdef liquid < neurostim.plugins.feedback
             if numel(o.mcc)==1
                 o.mcc = o.mcc{1};
             else
-                error('Liquid reward added but no MCC plugin added (or, more than one added - currently not supported)');
+                warning('Liquid reward added but no MCC plugin added (or, more than one added - currently not supported)');
             end
         end
     end
@@ -34,7 +34,7 @@ classdef liquid < neurostim.plugins.feedback
             if ~isempty(o.mcc)
                 o.mcc.digitalOut(o.mccChannel,true,item.duration);
             else
-                disp(['Liquid reward would be given now (' num2str(item.duration) 'ms)']);
+                o.writeToFeed(['No MCC detected for liquid reward (' num2str(item.duration) 'ms)']);
             end
         end
     end

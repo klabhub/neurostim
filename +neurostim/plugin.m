@@ -602,6 +602,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     methods (Access = public)
+
         function baseEvents(o,c,evt)
             if c.PROFILE;ticTime = c.clockTime;end
             

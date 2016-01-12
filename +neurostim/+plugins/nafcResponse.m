@@ -25,6 +25,7 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.listenToEvent('BEFOREEXPERIMENT');
        end
        
+
        function beforeExperiment(o,c,evt)
            
            if isempty(o.keyLabels)
@@ -41,8 +42,8 @@ classdef nafcResponse < neurostim.plugins.behavior
                o.addKey(o.keys{i},@responseHandler,o.keyLabels{i});
            end
        end
-       
    end
+   
    methods (Access=protected)
        
        function inProgress = validateBehavior(o)
