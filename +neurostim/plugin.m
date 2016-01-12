@@ -23,6 +23,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         keyStrokes  = {}; % Cell array of keys that his plugin will respond to
         keyHelp     = {}; % Copy in the plugin allows easier setup of keyboard handling by stimuli and other derived classes.
         evts        = {}; % Events that this plugin will respond to.
+        test=[];
     end
     
     properties (Access = private)
@@ -266,14 +267,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
             % if there is a listener, delete it
-            
-            value = o.(src.Name); % The raw value that has just been set
+            srcName=src.Name;
+            value = o.(srcName); % The raw value that has just been set
             if iscell(value)
                 for a=1:numel(value)
                     if ischar(value) && any(regexp(value,'@\((\w*)*'))
-                        prop=[src.Name '__' num2str(a)];
+                        prop=[srcName '__' num2str(a)];
                         functional(o,prop,value.(a{1}));
-                        value=o.(src.Name);
+                        value=o.(srcName);
                     end
                 end
             end
@@ -282,37 +283,37 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 for b=1:numel(fieldnames(value))
                     if ischar(value.(a{b})) && any(regexp(value.(a{b}),'@\((\w*)*'))
                         warning('Setting a function to a structure will evaluate every time the structure is referenced.')
-                        prop=[src.Name '___' a{b}];
+                        prop=[srcName '___' a{b}];
                         functional(o,prop,value.(a{b}));sca
                         
                         value=o.(src.Name);
-                        if sum(~cellfun(@isempty, regexp(fieldnames(o.listenerHandle.preGet),[src.Name '.*'],'match')))>2
-                            warning('Multiple functions set to the same structure will cause frame drops.')
+                        if sum(~cellfun(@isempty, regexp(fieldnames(o.listenerHandle.preGet),[srcName '.*'],'match')))>1
+                            warning('Multiple functions set to the same structure may cause frame drops.')
                         end
                     end
                 end
             end
             %if this is a function, add a listener
             if ischar(value) && any(regexp(value,'@\((\w*)*'))
-                functional(o,src.Name,value);
-                value=o.(src.Name);
+                functional(o,srcName,value);
+                value=o.(srcName);
             end
             
             
             if nargin >=5 && ~isempty(validate)
                 success = validate(value);
                 if ~success
-                    error(['Setting ' src.Name ' failed validation ' func2str(validate)]);
+                    error(['Setting ' srcName ' failed validation ' func2str(validate)]);
                 end
             end
             if nargin>=4 && ~isempty(postprocess)
                 % This re-sets the value to something else.
                 % Matlab is clever enough not to
                 % generate another postSet event.
-                o.(src.Name) = postprocess(o,value);
+                o.(srcName) = postprocess(o,value);
             end
 
-             o.addToLog(src.Name,value);
+             o.addToLog(srcName,value);
         end
         
         % Protected access to logging
@@ -345,7 +346,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     end
                 end
             end
-            prevvalues=o.log.values(strcmp(o.log.parms,src.Name));
+%             if ~isstruct(osrcName)
+            prevvalues=o.log.values(strcmp(o.log.parms,srcName));
             prevvalue=prevvalues{end};
             if isstruct(osrcName) && isstruct(prevvalue)
                 a=regexp(specs{end},'___(.)*','tokens');
@@ -362,16 +364,17 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 delete(o.listenerHandle.preGet.(srcName));
                 return;
             end
+%             end
 
             value=evalFunction(o,specs{end},evt,specs);
             
             % Compare with existing value to see if we need to set?
             oldValue = osrcName;
             
-            if isstruct(value) || iscell(value) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+            if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
                     || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
                     
-                o.(src.Name) = value; % This calls PostSet and logs the new value
+                o.(srcName) = value; % This calls PostSet and logs the new value
             end
         end
         
@@ -382,9 +385,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             isstruct=false;
             iscell=false;
             if ~isempty(regexp(srcName,'___','ONCE'))
-                tmp=regexprep(srcName,'___','.');
-                postSrcName=tmp(strfind(tmp,'.')+1:end);
-                srcName=tmp(1:strfind(tmp,'.')-1);
+                postSrcName=srcName(strfind(srcName,'___')+3:end);
+                srcName=srcName(1:strfind(srcName,'___')-1);
                 isstruct=true;
                 value=o.(srcName);
             elseif ~isempty(regexp(srcName,'__','ONCE'))

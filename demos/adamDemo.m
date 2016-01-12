@@ -30,24 +30,24 @@ f.duration = Inf;
 c.add(f);
 
 %Random dot pattern
-s = stimuli.rdp('dots');
-s.on = '@(f1) f1.startTime';
-s.duration = 1000;
-s.color = [0.3 0.3 100];
-s.size = 6;
-s.nrDots = 200;
-s.maxRadius = 8;
-s.lifetime = Inf;
-s.noiseMode = 1;
-s.X = '@(fix) fix.X';
-s.Y = '@(fix) fix.Y';
-c.add(s);
+d = stimuli.rdp('dots');
+d.on = '@(f1) f1.startTime';
+d.duration = 1000;
+d.color = [0.3 0.3 100];
+d.size = 6;
+d.nrDots = 200;
+d.maxRadius = 8;
+d.lifetime = Inf;
+d.noiseMode = 1;
+d.X = '@(fix) fix.X';
+d.Y = '@(fix) fix.Y';
+c.add(d);
 
 %% ========== Add required behaviours =========
 
 %Subject's 2AFC response
 k = plugins.nafcResponse('choice');
-k.on = '@(dots) dots.on+dots.duration';
+k.on = '@(dots) dots.on + dots.duration';
 k.deadline = '@(choice) choice.on + 3000';
 k.keys = {'a' 'z'};
 k.keyLabels = {'up', 'down'};

@@ -72,7 +72,7 @@ classdef cic < neurostim.plugin
     % experiment
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
-        root@char               = pwd;    % Root target directory for saving files.
+        root@char               = 'c:\temp\';    % Root target directory for saving files.
         subjectNr@double        = 0;
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
@@ -828,9 +828,12 @@ classdef cic < neurostim.plugin
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
                     Screen('FillRect',c.window,c.screen.color.background);
-%                     profile OFF
-%                     profile VIEWER
+%                     
+%                     if c.trial>3
+%                         profile OFF
+%                         profile VIEWER
 %                     keyboard;
+%                     end
                     [vbl,stimOn,flip,~]=Screen('Flip', c.onscreenWindow,0,1-c.clear);
                     c.trialEndTime = stimOn*1000;
                     c.frame = c.frame+1;
