@@ -4,6 +4,7 @@ classdef blackrock < neurostim.plugin
     
    properties
        fakeConnection@logical=false;
+       open@logical
    end
    
    
@@ -11,48 +12,94 @@ classdef blackrock < neurostim.plugin
        
        function o=blackrock
            o=o@neurostim.plugin('blackrock');
-           o.addProperty(blackrockClockTime,[],[],[],'private');
-           o.addProperty(eventData,[],[],[],'private');
-           o.addProperty(continuousData,[],[],[],'private');
-           o.addProperty(bufferResetTime,[],[],[],'private');
-           o.addProperty(mccChannel,[],[],@isnumeric)
-           o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERFRAME','AFTERTRIAL','AFTEREXPERIMENT'});
+           o.addProperty('useMCC',true,[],[],'private');
+           o.addProperty('blackrockClockTime',[],[],[],'private');
+           o.addProperty('eventData',[],[],[],'private');
+           o.addProperty('continuousData',[],[],[],'private');
+           o.addProperty('bufferResetTime',[],[],[],'private');
+           o.addProperty('mccChannel',[],[],@isnumeric);
+           o.addProperty('comments','Neurostim experiment',[],@ischar);  %String sent to Central at start of experiment, saved with data file and displayed
+           o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT'});
        end
        
        
        function beforeExperiment(o,c,evt)
+           
            % if using a fake connection, do nothing
            if o.fakeConnection
                return;
            end
+           
+           %Try to initialise cbmex connection to Blackrock Central
            cbmex('open');
-           cbmex('fileconfig',fullfile,'',0);
+           o.open = true;
+           
+           %Give Central the filename for saving neural data
+           cbmex('fileconfig',c.fullFile,'',0);
+           
+           %Check that the mcc plugin is enabled
+           if o.useMCC
+               mcc = c.pluginsByClass('mcc');
+               if isempty(mcc)
+                   o.writeToFeed('No "mcc" plugin detected. blackrock plugin expects it.');
+                   o.useMCC = false;
+               else
+                   c.mcc.digitalOut(o,o.mccChannel,0);
+               end
+           end
+           
+           %Start recording.
+           cbmex('fileconfig', c.fullFile, o.comments,1);
+           
+           %Ensure no data is being cached to Neurostim
+           cbmex('trialconfig', 0);
+           
+           %Log the clock time for later syncing
            o.blackrockClockTime=cbmex('time');
-           cbmex('trialconfig', 1);
-           o.cic.digitalOut(o,o.mccChannel,0);
        end
        
        function afterExperiment(o,c,evt)
-          cbmex('trialconfig', 0);
-          cbmex('close'); 
+          o.closeSession();
+       end
+          
+       function closeSession(o)
+     
+          %Stop recording.
+          cbmex('fileconfig', o.cic.fullFile,' ',0);
+          
+          %Close down cbmex connection
+          cbmex('close');
+          o.open = false;
+          
        end
        
        function beforeTrial(o,c,evt)
            
-           cbmex('comment', 0, 0, ['TrialStart_T' num2str(c.trial) '_C' num2str(c.condition)])
-           o.cic.digitalOut(o,o.mccChannel,1);
+           %Send a network comment to flag the start of the trial. Could be used for timing alignment.
+           cbmex('comment', 255, 0, ['Start_T' num2str(c.trial) '_C' num2str(c.condition)]);
            
+           %Send a second trial marker, through digital I/O box (Measurement Computing)
+           if o.useMCC
+               c.mcc.digitalOut(o,o.mccChannel,1);
+           end
        end
        
-%        function afterFrame(o,c,evt)
-%            [o.eventData, o.bufferResetTime, o.continuousData] = cbmex('trialdata', 1);
-%        end
        
        function afterTrial(o,c,evt)
-%            [o.eventData, o.bufferResetTime, o.continuousData] = cbmex('trialdata', 1);
-           cbmex('comment', 0, 0, 'TrialStop')
-           o.cic.digitalOut(o,o.mccChannel,0);
            
+           %Send a network comment to flag the end of the trial. Could be used for timing alignment.
+           cbmex('comment', 127, 0, 'Stop');
+           
+           %Send a second trial marker, through digital I/O box (Measurement Computing)
+           if o.useMCC
+               c.mcc.digitalOut(o,o.mccChannel,0);
+           end
+       end
+       
+       function delete(o)
+           if o.open
+               closeSession(o);
+           end
        end
    end
    

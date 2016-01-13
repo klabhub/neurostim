@@ -19,6 +19,9 @@ e = neurostim.plugins.eyelink;
 e.useMouse = true;
 c.add(e);
 
+%Add the Blackrock acquisition system
+% c.add(neurostim.plugins.blackrock);
+
 %% ============== Add stimuli ==================
 
 %Fixation dot
