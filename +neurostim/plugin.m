@@ -413,7 +413,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             try
             for i=1:nrArgs
                 if (all(size(root)))
-%                 if ~isempty(specs{2+i})
+                 if ~isempty(specs{2+i})
                     plugin=specs{i+2}{1};
                     prop=specs{i+2}{2};
                     if isempty(strfind(prop,'.')) 
@@ -423,7 +423,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                             args{i} = root.(prop);
                         else
                             %not an object of cic; must be a plugin/stimulus
-                            if isastruct || ~strcmp(plugin,o.name)
+                            if ~isastruct && strcmp(plugin,o.name)
                                 % if is self-referential
                                 oldValues = o.log.values(strcmp(o.log.parms,prop));    % check old value was not functional
                                 if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))
@@ -487,9 +487,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                         postdot = prop(a(end)+1:end);
                         args{i} = args{i}.(postdot);
                     end
-%                 else
-%                     args{i} = specs{i+2};
-%                 end
+                 else
+                     args{i} = specs{i+2};
+                 end
                 else
                     args{i}=[];
                 end
