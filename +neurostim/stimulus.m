@@ -69,8 +69,8 @@ classdef stimulus < neurostim.plugin
             s.addProperty('X',0,[],@isnumeric);
             s.addProperty('Y',0,[],@isnumeric);
             s.addProperty('Z',0,[],@isnumeric);  
-            s.addProperty('on',0,[],@(x) isnumeric(x));  
-            s.addProperty('duration',Inf,[],@(x) isnumeric(x));  
+            s.addProperty('on',0,[],@isnumeric);  
+            s.addProperty('duration',Inf,[],@isnumeric);  
             s.addProperty('color',[1/3 1/3 50],[],@isnumeric);
             s.addProperty('alpha',1,[],@(x)x<=1&&x>=0);
             s.addProperty('scale',struct('x',1,'y',1,'z',1));

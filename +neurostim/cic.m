@@ -519,6 +519,9 @@ classdef cic < neurostim.plugin
                 c.pluginOrder=neworder;
                 
             end
+            if ~strcmp(c.pluginOrder(1),'gui') && any(strcmp(c.pluginOrder,'gui'))
+                c.pluginOrder = ['gui' c.pluginOrder(~strcmp(c.pluginOrder,'gui'))];
+            end
             if numel(c.pluginOrder)<numel(c.defaultPluginOrder)
                 b=ismember(c.defaultPluginOrder,c.pluginOrder);
                 index=find(~b);

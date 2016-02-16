@@ -97,7 +97,7 @@ classdef gui <neurostim.plugin
             o.guiRect = c.mirrorPixels;
 
             o.guiText=Screen('OpenOffscreenWindow',-1, c.screen.color.background,o.guiRect);
-            slack=10;
+            slack=5;
             switch (o.xAlign)
                 case 'right'
                     o.positionX=(c.mirrorPixels(3))*1/2;
@@ -118,9 +118,8 @@ classdef gui <neurostim.plugin
             o.textHeight=sampleText(4)-sampleText(2);
             o.feedX=c.mirrorPixels(3)/2+2*slack;
             o.feedY=c.mirrorPixels(4)*.5+slack;
+            o.paramsBox=[c.mirrorPixels(3)/2 0 c.mirrorPixels(3) o.mirrorRect(4)];
             o.feedBox = [slack o.feedY-slack c.mirrorPixels(3)-slack c.mirrorPixels(4)-(4*slack)];
-            o.paramsBox = [c.mirrorPixels(3)/2+slack slack c.mirrorPixels(3)-slack o.mirrorRect(4)/2-slack];
-            
             o.eyetrackers=c.pluginsByClass('eyetracker');
             o.behaviours=c.pluginsByClass('behavior');
             c.writeToFeed('Started Experiment');

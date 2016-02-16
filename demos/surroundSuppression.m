@@ -106,7 +106,7 @@ myBlock.nrRepeats=10;
 
 
 c.add(plugins.gui);
-c.order('fix','reference', 'gui');
+% c.order('fix','reference', 'gui');
 c.run(myBlock);
 % c.addFactorial('orientation',design{:}) ;
 % c.addBlock('orientation','orientation',10,'RANDOMWITHREPLACEMENT')
