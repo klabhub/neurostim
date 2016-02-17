@@ -58,7 +58,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         
         function beforeExperiment(o,c,evt)
             
-            o.el=EyelinkInitDefaults(o.cic.onscreenWindow);
+            o.el=EyelinkInitDefaults(c.onscreenWindow);
             
             %Initialise connection to Eyelink. Currently not allowing dummy
             %mode, because dialog box comes up behind PTB screen.
@@ -71,7 +71,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
             
             if result==-1
-                o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
+                c.error('STOPEXPERIMENT','Eyelink failed to initialize');
                 return;
             end
             
@@ -99,7 +99,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('StopRecording');
             Eyelink('CloseFile');
             try
-                status=Eyelink('ReceiveFile',o.edfFile,[o.cic.fullFile '.edf']); %change to OUTPUT dir
+                status=Eyelink('ReceiveFile',o.edfFile,[c.fullFile '.edf']); %change to OUTPUT dir
             catch
                 error('Eyelink file failed to transfer to the NS computer');
             end
@@ -152,7 +152,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         function afterFrame(o,c,evt)
             
             if ~o.isRecording && ~o.fakeConnection
-                o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
+                c.error('STOPEXPERIMENT','Eyelink is not recording...');
                 return;
             end
             

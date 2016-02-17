@@ -39,7 +39,7 @@ classdef nafcResponse < neurostim.plugins.behavior
            
            % Add key listener for all keys.
            for i = 1:numel(o.keys)
-               o.addKey(o.keys{i},@responseHandler,o.keyLabels{i});
+                o.addKey(o.keys{i},@responseHandler,o.keyLabels{i});
            end
        end
    end

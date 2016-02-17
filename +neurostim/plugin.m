@@ -1,4 +1,5 @@
 classdef plugin  < dynamicprops & matlab.mixin.Copyable
+        % 
         % Issue: In functional() 
         % While functions will work for assigning one-level structure references,
         % i.e. fixation.diode.color = '@(cic) cic.screen.color.text'
@@ -151,7 +152,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % fixation.color='@(cic) cic.screen.color.background'
         % 
         function functional(o,prop,funcstring)
-            subprop=strsplit(prop,{'___','__'});
+            subprop=strsplit(prop,{'___'});
             if numel(subprop)>1
                 listenprop=subprop{1};
                 h=findprop(o,subprop{1});
@@ -385,13 +386,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             nrArgs = numel(specs)-3;
             args= cell(1,nrArgs);
             isastruct=false;
-            if ~isempty(strfind(srcName,'__'))
-                if ~isempty(strfind(srcName,'___'))
-                    postSrcName=srcName(strfind(srcName,'___')+3:end);
-                    srcName=srcName(1:strfind(srcName,'___')-1);
-                    isastruct=true;
-                    value=o.(srcName);
-                end
+            if ~isempty(strfind(srcName,'___'))
+                postSrcName=srcName(strfind(srcName,'___')+3:end);
+                srcName=srcName(1:strfind(srcName,'___')-1);
+                isastruct=true;
+                value=o.(srcName);
             end
             if isa(o,'neurostim.cic')
                 root=o;
@@ -415,7 +414,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                             if ~isastruct && strcmp(plugin,o.name)
                                 % if is self-referential
                                 oldValues = o.log.values(strcmp(o.log.parms,prop));    % check old value was not functional
-                                if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))
+                                if (ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))) || isempty(oldValues{end})
                                     args{i} = oldValues{end-1};
                                 else
                                     args{i} = root.(plugin).(prop);
@@ -485,7 +484,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             catch
 %                 if ~isempty(o.cic) && ~all(cellfun(@isempty,args)) 
-%                     error(['Could not evaluate ' func2str(fun) 'to get value for ' src.Name]);
+                    error(['Could not evaluate ' func2str(fun) 'to get value for ' srcName]);
 %                 else
 %                     return;
 %                 end
@@ -498,7 +497,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     value = fun(args{:});
                 end
             catch
-                value=[];
+%                 value=[];
                 warning(['Could not evaluate ' func2str(fun) ' to get value for ' srcName ]);
                 
             end

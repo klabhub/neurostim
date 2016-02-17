@@ -11,8 +11,8 @@ c.trialDuration  = inf;
 c.add(plugins.debug); 
 
 % Create a grating stimulus. This will be used to map out the psychometric
-% curve (hence 'test')
-g=stimuli.gabor('test');           
+% curve (hence 'gabortest')
+g=stimuli.gabor('gabortest');           
 g.color = [0.5 0.5 0.5];
 g.contrast = 0.5;
 g.Y = 0; 
@@ -30,13 +30,13 @@ g3.mask = 'ANNULUS';
 g3.sigma = [1 2];
 g3.contrast  = 0.5;
 g3.orientation=0; 
-g3.X = '@(test) test.X';
+g3.X = '@(gabortest) gabortest.X';
 
 
 c.add(g3);
 c.add(g);
 myFac=factorial('test');
-myFac.fac1.test.X={-2.5 2.5}; 
+myFac.fac1.gabortest.X={-2.5 2.5}; 
 
 myBlock=block('block',myFac);
 c.run(myBlock);

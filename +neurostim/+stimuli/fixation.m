@@ -1,4 +1,12 @@
 classdef fixation < neurostim.stimulus
+    % Class for drawing a fixation point in the PTB.
+    %
+    % Adjustable variables:
+    %   size - with relation to the 'physical' size of the window.
+    %   size2 - second required size, i.e. width of oval, inner star/donut size.
+    %   color2 - color of inner donut.
+    %   shape - one of CIRC, RECT, TRIA, DONUT, OVAL, STAR
+    % 
     properties
     end
     

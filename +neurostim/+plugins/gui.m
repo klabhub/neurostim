@@ -1,5 +1,6 @@
 classdef gui <neurostim.plugin
     % Class to create GUI-like functionality in the PTB window.
+    % Requires c.mirrorPixels to be set to the size of the second window.
     % EXAMPLE:
     % If c is your CIC, add this plugin, then, for instance tell it to
     % display the horizontal eye position, and the x parameter of the
