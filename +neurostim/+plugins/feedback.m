@@ -1,4 +1,5 @@
 classdef feedback < neurostim.plugin
+    % Generic feedback class for behavioral response.
     %All feedback items of a particular type (e.g. sound) are handled by a single
     %instance of a (derived) feedback plugin.
     %One or more feedback items are added, and the delivery of each is linked to one or

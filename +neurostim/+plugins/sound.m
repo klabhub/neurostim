@@ -1,4 +1,5 @@
 classdef sound < neurostim.plugin
+    % Generic sound plugin for PTB. Add if using sound.
     properties (Access=protected)
         paHandle
     end

@@ -1,4 +1,5 @@
 classdef fixate < neurostim.plugins.behavior
+    % Behavioral plugin which monitors fixation on a point.
     % fixate - behavioural plugin which sets on = true when the fixation
     % point (X,Y) +/- tolerance has been fixated on for length dur (ms).
    properties (Access=private)

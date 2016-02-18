@@ -1,31 +1,41 @@
 classdef block < dynamicprops
-    % Class for establishing blocks and default properties.
+    % Class for establishing blocks for experiment setup.
     % Constructor:
     % myBlock=block(name,fac1[,...facLast]);
     % 
     % Inputs:
-    % name - name of the block.
+    %   name - name of the block.
     %
     % Outputs:
-    % myBlock - passes out a block structure with editable fields for
-    % establishing a block of factorials for session design.
+    %   myBlock - passes out a block structure with editable fields for
+    %       establishing a block of factorials for session design.
     % 
-    % Fields should be of the format:
-    % myBlock.weights = [a b]
-    % wherein the weights correspond to the equivalent factorial.
+    % Fields include:
+    %   myBlock.nrRepeats - number of repeats of the current block
     %
-    % myBlock.beforeMessage - a string containing a message which will
-    % write to screen before the block begins, and wait for a keypress.
-    % myBlock.afterMessage - a string containing a message which will write
-    % to screen after the block ends. (and wait for keypress)
+    %   myBlock.name - name of the block (string)
     %
-    % myBlock.beforeFunction - function handle to a function to run before the block.
-    %           out=myFunction(c)
-    % Output: true or false, whether run() should wait for a keypress
-    % before continuing
-    % Input: cic - use to reference other properties as required.
+    %   myBlock.randomization - one of 'SEQUENTIAL','RANDOMWIHOUTREPLACEMENT',
+    %       RANDOMWITHREPLACEMENT', case insensitive
+    % 
+    %   myBlock.weights = [a b]
+    %       wherein the weights correspond to the equivalent factorial.
     %
-    % myBlock.afterFunction - same format as beforeFunction.
+    %   myBlock.beforeMessage - a string containing a message which will
+    %       write to screen before the block begins, and wait for a keypress.
+    %       myBlock.afterMessage - a string containing a message which will write
+    %       to screen after the block ends. (and wait for keypress)
+    %
+    %   myBlock.beforeFunction - function handle to a function to run before the block.
+    %       e.g.:
+    %       out=myFunction(c)
+    %           Output: true or false, whether run() should wait for a keypress
+    %               before continuing
+    %           Input: cic - use to reference other properties as required.
+    %
+    %   myBlock.afterFunction - same format as beforeFunction.
+    %
+    %
     
     properties
         randomization='SEQUENTIAL';
@@ -82,7 +92,7 @@ classdef block < dynamicprops
                         conditions=[conditions tmp+condNr];
                         condNr=max(conditions);
                     end
-                    switch o.randomization
+                    switch upper(o.randomization)
                         case 'SEQUENTIAL'
                         case 'RANDOMWITHOUTREPLACEMENT'
                             conditions=Shuffle(conditions);

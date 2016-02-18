@@ -1,15 +1,15 @@
 classdef factorial < dynamicprops
-    % Class for establishing factorials and default properties.
+    % Class for establishing factorials for experiment setup.
     % Constructor:
     % o=factorial(name,nrFactors)
     %
     % Inputs:
-    % name - name of the Factorial
-    % nrFactors - number of factors (for property creation)
+    %   name - name of the Factorial
+    %   nrFactors - number of factors (for property creation)
     %
     % Outputs:
-    % o - passes out a factorial structure with editable fields for
-    % establishing a factorial design.
+    %   o - passes out a factorial structure with editable fields for
+    %       establishing a factorial design.
     %
     % This should be of the format:
     % o.fac1.(stimName).(paramName) = {cell list of parameters}
@@ -30,6 +30,11 @@ classdef factorial < dynamicprops
     % To vary coherence against position in a two-way factorial (3x3):
     % myFac.fac1.dots.coherence={0 0.5 1};
     % myFac.fac2.dots.position={0 -5 5};
+    %
+    % To assign different weights to conditions: 
+    % myFac.fac1.weights=[1 1 2] % assigns fac1's parameters the according
+    %   weights (in order), by repeating conditions the number of weighed times.
+    
     
     properties
         randomization='RANDOMWITHOUTREPLACEMENT';

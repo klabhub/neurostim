@@ -1,16 +1,23 @@
 classdef convPoly < neurostim.stimulus
-    %Equilateral convex polygon (e.g. triangle, square, pentagon, hexagon
+    % Draws an equilateral convex polygon with variable sides.
+    % Equilateral convex polygon (e.g. triangle, square, pentagon, hexagon
     %etc.). Can also create a circle if "nSides" is set to a large number.
+    %
+    % Adjustable variables:
+    %   radius - in physical size.
+    %   nSides - number of sides.
+    %   filled - true or false.
+    %   linewidth - only for unfilled polygon, in pixels.
     properties
     end
     
     methods (Access = public)
         function o = convPoly(name)
             o = o@neurostim.stimulus(name);
-            o.addProperty('radius',3);
-            o.addProperty('nSides',5);
-            o.addProperty('filled',true);
-            o.addProperty('linewidth',10); %Used only for unfilled polygon.
+            o.addProperty('radius',3,[],@isnumeric);
+            o.addProperty('nSides',5,[],@isnumeric);
+            o.addProperty('filled',true,[],@islogical);
+            o.addProperty('linewidth',10,[],@isnumeric); %Used only for unfilled polygon.
             o.listenToEvent('BEFOREFRAME');
         end
         

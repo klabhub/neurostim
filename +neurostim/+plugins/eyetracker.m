@@ -1,5 +1,17 @@
 classdef eyetracker < neurostim.plugin
-
+% Generic eyetracker class for PTB.
+%
+% Properties:
+%   To be set by subclass: x,y,z - coordinates of eye position
+%                          eyeClockTime - for synchronization
+%
+%   sampleRate - rate of samples to be taken.
+%   backgroundColor - background colour for eyetracker functions.
+%   foregroundColor - foreground colour for eyetracker functions.
+%   clbTargetColor - calibration target color.
+%   clbTargetSize - calibration target size.
+%   eyeToTrack - one of 'left','right','binocular' or 0,1,2.
+%   useMouse - if set to true, uses the mouse coordinates as eye coordinates.
 properties (Access=public)
     useMouse@logical=false;
     keepExperimentSetup@logical=true;

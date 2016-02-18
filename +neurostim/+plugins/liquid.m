@@ -1,4 +1,5 @@
 classdef liquid < neurostim.plugins.feedback
+    % Feedback plugin to deliver liquid reward (through MCC).
     %Plugin to deliver liquid reward to animals. See parent class for
     %usage.
     

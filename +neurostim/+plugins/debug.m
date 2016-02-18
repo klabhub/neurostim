@@ -1,5 +1,5 @@
 classdef debug < neurostim.plugin
-    % Simple plugin used for debugging only:
+    % Simple plugin used for debugging only.
     % n = move to next trial
     % e = dont clear.
     methods

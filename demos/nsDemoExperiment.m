@@ -1,19 +1,18 @@
 function  nsDemoExperiment
 
 import neurostim.*
-% Factorweights.
+
 commandwindow;
 Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference','TextRenderer',1);
-Screen('Preference', 'ConserveVRAM', 397312);
-% c = myConfig('Eyelink',false);
-% c = cic;                            % Create Command and Intelligence Center...
+
+c = myConfig;                         % Create Command and Intelligence Center...
 % c.screen.pixels = [0 0 1600 1000];         % Set the position and size of the window
 % c.screen.color.background= [0 0 0];
 % c.screen.colorMode = 'xyl';
 % c.iti = 2000;
 % c.trialDuration = inf;
-c = myConfig;
+% c = myConfig;
 c.output.saveFrequency=5;
 % e = plugins.eyelink;
 % e.useMouse = true;
@@ -37,7 +36,7 @@ c.add(plugins.output);
 % t.textalign = 'c';
 % t.X = '@(mouse) mouse.mousex';
 % t.Y = '@(mouse) mouse.mousey';
-% t.antialiasing = 0;
+% t.antialiasing = 1;
 % t.color = [1 1 0.5];
 % c.add(t);
 
@@ -47,11 +46,11 @@ f=stimuli.fixation('fix');           % Create a fixation stimulus.
 % f.on = 0;
 % f.duration = 100;
 f.duration = Inf;
-f.color = [1 1 50];
+% f.color = [1 1 50];
 f.diode.on=true;
-f.diode.size='@(fix) fix.size/100';
-f.diode.color='@(fix) fix.color';
-% f.color = '@(cic,fix) [cic.screen.color.background(1) fix.color(1) fix.color(3)]';
+% f.diode.size='@(fix) fix.size/100';
+% f.diode.color='@(fix) fix.color';
+f.color = '@(fix1) fix1.color';
 f.shape = 'STAR';
 f.size = 1; 
 f.size2 = '@(fix) fix.size';
@@ -59,6 +58,7 @@ function thisFunction(o,key)
 o.X = o.X + 5;
 end
 f.addKey('r',@thisFunction);
+
 
 % 
 % f.rsvp(30,30,{'angle',{0 45 90 135 180 225 270 315 360}});
@@ -76,10 +76,9 @@ f1.duration = Inf;
 f1.shape = 'CIRC';
 f1.X = -10;
 f1.Y = 10;
-f1.color=[1/3 1/3 1/3];
+f1.color=[1 1 50];
 
 c.add(f1);
-
 
 m = stimuli.mouse('mouse');
 c.add(m);
@@ -102,7 +101,7 @@ c.add(s);
 
 k = plugins.nafcResponse('key');
 c.add(k);
-k.keys = {'a' 'z'};
+k.keys = {'a','z'};
 k.correctKey = '@(dots) double(dots.direction < 0) + 1';
 k.keyLabels = {'clockwise', 'counterclockwise'};
 
@@ -163,7 +162,9 @@ myBlock2.nrRepeats=2;
 % c.add(plugins.reward);
 % 
 % e=plugins.eyelink;
+% e.getEvents=true;
 % e.eyeToTrack = 'binocular';
+% c.add(e);
 
 % f1 = plugins.fixate('f1');
 % f1.X = 0;
@@ -186,7 +187,6 @@ c.cursor='arrow';
 % c.add(plugins.mcc);
 % d = plugins.soundReward('sound');
 % c.add(d);
-c.order('dots','dots2','fix','fix1','gui');
 c.run(myBlock,'nrRepeats',20);
 
 end

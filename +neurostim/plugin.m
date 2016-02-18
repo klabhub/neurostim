@@ -1,5 +1,15 @@
 classdef plugin  < dynamicprops & matlab.mixin.Copyable
-    
+    % Base class for plugins. Includes logging, functions, etc.
+    %
+    % Issue: In functional()
+    %   While functions will work for assigning one-level structure references,
+    %   i.e. fixation.diode.color = '@(cic) cic.screen.color.text'
+    %   there may be timing problems if there are multiple one-level
+    %   references to the same structure, as functions within the structure
+    %   will be evaluated every time the structure is called.
+    %   Multiple-level structure references are also currently not supported
+    %   for assignation.
+    %
     properties (SetAccess=public)
         cic@neurostim.cic;  % Pointer to CIC
     end
@@ -137,12 +147,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % This function is called at the initial logParmSet of a parameter.
         % funcstring is the function definition. It is a string which
         % references a stimulus/plugin by its assigned name and reuses that 
-        %  property name if it uses an object/variable of that property. e.g. 
-        % '@(cic) sin(cic.frame)' or
-        % '@(dots) dots.X + 1'
-        %
+        % property name if it uses an object/variable of that property. e.g. 
+        % dots.size='@(cic) sin(cic.frame)' or
+        % fixation.X='@(dots) dots.X + 1' or
+        % fixation.color='@(cic) cic.screen.color.background'
+        % 
         function functional(o,prop,funcstring)
-            subprop=strsplit(prop,{'___','__'});
+            subprop=strsplit(prop,{'___'});
             if numel(subprop)>1
                 listenprop=subprop{1};
                 h=findprop(o,subprop{1});
@@ -190,7 +201,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             
             if ~exist('vars','var')
-                specs{2,1} = str2func(func);
+                 specs{2,1} = str2func(func);
             else
                 % merge the function back together
                 specs{2,1} = horzcat(vars,specs{2,1});
@@ -268,15 +279,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % if there is a listener, delete it
             srcName=src.Name;
             value = o.(srcName); % The raw value that has just been set
-            if iscell(value)
-                for a=1:numel(value)
-                    if ischar(value) && any(regexp(value,'@\((\w*)*'))
-                        prop=[srcName '__' num2str(a)];
-                        functional(o,prop,value.(a{1}));
-                        value=o.(srcName);
-                    end
-                end
-            end
             if isstruct(value)
                 a=fieldnames(value);
                 for b=1:numel(fieldnames(value))
@@ -330,12 +332,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             srcName=src.Name;
             osrcName=o.(src.Name);
-            if ischar(osrcName) && ~strcmp(specs{1},osrcName) %if value is set to a new function
+            % check if value is set to a new function
+            if ischar(osrcName) && ~strcmp(specs{1},osrcName)
                 if isfield(o.listenerHandle.preGet,src.Name)
                     delete(o.listenerHandle.preGet.(src.Name));
                 end
                 functional(o,srcName,osrcName);
-            elseif isstruct(osrcName)
+            elseif isstruct(osrcName) %if it is a structure
                 a=regexp(specs{end},'___(.)*','tokens');
                 for b=1:numel(a)
                     if ischar(osrcName.(a{b}{:})) && ~strcmp(specs{1},osrcName.(a{b}{:}))
@@ -346,34 +349,28 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     end
                 end
             end
-            
+            % check to see if the value is a new non-function
             prevvalues=strcmp(o.log.parms,srcName);
             prevvalue=o.log.values{find(prevvalues,1,'last')};
             if ~isequal(osrcName,prevvalue)
-            if isstruct(osrcName) && isstruct(prevvalue)
-                a=regexp(specs{end},'___(.)*','tokens');
-                for b=1:numel(a)
-                    if ~strcmp(specs{1},osrcName.(a{b}{:})) && (ischar(prevvalue.(a{b}{:})) && (ischar(osrcName.(a{b}{:}))) && ~strcmp(prevvalue.(a{b}{:}),osrcName.(a{b}{:})) || any(size(prevvalue.(a{b}{:}))~=size(osrcName.(a{b}{:}))) || (any(prevvalue.(a{b}{:})~=osrcName.(a{b}{:}))))
-                        if isfield(o.listenerHandle.preGet,specs{end})
-                        delete(o.listenerHandle.preGet.(specs{end}));
+                if isstruct(osrcName) && isstruct(prevvalue)
+                    a=regexp(specs{end},'___(.)*','tokens');
+                    for b=1:numel(a)
+                        if ~strcmp(specs{1},osrcName.(a{b}{:})) && (ischar(prevvalue.(a{b}{:})) && (ischar(osrcName.(a{b}{:}))) && ~strcmp(prevvalue.(a{b}{:}),osrcName.(a{b}{:})) || any(size(prevvalue.(a{b}{:}))~=size(osrcName.(a{b}{:}))) || (any(prevvalue.(a{b}{:})~=osrcName.(a{b}{:}))))
+                            if isfield(o.listenerHandle.preGet,specs{end})
+                                delete(o.listenerHandle.preGet.(specs{end}));
+                            end
                         end
                     end
+                elseif ~strcmp(specs{1},osrcName) && ((ischar(prevvalue) && ischar(osrcName) && ~strcmp(prevvalue,osrcName)) || (any(prevvalue~=osrcName))...
+                        || (isempty(prevvalue) && ~isempty(osrcName)) || (~isempty(prevvalue) && isempty(osrcName)))
+                    delete(o.listenerHandle.preGet.(srcName));
+                    return;
                 end
-                
-            elseif ~strcmp(specs{1},osrcName) && ((ischar(prevvalue) && ischar(osrcName) && ~strcmp(prevvalue,osrcName)) || (any(prevvalue~=osrcName))...
-                    || (isempty(prevvalue) && ~isempty(osrcName)) || (~isempty(prevvalue) && isempty(osrcName)))
-                delete(o.listenerHandle.preGet.(srcName));
-                return;
             end
-            end
-%             test=GetSecs;
+            
             value=evalFunction(o,specs{end},evt,specs);
-%             if (all(size(o.cic)))
-%                 o.cic.test(end+1)=GetSecs-test;
-%                 if GetSecs-test>0.001
-%                     display(srcName);
-%                 end
-%             end
+            
             % Compare with existing value to see if we need to set?
             oldValue = osrcName;
             
@@ -390,20 +387,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             nrArgs = numel(specs)-3;
             args= cell(1,nrArgs);
             isastruct=false;
-            isacell=false;
-            if ~isempty(strfind(srcName,'__'))
-                if ~isempty(strfind(srcName,'___'))
-                    postSrcName=srcName(strfind(srcName,'___')+3:end);
-                    srcName=srcName(1:strfind(srcName,'___')-1);
-                    isastruct=true;
-                    value=o.(srcName);
-                else
-                    tmp=regexprep(srcName,'__','{');
-                    postSrcName=str2double(tmp(strfind(tmp,'{')+1:end));
-                    srcName=tmp(1:strfind(tmp,'{')-1);
-                    isacell=true;
-                    value=o.(srcName);
-                end
+            if ~isempty(strfind(srcName,'___'))
+                postSrcName=srcName(strfind(srcName,'___')+3:end);
+                srcName=srcName(1:strfind(srcName,'___')-1);
+                isastruct=true;
+                value=o.(srcName);
             end
             if isa(o,'neurostim.cic')
                 root=o;
@@ -412,7 +400,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             try
             for i=1:nrArgs
-                if (all(size(root)))
+                % find all argument values
+                if (all(size(root))) %if cic exists
                  if ~isempty(specs{2+i})
                     plugin=specs{i+2}{1};
                     prop=specs{i+2}{2};
@@ -426,7 +415,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                             if ~isastruct && strcmp(plugin,o.name)
                                 % if is self-referential
                                 oldValues = o.log.values(strcmp(o.log.parms,prop));    % check old value was not functional
-                                if ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))
+                                if (ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))) || isempty(oldValues{end})
                                     args{i} = oldValues{end-1};
                                 else
                                     args{i} = root.(plugin).(prop);
@@ -496,7 +485,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             catch
 %                 if ~isempty(o.cic) && ~all(cellfun(@isempty,args)) 
-%                     error(['Could not evaluate ' func2str(fun) 'to get value for ' src.Name]);
+                    error(['Could not evaluate ' func2str(fun) 'to get value for ' srcName]);
 %                 else
 %                     return;
 %                 end
@@ -505,13 +494,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             try
                 if isastruct
                     value.(postSrcName)=fun(args{:});
-                elseif isacell
-                    value{postSrcName}=fun(args{:});
                 else
                     value = fun(args{:});
                 end
             catch
-                error(['Could not evaluate ' func2str(fun) ' to get value for ' srcName ]);
+%                 value=[];
+                warning(['Could not evaluate ' func2str(fun) ' to get value for ' srcName ]);
+                
             end
         end
         

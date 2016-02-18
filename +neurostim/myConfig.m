@@ -23,7 +23,6 @@ c.screen.frameRate=60;
 % c.guiFlipEvery=2;
 % if p.Eyelink
 %     e = plugins.eyelink;
-%     e.useMouse = true;
 %     c.add(e);
 % end
 % if p.Output
