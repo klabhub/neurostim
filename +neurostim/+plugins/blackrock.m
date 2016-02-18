@@ -1,5 +1,5 @@
 classdef blackrock < neurostim.plugin
-    % plugin class to add functionality for the blackrock system. 
+    % Plugin class to add functionality for the blackrock system. 
     % Wrapper around CBMEX.
     
    properties

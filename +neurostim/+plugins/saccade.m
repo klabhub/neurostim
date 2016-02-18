@@ -1,5 +1,5 @@
 classdef saccade < neurostim.plugins.behavior
-    % saccade subclass in behaviour class. 
+    % Behavioral plugin which checks for a saccade.
     % saccade(name,fixation1,fixation2)
     % Creates a saccade from fixation1 to fixation2, adjusting start and
     % end points accordingly, and also adjusts fixation2's startTime to be 

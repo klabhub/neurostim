@@ -1,17 +1,16 @@
 classdef gui <neurostim.plugin
-    % Class to create GUI-like functionality in the PTB window.
+    % Class to create GUI-like functionality in the second connected PTB window.
     % EXAMPLE:
     % If c is your CIC, add this plugin, then, for instance tell it to
     % display the horizontal eye position, and the x parameter of the
-    % fix stimulus. Updated these values each frame (debug only!).
+    % fix stimulus.
     % c.add(plugins.gui);
     % c.gui.props = 'eye.x';
     % c.gui.props  = 'fix.x';
-    % c.gui.updateEachFrame = true;
     %
-    % BK - April 2014
     %
     properties (Access=public)
+        %% User-settable properties
         xAlign@char = 'right';          % 'left', or 'right'
         yAlign@char = '';         % center
         spacing@double = 1.2;             % Space between lines
@@ -28,6 +27,7 @@ classdef gui <neurostim.plugin
     end
     
     properties (Access=private)
+        %% For internal use only.
         paramText@char = '';
         currentText@char = ''; %Internal storage for the current display
         keyLegend@char= '';      % Internal storage for the key stroke legend
@@ -43,13 +43,13 @@ classdef gui <neurostim.plugin
         behaviours=[];
         lastFrameDrop=0;
         
+        mirrorRect;
         positionX;
         positionY;
         paramsBox;
         feedX;
         feedY;
         feedBox;
-        mirrorRect;
         guiText;
     end
     
@@ -64,13 +64,23 @@ classdef gui <neurostim.plugin
             end
         end
         
-        function v=get.mirrorRect(o)
+    end
+    
+    methods (Access=private)
+        function v=mirrorRectCalc(o)
+            % calculates the rect for mirroring the experimental display
             x1=o.cic.mirrorPixels(1);
             y1=o.cic.mirrorPixels(2);
-            x2=o.cic.mirrorPixels(3)/2;
-            y2=o.cic.mirrorPixels(4)/2;
+            if ((o.cic.mirrorPixels(3)-o.cic.mirrorPixels(1))/2)>(o.cic.screen.pixels(3)-o.cic.screen.pixels(1))
+                x2=o.cic.screen.pixels(3);
+                y2=o.cic.screen.pixels(4);
+            else
+                x2=o.cic.mirrorPixels(3)/2;
+                y2=o.cic.mirrorPixels(4)/2;
+            end
             v=[x1 y1 x2 y2];
         end
+        
     end
     
     
@@ -95,9 +105,9 @@ classdef gui <neurostim.plugin
             c.mirror=Screen('OpenOffscreenWindow',c.window,c.screen.color.background);
             o.guiFeedBack=Screen('OpenOffScreenWindow',c.guiWindow,o.cic.screen.color.background);
             o.guiRect = c.mirrorPixels;
-
+            o.mirrorRect=mirrorRectCalc(o);
             o.guiText=Screen('OpenOffscreenWindow',-1, c.screen.color.background,o.guiRect);
-            slack=10;
+            slack=5;
             switch (o.xAlign)
                 case 'right'
                     o.positionX=(c.mirrorPixels(3))*1/2;
@@ -118,9 +128,8 @@ classdef gui <neurostim.plugin
             o.textHeight=sampleText(4)-sampleText(2);
             o.feedX=c.mirrorPixels(3)/2+2*slack;
             o.feedY=c.mirrorPixels(4)*.5+slack;
+            o.paramsBox=[c.mirrorPixels(3)/2 0 c.mirrorPixels(3) o.mirrorRect(4)];
             o.feedBox = [slack o.feedY-slack c.mirrorPixels(3)-slack c.mirrorPixels(4)-(4*slack)];
-            o.paramsBox = [c.mirrorPixels(3)/2+slack slack c.mirrorPixels(3)-slack o.mirrorRect(4)/2-slack];
-            
             o.eyetrackers=c.pluginsByClass('eyetracker');
             o.behaviours=c.pluginsByClass('behavior');
             c.writeToFeed('Started Experiment');

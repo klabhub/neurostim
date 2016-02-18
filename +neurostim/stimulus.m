@@ -1,12 +1,23 @@
 classdef stimulus < neurostim.plugin
-%     events
-%         BEFOREFRAME;
-%         AFTERFRAME;    
-%         BEFORETRIAL;
-%         AFTERTRIAL;    
-%         BEFOREEXPERIMENT;
-%         AFTEREXPERIMENT;        
-%     end
+% Base class for stimuli in PTB.
+% 
+% Adjustable variables:
+%   X,Y,Z - position of stimulus
+%   on - time the stimulus should come 'on' (ms) from start of trial
+%   duration - length of time the stimulus should be 'on' (ms)
+%   color - color of the stimulus
+%   alpha - alpha blend of the stimulus.
+%   scale.x,scale.y,scale.z - scale of the stimulus along various axes
+%   angle - angle of the stimulus
+%   rx, ry, rz - rotation of the stimulus
+%   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
+%       details)
+%   rngSeed - seed of the RNG.
+%   diode.on,diode.color,diode.location,diode.size - a square box of
+%       specified color in the corner of the screen specified ('nw','sw', etc.),
+%   for use with a photodiode recording.
+%   mccChannel - a linked MCC Channel to output alongside a stimulus.
+% 
     
     properties (SetAccess = public,GetAccess=public)
         quest@struct;
@@ -66,11 +77,12 @@ classdef stimulus < neurostim.plugin
     methods
         function s= stimulus(name)
             s = s@neurostim.plugin(name);
+            %% user-settable properties
             s.addProperty('X',0,[],@isnumeric);
             s.addProperty('Y',0,[],@isnumeric);
             s.addProperty('Z',0,[],@isnumeric);  
-            s.addProperty('on',0,[],@(x) isnumeric(x));  
-            s.addProperty('duration',Inf,[],@(x) isnumeric(x));  
+            s.addProperty('on',0,[],@isnumeric);  
+            s.addProperty('duration',Inf,[],@isnumeric);  
             s.addProperty('color',[1/3 1/3 50],[],@isnumeric);
             s.addProperty('alpha',1,[],@(x)x<=1&&x>=0);
             s.addProperty('scale',struct('x',1,'y',1,'z',1));
@@ -78,17 +90,21 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rx',0,[],@isnumeric);
             s.addProperty('ry',0,[],@isnumeric);
             s.addProperty('rz',1,[],@isnumeric);
-            s.addProperty('startTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus appears on screen
-            s.addProperty('endTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus does not appear after being run
             s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
-            s.addProperty('isi',[],[],@isnumeric);
-            s.addProperty('subCond',[],[],[],{'neurostim.stimulus'},{'neurostim.plugin'});
             s.addProperty('rngSeed',[],[],@isnumeric);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT'});
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],[],@isnumeric);
+            
+            %% internally-set properties
+            s.addProperty('startTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus appears on screen
+            s.addProperty('endTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus does not appear after being run
+            s.addProperty('isi',[],[],@isnumeric,{'neurostim.stimulus'});
+            s.addProperty('subCond',[],[],[],{'neurostim.stimulus'},{'neurostim.plugin'});
+            
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
+            s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
         end                      
         
         % Setup threshold estimation for one of the parameters. The user
@@ -202,8 +218,8 @@ classdef stimulus < neurostim.plugin
 %           addRSVP(s,rsvpFactorial,[optionalArgs])
 %
 %           Rapid Serial Visual Presentation
-%           rsvpFactorial is a cell specifying the parameter(s) to be maniupulated in the stream
-%           The format of rsvpFactorial is the same as for c.addFactorial.
+%           rsvpFactorial is a cell specifying the parameter(s) to be
+%           maniupulated in the stream.
 %
 %           optionalArgs = {'param1',value,'param2',value,...}
 %         

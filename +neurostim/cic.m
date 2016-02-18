@@ -1,3 +1,11 @@
+% Command and Intelligence Center for PTB.
+% Start experiment by using cic.run(myBlock [, myBlock2, 'parameter', value]).
+% Inputs (in Parameter-Value format):
+% blocks - input blocks directly created from block('name')
+% 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
+% 'nrRepeats' - number of repeats total
+% 'weights' - weighting of blocks
+% 
 % Functionality
 %   Generate output as sib object/infos
 %  Tricky.
@@ -520,6 +528,9 @@ classdef cic < neurostim.plugin
                 c.pluginOrder=neworder;
                 
             end
+            if ~strcmp(c.pluginOrder(1),'gui') && any(strcmp(c.pluginOrder,'gui'))
+                c.pluginOrder = ['gui' c.pluginOrder(~strcmp(c.pluginOrder,'gui'))];
+            end
             if numel(c.pluginOrder)<numel(c.defaultPluginOrder)
                 b=ismember(c.defaultPluginOrder,c.pluginOrder);
                 index=find(~b);
@@ -1031,11 +1042,9 @@ classdef cic < neurostim.plugin
             %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
             PsychImaging('AddTask','General','UseFastOffscreenWindows');
             if any(strcmpi(c.plugins,'gui'))%if gui is added
-%                 if ~isempty(c.mirrorPixels)
-%                     c.mirrorPixels = [c.screen.pixels(3) c.screen.pixels(2) c.mirrorPixels(3) c.mirrorPixels(4)];
-%                 else
-%                     c.mirrorPixels = [c.screen.pixels(3) c.screen.pixels(2) c.screen.pixels(3)*2 c.screen.pixels(4)];
-%                 end
+                if isempty(c.mirrorPixels)
+                    c.mirrorPixels=Screen('Rect',(screenNumber-1));
+                end
                 c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background,c.screen.pixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
 
                 c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);

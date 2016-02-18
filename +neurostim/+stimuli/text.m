@@ -1,6 +1,6 @@
 classdef text < neurostim.stimulus
     % Class for text presentation in PTB.
-    % variables:
+    % Adjustable variables:
     %   message: text to message on screen
     %   font: font for presentation
     %   textsize: size of text (pt)
@@ -15,7 +15,7 @@ classdef text < neurostim.stimulus
     %
     
     properties
-        antialiasing = 0;
+        antialiasing = 1;
     end
     
     methods
@@ -36,7 +36,7 @@ classdef text < neurostim.stimulus
             o.addProperty('message','Hello World','',@ischar);
             o.addProperty('font','Courier New','',@ischar);
             o.addProperty('textsize', 20,'',@isnumeric);
-            o.addProperty('textstyle', 0,'',@(x)ismember(x,[0 1 2 4]));
+            o.addProperty('textstyle', 0,'',@(x)(any(ismember(x,[0 1 2 4])) || any(ismember(lower(x),{'normal','bold','italic','underline'}))));
             o.addProperty('textalign','center','',@(x)ismember(upper(x),{'CENTER','CENTRE','C','LEFT','L','RIGHT','R'}));
             o.X = 0;
             o.Y = 0;
@@ -47,7 +47,6 @@ classdef text < neurostim.stimulus
         function beforeFrame(o,c,evt)
                     % Draw text with the assigned parameters
                      % determine text style variable for 'TextStyle'
-                    
                     if o.antialiasing
                        Screen('glLoadIdentity', c.window); 
                        Screen('glRotate',c.window,o.angle,o.rx,o.ry,o.rz);
@@ -115,7 +114,7 @@ classdef text < neurostim.stimulus
                     end
                    
                     % draw text to Screen
-                    [~,~,bounds]=DrawFormattedText(c.window,o.message,xpos,ypos,o.color);
+                    DrawFormattedText(c.window,o.message,xpos,ypos,o.color);
         end
         
         function afterTrial(o,c,evt)

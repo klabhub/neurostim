@@ -1,13 +1,12 @@
 classdef output < neurostim.plugin
-    % Simple output subclass which can be used to save files in a specific
-    % format to the specified directory.
-    % Variables:
-    % root  - root of the directory tree to save files to.
-    % saveFrequency - save after every X trials. 0 indicates no saving
-    % until the end of the experiment.
-    % mode = 'root' to simply save in the root directory 
-    %        'dayfolders' - create folders in the yyyy/mm/dd format and
-    %        save files in the deepest level.
+    % Simple output subclass - saves files to a set directory.
+    % Adjustable Variables:
+    %   root  - root of the directory tree to save files to.
+    %   saveFrequency - save after every X trials. 0 indicates no saving
+    %       until the end of the experiment.
+    %   mode = 'root' to simply save in the root directory 
+    %          'dayfolders' - create folders in the yyyy/mm/dd format and
+    %             save files in the deepest level.
     %
     
     properties (GetAccess=public, SetAccess=public)

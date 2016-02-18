@@ -1,4 +1,4 @@
-%% 
+ %% 
 % Surround Suppression Example
 %
 % Demonstrates how to copy stimuli, how to link them to each other with
@@ -13,9 +13,9 @@ Screen('Preference', 'SkipSyncTests', 0); % Not in production mode; this is just
 Screen('Preference','TextRenderer',1);
 
 %% Setup CIC and the stimuli.
-c = adamsConfig;                            % Create Command and Intellige nce Center...
-% c.screen.pixels    = [0 0 500 500];        % Set the position and size of the window
-% c.screen.physical  = [15 15];              % Set the physical size of the window (centimeters)
+c = cic;                            % Create Command and Intelligence Center...
+c.screen.pixels    = [0 0 500 500];        % Set the position and size of the window
+c.screen.physical  = [15 15];              % Set the physical size of the window (centimeters)
 c.screen.color.background= [0.5 0.5 0.5];
 c.screen.colorMode = 'RGB';                % Tell CIC that we'll use RGB colors
 c.trialDuration  = inf;
@@ -88,12 +88,7 @@ surroundContrast = 0.6;
 % The third factor just ensures that the reference and test stimulus appear
 % on the left and right equally often
 %
-design = {{'surround','orientation',{0,0,90,0},'surround','contrast',{0,surroundContrast,surroundContrast,surroundContrast},'referenceSurround','contrast',{0,surroundContrast,0,0}},...
-          {'testGab','contrast',{0.10, 0.20 ,0.40 ,0.50}},...
-          {'testGab','X',{-2.5, 2.5}}};
-% 
-%design = {{'testGab','contrast',{0.10, 0.20 ,0.40 ,0.50}},...
-%          {'testGab','X',{-2.5, 2.5}}};
+
 myFac=factorial('myFactorial',3); 
 myFac.fac1.surround.orientation={0 0 90 0}; 
 myFac.fac1.surround.contrast={0,surroundContrast,surroundContrast,surroundContrast};
@@ -106,8 +101,7 @@ myBlock.nrRepeats=10;
 
 
 c.add(plugins.gui);
-c.order('fix','reference', 'gui');
-c.run(myBlock);
+
 % c.addFactorial('orientation',design{:}) ;
 % c.addBlock('orientation','orientation',10,'RANDOMWITHREPLACEMENT')
 % 
@@ -117,6 +111,6 @@ c.run(myBlock);
 % move to the next trial in this experiment.
 c.addResponse('a','write',-1,'nextTrial',true);
 c.addResponse('l','write',+1,'nextTrial',true);
-
+c.run(myBlock);
 % c.run % Run the experiment. 
   

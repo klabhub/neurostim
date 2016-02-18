@@ -1,6 +1,5 @@
 classdef reward < neurostim.plugin
-    % Simple reward class which presents rewards if requested by the
-    % notification event getReward.
+    % Simple reward class; presents rewards to event 
     events
         GIVEREWARD;
     end

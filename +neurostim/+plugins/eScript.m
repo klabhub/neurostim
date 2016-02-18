@@ -1,4 +1,5 @@
 classdef eScript < neurostim.plugin
+    % Class for writing simple functions/scripts.
     % This class provide a way to allow users to write simple
     % functions/scripts for behavior and stimulus control in an experiment
     % (Without the need for writing a class).
