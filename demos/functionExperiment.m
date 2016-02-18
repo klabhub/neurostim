@@ -4,7 +4,6 @@ import neurostim.*
 
 
 Screen('Preference', 'SkipSyncTests', 1);
-Screen('Preference', 'ConserveVRAM', 32);
 
 
 c = cic;                            % Create Command and Intelligence Center...
@@ -12,7 +11,7 @@ c.screen.pixels = [0 0 1800 1200];         % Set the position and size of the wi
 c.screen.color.background= [0.5 0.5 0.5];
 c.screen.colorMode = 'rgb';
 
-% c.add(plugins.gui);                 % Create and add a "GUI" (status report)
+c.add(plugins.gui);                 % Create and add a "GUI" (status report)
 c.add(plugins.debug);               % Use the debug plugin; this allows you to move to the next trial with 'n'
 
 

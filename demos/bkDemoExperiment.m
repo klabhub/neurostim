@@ -3,10 +3,9 @@ import neurostim.*
 
 
 Screen('Preference', 'SkipSyncTests', 0);
-% Screen('Preference', 'ConserveVRAM', 32);
 
 
-c = myConfig;                            % Create Command and Intelligence Center...
+c = cic;                            % Create Command and Intelligence Center...
 c.screen.pixels = [0 0 500 500];         % Set the position and size of the window
 c.screen.color.background= [0.5 0.5 .5];
 c.screen.colorMode = 'RGB';

@@ -1,21 +1,26 @@
 classdef mouse < neurostim.stimulus
     % Class for receiving a mouse input for PTB.
     %
-    % Inputs: cursorShape - cross: crosshair
-    %                       arrow: normal mouse arrow
-    %                       hand: mouse hand
-    %
+    % Adjustable variables: 
+    % cursorShape - cross: crosshair
+    %               arrow: normal mouse arrow
+    %               hand: mouse hand
+    % 
     % Updates every frame with mouse position (may cause frame drops)
     
     properties (Access=public)
+        cursorShape = 'cross';
+    end
+    
+    properties (GetAccess=public,SetAccess=private)
+        %% mouse clicked position and x,y coordinates for external use.
+        pressed = 0;
         mousex;
         mousey;
-        cursorShape = 'cross';
-        time;
-        pressed = 0;
     end
     
     properties (Access=public, SetObservable)
+        %% logs of mouse trajectory
         trajX;
         trajY;
         trajTime;
@@ -27,6 +32,7 @@ classdef mouse < neurostim.stimulus
             
             o.listenToEvent({'BEFOREEXPERIMENT','BEFOREFRAME','AFTERFRAME','AFTERTRIAL'})
             
+            %% internally set parameters.
             o.addProperty('clickx',[],[],[],'private');
             o.addProperty('clicky',[],[],[],'private');
             o.addProperty('clickbutton',[],[],[],'private');
@@ -67,13 +73,12 @@ classdef mouse < neurostim.stimulus
         function beforeFrame(o,c,evt)
             
            [o.mousex,o.mousey,buttons] = c.getMouse();
-           o.time = c.trialTime;
 
            if any(buttons)~=0   % if any button is pressed
                o.clickx = o.X;
                o.clicky = o.Y;
                o.clickbutton = buttons;
-               o.clicktime = o.time;
+               o.clicktime = c.trialTime;
                if o.pressed == 0    % check if button was previously pressed
                    o.clickNumber = o.clickNumber + 1;
                end
@@ -86,7 +91,7 @@ classdef mouse < neurostim.stimulus
         function afterFrame(o,c,evt)
             o.trajX(end+1) = o.mousex;
             o.trajY(end+1) = o.mousey;
-            o.trajTime(end+1) = o.time;
+%             o.trajTime(end+1) = c.trialTime;
         end
         
         

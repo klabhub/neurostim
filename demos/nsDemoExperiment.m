@@ -1,19 +1,18 @@
 function  nsDemoExperiment
 
 import neurostim.*
-% Factorweights.
+
 commandwindow;
 Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference','TextRenderer',1);
-Screen('Preference', 'ConserveVRAM', 397312);
-% c = myConfig('Eyelink',false);
-% c = cic;                            % Create Command and Intelligence Center...
+
+c = myConfig;                         % Create Command and Intelligence Center...
 % c.screen.pixels = [0 0 1600 1000];         % Set the position and size of the window
 % c.screen.color.background= [0 0 0];
 % c.screen.colorMode = 'xyl';
 % c.iti = 2000;
 % c.trialDuration = inf;
-c = myConfig;
+% c = myConfig;
 c.output.saveFrequency=5;
 % e = plugins.eyelink;
 % e.useMouse = true;
@@ -163,7 +162,9 @@ myBlock2.nrRepeats=2;
 % c.add(plugins.reward);
 % 
 % e=plugins.eyelink;
+% e.getEvents=true;
 % e.eyeToTrack = 'binocular';
+% c.add(e);
 
 % f1 = plugins.fixate('f1');
 % f1.X = 0;

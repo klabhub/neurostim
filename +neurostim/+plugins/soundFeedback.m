@@ -1,6 +1,6 @@
 classdef soundFeedback < neurostim.plugins.feedback
-    %Plugin to deliver auditory feedback.
-    %Specify either a filename to a wav file, or pass in a mono- (vector) or stereo (matrix) waveform to be played.
+    % Plugin to deliver auditory feedback.
+    % Specify either a filename to a wav file, or pass in a mono- (vector) or stereo (matrix) waveform to be played.
     
     properties
 

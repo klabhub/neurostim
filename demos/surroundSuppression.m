@@ -1,4 +1,4 @@
-%% 
+ %% 
 % Surround Suppression Example
 %
 % Demonstrates how to copy stimuli, how to link them to each other with
@@ -13,9 +13,9 @@ Screen('Preference', 'SkipSyncTests', 0); % Not in production mode; this is just
 Screen('Preference','TextRenderer',1);
 
 %% Setup CIC and the stimuli.
-c = myConfig;                            % Create Command and Intellige nce Center...
-% c.screen.pixels    = [0 0 500 500];        % Set the position and size of the window
-% c.screen.physical  = [15 15];              % Set the physical size of the window (centimeters)
+c = cic;                            % Create Command and Intelligence Center...
+c.screen.pixels    = [0 0 500 500];        % Set the position and size of the window
+c.screen.physical  = [15 15];              % Set the physical size of the window (centimeters)
 c.screen.color.background= [0.5 0.5 0.5];
 c.screen.colorMode = 'RGB';                % Tell CIC that we'll use RGB colors
 c.trialDuration  = inf;
@@ -101,7 +101,6 @@ myBlock.nrRepeats=10;
 
 
 c.add(plugins.gui);
-% c.order('fix','reference','gui');
 
 % c.addFactorial('orientation',design{:}) ;
 % c.addBlock('orientation','orientation',10,'RANDOMWITHREPLACEMENT')

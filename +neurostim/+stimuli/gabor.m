@@ -1,6 +1,14 @@
 classdef gabor < neurostim.stimulus
     % Wrapper class for the (fast) procedural Gabor textures in the PTB.
-    
+    % 
+    % Adjustable variables (from CreateProcGabor.m):
+    % 	orientation - orientation angle in degrees (0-360)
+    % 	contrast - amplitude of gabor in intensity units
+    % 	phase - the phase of the gabor's sine grating in degrees.
+    % 	frequency - gabor's spatial frequency in cycles per pixel
+    % 	sigma - spatial constant of gaussian hull function of gabor
+    % 	width, height - maximum size of the gabor.
+    % 	mask - one of 'GAUSS','CIRCLE','ANNULUS'
     properties (Constant)
         maskTypes = {'GAUSS','CIRCLE','ANNULUS'};
     end
@@ -22,11 +30,11 @@ classdef gabor < neurostim.stimulus
             o.addProperty('height',10,'',@isnumeric);
             
             %%  Gabor parameters
-            o.addProperty('orientation',0);
-            o.addProperty('contrast',1);
-            o.addProperty('phase',0);
-            o.addProperty('frequency',0.05);
-            o.addProperty('sigma',1); % [Inner Outer] or  [Outer]
+            o.addProperty('orientation',0,[],@(x) (isnumeric(x) && x>=0 && x<=360));
+            o.addProperty('contrast',1,[],@isnumeric);
+            o.addProperty('phase',0,[],@isnumeric);
+            o.addProperty('frequency',0.05,[],@isnumeric);
+            o.addProperty('sigma',1,[],@isnumeric); % [Inner Outer] or  [Outer]
             o.addProperty('mask','Gauss','',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));
             
             %% Motion

@@ -1,14 +1,15 @@
 classdef plugin  < dynamicprops & matlab.mixin.Copyable
-        % 
-        % Issue: In functional() 
-        % While functions will work for assigning one-level structure references,
-        % i.e. fixation.diode.color = '@(cic) cic.screen.color.text'
-        % there may be timing problems if there are multiple one-level 
-        % references to the same structure, as functions within the structure 
-        % will be evaluated every time the structure is called.
-        % Multiple-level structure references are also currently not supported
-        % for assignation.
-        %
+    % Base class for plugins. Includes logging, functions, etc.
+    %
+    % Issue: In functional()
+    %   While functions will work for assigning one-level structure references,
+    %   i.e. fixation.diode.color = '@(cic) cic.screen.color.text'
+    %   there may be timing problems if there are multiple one-level
+    %   references to the same structure, as functions within the structure
+    %   will be evaluated every time the structure is called.
+    %   Multiple-level structure references are also currently not supported
+    %   for assignation.
+    %
     properties (SetAccess=public)
         cic@neurostim.cic;  % Pointer to CIC
     end

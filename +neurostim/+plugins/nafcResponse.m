@@ -1,6 +1,5 @@
 classdef nafcResponse < neurostim.plugins.behavior
-    % Behavior subclass for receiving a n-alternative forced choice response from
-    % keyboard input for PTB.
+    % Behavior subclass for receiving a nafc keyboard response.
     %
     % Set:
     % keys -        cell array of key characters, e.g. {'a','z'}
@@ -21,7 +20,6 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('correct',false,[],[],'private');
             o.addProperty('pressedInd',[],[],[],'private');
             o.addProperty('pressedKey',[],[],[],'private');
-            
             o.listenToEvent('BEFOREEXPERIMENT');
        end
        

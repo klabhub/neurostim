@@ -1,14 +1,19 @@
 % Wrapper around the Eyelink Toolbox.
 classdef eyelink < neurostim.plugins.eyetracker
-    % new properties:
-    % keepExperimentSetup - 1 or 0. 
-    %                       1: keep Eyelink functions using the same colour
-    %                       setup as the experiment (i.e. background, foreground).
-    %                       0: get Eyelink colour setup from parameters
-    %                       below.
-    % backgroundColor - background colour for eyelink toolbox functions.
-    % foregroundColor - foreground colour for eyelink toolbox functions.
-    % clbTargetColor - calibration target color.
+    % New properties:
+    %   keepExperimentSetup - 1 or 0. 
+    %                         1: keep Eyelink functions using the same colour
+    %                               setup as the experiment (i.e. background, foreground).
+    %                         0: get Eyelink colour setup from parameters
+    %                               below.
+    %
+    %   getSamples - if true, stores eye position/sample validity on every frame.
+    %   getEvents - if true, stores eye event data in eyeEvts.
+    %   eyeEvts - saves eyelink data in its original structure format.
+    % 
+    %   doTrackerSetup - true or false, setup before experiment.
+    %   doDriftCorrect - true or false, setup before experiment.
+
     
     properties
         el@struct;
@@ -51,9 +56,8 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addKey('F9',@keyboard,'DriftCorrect');
             o.addKey('F8',@keyboard,'EyelinkSetup');
             o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'}); %The parent class is also listening to the AFTERFRAME event. Intended?
-            
-            o.addProperty('eyeEvts',struct('time',[],'type',[],'flags',[],'px',[],'py',[],'hx',[],'hy',[],...
-                'pa',[],'gx',[],'gy',[],'rx',[],'ry',[],'status',[],'input',[],'buttons',[],'htype',[],'hdata',[]),[],[],[],'private');
+            o.addProperty('eyeEvts',struct);
+
         end
         
         function beforeExperiment(o,c,evt)
@@ -78,6 +82,8 @@ classdef eyelink < neurostim.plugins.eyetracker
             % setup sample rate
             if any(o.sampleRate==[250, 500, 1000])
                 o.commands{end+1} = ['sample_rate = ' num2str(o.sampleRate)];
+            else
+               warning('Requested eyelink sample rate is invalid; setting to default.'); 
             end
             % make sure that we get gaze data from the Eyelink
             for i=1:length(o.commands)
@@ -183,10 +189,10 @@ classdef eyelink < neurostim.plugins.eyetracker
                         o.eyeEvts = eyeEvts;
                     case o.el.connected
                         evtype=Eyelink('getnextdatatype');
-                        if ismember(evtype,[o.el.ENDSACC, o.el.ENDFIX, o.el.STARTBLINK,...
+                        if any(ismember(evtype,[o.el.ENDSACC, o.el.ENDFIX, o.el.STARTBLINK,...
                                 o.el.ENDBLINK,o.el.STARTSACC,o.el.STARTFIX,...
                                 o.el.FIXUPDATE, o.el.INPUTEVENT,o.el.MESSAGEEVENT,...
-                                o.el.BUTTONEVENT, o.el.STARTPARSE, o.el.ENDPARSE])
+                                o.el.BUTTONEVENT, o.el.STARTPARSE, o.el.ENDPARSE]))
                             o.eyeEvts = Eyelink('GetFloatData', evtype);
                         else               
 %                             o.cic.error('STOPEXPERIMENT','Eyelink is not connected');

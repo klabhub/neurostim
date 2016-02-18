@@ -12,7 +12,7 @@ c.screen.pixels = [0 0 500 500];         % Set the position and size of the wind
 c.screen.color.background= [0.5 0.5 0.5];
 c.screen.colorMode = 'RGB';                % Tell CIC that we'll use RGB colors
 
-% c.add(plugins.gui);                 % Create and add a "GUI" (status report)
+c.add(plugins.gui);                 % Create and add a "GUI" (status report)
 c.add(plugins.debug);               % Use the debug plugin; this allows you to move to the next trial with 'n'
 
 g=stimuli.gabor('gabor');           % Create a gabor stimulus.
