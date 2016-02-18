@@ -84,7 +84,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('isi',[],[],@isnumeric);
             s.addProperty('subCond',[],[],[],{'neurostim.stimulus'},{'neurostim.plugin'});
             s.addProperty('rngSeed',[],[],@isnumeric);
-            s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
+            s.listenToEvent({'BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT'});
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],[],@isnumeric);
             s.rngSeed=GetSecs;
@@ -181,6 +181,11 @@ classdef stimulus < neurostim.plugin
            
            function afterTrial(s,c,evt)
                % to be overloaded in subclasses; needed for baseAfterTrial
+               % (stimulus endTime check)
+           end
+           
+           function beforeExperiment(s,c,evt)
+               % to be overloaded in subclasses; needed for baseBeforeExperiment
                % (stimulus endTime check)
            end
     end
@@ -334,7 +339,7 @@ classdef stimulus < neurostim.plugin
                         s.stimstart=false;
                     end
                     Screen('glLoadIdentity', c.window);
-                    if s.diode.on
+                    if s.diode.on && s.flags.on
                         Screen('FillRect',c.window,s.diode.color,s.diodePosition);
                     end
                 case 'BASEAFTERFRAME'

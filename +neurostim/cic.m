@@ -89,6 +89,7 @@ classdef cic < neurostim.plugin
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         test=[];
+        ticTime = -Inf;
     end
     
     %% Protected properties.
@@ -132,8 +133,8 @@ classdef cic < neurostim.plugin
         lastFrameDrop=1;
         propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial','blockTrial/nrTrials','trial/fullNrTrials'};
         
-        profile=struct;
-        
+        profile=struct('cic',struct('FRAMELOOP',[]));
+ 
         guiWindow;
     
     end
@@ -794,7 +795,12 @@ classdef cic < neurostim.plugin
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
                         
+%                         if c.frame > 1
+%                             c.addProfile('FRAMELOOP',c.name,c.toc);
+%                         end
+                        
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
+%                         c.tic;
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
@@ -829,11 +835,12 @@ classdef cic < neurostim.plugin
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
                     Screen('FillRect',c.window,c.screen.color.background);
-%                     
-%                     if c.trial>0
+                    
+%                     if c.trial>20
+%                         sca;
 %                         profile OFF
 %                         profile VIEWER
-%                     keyboard;
+%                         keyboard;
 %                     end
                     [vbl,stimOn,flip,~]=Screen('Flip', c.onscreenWindow,0,1-c.clear);
                     c.trialEndTime = stimOn*1000;
@@ -1100,53 +1107,34 @@ classdef cic < neurostim.plugin
     
     methods
         function report(c)
-            fields = fieldnames(c.profile);
-            for i=1:numel(fields)
-                figure('Name',fields{i});
-                subplot(2,2,1)
-                x = c.profile.(fields{i}).BEFOREFRAME;
-                low = 5;high=95;
-                %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-                %             hist(1000*x,bins)
-                hist(x)
-                xlabel 'Time (ms)'
-                ylabel '#'
-                title 'BeforeFrame'
+            plugins = fieldnames(c.profile);
+            for i=1:numel(plugins)
+                figure('Name',plugins{i});
                 
-                subplot(2,2,2)
-                x = c.profile.(fields{i}).AFTERFRAME;
-                %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-                %             hist(1000*x,bins)
-                hist(x)
-                xlabel 'Time (ms)'
-                ylabel '#'
-                title 'AfterFrame'
+                items = fieldnames(c.profile.(plugins{i}));
+                nPlots = numel(items);
+                nPerRow = ceil(sqrt(nPlots));
                 
-                subplot(2,2,4)
-                x = c.profile.(fields{i}).AFTERTRIAL;
-                %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-                %             hist(1000*x,bins)
-                hist(x)
-                xlabel 'Time (ms)'
-                ylabel '#'
-                title 'AfterTrial'
-                
-                subplot(2,2,3)
-                x = c.profile.(fields{i}).BEFORETRIAL;
-                %             bins = 1000*linspace(prctile(x,low),prctile(x,high),20);
-                %             hist(1000*x,bins)
-                hist(x)
-                xlabel 'Time (ms)'
-                ylabel '#'
-                title 'BeforeTrial'
+                for j=1:nPlots
+                    subplot(nPerRow,nPerRow,j)
+                    hist(c.profile.(plugins{i}).(items{j}),100);
+                    xlabel 'Time (ms)'; ylabel '#'
+                    title(items{j});
+                end
             end
-            
         end
+        
         function addProfile(c,what,name,duration)
             c.profile.(name).(what) = [c.profile.(name).(what) duration];
         end
         
+        function tic(c)
+            c.ticTime = GetSecs*1000;
+        end
         
+        function elapsed = toc(c)
+            elapsed = GetSecs*1000 - c.ticTime;
+        end
     end
     
 end

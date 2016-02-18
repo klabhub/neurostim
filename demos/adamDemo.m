@@ -45,6 +45,7 @@ d.lifetime = Inf;
 d.noiseMode = 1;
 d.X = '@(fix) fix.X';
 d.Y = '@(fix) fix.Y';
+d.diode.on = true;
 c.add(d);
 
 %% ========== Add required behaviours =========
