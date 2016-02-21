@@ -1,9 +1,9 @@
 classdef soundFeedback < neurostim.plugins.feedback
     % Plugin to deliver auditory feedback.
-    % Specify either a filename to a wav file, or pass in a mono- (vector) or stereo (matrix) waveform to be played.
-    
+    % 'path'  -  Path to search for sound files that are specified in add()
+    % 'waveform'  - filename for a .wav or other file. Or an actual mono mono- (vector) or stereo (matrix) waveform 
     properties
-        path@char ='';
+        path@char =''; % Set this to the folder that contains the sound files.
     end
     
     
@@ -14,57 +14,52 @@ classdef soundFeedback < neurostim.plugins.feedback
         end
     end
     
-    methods (Access=protected)
-        
+    methods (Access=protected)        
         function chAdd(o,varargin)
-
-            %First add standard parts of the new item in parent class
-            
+            % This is called from feedback.add only, there the standard
+            % parts of the item have already been added to the class. 
+            % Here we just add the sound specific arts.
             p=inputParser;  
             p.StructExpand = true; % The parent class passes as a struct
             p.addParameter('waveform',[],@(x) isnumeric(x) || ischar(x));     %Waveform data, filename (wav), or label for known (built-in) file (e.g. 'correct')
             p.parse(varargin{:});
-            p = p.Results;
-            
-            if ischar(p.waveform)
-                %If it's a label to a known file
-                if any(strcmpi(p.waveform,{'CORRECT','INCORRECT'}))
-                    p.waveform = fullfile(o.path,[p.waveform '.wav']);
-                end
-                
-                %Now its a wave file. Load it.
-                if exist(p.waveform,'file')
-                    p.waveform = o.readFile(p.waveform);
+            if ischar(p.Results.waveform)
+                % Look in the sound path (unless a full path has been
+                % provided)
+                [pth,~,~] = fileparts(p.Results.waveform);
+                if isempty(pth)
+                    file = fullfile(o.path,p.Results.waveform);
                 else
-                    error(['Sound file ' p.waveform ' could not be found.']);
+                    file = p.Results.waveform;
                 end
+                if exist(file,'file')
+                    waveform = o.readFile(file);
+                else
+                    error(['Sound file ' file ' could not be found.']);
+                end
+            else 
+                waveform = p.Results.waveform; % Presumably the waveform itself
             end
-
             %Store the waveform
-               o.addProperty(['item', num2str(o.nItems) 'waveform'],p.waveform);
-
+            o.addProperty(['item', num2str(o.nItems) 'waveform'],waveform);
         end
     end
     
     methods (Access=public)
         
-        function beforeExperiment(o,c,evt)
-            
+        function beforeExperiment(o,c,evt)            
             %Check that the sound plugin is enabled
-            snd = c.pluginsByClass('sound');
-            
+            snd = c.pluginsByClass('sound');            
             if isempty(snd)
                 error('No "sound" plugin detected. soundFeedback relies on it.');
-            end
-            
+            end            
             %Allocate the audio buffers
             for i=1:o.nItems
                o.addProperty(['item', num2str(i) 'buffer'],o.cic.sound.createBuffer(o.(['item' num2str(i) 'waveform'])));
             end
         end
 
-        function waveformData = readFile(o,file)
-             
+        function waveformData = readFile(o,file)             
             %Read WAV file and return waveform data
             waveformData = audioread(file);
         end
@@ -73,7 +68,7 @@ classdef soundFeedback < neurostim.plugins.feedback
     methods (Access=protected)
          
         function deliver(o,item)
-            o.cic.sound.play(o.(['item' num2str(item) 'buffer']));
+            o.cic.sound.play(o.(['item' num2str(item) 'buffer']));            
         end
  end
         

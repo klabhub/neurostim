@@ -8,10 +8,30 @@ classdef feedback < neurostim.plugin
     %the trial ('afterTrial')
     %
     %e.g.   r = plugins.liquid('juice');
-    %       r.add('duration',100,'when','afterFrame','criterion','@(fixation1) fixation1.success');
-    %       r.add('duration',500,'when','afterTrial','criterion','@(fixation2) fixation2.success');
+    %       r.add('duration',100,'when','afterFrame','criterion','@fixation1.success');
+    %       r.add('duration',500,'when','afterTrial','criterion','@fixation2.success');
     %
     %See add() for usage details.
+    
+    
+    % Implementation notes. 
+    % Reward items are stored in a somewhat clumsy manner, using dynamic
+    % properties with names that are constructed on the tfly.: o.item1duration o.item2duration
+    % The advantage of this is that each field is an independent property,
+    % whose values are automtically logged (because they are plugin
+    % properties). The disadvantage is that accessing the value requires
+    % constructing the dynamic property name, which may be inefficient. 
+    % 
+    % The alternative would be to store item1 as a struct with fields
+    % duration, when,criterion etc. This would only require construcing one dynamic property 
+    % name on the  fly ('item1' , 'item2'). But it has the disadvantage
+    % that PreGet events get triggered for all item fields (eg. criterion
+    % and duration, which are likely to be functions) even when only one is
+    % requested. 
+    % 
+    % Another alternative would be to use a vector of items (structs). This
+    % is the cleanest solution code-wise, but gives up on automatic
+    % logging. 
     
     properties
         afterFrameQueue=[]; % Feedback items that need to be checked/delivered after evey frame
@@ -61,8 +81,7 @@ classdef feedback < neurostim.plugin
             thisItem = ['item' num2str(o.nItems)];
             flds = fieldnames(p.Results);
             for i=1:numel(flds)
-                o.addProperty([thisItem lower(flds{i})],p.Results.(flds{i}));
-                
+                o.addProperty([thisItem lower(flds{i})],p.Results.(flds{i}));                
             end
             if strcmpi(p.Results.when,'AFTERTRIAL')
                 o.afterTrialQueue = [o.afterTrialQueue o.nItems];
@@ -93,6 +112,7 @@ classdef feedback < neurostim.plugin
                 if deliverNow
                     o.deliver(i);
                     o.(['item' num2str(i) 'delivered']) = true;
+                    disp(['Delivered ' num2str(i)]); 
                 end
             end
         end
@@ -118,8 +138,8 @@ classdef feedback < neurostim.plugin
         
         function deliver(o,item)
             %Function that should be overloaded in derived class to deliver the feedback.
-            %e.g. deliver juice via the MCC plugin, or present a feedback screen to a subject.
-            disp(['Feedback delivered for ' num2str(item.duration) 'ms'])
+            %e.g. deliver juice, or present a feedback screen to a subject.            
+            disp(['Feedback delivered for ' num2str(o.(['item' num2str(item) 'duration'])) 'ms'])
         end
     end
         
