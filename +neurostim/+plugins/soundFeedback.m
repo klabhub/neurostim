@@ -59,7 +59,7 @@ classdef soundFeedback < neurostim.plugins.feedback
             
             %Allocate the audio buffers
             for i=1:o.nItems
-               o.addProperty(['item', num2str(o.nItems) 'buffer'],o.cic.sound.createBuffer(o.(['item' num2str(i) 'waveform'])));
+               o.addProperty(['item', num2str(i) 'buffer'],o.cic.sound.createBuffer(o.(['item' num2str(i) 'waveform'])));
             end
         end
 
@@ -73,7 +73,7 @@ classdef soundFeedback < neurostim.plugins.feedback
     methods (Access=protected)
          
         function deliver(o,item)
-            o.cic.sound.play(item.buffer);
+            o.cic.sound.play(o.(['item' num2str(item) 'buffer']));
         end
  end
         

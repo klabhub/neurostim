@@ -14,7 +14,8 @@ classdef feedback < neurostim.plugin
     %See add() for usage details.
     
     properties
-
+        afterFrameQueue=[]; % Feedback items that need to be checked/delivered after evey frame
+        afterTrialQueue=[]; % Feedback items that need to be checked/delivered after evey trial
     end
     
     properties (SetObservable, AbortSet)
@@ -42,7 +43,7 @@ classdef feedback < neurostim.plugin
     end
     
     methods (Access=public)
-        function childArgs = add(o,varargin)                            
+        function add(o,varargin)                            
             %Add a new feedback item
             p=inputParser;                             
             p.KeepUnmatched = true;
@@ -56,60 +57,59 @@ classdef feedback < neurostim.plugin
             %Which item number is this?
             o.nItems = o.nItems + 1;
             
-            %Store the details
+            %Store the details as dynamic property item1when, item2duration etc. 
             thisItem = ['item' num2str(o.nItems)];
             flds = fieldnames(p.Results);
             for i=1:numel(flds)
-                o.addProperty([thisItem flds{i}],p.Results.(flds{i}));
+                o.addProperty([thisItem lower(flds{i})],p.Results.(flds{i}));
+                
             end
-            
-            % BK: there should be a separate list of AFTRTRIAL and
-            % AFTERFRAME items so that deliverPending can be called more
-            % selectively. 
-            
+            if strcmpi(p.Results.when,'AFTERTRIAL')
+                o.afterTrialQueue = [o.afterTrialQueue o.nItems];
+            elseif strcmpi(p.Results.when,'AFTERFRAME')
+                o.afterFrameQueue = [o.afterFrameQueue o.nItems];
+            else
+                error('??');  % Implement another queue
+            end
+                        
             chAdd(o,p.Unmatched);
         end
         
         function beforeTrial(o,c,evt)
             %Reset flags for all tiems.
             for i=1:o.nItems
-                o.(['item' num2str(i)]).delivered = false;
+                o.(['item' num2str(i) 'delivered'])= false;
             end
         end
           
-        function deliverPending(o,type)
-
+        function deliverPending(o,queue)
             %Which feedback items should be delivered now?            
-            for i=1:o.nItems
-                
-                %Check that it's the right time, that it hasn't already been delivered, and that the criterion is satisfied.
-                
-                when  = o.(['item' num2str(i) 'when']);
+            for i=queue                
+                %Check that it's the right time, that it hasn't already been delivered, and that the criterion is satisfied.                
                 delivered =o.(['item' num2str(i) 'delivered']);
                 criterion = o.(['item' num2str(i) 'criterion']);
-                deliverNow = strcmpi(when,type) & ~delivered & criterion;
-                
+                deliverNow = ~delivered & criterion;                
                 %Do it!
                 if deliverNow
-                    o.deliver(thisItem);
-                    thisItem.delivered=true;
+                    o.deliver(i);
+                    o.(['item' num2str(i) 'delivered']) = true;
                 end
             end
         end
         
         function afterFrame(o,c,evt)
             %Check if any feedback items should be delivered
-            deliverPending(o,'AFTERFRAME');
+            deliverPending(o,o.afterFrameQueue);
         end
 
         function afterTrial(o,c,evt)
-            deliverPending(o,'AFTERTRIAL');
+            %Check if any feedback items should be delivered
+            deliverPending(o,o.afterTrialQueue);
         end
     end
     
     
-    methods (Access=protected)
-        
+    methods (Access=protected)        
         function chAdd(o,varargin)
             % to be overloaded in child classes. The user calls o.add(), which adds
             % a new feedback item in the parent class. Remaining arguments are passed
