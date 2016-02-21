@@ -42,36 +42,32 @@ classdef feedback < neurostim.plugin
     end
     
     methods (Access=public)
-        function childArgs = add(o,varargin)
-         
-            %Partition the parent class' arguments from those that should be returned for the derived class to deal with
-            isForParent = cellfun(@(arg) any(strcmpi(arg,{'when','duration','criterion'})),varargin);
-            theseInds = sort([find(isForParent),find(isForParent)+1]);
-            args = varargin(theseInds);
-            varargin(theseInds) = [];
-            childArgs = varargin;
-                   
+        function childArgs = add(o,varargin)                            
             %Add a new feedback item
             p=inputParser;                             
+            p.KeepUnmatched = true;
             p.addParameter('when','AFTERTRIAL', @(x) any(strcmpi(x,{'AFTERTRIAL','AFTERFRAME'})));  %When feedback should be delivered (must be a CIC event)
-            p.addParameter('duration',1000);                                                        %Duration of feedback
-            p.addParameter('criterion',true);                                                       %Boolean function that determines whether the feedback will be delivered
-            p.parse(args{:});
-            p = p.Results;
+            p.addParameter('duration',Inf);                                                        %Duration of feedback
+            p.addParameter('criterion',false);                                                       %Boolean function that determines whether the feedback will be delivered
+            p.addParameter('delivered',false);
+            p.parse(varargin{:});            
+            
             
             %Which item number is this?
             o.nItems = o.nItems + 1;
             
             %Store the details
             thisItem = ['item' num2str(o.nItems)];
-            o.addProperty(thisItem,struct('duration',Inf,'when',Inf,'criterion',false,'delivered',false));
-            it.duration = p.duration;
-            it.when = upper(p.when);
-            it.criterion = p.criterion;
-            it.delivered = false;
-            o.(thisItem) = it;
+            flds = fieldnames(p.Results);
+            for i=1:numel(flds)
+                o.addProperty([thisItem flds{i}],p.Results.(flds{i}));
+            end
             
-            chAdd(o,childArgs);
+            % BK: there should be a separate list of AFTRTRIAL and
+            % AFTERFRAME items so that deliverPending can be called more
+            % selectively. 
+            
+            chAdd(o,p.Unmatched);
         end
         
         function beforeTrial(o,c,evt)
@@ -85,10 +81,13 @@ classdef feedback < neurostim.plugin
 
             %Which feedback items should be delivered now?            
             for i=1:o.nItems
-                thisItem = o.(['item' num2str(i)]);
                 
                 %Check that it's the right time, that it hasn't already been delivered, and that the criterion is satisfied.
-                deliverNow = strcmpi(thisItem.when,type) & ~thisItem.delivered & thisItem.criterion;
+                
+                when  = o.(['item' num2str(i) 'when']);
+                delivered =o.(['item' num2str(i) 'delivered']);
+                criterion = o.(['item' num2str(i) 'criterion']);
+                deliverNow = strcmpi(when,type) & ~delivered & criterion;
                 
                 %Do it!
                 if deliverNow

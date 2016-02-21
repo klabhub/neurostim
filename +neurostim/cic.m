@@ -33,7 +33,6 @@
 
 
 classdef cic < neurostim.plugin
-    
     %% Events
     % All communication with plugins is through events. CIC generates events
     % to notify plugins (which includes stimuli) about the current stage of
@@ -69,12 +68,15 @@ classdef cic < neurostim.plugin
         GIVEREWARD;
         
     end
-    %% Constants
+    
+    %% ConstBants
     properties (Constant)
         PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
         %         defaultPluginOrder = {'mcc','stimuli','eyetracker','behavior','unknown'};
+        SETUP =0;
+        RUNNING =1;
+        POST  =2;       
     end
-    
     %% Public properties
     % These can be set in a script by a user to setup the
     % experiment
@@ -107,6 +109,7 @@ classdef cic < neurostim.plugin
         window =[]; % The PTB window
         onscreenWindow=[]; % The display/onscreen window
         
+        stage@double;
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         
         frame = 0;      % Current frame
@@ -375,11 +378,14 @@ classdef cic < neurostim.plugin
             % Some very basic PTB settings that are enforced for all
             KbName('UnifyKeyNames'); % Same key names across OS.
             c.cursor = 'none';
+            c.stage  = neurostim.cic.SETUP;
             % Initialize empty
             c.startTime     = now;
             c.stimuli       = {};
             c.conditions    = neurostim.map;
             c.plugins       = {};
+            c.cic           = c; % Need a reference to self to match plugins. This makes the use of functions much easier (see plugin.m)
+            
             
             % Setup the keyboard handling
             c.responseKeys  = neurostim.map;
@@ -735,8 +741,12 @@ classdef cic < neurostim.plugin
         end
         
         function run(c,varargin)
+            
             % varargin is sent straight to c.createSession(); see that help
             % for input details.
+            
+            c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation, and postprocessig  will now be active
+            
             if isempty(c.screen.physical)
                 % Assuming code is in pixels
                 c.screen.physical = c.screen.pixels(3:4);

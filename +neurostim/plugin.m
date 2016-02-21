@@ -11,7 +11,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     %   for assignation.
     %
     properties (SetAccess=public)
-        cic@neurostim.cic;  % Pointer to CIC
+        cic;  % Pointer to CIC
     end
     
     events
@@ -170,45 +170,48 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
             h.GetObservable =true;
-            specs{1} = funcstring;
-            % find the function end of the string
-            funcend = regexp(funcstring,'\<@\((\w*)(,*\s*\w*(\.\w*)*)*\)\>\s*','end');
-            func = funcstring(funcend+1:end); % store the function end of the string
-            specs{2,1} = func;
-            c = 0;
-            variables = regexp(funcstring,'(?<=@\s*\()(\w*(\.\w*)*)|(?<=,\s*)(\w*(\.\w*)*)','tokens');  %get the main variables
-            for a=1:length(variables)
-                vardot = regexp(funcstring,'(?<=(??@variables{a}{1})\.)\w*(\.\w*)*','match');   %get the variable after the dot
-                for b = 1:length(vardot)
-                    % replace each variable in the function
-                specs{2,1} = regexprep(specs{2,1},'(??@variables{a}{:})(\.(??@vardot{b}))?',char('A'+c),'once');
-                c = c+1;
-                specs{end+1,1} = horzcat(variables{a},vardot(b));
-                end
-            end
-            % recreate the initial function variable list, i.e. '@(A,B)'
-            for x=1:c
-                if x == 1
-                    vars = horzcat('@(','A');
-                    if x == c
-                        vars = horzcat(vars, ')');
-                    end
-                elseif x==c
-                        vars = horzcat(vars,', ',char('A'+x-1),')');
-                else
-                    vars = horzcat(vars,', ',char('A'+x-1));
-                end
-            end
-            
-            if ~exist('vars','var')
-                 specs{2,1} = str2func(func);
-            else
-                % merge the function back together
-                specs{2,1} = horzcat(vars,specs{2,1});
-                specs{2,1} = str2func(specs{2,1});
-            end
-            specs{end+1,1}=prop;
-            o.listenerHandle.preGet.(prop) = o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,specs));
+%             specs{1} = funcstring;
+%             % find the function end of the string
+%             funcend = regexp(funcstring,'\<@\((\w*)(,*\s*\w*(\.\w*)*)*\)\>\s*','end');
+%             func = funcstring(funcend+1:end); % store the function end of the string
+%             specs{2,1} = func;
+%             c = 0;
+%             variables = regexp(funcstring,'(?<=@\s*\()(\w*(\.\w*)*)|(?<=,\s*)(\w*(\.\w*)*)','tokens');  %get the main variables
+%             for a=1:length(variables)
+%                 vardot = regexp(funcstring,'(?<=(??@variables{a}{1})\.)\w*(\.\w*)*','match');   %get the variable after the dot
+%                 for b = 1:length(vardot)
+%                     % replace each variable in the function
+%                 specs{2,1} = regexprep(specs{2,1},'(??@variables{a}{:})(\.(??@vardot{b}))?',char('A'+c),'once');
+%                 c = c+1;
+%                 specs{end+1,1} = horzcat(variables{a},vardot(b));
+%                 end
+%             end
+%             % recreate the initial function variable list, i.e. '@(A,B)'
+%             for x=1:c
+%                 if x == 1
+%                     vars = horzcat('@(','A');
+%                     if x == c
+%                         vars = horzcat(vars, ')');
+%                     end
+%                 elseif x==c
+%                         vars = horzcat(vars,', ',char('A'+x-1),')');
+%                 else
+%                     vars = horzcat(vars,', ',char('A'+x-1));
+%                 end
+%             end
+%             
+%             if ~exist('vars','var')
+%                  specs{2,1} = str2func(func);
+%             else
+%                 % merge the function back together
+%                 specs{2,1} = horzcat(vars,specs{2,1});
+%                 specs{2,1} = str2func(specs{2,1});
+%             end
+%             specs{end+1,1}=prop;
+%             
+            fun = eval(['@(o) (' regexprep(funcstring(2:end),'(?<plgin>\<\w+\.)','o.cic.$0') ')']);
+
+            o.listenerHandle.preGet.(prop) = o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,fun));
             
         end
         
@@ -285,8 +288,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     if ischar(value.(a{b})) && any(regexp(value.(a{b}),'@\((\w*)*'))
                         warning('Setting a function to a structure will evaluate every time the structure is referenced.')
                         prop=[srcName '___' a{b}];
-                        functional(o,prop,value.(a{b}));sca
-                        
+                        functional(o,prop,value.(a{b}));                        
                         value=o.(src.Name);
                         if sum(~cellfun(@isempty, regexp(fieldnames(o.listenerHandle.preGet),[srcName '.*'],'match')))>1
                             warning('Multiple functions set to the same structure may cause frame drops.')
@@ -295,13 +297,20 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 end
             end
             %if this is a function, add a listener
-            if ischar(value) && any(regexp(value,'@\((\w*)*'))
+            if ~isempty(value) && strcmpi(value(1),'@') %%ischar(value) && any(regexp(value,'@\((\w*)*'))
                 functional(o,srcName,value);
                 value=o.(srcName);
+                if isempty(o.cic) || o.cic.stage <= o.cic.SETUP
+                    % Validation and postprocessing doesn't necessarily
+                    % work yet because not all objects that this property
+                    % depends on have been setup.
+                    validate = '';
+                    postprocess = '';
+                end
             end
-            
-            
-            if nargin >=5 && ~isempty(validate)
+                        
+                
+            if  nargin >=5 && ~isempty(validate)
                 success = validate(value);
                 if ~success
                     error(['Setting ' srcName ' failed validation ' func2str(validate)]);
@@ -313,7 +322,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % generate another postSet event.
                 o.(srcName) = postprocess(o,value);
             end
-
              o.addToLog(srcName,value);
         end
         
@@ -321,17 +329,39 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function addToLog(o,name,value)
             o.log.parms{end+1}  = name;
             o.log.values{end+1} = value;
-            o.log.t(end+1)      = o.cic.clockTime;
+            if isempty(o.cic)
+                o.log.t(end+1)       = -Inf;
+            else
+                o.log.t(end+1)      = o.cic.clockTime;
+            end
         end
         
         
         
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
-        function evalParmGet(o,src,evt,specs)
+        function evalParmGet(o,src,evt,fun)
             
             srcName=src.Name;
-            osrcName=o.(src.Name);
+            oldValue = o.(srcName);
+            
+            if ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
+                value=fun(o);
+            else
+                % Not all objects have been setup so function may not work
+                % yet. Evaluate to NaN for now; validation is disabled for
+                % now.
+                value = NaN; 
+            end
+            
+            if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
+                o.(srcName) = value; % This calls PostSet and logs the new value
+            end
+            
+            return;
+            
+            osrcName=o.(srcName);
             % check if value is set to a new function
             if ischar(osrcName) && ~strcmp(specs{1},osrcName)
                 if isfield(o.listenerHandle.preGet,src.Name)

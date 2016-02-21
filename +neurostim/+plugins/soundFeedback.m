@@ -3,13 +3,14 @@ classdef soundFeedback < neurostim.plugins.feedback
     % Specify either a filename to a wav file, or pass in a mono- (vector) or stereo (matrix) waveform to be played.
     
     properties
-
+        path@char ='';
     end
+    
     
     methods (Access=public)
         function o=soundFeedback(name)
             o=o@neurostim.plugins.feedback(name);
-            o.listenToEvent({'BEFOREEXPERIMENT'});
+            o.listenToEvent({'BEFOREEXPERIMENT'});            
         end
     end
     
@@ -19,28 +20,29 @@ classdef soundFeedback < neurostim.plugins.feedback
 
             %First add standard parts of the new item in parent class
             
-            p=inputParser;                             
+            p=inputParser;  
+            p.StructExpand = true; % The parent class passes as a struct
             p.addParameter('waveform',[],@(x) isnumeric(x) || ischar(x));     %Waveform data, filename (wav), or label for known (built-in) file (e.g. 'correct')
-            p.parse(varargin{:}{:});
+            p.parse(varargin{:});
             p = p.Results;
             
             if ischar(p.waveform)
-                
                 %If it's a label to a known file
                 if any(strcmpi(p.waveform,{'CORRECT','INCORRECT'}))
-                    p.waveform = ['nsSounds\sounds\' p.waveform '.wav'];
+                    p.waveform = fullfile(o.path,[p.waveform '.wav']);
                 end
                 
                 %Now its a wave file. Load it.
                 if exist(p.waveform,'file')
                     p.waveform = o.readFile(p.waveform);
                 else
-                    error(['Sound file ' toPlay ' could not be found.']);
+                    error(['Sound file ' p.waveform ' could not be found.']);
                 end
             end
 
             %Store the waveform
-            o.(['item', num2str(o.nItems)]).waveform = p.waveform;
+               o.addProperty(['item', num2str(o.nItems) 'waveform'],p.waveform);
+
         end
     end
     
@@ -57,7 +59,7 @@ classdef soundFeedback < neurostim.plugins.feedback
             
             %Allocate the audio buffers
             for i=1:o.nItems
-               o.(['item' num2str(i)]).buffer = o.cic.sound.createBuffer(o.(['item' num2str(i)]).waveform);
+               o.addProperty(['item', num2str(o.nItems) 'buffer'],o.cic.sound.createBuffer(o.(['item' num2str(i) 'waveform'])));
             end
         end
 

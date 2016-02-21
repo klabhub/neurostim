@@ -216,7 +216,6 @@ classdef output < neurostim.plugin
             if ~exist(thisDir,'dir')
                 mkdir(thisDir);
             end
-            cd(thisDir);
         end
         
         
