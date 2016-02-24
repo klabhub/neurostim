@@ -781,10 +781,6 @@ classdef cic < neurostim.plugin
             
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation, and postprocessig  will now be active
             
-            if isempty(c.screen.physical)
-                % Assuming code is in pixels
-                c.screen.physical = c.screen.pixels(3:4);
-            end
             
             % Set up order and event listeners
             c.order;
@@ -980,8 +976,8 @@ classdef cic < neurostim.plugin
         end
         
         function [a,b] = physical2Pixel(c,x,y)
-            a = c.scren.xpixels.*(0.5+x./c.screen.width);
-            b = c.scren.ypixels.*(0.5-y./c.screen.height);
+            a = c.screen.xpixels.*(0.5+x./c.screen.width);
+            b = c.screen.ypixels.*(0.5-y./c.screen.height);
         end
         
         function fr = ms2frames(c,ms,rounded)
@@ -1116,12 +1112,44 @@ classdef cic < neurostim.plugin
                     Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             end
             
-            c.checkFrameRate;
-            
             
             if any(strcmpi(c.plugins,'gui'))%if gui is added
-                PsychImaging(c.gui);
-                c.guiOn = true;
+                 
+                guiScreen = setdiff(Screen('screens'),[c.screen.number 0]);
+            if isempty(guiScreen)
+%                    error('You need two screens to show a gui...');
+                guiScreen = 0;
+                guiRect = [800 0 1600 600];
+
+            else
+                guiRect  = Screen('GlobalRect',guiScreen);
+%                 if ~isempty(.screen.xorigin)
+%                     guiRect(1) =o.screen.xorigin;
+%                 end
+%                 if ~isempty(o.screen.yorigin)
+%                     guiRect(2) =o.screen.yorigin;
+%                 end
+%                 if ~isempty(o.screen.xpixels)
+%                     guiRect(3) =guiRect(1)+ o.screen.xpixels;
+%                 end                
+%                 if ~isempty(o.screen.ypixels)
+%                     guiRect(4) =guiRect(2)+ o.screen.ypixels;
+%                 end
+            end
+            if isempty(c.mirrorPixels)
+                    c.mirrorPixels=Screen('Rect',guiScreen);
+                end
+                c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
+                    switch upper(c.screen.colorMode)
+                        case 'XYL'
+                            PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
+                            %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                        case 'RGB'
+                            %                         Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    end
+                    
+                    
+                
             end
             
             
@@ -1130,7 +1158,9 @@ classdef cic < neurostim.plugin
         
         
         
-    end
+        end
+    
+    
     
     methods (Static)
         function v = clockTime

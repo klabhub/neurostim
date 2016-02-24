@@ -269,17 +269,17 @@ classdef stimulus < neurostim.plugin
         end
         
         function setupDiode(s)
-            pixelsize=s.diode.size*s.cic.screen.pixels(3);
+            pixelsize=s.diode.size*s.cic.screen.xpixels;
             if isempty(s.diode.color)
                 s.diode.color=WhiteIndex(s.cic.onscreenWindow);
             end
            switch lower(s.diode.location)
                case 'ne'
-                   s.diodePosition=[s.cic.screen.pixels(3)-pixelsize 0 s.cic.screen.pixels(3) pixelsize];
+                   s.diodePosition=[s.cic.screen.xpixels-pixelsize 0 s.cic.screen.xpixels pixelsize];
                case 'se'
-                   s.diodePosition=[s.cic.screen.pixels(3)-pixelsize s.cic.screen.pixels(4)-pixelsize s.cic.screen.pixels(3) s.cic.screen.pixels(4)];
+                   s.diodePosition=[s.cic.screen.xpixels-pixelsize s.cic.screen.ypixels-pixelsize s.cic.screen.xpixels s.cic.screen.ypixels];
                case 'sw'
-                   s.diodePosition=[0 s.cic.screen.pixels(4)-pixelsize pixelsize s.cic.screen.pixels(4)];
+                   s.diodePosition=[0 s.cic.screen.ypixels-pixelsize pixelsize s.cic.screen.ypixels];
                case 'nw'
                    s.diodePosition=[0 0 pixelsize pixelsize];
                otherwise

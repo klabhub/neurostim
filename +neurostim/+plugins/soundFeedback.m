@@ -35,7 +35,7 @@ classdef soundFeedback < neurostim.plugins.feedback
                 if exist(file,'file')
                     waveform = o.readFile(file);
                 else
-                    o.cic.error('STOPEXPERIMENT',['Sound file ' file ' could not be found.']);
+                    o.cic.error('STOPEXPERIMENT',['Sound file ' strrep(file,'\','/') ' could not be found.']);
                 end
             else 
                 waveform = p.Results.waveform; % Presumably the waveform itself

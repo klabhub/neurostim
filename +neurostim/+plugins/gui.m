@@ -71,9 +71,9 @@ classdef gui <neurostim.plugin
             % calculates the rect for mirroring the experimental display
             x1=o.cic.mirrorPixels(1);
             y1=o.cic.mirrorPixels(2);
-            if ((o.cic.mirrorPixels(3)-o.cic.mirrorPixels(1))/2)>(o.cic.screen.pixels(3)-o.cic.screen.pixels(1))
-                x2=o.cic.screen.pixels(3);
-                y2=o.cic.screen.pixels(4);
+            if ((o.cic.mirrorPixels(3)-o.cic.mirrorPixels(1))/2)>o.cic.screen.xpixels
+                x2=o.cic.screen.xorigin + o.cic.screen.xpixels;
+                y2=o.cic.screen.yorigin + o.cic.screen.ypixels;
             else
                 x2=o.cic.mirrorPixels(3)/2;
                 y2=o.cic.mirrorPixels(4)/2;
@@ -323,7 +323,8 @@ classdef gui <neurostim.plugin
                     xsize=30;
                     Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,c.screen.color.text,[eyeX eyeY]);
             end
-            Screen('DrawTexture',o.guiText,c.mirror,c.screen.pixels,o.mirrorRect,[],0);
+            
+            Screen('DrawTexture',o.guiText,c.mirror,[c.screen.xorigin c.screen.yorigin  c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],o.mirrorRect,[],0);
             Screen('FrameRect',o.guiText,c.screen.color.text,o.mirrorRect);
         end
         
