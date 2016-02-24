@@ -15,8 +15,8 @@ classdef saccade < neurostim.plugins.behavior
         
     
     methods
-        function o=saccade(name,varargin)
-            o=o@neurostim.plugins.behavior(name);
+        function o=saccade(c,name,varargin)
+            o=o@neurostim.plugins.behavior(c,name);
             o.continuous = true;
             o.addProperty('startX',0,'',@isnumeric);
             o.addProperty('startY',0,'',@isnumeric);

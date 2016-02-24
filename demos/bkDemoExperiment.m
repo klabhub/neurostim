@@ -5,7 +5,7 @@ import neurostim.*
 Screen('Preference', 'SkipSyncTests', 1);
 Screen('Preference', 'ConserveVRAM', 32);
 
-c= bkxps2013Config;
+c= bkConfig;
 
 c.add(plugins.gui);                 % Create and add a "GUI" (status report)
 c.add(plugins.debug);               % Use the debug plugin; this allows you to move to the next trial with 'n'

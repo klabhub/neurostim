@@ -10,8 +10,8 @@ classdef nafcResponse < neurostim.plugins.behavior
     % 
 
    methods (Access = public)
-       function o = nafcResponse(name)
-            o = o@neurostim.plugins.behavior(name); 
+       function o = nafcResponse(c,name)
+            o = o@neurostim.plugins.behavior(c,name); 
             o.continuous = false;
             o.listenToEvent('BEFORETRIAL');
             o.addProperty('keyLabels',{},'',@iscellstr);

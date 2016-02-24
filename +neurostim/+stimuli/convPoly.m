@@ -12,8 +12,8 @@ classdef convPoly < neurostim.stimulus
     end
     
     methods (Access = public)
-        function o = convPoly(name)
-            o = o@neurostim.stimulus(name);
+        function o = convPoly(c,name)
+            o = o@neurostim.stimulus(c,name);
             o.addProperty('radius',3,[],@isnumeric);
             o.addProperty('nSides',5,[],@isnumeric);
             o.addProperty('filled',true,[],@islogical);

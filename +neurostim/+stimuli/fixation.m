@@ -12,8 +12,8 @@ classdef fixation < neurostim.stimulus
     
 
     methods (Access = public)
-        function o = fixation(name)
-            o = o@neurostim.stimulus(name);
+        function o = fixation(c,name)
+            o = o@neurostim.stimulus(c,name);
             o.addProperty('size',15,'',@isnumeric);
             o.addProperty('size2',5,'',@isnumeric);
             o.addProperty('color2',[0 0 0],'',@isnumeric);
@@ -23,8 +23,8 @@ classdef fixation < neurostim.stimulus
         end
         
         function beforeExperiment(o,c,evt)
-            if (c.screen.physical(1) ~= c.screen.pixels(3)) && sum(strcmp('size',c.(o.name).log.parms))==1
-                o.size = o.size*c.screen.physical(1)/c.screen.pixels(3);
+            if (c.screen.width ~= c.screen.xpixels) && sum(strcmp('size',c.(o.name).log.parms))==1
+                o.size = o.size*c.screen.width/c.screen.xpixels;
             end
         end
 

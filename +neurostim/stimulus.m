@@ -75,8 +75,8 @@ classdef stimulus < neurostim.plugin
     
     
     methods
-        function s= stimulus(name)
-            s = s@neurostim.plugin(name);
+        function s= stimulus(c,name)
+            s = s@neurostim.plugin(c,name);
             %% user-settable properties
             s.addProperty('X',0,[],@isnumeric);
             s.addProperty('Y',0,[],@isnumeric);

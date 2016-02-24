@@ -3,8 +3,8 @@ classdef debug < neurostim.plugin
     % n = move to next trial
     % e = dont clear.
     methods
-        function o = debug
-            o = o@neurostim.plugin('debug');
+        function o = debug(c)
+            o = o@neurostim.plugin(c,'debug');
             o.addKey('e',@keyboardResponse,'Toggle Erase');
             o.addKey('c',@keyboardResponse,'Toggle Cursor');
         end

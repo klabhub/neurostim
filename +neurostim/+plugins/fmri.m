@@ -1,7 +1,7 @@
 classdef fmri < neurostim.plugin        
     methods
-        function o = fmri
-            o = o@neurostim.plugin('fmri');
+        function o = fmri(c)
+            o = o@neurostim.plugin(c,'fmri');
             o.addProperty('scanNr',0);
             o.addProperty('preTriggers',10);
             o.addProperty('trigger',0);

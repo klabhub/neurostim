@@ -9,8 +9,8 @@ classdef liquid < neurostim.plugins.feedback
     end
     
     methods (Access=public)
-        function o=liquid(name)
-            o=o@neurostim.plugins.feedback(name);
+        function o=liquid(c,name)
+            o=o@neurostim.plugins.feedback(c,name);
             o.listenToEvent('BEFOREEXPERIMENT');
         end
         
@@ -21,7 +21,7 @@ classdef liquid < neurostim.plugins.feedback
             if numel(o.mcc)==1
                 o.mcc = o.mcc{1};
             else
-                warning('Liquid reward added but no MCC plugin added (or, more than one added - currently not supported)');
+               o.cic.error('CONTINUE','Liquid reward added but no MCC plugin added (or, more than one added - currently not supported)');
             end
         end
     end
@@ -32,10 +32,11 @@ classdef liquid < neurostim.plugins.feedback
             % Responds by calling the MCC plugin to activate liquid reward.
             % This currently uses the timer() function for duration, which
             % may be inaccurate or interrupt time-sensitive functions.
-            if ~isempty(o.mcc)
-                o.mcc.digitalOut(o.mccChannel,true,item.duration);
+            duration = o.(['item', num2str(item) 'duration']);
+            if ~isempty(o.mcc)                
+                o.mcc.digitalOut(o.mccChannel,true,duration);
             else
-                o.writeToFeed(['No MCC detected for liquid reward (' num2str(item.duration) 'ms)']);
+                o.writeToFeed(['No MCC detected for liquid reward (' num2str(duration) 'ms)']);
             end
         end
     end

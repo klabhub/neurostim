@@ -1,7 +1,7 @@
 classdef plugin  < dynamicprops & matlab.mixin.Copyable
     % Base class for plugins. Includes logging, functions, etc.
     %
-    % Issue: In functional()
+    % Issue: In setupFunction()
     %   While functions will work for assigning one-level structure references,
     %   i.e. fixation.diode.color = '@(cic) cic.screen.color.text'
     %   there may be timing problems if there are multiple one-level
@@ -40,13 +40,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     methods (Access=public)
-        function o=plugin(n)
+        function o=plugin(c,n)
             % Create a named plugin
             o.name = n;
             % Initialize an empty log.
             o.log(1).parms  = {};
             o.log(1).values = {};
             o.log(1).t =[];
+            if~isempty(c) % Need this to construct cic itself...dcopy
+                c.add(o);
+            end
             
         end
         
@@ -128,19 +131,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             s.name=name;
             for p=1:numel(dynProps)
                 pName = dynProps{p};
-                s.addProperty(pName,o.(pName));
-                if isfield(o.listenerHandle,'pre') && isfield(o.listenerHandle.preGet,pName)
-                    specs=o.listenerHandle.preGet.([pName 'specs']);
-                    for a=3:length(specs)
-                        if strcmp(specs{a}(1),o.name)
-                            specs{a}{1}=name;
-                        end
-                    end
-                    h =findprop(s,pName);
-                    h.GetObservable=true;
-                    s.listenerHandle.preGet.(pName)=s.addlistener(pName,'PreGet',@(src,evt)evalParmGet(s,src,evt,specs));
-                 end
+                s.addProperty(pName,o.(pName)); 
+                % Because the dynprops are added to the copy here, their PostSet and PreGet listeners are setup appropriately.
             end
+            o.cic.add(s);
         end
         
         % Define a property as a function of some other property.
@@ -148,76 +142,27 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % funcstring is the function definition. It is a string which
         % references a stimulus/plugin by its assigned name and reuses that 
         % property name if it uses an object/variable of that property. e.g. 
-        % dots.size='@(cic) sin(cic.frame)' or
-        % fixation.X='@(dots) dots.X + 1' or
-        % fixation.color='@(cic) cic.screen.color.background'
-        % 
-        function functional(o,prop,funcstring)
-            subprop=strsplit(prop,{'___'});
-            if numel(subprop)>1
-                listenprop=subprop{1};
-                h=findprop(o,subprop{1});
-                if isempty(h)
-                    tmp=subprop{1};
-                    listenprop=tmp(1:end-1);
-                    h=findprop(o,tmp(1:end-1));
-                end
-            else
-                h=findprop(o,prop);
-                listenprop=prop;
-            end
+        % dots.size='@ sin(cic.frame)' or
+        % fixation.X='@ dots.X + 1' or
+        % fixation.color='@ cic.screen.color.background'
+        % % The @ sign should be the first character in the string.
+        function setupFunction(o,prop,funcstring)
+            h=findprop(o,prop);
+            listenprop=prop;
             if isempty(h)
-                error([prop ' is not a property of ' o.name '. Add it first']);
+                o.cic.error('STOPEXPERIMENT',[prop ' is not a property of ' o.name '. Add it first']);
             end
             h.GetObservable =true;
-%             specs{1} = funcstring;
-%             % find the function end of the string
-%             funcend = regexp(funcstring,'\<@\((\w*)(,*\s*\w*(\.\w*)*)*\)\>\s*','end');
-%             func = funcstring(funcend+1:end); % store the function end of the string
-%             specs{2,1} = func;
-%             c = 0;
-%             variables = regexp(funcstring,'(?<=@\s*\()(\w*(\.\w*)*)|(?<=,\s*)(\w*(\.\w*)*)','tokens');  %get the main variables
-%             for a=1:length(variables)
-%                 vardot = regexp(funcstring,'(?<=(??@variables{a}{1})\.)\w*(\.\w*)*','match');   %get the variable after the dot
-%                 for b = 1:length(vardot)
-%                     % replace each variable in the function
-%                 specs{2,1} = regexprep(specs{2,1},'(??@variables{a}{:})(\.(??@vardot{b}))?',char('A'+c),'once');
-%                 c = c+1;
-%                 specs{end+1,1} = horzcat(variables{a},vardot(b));
-%                 end
-%             end
-%             % recreate the initial function variable list, i.e. '@(A,B)'
-%             for x=1:c
-%                 if x == 1
-%                     vars = horzcat('@(','A');
-%                     if x == c
-%                         vars = horzcat(vars, ')');
-%                     end
-%                 elseif x==c
-%                         vars = horzcat(vars,', ',char('A'+x-1),')');
-%                 else
-%                     vars = horzcat(vars,', ',char('A'+x-1));
-%                 end
-%             end
-%             
-%             if ~exist('vars','var')
-%                  specs{2,1} = str2func(func);
-%             else
-%                 % merge the function back together
-%                 specs{2,1} = horzcat(vars,specs{2,1});
-%                 specs{2,1} = str2func(specs{2,1});
-%             end
-%             specs{end+1,1}=prop;
-%             
-            fun = eval(['@(o) (' regexprep(funcstring(2:end),'(?<plgin>\<\w+\.)','o.cic.$0') ')']);
-
-            o.listenerHandle.preGet.(prop) = o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,fun));
-            
+            % Parse the specified function and make it into an anonymous
+            % function.  
+            fun = eval(['@(this) (' regexprep(funcstring(2:end),'(?<plgin>\<\w+\.)','this.cic.$0') ')']);
+            % Assign the  function to be the PreGet function; it will be
+            % called everytime a client requests the value of this
+            % property.
+            o.listenerHandle.preGet.(prop) = o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,fun));            
         end
         
-        
-
-            
+       
         
         % Add properties that will be time-logged automatically, fun
         % is an optional argument that can be used to modify the parameter
@@ -225,7 +170,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % as its first and the raw value as its second argument.
         % The function should return the desired value. For
         % instance, to add a Gaussian jitter around a set value:
-        % jitterFun = @(obj,value)(value+randn);ed
+        % jitterFun = @(obj,value)(value+randn);
         % or, you can pass a handle to a member function. For instance the
         % @afterFirstFixation member function which will add the frame at
         % which fixation was first obtained to, for instance an on-frame.
@@ -246,7 +191,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             % Setup a listener for logging, validation, and postprocessing
             o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
-            o.(prop) = value; % Set it, this will call the logParmSet function as needed.
+            o.(prop) = value; % Set it, this will call the logParmSet function now.
             h.GetAccess=GetAccess;
             h.SetAccess=SetAccess;
         end
@@ -257,17 +202,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % (to prevent duplication and enforce name space consistency)
         % But the user may want to add a postprocessor to a built in property like
         % X. This function does exactly that
-        function addPostSet(o,prop,postprocess,validate)
-            
-                    if nargin <4
-                        validate = '';
-                    end
+        function addPostSet(o,prop,postprocess,validate)            
+            if nargin <4
+                validate = '';
+            end
             h =findprop(o,prop);
             if isempty(h)
                 error([prop ' is not a property of ' o.name '. Add it first']);
             end
-%             h.SetObservable =true;    % This gives a read-only error -
-%             setObservable in properties beforehand.
             o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
             o.(prop) = o.(prop); % Force a call to the postprocessor.
         end
@@ -279,26 +221,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
-            % if there is a listener, delete it
+            if ~strcmpi(o.name,evt.AffectedObject.name)
+                disp '1'
+            end
             srcName=src.Name;
             value = o.(srcName); % The raw value that has just been set
-            if isstruct(value)
-                a=fieldnames(value);
-                for b=1:numel(fieldnames(value))
-                    if ischar(value.(a{b})) && any(regexp(value.(a{b}),'@\((\w*)*'))
-                        warning('Setting a function to a structure will evaluate every time the structure is referenced.')
-                        prop=[srcName '___' a{b}];
-                        functional(o,prop,value.(a{b}));                        
-                        value=o.(src.Name);
-                        if sum(~cellfun(@isempty, regexp(fieldnames(o.listenerHandle.preGet),[srcName '.*'],'match')))>1
-                            warning('Multiple functions set to the same structure may cause frame drops.')
-                        end
-                    end
-                end
-            end
             %if this is a function, add a listener
             if ~isempty(value) && strcmpi(value(1),'@') %%ischar(value) && any(regexp(value,'@\((\w*)*'))
-                functional(o,srcName,value);
+                setupFunction(o,srcName,value);
                 value=o.(srcName);
                 if isempty(o.cic) || o.cic.stage <= o.cic.SETUP
                     % Validation and postprocessing doesn't necessarily
@@ -308,8 +238,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     postprocess = '';
                 end
             end
-                        
-                
+                                        
             if  nargin >=5 && ~isempty(validate)
                 success = validate(value);
                 if ~success
@@ -340,11 +269,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
-        function evalParmGet(o,src,evt,fun)
-            
+        function evalParmGet(o,src,evt,fun)            
             srcName=src.Name;
-            oldValue = o.(srcName);
-            
+            oldValue = o.(srcName);            
             if ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
                 value=fun(o);
             else
@@ -352,188 +279,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % yet. Evaluate to NaN for now; validation is disabled for
                 % now.
                 value = NaN; 
-            end
-            
+            end            
+            % Check if changed, assign and log if needed.
             if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
                     || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
                 o.(srcName) = value; % This calls PostSet and logs the new value
             end
-            
-            return;
-            
-            osrcName=o.(srcName);
-            % check if value is set to a new function
-            if ischar(osrcName) && ~strcmp(specs{1},osrcName)
-                if isfield(o.listenerHandle.preGet,src.Name)
-                    delete(o.listenerHandle.preGet.(src.Name));
-                end
-                functional(o,srcName,osrcName);
-            elseif isstruct(osrcName) %if it is a structure
-                a=regexp(specs{end},'___(.)*','tokens');
-                for b=1:numel(a)
-                    if ischar(osrcName.(a{b}{:})) && ~strcmp(specs{1},osrcName.(a{b}{:}))
-                        if isfield(o.listenerHandle.preGet,specs{end})
-                        delete(o.listenerHandle.preGet.(specs{end}));
-                        functional(o,specs{end},osrcName.(a{b}{:}));
-                        end
-                    end
-                end
-            end
-            % check to see if the value is a new non-function
-            prevvalues=strcmp(o.log.parms,srcName);
-            prevvalue=o.log.values{find(prevvalues,1,'last')};
-            if ~isequal(osrcName,prevvalue)
-                if isstruct(osrcName) && isstruct(prevvalue)
-                    a=regexp(specs{end},'___(.)*','tokens');
-                    for b=1:numel(a)
-                        if ~strcmp(specs{1},osrcName.(a{b}{:})) && (ischar(prevvalue.(a{b}{:})) && (ischar(osrcName.(a{b}{:}))) && ~strcmp(prevvalue.(a{b}{:}),osrcName.(a{b}{:})) || any(size(prevvalue.(a{b}{:}))~=size(osrcName.(a{b}{:}))) || (any(prevvalue.(a{b}{:})~=osrcName.(a{b}{:}))))
-                            if isfield(o.listenerHandle.preGet,specs{end})
-                                delete(o.listenerHandle.preGet.(specs{end}));
-                            end
-                        end
-                    end
-                elseif ~strcmp(specs{1},osrcName) && ((ischar(prevvalue) && ischar(osrcName) && ~strcmp(prevvalue,osrcName)) || (any(prevvalue~=osrcName))...
-                        || (isempty(prevvalue) && ~isempty(osrcName)) || (~isempty(prevvalue) && isempty(osrcName)))
-                    delete(o.listenerHandle.preGet.(srcName));
-                    return;
-                end
-            end
-            
-            value=evalFunction(o,specs{end},evt,specs);
-            
-            % Compare with existing value to see if we need to set?
-            oldValue = osrcName;
-            
-            if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
-                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
-                    
-                o.(srcName) = value; % This calls PostSet and logs the new value
-            end
-
-        end
-        
-        function value=evalFunction(o,srcName,evt,specs)
-            fun = specs{2}; % Function handle
-            nrArgs = numel(specs)-3;
-            args= cell(1,nrArgs);
-            isastruct=false;
-            if ~isempty(strfind(srcName,'___'))
-                postSrcName=srcName(strfind(srcName,'___')+3:end);
-                srcName=srcName(1:strfind(srcName,'___')-1);
-                isastruct=true;
-                value=o.(srcName);
-            end
-            if isa(o,'neurostim.cic')
-                root=o;
-            else
-                root=o.cic;
-            end
-            try
-            for i=1:nrArgs
-                % find all argument values
-                if (all(size(root))) %if cic exists
-                 if ~isempty(specs{2+i})
-                    plugin=specs{i+2}{1};
-                    prop=specs{i+2}{2};
-                    if isempty(strfind(prop,'.')) 
-                        %if there is no subproperty reference
-                        if strcmp(plugin,'cic')
-                            % An object of cic
-                            args{i} = root.(prop);
-                        else
-                            %not an object of cic; must be a plugin/stimulus
-                            if ~isastruct && strcmp(plugin,o.name)
-                                % if is self-referential
-                                oldValues = o.log.values(strcmp(o.log.parms,prop));    % check old value was not functional
-                                if (ischar(oldValues{end}) && any(regexp(oldValues{end},'@\((\w*)*'))) || isempty(oldValues{end})
-                                    args{i} = oldValues{end-1};
-                                else
-                                    args{i} = root.(plugin).(prop);
-                                end
-                            else % is not self-referential
-                                args{i} = root.(plugin).(prop);
-                            end
-                        end
-                        
-                    else
-                        % there is a subproperty reference
-                        a = strfind(prop,'.'); % a is dot reference numbers
-                        predot = prop(1:(a-1)); %get the initial variable
-                        
-                        if ischar(plugin) && strcmp(plugin,'cic')
-                            % if is an object of cic
-                            args{i} = root.(predot);
-                        else % if is not an object of cic (plugin/stimulus)
-                            args{i} = root.(plugin).(predot);
-                            
-                            if strcmp(plugin,srcName)
-                                % if the property is self-referential
-                                oldValues = o.log.values(strcmp(o.log.parms,predot));
-                                if isastruct(oldValues{end}) %if is a structure
-                                    % store the last and second-last values
-                                    % so that args{} can be set to the
-                                    % previous non-functional value.
-                                    oldValueEnd = oldValues{end};
-                                    oldValue1End = oldValues{end-1};
-                                    if length(a)>1
-                                        for b = 1:length(a)-1
-                                            postdot = prop(a(b)+1:a(b+1)-1);
-                                            oldValueEnd = oldValueEnd.(postdot);
-                                            oldValue1End = oldValue1End.(postdot);
-                                            args{i} = args{i}.(postdot);
-                                        end
-                                    end
-                                    postdot = prop(a(end)+1:end);
-                                    oldValueEnd = oldValueEnd.(postdot);
-                                    oldValue1End = oldValue1End.(postdot);
-                                    if ischar(oldValueEnd) && any(regexp(oldValueEnd,'@\((\w*)*')) %if the last value was a functional string
-                                        args{i} = oldValue1End; % set the value to the previous value.
-                                        continue;   %skip the rest of this loop now that args{i} has been found.
-                                    else
-                                        args{i} = args{i}.(postdot);    %set the value to the acquired value.
-                                        continue;   %skip the rest of this loop now that args{i} has been found.
-                                    end
-                                end
-                            end
-                        end
-                        if length(a)>1  %if there is more than one subproperty ref
-                            for b = 1:length(a)-1 % collect all the subproperty refs
-                                postdot = prop(a(b)+1:a(b+1)-1);
-                                args{i} = args{i}.(postdot);
-                            end
-                        end
-                        % get the last after-dot reference
-                        postdot = prop(a(end)+1:end);
-                        args{i} = args{i}.(postdot);
-                    end
-                 else
-                     args{i} = specs{i+2};
-                 end
-                else
-                    args{i}=[];
-                end
-            end
-            catch
-%                 if ~isempty(o.cic) && ~all(cellfun(@isempty,args)) 
-                    error(['Could not evaluate ' func2str(fun) 'to get value for ' srcName]);
-%                 else
-%                     return;
-%                 end
-                
-            end
-            try
-                if isastruct
-                    value.(postSrcName)=fun(args{:});
-                else
-                    value = fun(args{:});
-                end
-            catch
-%                 value=[];
-                warning(['Could not evaluate ' func2str(fun) ' to get value for ' srcName ]);
-                
-            end
-        end
-        
+        end                      
     end
     
     % Convenience wrapper functions to pass the buck to CIC

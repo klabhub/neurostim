@@ -31,7 +31,10 @@ classdef feedback < neurostim.plugin
     % 
     % Another alternative would be to use a vector of items (structs). This
     % is the cleanest solution code-wise, but gives up on automatic
-    % logging. 
+    % logging. I tried this eeven with making this vector a autolog
+    % property, but having nested elements (structs or vectors) as
+    % propoerties creates problems for functions. (the parser would have to
+    % find each element that is a function).
     
     properties
         afterFrameQueue=[]; % Feedback items that need to be checked/delivered after evey frame
@@ -55,10 +58,11 @@ classdef feedback < neurostim.plugin
     end
     
     methods (Access=public)
-        function o=feedback(name)
-            o=o@neurostim.plugin(name);
+        function o=feedback(c,name)
+            o=o@neurostim.plugin(c,name);
             o.listenToEvent({'BEFORETRIAL', 'AFTERTRIAL','AFTERFRAME'});
             o.addProperty('nItems',0);
+            c.add(o); % Add to cic.
         end  
     end
     
@@ -88,7 +92,7 @@ classdef feedback < neurostim.plugin
             elseif strcmpi(p.Results.when,'AFTERFRAME')
                 o.afterFrameQueue = [o.afterFrameQueue o.nItems];
             else
-                error('??');  % Implement another queue
+                    o.cic.error('STOPEXPERIMENT',['The ' p.Results.when ' feedback delivery time has not been implemented yet?']);                
             end
                         
             chAdd(o,p.Unmatched);
@@ -112,7 +116,6 @@ classdef feedback < neurostim.plugin
                 if deliverNow
                     o.deliver(i);
                     o.(['item' num2str(i) 'delivered']) = true;
-                    disp(['Delivered ' num2str(i)]); 
                 end
             end
         end

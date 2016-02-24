@@ -28,8 +28,8 @@ classdef eyetracker < neurostim.plugin
     end
     
     methods
-        function o= eyetracker
-            o = o@neurostim.plugin('eye'); % Always eye such that it can be accessed through cic.eye
+        function o= eyetracker(c)
+            o = o@neurostim.plugin(c,'eye'); % Always eye such that it can be accessed through cic.eye
             o.listenToEvent('AFTERFRAME');
             o.addProperty('eyeClockTime',[],[],[],'private');
             o.addProperty('hardwareModel',[]);

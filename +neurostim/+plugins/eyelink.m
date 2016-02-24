@@ -49,10 +49,10 @@ classdef eyelink < neurostim.plugins.eyetracker
     
     
     methods
-        function o = eyelink
+        function o = eyelink(c)
             Eyelink; % Check that the EyelinkToolBox is available.
             %clear Eyelink;
-            o = o@neurostim.plugins.eyetracker;
+            o = o@neurostim.plugins.eyetracker(c);
             o.addKey('F9',@keyboard,'DriftCorrect');
             o.addKey('F8',@keyboard,'EyelinkSetup');
             o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'}); %The parent class is also listening to the AFTERFRAME event. Intended?

@@ -63,9 +63,9 @@ classdef trellis < plugin
         
     end
     methods
-        function o = trellis
+        function o = trellis(c)
             % Construct a trellis plugin
-            o = o@plugin('trellis');
+            o = o@plugin(c,'trellis');
         end
         
         function digout(~,channel,value)

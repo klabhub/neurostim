@@ -10,8 +10,8 @@ classdef blackrock < neurostim.plugin
    
    methods 
        
-       function o=blackrock
-           o=o@neurostim.plugin('blackrock');
+       function o=blackrock(c)
+           o=o@neurostim.plugin(c,'blackrock');
            o.addProperty('useMCC',true,[],[],'private');
            o.addProperty('blackrockClockTime',[],[],[],'private');
            o.addProperty('eventData',[],[],[],'private');

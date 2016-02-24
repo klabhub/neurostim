@@ -27,8 +27,8 @@ classdef shadlendots < neurostim.stimulus
     
     
     methods (Access = public)
-        function o = shadlendots(name)
-            o = o@neurostim.stimulus(name);
+        function o = shadlendots(c,name)
+            o = o@neurostim.stimulus(c,name);
             o.listenToEvent({'BEFOREFRAME','AFTERFRAME'});
             
             % set dot properties (for user adjustment)

@@ -37,8 +37,8 @@ classdef mcc < neurostim.plugin
         end
     end
     methods
-        function o =mcc
-            o  = o@neurostim.plugin('mcc');
+        function o =mcc(c)
+            o  = o@neurostim.plugin(c,'mcc');
             
             % Check what is there.
             o.devices = PsychHID('Devices');

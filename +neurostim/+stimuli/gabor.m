@@ -19,8 +19,8 @@ classdef gabor < neurostim.stimulus
     end
     
     methods
-        function o =gabor(name)
-            o = o@neurostim.stimulus(name);
+        function o =gabor(c,name)
+            o = o@neurostim.stimulus(c,name);
             o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT','AFTERFRAME','BEFORETRIAL'});
             
             %% Base Teture parameters, see CreateProceduralGabor.m for details

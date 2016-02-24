@@ -27,8 +27,8 @@ classdef mouse < neurostim.stimulus
     end
     
     methods (Access = public)
-        function o = mouse(name)
-            o = o@neurostim.stimulus(name);
+        function o = mouse(c,name)
+            o = o@neurostim.stimulus(c,name);
             
             o.listenToEvent({'BEFOREEXPERIMENT','BEFOREFRAME','AFTERFRAME','AFTERTRIAL'})
             

@@ -6,8 +6,8 @@ classdef fixate < neurostim.plugins.behavior
    end
    
    methods
-       function o=fixate(name)
-           o=o@neurostim.plugins.behavior(name);
+       function o=fixate(c,name)
+           o=o@neurostim.plugins.behavior(c,name);
            o.addProperty('X',0,[],@isnumeric);                 %X,Y,Z - the position of a target for the behaviour (e.g. fixation point)
            o.addProperty('Y',0,[],@isnumeric);
            o.addProperty('Z',0,[],@isnumeric);

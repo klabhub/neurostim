@@ -36,8 +36,8 @@ classdef mcs < neurostim.plugin
     end
     
     methods 
-        function o = mcs
-            o = o@neurostim.plugin('mcs');
+        function o = mcs(c)
+            o = o@neurostim.plugin(c,'mcs');
             switch computer
                 case 'PCWIN64'
                     o.dll = NET.addAssembly([mfunction '\x64\McsUsbNet.dll']);

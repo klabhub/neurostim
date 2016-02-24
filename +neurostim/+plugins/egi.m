@@ -22,8 +22,8 @@ classdef egi < neurostim.plugin
     
     
     methods (Access=public)
-        function o = egi(h)
-            o = o@neurostim.plugin('egi');
+        function o = egi(c,h)
+            o = o@neurostim.plugin(c,'egi');
             o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT'});
             if nargin >0
                 o.host = h;

@@ -2,39 +2,38 @@ function adamDemo
 
 import neurostim.*
 commandwindow;
-Screen('Preference', 'SkipSyncTests', 0);
+Screen('Preference', 'SkipSyncTests', 1);
 Screen('Preference','TextRenderer',1);
 
 %% ========= Specify rig configuration  =========
 c = adamsConfig;
 
 %Use DEBUG features
-c.add(plugins.debug);
+plugins.debug(c);
 
 %Use the experimenter GUI window
-c.add(neurostim.plugins.gui);
+neurostim.plugins.gui(c);
 
 %Use/simulate Eylink eye tracker
-e = neurostim.plugins.eyelink;
+e = neurostim.plugins.eyelink(c);
 e.useMouse = true;
-c.add(e);
 
 %Add the Blackrock acquisition system
-% c.add(neurostim.plugins.blackrock);
+% neurostim.plugins.blackrock(c);
 
 %% ============== Add stimuli ==================
 
 %Fixation dot
-f=stimuli.fixation('fix');
+f=stimuli.fixation(c,'fix');
 f.shape = 'CIRC';
 f.size = 0.5;
 f.color = [1 1 50];
 f.on=0;
 f.duration = Inf;
-c.add(f);
+
 
 %Random dot pattern
-d = stimuli.rdp('dots');
+d = stimuli.rdp(c,'dots');
 d.on = '@(f1) f1.startTime';
 d.duration = 1000;
 d.color = [0.3 0.3 100];
@@ -46,43 +45,41 @@ d.noiseMode = 1;
 d.X = '@(fix) fix.X';
 d.Y = '@(fix) fix.Y';
 d.diode.on = true;
-c.add(d);
+
 
 %% ========== Add required behaviours =========
 
 %Subject's 2AFC response
-k = plugins.nafcResponse('choice');
+k = plugins.nafcResponse(c,'choice');
 k.on = '@(dots) dots.on + dots.duration';
 k.deadline = '@(choice) choice.on + 3000';
 k.keys = {'a' 'z'};
 k.keyLabels = {'up', 'down'};
 k.correctKey = '@(dots) double(dots.direction < 0) + 1';  %Function returns 1 or 2
-c.add(k);
+
 
 %Maintain gaze on the fixation point
-g = plugins.fixate('f1');
+g = plugins.fixate(c,'f1');
 g.from = '@(f1) f1.startTime';
 g.to = '@(dots) dots.endTime';
 g.X = '@(fix) fix.X';
 g.Y = '@(fix) fix.Y';
 g.tolerance = 3;
-c.add(g);
+
 
 %% Specify rewards and feedback
 
 %Give juice at the end of the trial for completing all fixations
-r = plugins.liquid('juice');
+r = plugins.liquid(c,'juice');
 r.add('duration',100,'when','afterTrial','criterion','@(f1) f1.success');
-c.add(r);
 
 % Play a correct/incorrect sound for the 2AFC task
 %     Use the sound plugin
-s = plugins.sound;
-c.add(s);
+plugins.sound(c);
+
 
 %     Add correct/incorrect feedback
-s = plugins.soundFeedback('soundFeedback');
-c.add(s);
+plugins.soundFeedback(c,'soundFeedback');
 s.add('waveform','CORRECT','when','afterFrame','criterion','@(choice) choice.success & choice.correct');
 s.add('waveform','INCORRECT','when','afterFrame','criterion','@(choice) choice.success & ~choice.correct');
 

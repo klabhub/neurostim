@@ -2,14 +2,14 @@ classdef soundFeedback < neurostim.plugins.feedback
     % Plugin to deliver auditory feedback.
     % 'path'  -  Path to search for sound files that are specified in add()
     % 'waveform'  - filename for a .wav or other file. Or an actual mono mono- (vector) or stereo (matrix) waveform 
-    properties
+    properties (SetAccess=public)
         path@char =''; % Set this to the folder that contains the sound files.
     end
     
     
     methods (Access=public)
-        function o=soundFeedback(name)
-            o=o@neurostim.plugins.feedback(name);
+        function o=soundFeedback(c,name)
+            o=o@neurostim.plugins.feedback(c,name);
             o.listenToEvent({'BEFOREEXPERIMENT'});            
         end
     end
@@ -35,7 +35,7 @@ classdef soundFeedback < neurostim.plugins.feedback
                 if exist(file,'file')
                     waveform = o.readFile(file);
                 else
-                    error(['Sound file ' file ' could not be found.']);
+                    o.cic.error('STOPEXPERIMENT',['Sound file ' file ' could not be found.']);
                 end
             else 
                 waveform = p.Results.waveform; % Presumably the waveform itself
@@ -51,7 +51,7 @@ classdef soundFeedback < neurostim.plugins.feedback
             %Check that the sound plugin is enabled
             snd = c.pluginsByClass('sound');            
             if isempty(snd)
-                error('No "sound" plugin detected. soundFeedback relies on it.');
+                o.cic.error('STOPEXPERIMENT','No "sound" plugin detected. soundFeedback relies on it.');
             end            
             %Allocate the audio buffers
             for i=1:o.nItems
@@ -68,7 +68,7 @@ classdef soundFeedback < neurostim.plugins.feedback
     methods (Access=protected)
          
         function deliver(o,item)
-            o.cic.sound.play(o.(['item' num2str(item) 'buffer']));            
+            o.cic.sound.play(o.(['item' num2str(item) 'buffer']));   
         end
  end
         

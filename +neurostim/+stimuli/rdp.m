@@ -46,8 +46,8 @@ classdef rdp < neurostim.stimulus
     
     
     methods (Access = public)
-        function o = rdp(name)
-            o = o@neurostim.stimulus(name); 
+        function o = rdp(c,name)
+            o = o@neurostim.stimulus(c,name); 
             o.listenToEvent({'BEFOREFRAME','AFTERFRAME'});
             o.addProperty('size',5,'',@isnumeric);
             o.addProperty('maxRadius',100,'',@isnumeric);

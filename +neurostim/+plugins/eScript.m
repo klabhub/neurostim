@@ -20,8 +20,8 @@ classdef eScript < neurostim.plugin
     methods
         
         % Empty constructor
-        function o = eScript
-            o = o@neurostim.plugin('eScript');
+        function o = eScript(c)
+            o = o@neurostim.plugin(c,'eScript');
         end
         
         function disp(o)

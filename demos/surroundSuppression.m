@@ -9,24 +9,23 @@
 
 %% Prerequisites. 
 import neurostim.*
-Screen('Preference', 'SkipSyncTests', 0); % Not in production mode; this is just to run without requiring accurate timing.
-Screen('Preference','TextRenderer',1);
+Screen('Preference', 'SkipSyncTests', 1); % Not in production mode; this is just to run without requiring accurate timing.
+
 
 %% Setup CIC and the stimuli.
-c = bkxps2013Config;                            % Create Command and Intellige nce Center...
+c = bkConfig;                            % Create Command and Intellige nce Center...
 c.trialDuration  = inf;
-c.add(plugins.debug); 
+plugins.debug(c); 
 
-et = plugins.eyetracker;
+et = plugins.eyetracker(c);
 et.useMouse = true;
-c.add(et);
  
 
 
 
 % Create a grating stimulus. This will be used to map out the psychometric
 % curve (hence 'testGab')
-g=stimuli.gabor('testGab');           
+g=stimuli.gabor(c,'testGab');           
 g.color = [0.5 0.5 0.5];
 g.contrast = 0.5;
 g.Y = 0; 
@@ -57,7 +56,7 @@ g4.X='@ -testGab.X';
 g4.contrast = 1;
 
 % Red fixation point
-f = stimuli.fixation('fix');        % Add a fixation point stimulus
+f = stimuli.fixation(c,'fix');        % Add a fixation point stimulus
 f.color = [1 0 0];
 f.shape = 'CIRC';                  % Shape of the fixation point
 f.size = 1;
@@ -65,20 +64,12 @@ f.X = 0;
 f.Y = 0;
 
 
-fix = plugins.fixate('f1');
+fix = plugins.fixate(c,'f1');
 fix.from = 200; %'@(f1) f1.startTime';
 fix.to = 1000; %'@(dots) dots.endTime';
 fix.X = 0;% '@(fix) fix.X';
 fix.Y = 0; %'@(fix) fix.Y';
 fix.tolerance = 3;
-c.add(fix);
-
-% Add stimuli to CIC in reverse draw order. (i.e. f will be on top).
-c.add(g); 
-c.add(g4);                           
-c.add(g3);                          
-c.add(g2);                          
-c.add(f);                          
  
 %% Define conditions and blocks
 surroundContrast = 0.6;
@@ -96,15 +87,6 @@ surroundContrast = 0.6;
 % curve determining that relates the percept of "which (center) grating has more
 % contrast?" to the actual contrast of the test stimulus.
 %
-% The third factor just ensures that the reference and test stimulus appear
-% on the left and right equally often
-%
-design = {{'surround','orientation',{0,0,90,0},'surround','contrast',{0,surroundContrast,surroundContrast,surroundContrast},'referenceSurround','contrast',{0,surroundContrast,0,0}},...
-          {'testGab','contrast',{0.10, 0.20 ,0.40 ,0.50}},...
-          {'testGab','X',{-2.5, 2.5}}};
-% 
-%design = {{'testGab','contrast',{0.10, 0.20 ,0.40 ,0.50}},...
-%          {'testGab','X',{-2.5, 2.5}}};
 myFac=factorial('myFactorial',3); 
 myFac.fac1.surround.orientation={0 0 90 0}; 
 myFac.fac1.surround.contrast={0,surroundContrast,surroundContrast,surroundContrast};
@@ -116,24 +98,24 @@ myBlock=block('myBlock',myFac);
 myBlock.nrRepeats=10;
     
 %Subject's 2AFC response
-k = c.add(plugins.nafcResponse('choice'));
+k = plugins.nafcResponse(c,'choice');
 k.on = 0; '@ f1.to';
 k.deadline = Inf; '@ f1.to + 3000';
 k.keys = {'a' 'l'};
 k.keyLabels = {'left', 'right'};
-k.correctKey = '@ sign(testGab.X) *double(testGab.contrast>reference.contrast)+ 1';  %Function returns 1 or 2
+k.correctKey = '@ (sign(testGab.X)>0)*(double(testGab.contrast>reference.contrast)+ 1) + (sign(testGab.X)<0)*(double(testGab.contrast<reference.contrast)+ 1)';  %Function returns 1 or 2
 
 c.trialDuration = '@ choice.endTime';
- c.add(plugins.sound);
+plugins.sound(c);
 % 
 %     Add correct/incorrect feedback
- s = c.add(plugins.soundFeedback('soundFeedback'));
- s.path = 'C:\Temp\neurostim-ptb\nsSounds\sounds';
- s.add('waveform','CORRECT','when','afterFrame','criterion','@ choice.success & choice.correct');
- s.add('waveform','INCORRECT','when','afterFrame','criterion','@ choice.success & ~choice.correct');
+ s = plugins.soundFeedback(c,'soundFeedback');
+ s.path = 'C:/Users/bart.VISION/OneDrive/common/neurostim-ptb/nsSounds/sounds';
+ s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.success & choice.correct');
+ s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.success & ~choice.correct');
 
 
-% c.add(plugins.gui);
+plugins.gui(c);
 % c.order('fix','reference', 'gui');
 c.run(myBlock);
  

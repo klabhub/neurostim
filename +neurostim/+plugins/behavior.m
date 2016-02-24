@@ -30,8 +30,8 @@ classdef behavior < neurostim.plugin
     end
     
     methods
-        function o=behavior(name)
-            o = o@neurostim.plugin(name);
+        function o=behavior(c,name)
+            o = o@neurostim.plugin(c,name);
             
             %User settable
             o.addProperty('on',0,[],@isnumeric);                %The time the plugin should begin sampling behavior

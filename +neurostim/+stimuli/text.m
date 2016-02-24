@@ -28,8 +28,8 @@ classdef text < neurostim.stimulus
     end
     
     methods (Access = public)
-        function o = text(name)
-            o = o@neurostim.stimulus(name);
+        function o = text(c,name)
+            o = o@neurostim.stimulus(c,name);
             o.listenToEvent({'BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT'});
             
             % add text properties
@@ -47,6 +47,7 @@ classdef text < neurostim.stimulus
         function beforeFrame(o,c,evt)
                     % Draw text with the assigned parameters
                      % determine text style variable for 'TextStyle'
+                     if isempty(o.message); return;end
                     if o.antialiasing
                        Screen('glLoadIdentity', c.window); 
                        Screen('glRotate',c.window,o.angle,o.rx,o.ry,o.rz);
