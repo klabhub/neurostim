@@ -84,7 +84,7 @@ classdef shadlendots < neurostim.stimulus
             
             % ndots is the number of dots shown per video frame. Dots will be placed in a 
             % square of the size of aperture.
-            o.ndots = min(o.maxDotsPerFrame, ceil(16.7 * apD .* apD * c.screen.pixels(3)/c.screen.physical(1) * 0.01 / c.screen.frameRate));
+            o.ndots = min(o.maxDotsPerFrame, ceil(16.7 * apD .* apD * c.screen.xpixels/c.screen.width * 0.01 / c.screen.frameRate));
             
             o.dxdymultiplier = (3/c.screen.frameRate);
   

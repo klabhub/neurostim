@@ -6,7 +6,7 @@ Screen('Preference', 'SkipSyncTests', 1);
 Screen('Preference','TextRenderer',1);
 
 %% ========= Specify rig configuration  =========
-c = adamsConfig;
+c = bkConfig;%adamsConfig;
 
 %Use DEBUG features
 plugins.debug(c);

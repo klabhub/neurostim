@@ -765,9 +765,11 @@ classdef cic < neurostim.plugin
             switch (command)
                 case 'STOPEXPERIMENT'
                     fprintf(2,msg);
+                    fprintf(2,'\n');
                     c.flags.experiment = false;
                 case 'CONTINUE'
                     fprintf(2,msg);
+                    fprintf(2,'\n');
                 otherwise
                     error('?');
             end

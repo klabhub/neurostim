@@ -7,42 +7,35 @@ Screen('Preference', 'SkipSyncTests', 0);
 Screen('Preference','TextRenderer',1);
 
 c = myConfig;                         % Create Command and Intelligence Center...
-% c.screen.pixels = [0 0 1600 1000];         % Set the position and size of the window
-% c.screen.color.background= [0 0 0];
-% c.screen.colorMode = 'xyl';
-% c.iti = 2000;
-% c.trialDuration = inf;
-% c = myConfig;
 c.output.saveFrequency=5;
-% e = plugins.eyelink;
+% e = plugins.eyetracler(c);
 % e.useMouse = true;
-% c.add(e);
-c.add(plugins.debug);               % Use the debug plugin which allows you to move to the next trial with 'n'
-c.add(plugins.output);
-% g=stimuli.gabor('gabor');           % Create a gabor stimulus.
+
+plugins.debug(c);               % Use the debug plugin which allows you to move to the next trial with 'n'
+
+% g=stimuli.gabor(c,'gabor');           % Create a gabor stimulus.
 % g.color = [1/3 1/3 30];
 % g.X = 0;                          % Position the Gabor
 % g.Y = 0;                          
 % g.sigma = 25;                       % Set the sigma of the Gabor.
 % g.phaseSpeed = 10;
-% c.add(g);
 
 
 
-% t = stimuli.text('text');           % create a text stimulus
+
+% t = stimuli.text(c,'text');           % create a text stimulus
 % t.message = 'Hello World';
 % t.font = 'Courier New';
 % t.textsize = 50;
 % t.textalign = 'c';
-% t.X = '@(mouse) mouse.mousex';
-% t.Y = '@(mouse) mouse.mousey';
+% t.X = '@mouse.mousex';
+% t.Y = '@ mouse.mousey';
 % t.antialiasing = 1;
 % t.color = [1 1 0.5];
-% c.add(t);
 
 
 % 
-f=stimuli.fixation('fix');           % Create a fixation stimulus.
+f=stimuli.fixation(c,'fix');           % Create a fixation stimulus.
 % f.on = 0;
 % f.duration = 100;
 f.duration = Inf;

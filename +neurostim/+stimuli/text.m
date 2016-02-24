@@ -59,7 +59,7 @@ classdef text < neurostim.stimulus
                         Screen('glScale',c.window,1,-1);
                         X = o.X;
                         Y = o.Y;
-                        textsize = round(o.textsize*c.screen.physical(1)/c.screen.pixels(4));
+                        textsize = round(o.textsize*c.screen.width/c.screen.xpixels);
                     end
 
                     switch lower(o.textstyle)

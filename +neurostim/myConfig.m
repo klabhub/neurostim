@@ -11,9 +11,10 @@ p.parse(varargin{:});
 p = p.Results;
 
 c = cic;
-% c.screen.pixels = [0 0 1280 1024];
-c.screen.pixels=[0 0 1920 1080];
-c.screen.physical = [50 31.25];
+c.screen.xpixels=1920;
+c.screen.ypixels =1080;
+c.screen.width = 50;
+c.screen.height = 31.25;
 c.screen.color.background = [0 0 0];
 c.screen.colorMode = 'xyl';
 c.iti = 500;
