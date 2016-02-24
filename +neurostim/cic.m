@@ -87,9 +87,13 @@ classdef cic < neurostim.plugin
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         
-        screen                  = struct('pixels',[],'physical',[],'color',struct('text',[1/3 1/3 50],...
-            'background',[1/3 1/3 5]),'colorMode','xyL',...
-            'frameRate',60,'frameDur',[]);    %screen-related parameters.
+        screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
+            'width',[],'height',[],...
+            'color',struct('text',[1/3 1/3 50],...
+            'background',[1/3 1/3 5]),...
+            'colorMode','xyL',...
+            'frameRate',60,'frameDur',[],'number',[]);    %screen-related parameters.
+        
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to getg the frame flip time.
         requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
@@ -190,7 +194,7 @@ classdef cic < neurostim.plugin
             v= length(c.conditions);
         end
         function v = get.center(c)
-            [x,y] = RectCenter(c.screen.pixels);
+            [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
             v=[x y];
         end
         function v= get.startTimeStr(c)
@@ -258,10 +262,38 @@ classdef cic < neurostim.plugin
         end
         
         function set.screen(c,value)
-            if ~isequal(value.physical,c.screen.physical)
-                if ~isequal(c.screen.pixels(3)/value.physical(1),c.screen.pixels(4)/value.physical(2))
-                    warning('Physical dimensions are not the same aspect ratio as pixel dimensions.');
-                end
+            if isempty(value.number)
+                value.number = max(Screen('screens'));
+            end
+            
+            windowPixels = Screen('Rect',value.number); % Full screen
+            if isempty(value.xpixels)
+                value.xpixels  = windowPixels(3)-windowPixels(1); % Width in pixels
+            end
+            if isempty(value.ypixels)
+                value.ypixels  = windowPixels(4)-windowPixels(2); % Height in pixels
+            end
+            
+            screenPixels = Screen('GlobalRect',value.number); % Full screen
+            if isempty(value.xorigin)
+                value.xorigin = screenPixels(1);
+            end
+            if isempty(value.yorigin)
+                value.yorigin = screenPixels(2);
+            end            
+            
+            if isempty(value.width)
+                % Assuming code is in pixels
+                value.width = value.xpixels;
+            end
+            if isempty(value.height)
+                % Assuming code is in pixels
+                value.height = value.ypixels;
+            end
+            if isequal(value.xpixels, c.screen.xpixels) && isequal(value.ypixels,c.screen.ypixels) && isequal(value.width,c.screen.width) && isequal(value.height,c.screen.height)
+            if ~isequal(value.xpixels/value.ypixels,value.width/value.height)
+                warning('Physical aspect ratio and Pixel aspect ration are  not the same...');
+            end
             end
             c.screen = value;
         end
@@ -374,7 +406,7 @@ classdef cic < neurostim.plugin
     methods (Access=public)
         % Constructor.
         function c= cic
-            c = c@neurostim.plugin('cic');
+            c = c@neurostim.plugin([],'cic');
             % Some very basic PTB settings that are enforced for all
             KbName('UnifyKeyNames'); % Same key names across OS.
             c.cursor = 'none';
@@ -400,7 +432,7 @@ classdef cic < neurostim.plugin
             c.addProperty('trial',0,[],[],'private');
             c.addProperty('iti',1000,[],@double); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,[],@double); % duration (ms)
-            c.add(neurostim.plugins.output);
+            neurostim.plugins.output(c);
             c.addKey('ESCAPE',@keyboardResponse,'Quit');
             c.addKey('n',@keyboardResponse,'Next Trial');
         end
@@ -486,8 +518,8 @@ classdef cic < neurostim.plugin
         
         function glScreenSetup(c,window)
             Screen('glLoadIdentity', window);
-            Screen('glTranslate', window,c.screen.pixels(3)/2,c.screen.pixels(4)/2);
-            Screen('glScale', window,c.screen.pixels(3)/c.screen.physical(1), -c.screen.pixels(4)/c.screen.physical(2));
+            Screen('glTranslate', window,c.screen.xpixels/2,c.screen.ypixels/2);
+            Screen('glScale', window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
         end
         
         
@@ -734,6 +766,8 @@ classdef cic < neurostim.plugin
                 case 'STOPEXPERIMENT'
                     fprintf(2,msg);
                     c.flags.experiment = false;
+                case 'CONTINUE'
+                    fprintf(2,msg);
                 otherwise
                     error('?');
             end
@@ -780,7 +814,7 @@ classdef cic < neurostim.plugin
                 elseif ~isempty(c.blocks(blockNr).beforeFunction)
                     waitforkey=c.blocks(blockNr).beforeFunction(c);
                 end
-                Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
+                Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
                 Screen('Flip',c.onscreenWindow);
                 if waitforkey
                     KbWait([],2);
@@ -811,7 +845,7 @@ classdef cic < neurostim.plugin
                         c.frame = c.frame+1;
                         notify(c,'BASEBEFOREFRAME');
                         Screen('DrawingFinished',c.window);
-                        Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
+                        Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
                         Screen('DrawingFinished',c.onscreenWindow);
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
@@ -854,7 +888,7 @@ classdef cic < neurostim.plugin
                         end
                     end % Trial running
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
-                    Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
+                    Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
                     Screen('FillRect',c.window,c.screen.color.background);
                     
 %                     if c.trial>20
@@ -877,7 +911,7 @@ classdef cic < neurostim.plugin
                 elseif ~isempty(c.blocks(blockNr).afterFunction)
                     waitforkey=c.blocks(blockNr).afterFunction(c);
                 end
-                Screen('DrawTexture',c.onscreenWindow,c.window,c.screen.pixels,c.screen.pixels,[],0);
+                Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
                 Screen('Flip',c.onscreenWindow);
                 if waitforkey
                     KbWait([],2);
@@ -941,15 +975,13 @@ classdef cic < neurostim.plugin
         
         function [a,b] = pixel2Physical(c,x,y)
             % converts from pixel dimensions to physical ones.
-            tmp = [1 -1].*([x y]./c.screen.pixels(3:4)-0.5).*c.screen.physical(1:2);
-            a = tmp(1);
-            b = tmp(2);
+            a = (x./c.screen.xpixels-0.5)*c.screen.width;
+            b = -(y./c.screen.ypixels-0.5)*c.screen.height;
         end
         
         function [a,b] = physical2Pixel(c,x,y)
-            tmp = c.screen.pixels(3:4).*(0.5 + [x y]./([1 -1].*c.screen.physical(1:2)));
-            a = tmp(1);
-            b = tmp(2);
+            a = c.scren.xpixels.*(0.5+x./c.screen.width);
+            b = c.scren.ypixels.*(0.5-y./c.screen.height);
         end
         
         function fr = ms2frames(c,ms,rounded)
@@ -1043,54 +1075,7 @@ classdef cic < neurostim.plugin
         function PsychImaging(c)
             AssertOpenGL;
             
-            cal=setupScreen(c);
-            %             PsychImaging('PrepareConfiguration');
-            screens=Screen('Screens');
-            screenNumber=max(screens);
             
-            % if bitspp
-            %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
-            PsychImaging('AddTask','General','UseFastOffscreenWindows');
-            if any(strcmpi(c.plugins,'gui'))%if gui is added
-                if isempty(c.mirrorPixels)
-                    c.mirrorPixels=Screen('Rect',(screenNumber-1));
-                end
-                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background,c.screen.pixels,[],[],[],[],kPsychNeedFastOffscreenWindows);
-
-                c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
-                %
-                cal=setupScreen(c);
-                PsychImaging('AddTask','General','UseFastOffscreenWindows');
-                
-                c.guiWindow=PsychImaging('OpenWindow',(screenNumber-1),c.screen.color.background);
-                switch upper(c.screen.colorMode)
-                    case 'XYL'
-                        PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
-                        %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
-                    case 'RGB'
-%                         Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                end
-            else% otherwise open screens as normal
-                c.onscreenWindow = PsychImaging('OpenWindow',screenNumber, c.screen.color.background,c.screen.pixels);
-                c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,c.screen.pixels,[],2);
-                
-            end
-            
-            switch upper(c.screen.colorMode)
-                case 'XYL'
-                    PsychColorCorrection('SetSensorToPrimary', c.onscreenWindow, cal);
-                    %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
-                case 'RGB'
-                   Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            end
-            
-            
-            
-        end
-        
-        
-        
-        function cal=setupScreen(c)
             PsychImaging('PrepareConfiguration');
             % 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
@@ -1115,7 +1100,36 @@ classdef cic < neurostim.plugin
                 case 'RGB'
                     cal = []; %Placeholder. Nothing implemented.
             end
+            
+            
+            % if bitspp
+            %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
+            PsychImaging('AddTask','General','UseFastOffscreenWindows');
+            
+            c.onscreenWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xpixels c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
+            c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,[0 0 c.screen.xpixels c.screen.ypixels],[],2);
+            switch upper(c.screen.colorMode)
+                case 'XYL'
+                    PsychColorCorrection('SetSensorToPrimary', c.onscreenWindow, cal);
+                    %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                case 'RGB'
+                    Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            end
+            
+            c.checkFrameRate;
+            
+            
+            if any(strcmpi(c.plugins,'gui'))%if gui is added
+                PsychImaging(c.gui);
+                c.guiOn = true;
+            end
+            
+            
+            
         end
+        
+        
+        
     end
     
     methods (Static)

@@ -85,9 +85,9 @@ classdef gui <neurostim.plugin
     
     
     methods (Access = public)
-        function o = gui
+        function o = gui(c)
             % Construct a GUI plugin
-            o = o@neurostim.plugin('gui');
+            o = o@neurostim.plugin(c,'gui');
             o.listenToEvent({'BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT','BEFOREEXPERIMENT','BEFORETRIAL','AFTERFRAME'});
 %             o.on=0;
 %             o.duration =Inf;
