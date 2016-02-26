@@ -50,20 +50,22 @@ classdef nafcResponse < neurostim.plugins.behavior
        
        function responseHandler(o,key)
            
-           %Which key was pressed (index, and label)
-           o.pressedInd = find(strcmpi(key,o.keys));
-           o.pressedKey = o.keyLabels{o.pressedInd};
-           
-           %Is the response correct?
-           if ~isempty(o.correctKey)
-               o.correct = o.pressedInd == o.correctKey;
-           else
-               %No correctness function specified. Probably using as subjective measurement (e.g. PSE)
-               o.correct = true;
+           if o.enabled
+               %Which key was pressed (index, and label)
+               o.pressedInd = find(strcmpi(key,o.keys));
+               o.pressedKey = o.keyLabels{o.pressedInd};
+
+               %Is the response correct?
+               if ~isempty(o.correctKey)
+                   o.correct = o.pressedInd == o.correctKey;
+               else
+                   %No correctness function specified. Probably using as subjective measurement (e.g. PSE)
+                   o.correct = true;
+               end
+
+               %Set flag so that behaviour class detects completion next frame
+               o.inProgress = true;
            end
-           
-           %Set flag so that behaviour class detects completion next frame
-           o.inProgress = true;
        end
           
    end  
