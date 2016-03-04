@@ -2,17 +2,19 @@ function adamDemo
 
 import neurostim.*
 commandwindow;
-Screen('Preference', 'SkipSyncTests', 1);
-Screen('Preference','TextRenderer',1);
+Screen('Preference', 'SkipSyncTests', 0);
+%Screen('Preference','TextRenderer',1);
 
 %% ========= Specify rig configuration  =========
-c = bkConfig;%adamsConfig;
+c = adamsConfig;%bkConfig;
 
 %Use DEBUG features
 plugins.debug(c);
 
 %Use the experimenter GUI window
 neurostim.plugins.gui(c);
+gui.toleranceColor = [1 1 0];
+c.screen.color.text = [1 1 1];
 
 %Use/simulate Eylink eye tracker
 e = neurostim.plugins.eyetracker(c);
@@ -27,7 +29,7 @@ e.useMouse = true;
 f=stimuli.fixation(c,'fix');
 f.shape = 'CIRC';
 f.size = 0.5;
-f.color = [1 1 50];
+f.color = [1 1 1];
 f.on=0;
 f.duration = Inf;
 
@@ -36,7 +38,7 @@ f.duration = Inf;
 d = stimuli.rdp(c,'dots');
 d.on = '@f1.startTime';
 d.duration = 1000;
-d.color = [0.3 0.3 100];
+d.color = [0.3 0.3 0.3];
 d.size = 6;
 d.nrDots = 200;
 d.maxRadius = 8;
@@ -62,7 +64,7 @@ k.correctKey = '@double(dots.direction < 0) + 1';  %Function returns 1 or 2
 g = plugins.fixate(c,'f1');
 g.from = '@f1.startTime';
 g.to = '@dots.endTime';
-g.X = '@ fix.X';
+g.X = '@fix.X';
 g.Y = '@fix.Y';
 g.tolerance = 3;
 
@@ -80,7 +82,7 @@ plugins.sound(c);
 
 %     Add correct/incorrect feedback
 s= plugins.soundFeedback(c,'soundFeedback');
-s.path = 'c:/users/bart.VISION/OneDrive/common/neurostim-ptb/nsSounds/sounds'
+s.path = 'C:\Users\morrisa\OneDrive\Code\MATLAB/neurostim-ptb/nsSounds/sounds';
 s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.success & choice.correct');
 s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.success & ~choice.correct');
 

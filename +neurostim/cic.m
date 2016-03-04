@@ -71,7 +71,7 @@ classdef cic < neurostim.plugin
     
     %% ConstBants
     properties (Constant)
-        PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
+        PROFILE@logical = true; % Using a const to allow JIT to compile away profiler code
         %         defaultPluginOrder = {'mcc','stimuli','eyetracker','behavior','unknown'};
         SETUP =0;
         RUNNING =1;
@@ -848,12 +848,12 @@ classdef cic < neurostim.plugin
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
                         
-%                         if c.frame > 1
-%                             c.addProfile('FRAMELOOP',c.name,c.toc);
-%                         end
-                        
+                        if c.frame > 1
+                            c.addProfile('FRAMELOOP',c.name,c.toc);
+                        end
+%                         
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
-%                         c.tic;
+                        c.tic;
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
