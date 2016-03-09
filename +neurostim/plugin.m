@@ -104,7 +104,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function writeToFeed(o,message)
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
         end
-
+        
+        function ok = setProperty(o,prop,value)            
+            o.(prop) =value;
+            ok = true;
+        end
     end
     
 
@@ -155,7 +159,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             h.GetObservable =true;
             % Parse the specified function and make it into an anonymous
             % function.  
-            fun = eval(['@(this) (' regexprep(funcstring(2:end),'(?<plgin>\<\w+\.)','this.cic.$0') ')']);
+            fun = neurostim.str2fun(funcstring);
             % Assign the  function to be the PreGet function; it will be
             % called everytime a client requests the value of this
             % property.

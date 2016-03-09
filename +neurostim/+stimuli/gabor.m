@@ -30,7 +30,7 @@ classdef gabor < neurostim.stimulus
             o.addProperty('height',10,'',@isnumeric);
             
             %%  Gabor parameters
-            o.addProperty('orientation',0,[],@(x) (isnumeric(x) && x>=0 && x<=360));
+            o.addProperty('orientation',0,[],@isnumeric);
             o.addProperty('contrast',1,[],@isnumeric);
             o.addProperty('phase',0,[],@isnumeric);
             o.addProperty('frequency',0.05,[],@isnumeric);

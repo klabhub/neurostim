@@ -121,8 +121,8 @@ classdef output < neurostim.plugin
                 success = 0;
                 try
                     warning('There was a problem saving to disk. Attempting save to c:\temp');
-                    [~, fname,ext] = fileparts(o.filename);
-                    save(['c:\temp\' fname,ext],'c', '-mat');
+                    [~, fname,xt] = fileparts(o.filename);
+                    save(['c:\temp\' fname,xt],'c', '-mat');
                     warning('There was a problem saving to disk. Attempting save to c:\temp.... success');
                 catch
                     warning('There was a problem saving to disk. Failed. Halting execution to allow manual recovery');
@@ -182,8 +182,9 @@ classdef output < neurostim.plugin
         function beforeExperiment(o,c,evt)
             % Always set at the start of the experiment so that we can 
             % check that we can save.
-             o.setFile;
+            o.setFile;
             o.counter = o.saveFrequency;  
+           
         end  
     end
     
