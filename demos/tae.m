@@ -71,8 +71,8 @@ fix.tolerance       = 2;
 
 % Add an eye tracker. eyetracker is a dummy eyetracker that follows mouse
 % clicks. 
-% et = plugins.eyetracker(c);
-% et.useMouse         = true;
+et = plugins.eyetracker(c);
+et.useMouse         = true;
 %  
 %Subject's 2AFC response
 k = plugins.nafcResponse(c,'choice');
