@@ -83,7 +83,7 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
         root@char               = 'c:\temp\';    % Root target directory for saving files.
-        subjectNr@double        = 0;
+        subjectNr@double        = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         
@@ -188,7 +188,11 @@ classdef cic < neurostim.plugin
             v= length(c.stimuli);
         end
         function v= get.nrTrials(c)
-            v= length(c.blocks(c.block).conditions);
+            if c.block >0
+                v= length(c.blocks(c.block).conditions);
+            else
+                v = 0;
+            end
         end
         function v= get.nrConditions(c)
             v= length(c.conditions);
@@ -228,9 +232,15 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function set.subject(c,value)
+        function set.subject(c,value)           
             if ischar(value)
-                c.subjectNr = double(value);
+                asDouble = str2double(value);          
+                if isnan(asDouble)                     
+                    % Someone using initials 
+                    c.subjectNr = double(value);
+                else
+                    c.subjectNr = asDouble;
+                end
             else
                 c.subjectNr = value;
             end
@@ -653,21 +663,10 @@ classdef cic < neurostim.plugin
             p.addParameter('randomization','SEQUENTIAL',@(x)any(strcmpi(x,{'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT'})));
             p.addParameter('nrRepeats',1,@isnumeric);
             p.addParameter('weights',1,@isnumeric);
-           if nargin>2 %if there is more than one block
-               blocks=[];
-               for a=2:nargin
-                   if isa(varargin{a-1},'neurostim.block')
-                        blocks=[blocks varargin{a-1}]; % collect all blocks
-                   else
-                       parse(p,varargin{a-1:end}); %parse the remainder.
-                       break;
-                   end
-        
-               end
-           else
-               blocks=varargin{1};
-               parse(p);
-           end
+            isblock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
+            blocks = [varargin{isblock}];
+            args = varargin(~isblock);
+            parse(p,args{:});
            % assign all variables.
            randomization=p.Results.randomization;
            nrRepeats=p.Results.nrRepeats;
@@ -780,6 +779,11 @@ classdef cic < neurostim.plugin
             
             % varargin is sent straight to c.createSession(); see that help
             % for input details.
+                        
+             if isempty(c.subject)
+                response = input('Subject code?','s');                
+                c.subject = response;                
+            end
             
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation, and postprocessig  will now be active
             
@@ -848,12 +852,12 @@ classdef cic < neurostim.plugin
                         notify(c,'BASEAFTERFRAME');
                         c.KbQueueCheck;
                         
-%                         if c.frame > 1
-%                             c.addProfile('FRAMELOOP',c.name,c.toc);
-%                         end
+                        if c.frame > 1 && c.PROFILE
+                            c.addProfile('FRAMELOOP',c.name,c.toc);
+                        end
                         
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear);
-%                         c.tic;
+                         c.tic;
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
@@ -1091,7 +1095,7 @@ classdef cic < neurostim.plugin
                     
                     cal = LoadCalFile('PTB3TestCal');
                     load T_xyz1931
-                    T_xyz1931 = 683*T_xyz1931;
+                    T_xyz1931 = 683*T_xyz1931; %#ok<NODEF>
                     cal = SetSensorColorSpace(cal,T_xyz1931,S_xyz1931);
                     cal = SetGammaMethod(cal,0);
                     

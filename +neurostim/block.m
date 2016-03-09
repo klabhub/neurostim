@@ -57,6 +57,16 @@ classdef block < dynamicprops
     end
     
     methods
+        
+        function set.beforeFunction(o,fun)
+            o.beforeFunction = neurostim.str2fun(fun);            
+        end
+        
+        function set.afterFunction(o,fun)
+            o.afterFunction = neurostim.str2fun(fun);
+        end
+        
+        
         function v=get.conditions(o)
             conditions=neurostim.map;
             for a=1:numel(o.factorials)
@@ -66,7 +76,7 @@ classdef block < dynamicprops
             v=conditions;
         end
         
-            
+        
             function v=get.nrConditions(o)
                 nrConditions=0;
                 for a=1:numel(o.factorials)
