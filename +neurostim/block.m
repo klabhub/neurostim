@@ -68,27 +68,25 @@ classdef block < dynamicprops
         
         
         function v=get.conditions(o)
-            conditions=neurostim.map;
+            v=neurostim.map;
             for a=1:numel(o.factorials)
                 temp=o.factorials{a}.conditions;
-                conditions([temp.keys conditions.keys])=[temp.values conditions.values];
-            end
-            v=conditions;
+                v([temp.keys v.keys])=[temp.values v.values];
+            end            
         end
         
         
             function v=get.nrConditions(o)
-                nrConditions=0;
+                v=0;
                 for a=1:numel(o.factorials)
-                    nrConditions=nrConditions+o.factorials{a}.nrConditions;
+                    v=v+o.factorials{a}.nrConditions;
                 end
-                v=nrConditions;
             end
             
             function v=get.conditionList(o)
                 v=[];
                 for a=1:o.nrRepeats
-                    conditions=[];
+                    thisV=[];
                     condNr=0;
                     for b=1:numel(o.factorials)
                         tmp=[];
@@ -97,19 +95,19 @@ classdef block < dynamicprops
                             o.weights=ones(1,numel(o.factorials));
                         end
                         for c=1:o.weights(b)
-                            tmp = [tmp currList];
+                            tmp = [tmp currList]; %#ok<AGROW>
                         end
-                        conditions=[conditions tmp+condNr];
-                        condNr=max(conditions);
+                        thisV=[thisV tmp+condNr]; %#ok<AGROW>
+                        condNr=max(thisV);
                     end
                     switch upper(o.randomization)
                         case 'SEQUENTIAL'
                         case 'RANDOMWITHOUTREPLACEMENT'
-                            conditions=Shuffle(conditions);
+                            thisV=Shuffle(thisV);
                         case 'RANDOMWITHREPLACEMENT'
-                            conditions=datasample(conditions,numel(conditions));
+                            thisV=datasample(thisV,numel(thisV));
                     end
-                    v=[v conditions];
+                    v=[v thisV]; %#ok<AGROW>
                 end
             end
                 
