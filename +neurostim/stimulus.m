@@ -36,16 +36,12 @@ classdef stimulus < neurostim.plugin
         offFrame;
     end
     
-    properties (Access=private)
+    properties (Access=protected)
         stimstart = false;
         stimstop = false;
-        prevOn@logical = false;
-        stimNum = 1;
-        rsvpStimProp;
-        rsvpParms;
-        rsvpList;
-        rsvpRand;
-        startOn=[];
+        prevOn@logical;
+        rsvp;
+
         diodePosition;
     end
     
@@ -90,7 +86,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rx',0,[],@isnumeric);
             s.addProperty('ry',0,[],@isnumeric);
             s.addProperty('rz',1,[],@isnumeric);
-            s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
+        %    s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
             s.addProperty('rngSeed',[],[],@isnumeric);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT'});
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
@@ -100,7 +96,18 @@ classdef stimulus < neurostim.plugin
             s.addProperty('startTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus appears on screen
             s.addProperty('endTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus does not appear after being run
             s.addProperty('isi',[],[],@isnumeric,{'neurostim.stimulus'});
-            s.addProperty('subCond',[],[],[],{'neurostim.stimulus'},{'neurostim.plugin'});
+        %    s.addProperty('subCond',[],[],[],{'neurostim.stimulus'},{'neurostim.plugin'});
+            
+        
+        
+            s.rsvp.active= false;
+            s.rsvp.property = '';
+            s.rsvp.values = {};
+            s.rsvp.duration = 0;
+            s.rsvp.isi =0;
+            s.rsvp.randomization ='SEQUENTIAL';
+            s.rsvp.list =[];
+            
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
@@ -204,18 +211,10 @@ classdef stimulus < neurostim.plugin
                % to be overloaded in subclasses; needed for baseBeforeExperiment
                % (stimulus endTime check)
            end
-    end
-        
-    %% Methods that the user cannot change. 
-    % These are called from by CIC for all stimuli to provide 
-    % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
-    % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
-    % the derived class an oppurtunity to respond to changes that this 
-    % base functionality makes.
-    methods (Access=private) 
-        
-        function addRSVP(s,rsvpFactorial,varargin)
-%           addRSVP(s,rsvpFactorial,[optionalArgs])
+           
+           
+            function addRSVP(s,property,values,varargin)
+%           addRSVP(s,property,value,varargin)
 %
 %           Rapid Serial Visual Presentation
 %           rsvpFactorial is a cell specifying the parameter(s) to be
@@ -228,43 +227,47 @@ classdef stimulus < neurostim.plugin
 %           'duration'  [100]   - duration of each stimulus in the sequence
 %           'isi'       [0]     - inter-stimulus interval
 %           'randomization' ['RANDOMWITHREPLACEMENT'] - ordering of stimuli
-            optionalArgs=varargin;
+           
             p=inputParser;
-            p.addRequired('rsvpFactorial',@(x) iscell(x));
+            p.addRequired('property',@ischar);
+            p.addRequired('values',@iscell);
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
             p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
             p.addParameter('randomization','RANDOMWITHOUTREPLACEMENT',@(x) any(strcmpi(x,{'RANDOMWITHOUTREPLACEMENT', 'RANDOMWITHREPLACEMENT','SEQUENTIAL'})));
-            p.parse(rsvpFactorial,optionalArgs{:});
-            s.duration = p.Results.duration;
-            s.isi = p.Results.isi;
-            s.rsvpRand = p.Results.randomization;
-            if isempty(s.startOn)
-                s.startOn=s.on;
-            end
-            % extract all information
-            s.rsvpStimProp = rsvpFactorial{1};
-            s.rsvpParms = rsvpFactorial{2};
+            p.addParameter('on',s.on);
             
-            s.subConditions = 1:numel(s.rsvpParms);
-
-            switch upper(s.rsvpRand)
-                case 'SEQUENTIAL' % repeats sequentially
-                    s.rsvpList = s.subConditions;
-                case 'RANDOMWITHREPLACEMENT' % repeats randomly (with replacement)
-                    s.rsvpList = datasample(s.subConditions,(numel(s.subConditions)));
-                case 'RANDOMWITHOUTREPLACEMENT' % repeats randomly (without replacement)
-                    s.rsvpList = s.subConditions(randperm(numel(s.subConditions)));
+            p.parse(property,values,varargin{:});
+            flds = fieldnames(p.Results);
+            for i=1:numel(flds)
+                s.rsvp.(flds{i}) = p.Results.(flds{i});
             end
+            s.rsvp.list = 1:numel(s.rsvp.values);
+            s.rsvp.active = true;
+            
+            reshuffleRSVP(s);
+
         end
+           
+           
+           
+    end
         
+    %% Methods that the user cannot change. 
+    % These are called from by CIC for all stimuli to provide 
+    % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
+    % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
+    % the derived class an oppurtunity to respond to changes that this 
+    % base functionality makes.
+    methods (Access=private) 
+                       
         function reshuffleRSVP(s)
-           switch upper(s.rsvpRand)
+           switch upper(s.rsvp.randomization)
                case 'SEQUENTIAL'
-                   return;
+                   s.rsvp.list = 1:numel(s.rsvp.values);                   
                case 'RANDOMWITHREPLACEMENT'
-                   s.rsvpList=datasample(s.rsvpList,numel(s.rsvpList));
+                   s.rsvp.list=datasample(1:numel(s.rsvp.values),numel(s.rsvp.values));
                case 'RANDOMWITHOUTREPLACEMENT'
-                   s.rsvpList=Shuffle(s.rsvpList);
+                   s.rsvp.list=Shuffle(1:numel(s.rsvp.values));
            end
         end
         
@@ -300,17 +303,26 @@ classdef stimulus < neurostim.plugin
                     Screen('glTranslate',c.window,s.X,s.Y,s.Z);
                     Screen('glScale',c.window,s.scale.x,s.scale.y);
                     Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
-                    if c.frame==1
-                        % setup any RSVP conditions
-                        s.stimNum=1;
-                        if ~isempty(s.rsvp)
-                            if ~isempty(s.startOn)
-                                s.on=s.startOn;
-                            end
+                    
+                    
+                    s.flags.on = c.frame>=s.onFrame && c.frame <s.offFrame;
+
+                    
+                    %% RSVP
+                    if s.rsvp.active 
+                        rsvpFrame = c.frame/c.ms2frames(s.rsvp.duration+s.rsvp.isi);
+                        item = floor(rsvpFrame); % This element of the rsvp list should be shown now (base-0)
+                        frac = rsvpFrame-item;   % We are this far into the current rsvp item.                        
+                        
+                        if rsvpFrame==item
+                            % Wrap
                             s.reshuffleRSVP;
-                            s.subCond = s.rsvpList(s.stimNum);
-                            s.(s.rsvpStimProp) = s.rsvpParms{s.subCond};
                         end
+                        if frac==0
+                            mod(item,numel(s.rsvp.list))+1
+                         s.(s.rsvp.property) = s.rsvp.values{s.rsvp.list(mod(item,numel(s.rsvp.list))+1)};
+                        end
+                        s.flags.on = s.flags.on && frac < s.rsvp.duration/(s.rsvp.isi+s.rsvp.duration);  % Blank during rsvp isi
                     end
                     
                     % get the stimulus end time
@@ -319,32 +331,19 @@ classdef stimulus < neurostim.plugin
                         s.prevOn=false;
                     end
                     
-                    if c.frame==s.offFrame
-                        % change RSVP conditions
-                        s.stimNum = s.stimNum+1;
+                    
+                    %%
+                    if c.frame==s.offFrame                        
                         s.prevOn=true;
-                        if ~isempty(s.rsvp)
-                            if s.stimNum>numel(s.rsvpList)
-                                s.stimNum=1;
-                                s.reshuffleRSVP;
-                            end
-                            s.subCond = s.rsvpList(s.stimNum);
-                            s.(s.rsvpStimProp) = s.rsvpParms{s.subCond};
-                            s.on=s.off+s.isi;
-                        end
                     end
-
-                    s.flags.on = c.frame>=s.onFrame && c.frame <s.offFrame;
-%                     if strcmpi(s.name,'octagon') && c.frame==183
-%                         keyboard;
-%                     end
+                    
                     if s.flags.on 
                         if c.frame==s.onFrame+1 % get stimulus on time
                             s.startTime = c.flipTime;
                         end
                         notify(s,'BEFOREFRAME');
                         if s.stimstart ~= true
-                        s.stimstart = true;
+                            s.stimstart = true;
                         end
                         if c.frame==s.onFrame
                             c.getFlipTime=true; % get the next flip time for startTime
@@ -363,10 +362,13 @@ classdef stimulus < neurostim.plugin
                         notify(s,'AFTERFRAME');
                     end
                 case 'BASEBEFORETRIAL'
-                    if ~isempty(s.rsvp)
-                        s.addRSVP(s.rsvp{:})
+%                     if ~isempty(s.rsvp) TODO different rsvps in different
+%                     conditions
+%                         s.addRSVP(s.rsvp{:})
+%                     end
+                    if s.rsvp.active
+                        s.reshuffleRSVP; % Reshuffle each trial                            
                     end
-                    
                     %Reset variables here?
                     s.startTime = Inf;
                     s.endTime = Inf; 

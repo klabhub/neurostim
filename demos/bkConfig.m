@@ -16,14 +16,16 @@ c.cursor = 'arrow';
 %% Machine dependent changes
 switch upper(computerName)
     case 'KLAB-U'
-        c.screen.number =1;
-        c.screen.xpixels  =800;
-        c.screen.ypixels  = 600; 
-        c.screen.width= 40;38.3;
-        c.screen.height = 30;38.3*1080/1920;
+        c.screen.number = 2;
+        c.screen.xpixels  =1920;%[];800;
+        c.screen.ypixels  = 1080;%[];600;
+        c.screen.xorigin = [];
+        c.screen.yorigin = [];
+        c.screen.width= 38.3;
+        c.screen.height = 38.3*1080/1920;
         c.screen.color.background = [0.5 0.5 0.5];
         c.screen.colorMode = 'RGB';
-        c.screen.frameRate=30;        
+        c.screen.frameRate=60;        
         
         
         

@@ -70,7 +70,7 @@ if p.Results.onePerTrial
        dataPerTrial(tr) = current;
        eTimePerTrial(tr) = currentETime;
    end
-   data =matrixifpossible(dataPerTrial);
+   data =dataPerTrial;
    experimentTime = eTimePerTrial;
    timePerTrial  = -inf*ones(1,nrTrials);
    timePerTrial(trial(trial>0)) = trialTime(trial>0);
@@ -78,3 +78,5 @@ if p.Results.onePerTrial
    trial = 1:nrTrials;
    trialTime = timePerTrial;
 end
+
+data = matrixifpossible(data);

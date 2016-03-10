@@ -272,42 +272,46 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function set.screen(c,value)
-            if isempty(value.number)
+        function setupScreen(c,value)
+%             
+%             flds = fieldnames(value);
+%             for fld=1:length(flds)
+%                 c.screen.(flds{fld}) = value.(flds{fld});
+%             end
+%             
+%             
+            if isempty(c.screen.number)
                 value.number = max(Screen('screens'));
             end
             
-            windowPixels = Screen('Rect',value.number); % Full screen
-            if isempty(value.xpixels)
-                value.xpixels  = windowPixels(3)-windowPixels(1); % Width in pixels
+            windowPixels = Screen('Rect',c.screen.number); % Full screen
+            if ~isfield(c.screen,'xpixels') || isempty(c.screen.xpixels)            
+                c.screen.xpixels  = windowPixels(3)-windowPixels(1); % Width in pixels
             end
-            if isempty(value.ypixels)
-                value.ypixels  = windowPixels(4)-windowPixels(2); % Height in pixels
+            if ~isfield(c.screen,'ypixels') || isempty(c.screen.ypixels)  
+                c.screen.ypixels  = windowPixels(4)-windowPixels(2); % Height in pixels
             end
             
-            screenPixels = Screen('GlobalRect',value.number); % Full screen
-            if isempty(value.xorigin)
-                value.xorigin = screenPixels(1);
+            screenPixels = Screen('GlobalRect',c.screen.number); % Full screen
+            if ~isfield(c.screen,'xorigin') || isempty(c.screen.xorigin)  
+                c.screen.xorigin = screenPixels(1);
             end
-            if isempty(value.yorigin)
-                value.yorigin = screenPixels(2);
+            if ~isfield(c.screen,'yorigin') || isempty(c.screen.yorigin)  
+                c.screen.yorigin = screenPixels(2);
             end            
             
-            if isempty(value.width)
+            if ~isfield(c.screen,'width') || isempty(c.screen.width)  
                 % Assuming code is in pixels
-                value.width = value.xpixels;
+                c.screen.width = c.screen.xpixels;
             end
-            if isempty(value.height)
+            if ~isfield(c.screen,'height') || isempty(c.screen.height)  
                 % Assuming code is in pixels
-                value.height = value.ypixels;
+                c.screen.height = c.screen.ypixels;
             end
-            if isequal(value.xpixels, c.screen.xpixels) && isequal(value.ypixels,c.screen.ypixels) && isequal(value.width,c.screen.width) && isequal(value.height,c.screen.height)
-            if ~isequal(value.xpixels/value.ypixels,value.width/value.height)
+            if ~isequal(c.screen.xpixels/c.screen.ypixels,c.screen.width/c.screen.height)
                 warning('Physical aspect ratio and Pixel aspect ration are  not the same...');
             end
-            end
-            c.screen = value;
-        end
+         end
         
         function v=get.defaultPluginOrder(c)
             v = [fliplr(c.stimuli) fliplr(c.plugins)];
@@ -789,7 +793,7 @@ classdef cic < neurostim.plugin
                 response = input('Subject code?','s');                
                 c.subject = response;                
             end
-            
+           
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation, and postprocessig  will now be active
             
             
@@ -1083,6 +1087,8 @@ classdef cic < neurostim.plugin
             AssertOpenGL;
             
             
+            c.setupScreen;
+            
             PsychImaging('PrepareConfiguration');
             % 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
@@ -1113,7 +1119,7 @@ classdef cic < neurostim.plugin
             %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
             PsychImaging('AddTask','General','UseFastOffscreenWindows');
             
-            c.onscreenWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xpixels c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
+             c.onscreenWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xpixels c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,[0 0 c.screen.xpixels c.screen.ypixels],[],2);
             switch upper(c.screen.colorMode)
                 case 'XYL'
