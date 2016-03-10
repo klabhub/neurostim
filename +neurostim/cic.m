@@ -82,7 +82,8 @@ classdef cic < neurostim.plugin
     % experiment
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
-        root@char               = 'c:\temp\';    % Root target directory for saving files.
+        dirs                    = struct('root','',... 
+                                         'output','')  % Output is the directory where files will be written
         subjectNr@double        = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
@@ -208,7 +209,7 @@ classdef cic < neurostim.plugin
             v = [c.subject '.' c.paradigm '.' datestr(c.startTime,'HHMMSS') ];
         end
         function v = get.fullFile(c)
-            v = fullfile(c.root,datestr(c.startTime,'YYYY/mm/DD'),c.file);
+            v = fullfile(c.dirs.output,datestr(c.startTime,'YYYY/mm/DD'),c.file);
         end
         function v=get.subject(c)
             if length(c.subjectNr)>1
@@ -427,7 +428,11 @@ classdef cic < neurostim.plugin
             c.conditions    = neurostim.map;
             c.plugins       = {};
             c.cic           = c; % Need a reference to self to match plugins. This makes the use of functions much easier (see plugin.m)
-            
+           
+            % The root directory is the directory that contains the
+            % +neurostim folder. 
+            c.dirs.root     = strrep(fileparts(mfilename('fullpath')),'+neurostim','');
+            c.dirs.output   = getenv('TEMP');
             
             % Setup the keyboard handling
             c.responseKeys  = neurostim.map;

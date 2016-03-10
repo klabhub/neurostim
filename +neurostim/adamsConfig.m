@@ -16,5 +16,5 @@ c.iti = 500;
 c.trialDuration = 500;
 c.mirrorPixels=[0 0 1680 1050];
 c.screen.frameRate=60;
-c.root = 'c:\temp\';
+c.dirs.output = 'c:\temp\';
 end

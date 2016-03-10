@@ -118,7 +118,7 @@ longCwBlock = block('longAdaptCw',longCwFac);
 longCwBlock.nrRepeats = 1;              % We'll only show this condition once. 
 
 longCcwFac=factorial('longAdaptCcw',1); 
-longCcwFac.fac1.adapt.duration= la10000;  % Adapter duration
+longCcwFac.fac1.adapt.duration= 10000;  % Adapter duration
 longCcwFac.fac1.adapt.orientation = 110;  % Adapter orientation
 longCcwBlock = block('longAdaptCCw',longCcwFac);
 longCcwBlock.nrRepeats = 1;

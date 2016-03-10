@@ -82,7 +82,6 @@ plugins.sound(c);
 
 %     Add correct/incorrect feedback
 s= plugins.soundFeedback(c,'soundFeedback');
-s.path = 'C:\Users\morrisa\OneDrive\Code\MATLAB/neurostim-ptb/nsSounds/sounds';
 s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.success & choice.correct');
 s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.success & ~choice.correct');
 

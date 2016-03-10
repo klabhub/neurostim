@@ -9,7 +9,7 @@ computerName = getenv('COMPUTERNAME');
 c = neurostim.cic;
 c.iti = 500;
 c.trialDuration = 500;
-c.root = 'c:\temp\';
+c.dirs.output = 'c:\temp\';
 c.cursor = 'arrow';
 
 

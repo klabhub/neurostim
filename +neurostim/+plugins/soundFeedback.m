@@ -3,7 +3,7 @@ classdef soundFeedback < neurostim.plugins.feedback
     % 'path'  -  Path to search for sound files that are specified in add()
     % 'waveform'  - filename for a .wav or other file. Or an actual mono mono- (vector) or stereo (matrix) waveform 
     properties (SetAccess=public)
-        path@char =''; % Set this to the folder that contains the sound files.
+        path@char ='sounds'; % Set this to the folder that contains the sound files. Relative to cic.root
     end
     
     
@@ -28,7 +28,7 @@ classdef soundFeedback < neurostim.plugins.feedback
                 % provided)
                 [pth,~,~] = fileparts(p.Results.waveform);
                 if isempty(pth)
-                    file = fullfile(o.path,p.Results.waveform);
+                    file = fullfile(o.cic.dirs.root,o.path,p.Results.waveform);
                 else
                     file = p.Results.waveform;
                 end
