@@ -312,15 +312,13 @@ classdef stimulus < neurostim.plugin
                     if s.rsvp.active 
                         rsvpFrame = c.frame/c.ms2frames(s.rsvp.duration+s.rsvp.isi);
                         item = floor(rsvpFrame); % This element of the rsvp list should be shown now (base-0)
-                        frac = rsvpFrame-item;   % We are this far into the current rsvp item.                        
-                        
-                        if rsvpFrame==item
+                        frac = rsvpFrame-item;   % We are this far into the current rsvp item.                                              
+                        if rsvpFrame==item % Last element
                             % Wrap
                             s.reshuffleRSVP;
                         end
-                        if frac==0
-                            mod(item,numel(s.rsvp.list))+1
-                         s.(s.rsvp.property) = s.rsvp.values{s.rsvp.list(mod(item,numel(s.rsvp.list))+1)};
+                        if frac==0 % Start of a new element
+                             s.(s.rsvp.property) = s.rsvp.values{s.rsvp.list(mod(item,numel(s.rsvp.list))+1)};
                         end
                         s.flags.on = s.flags.on && frac < s.rsvp.duration/(s.rsvp.isi+s.rsvp.duration);  % Blank during rsvp isi
                     end
