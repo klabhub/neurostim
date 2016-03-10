@@ -1,4 +1,4 @@
-function [data,trialTime,trial,experimentTime] = getEvent(output,eventName,srcName,varargin)
+function [data,trialTime,trial,experimentTime] = getproperty(output,eventName,srcName,varargin)
 % Function that retrieves event information from a Neurostim output data
 % struct. 
 %
