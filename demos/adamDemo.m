@@ -63,7 +63,7 @@ k.correctKey = '@double(dots.direction < 0) + 1';  %Function returns 1 or 2
 %Maintain gaze on the fixation point
 g = plugins.fixate(c,'f1');
 g.from = '@f1.startTime';
-g.to = '@dots.endTime';
+g.to = '@dots.stopTime';
 g.X = '@fix.X';
 g.Y = '@fix.Y';
 g.tolerance = 3;
@@ -87,7 +87,7 @@ s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.succe
 
 
 %% Experimental design
-c.trialDuration = '@ choice.endTime';
+c.trialDuration = '@ choice.stopTime';
 
 %Specify experimental conditions
 myFac=factorial('myFactorial',2);

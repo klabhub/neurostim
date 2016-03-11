@@ -66,7 +66,7 @@ f.Y = 0;
 
 fix = plugins.fixate(c,'f1');
 fix.from = 200; %'@(f1) f1.startTime';
-fix.to = 1000; %'@(dots) dots.endTime';
+fix.to = 1000; %'@(dots) dots.stopTime';
 fix.X = 0;% '@(fix) fix.X';
 fix.Y = 0; %'@(fix) fix.Y';
 fix.tolerance = 3;
@@ -105,7 +105,7 @@ k.keys = {'a' 'l'};
 k.keyLabels = {'left', 'right'};
 k.correctKey = '@ (sign(testGab.X)>0)*(double(testGab.contrast>reference.contrast)+ 1) + (sign(testGab.X)<0)*(double(testGab.contrast<reference.contrast)+ 1)';  %Function returns 1 or 2
 
-c.trialDuration = '@ choice.endTime';
+c.trialDuration = '@ choice.stopTime';
 plugins.sound(c);
 % 
 %     Add correct/incorrect feedback

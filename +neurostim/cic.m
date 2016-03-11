@@ -107,7 +107,7 @@ classdef cic < neurostim.plugin
         pluginOrder = {};
         EscPressedTime;      
         lastFrameDrop=1;
-        propsToInform={'file','paradigm','startTimeStr'};%TODO,'currentBlock/Name','nrConditions','condition','trial','blockTrial/nrTrials','trial/fullNrTrials'};
+        propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/fullNrTrials'};
         
         profile=struct('cic',struct('FRAMELOOP',[]));
  
@@ -385,11 +385,11 @@ classdef cic < neurostim.plugin
             % Keys handled by CIC
             c.addProperty('frameDrop',[],[],[],'private');
             c.addProperty('trialStartTime',[],[],[],'private');
-            c.addProperty('trialEndTime',[],[],[],'private');
+            c.addProperty('trialStopTime',[],[],[],'private');
             c.addProperty('condition',[],[],[],'private');
-            c.addProperty('block',0,[],[],'private');
-            c.addProperty('blockTrial',0,[],[],'private');
-            c.addProperty('trial',0,[],[],'private');
+            c.addProperty('block',0,[],[],'private');            
+            c.addProperty('blockTrial',0,[],[],'private');            
+            c.addProperty('trial',0,[],[],'private');            
             c.addProperty('iti',1000,[],@double); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,[],@double); % duration (ms)
             neurostim.plugins.output(c);
@@ -705,15 +705,16 @@ classdef cic < neurostim.plugin
                     KbWait([],2);
                 end
                 c.blocks(c.block).trial=0;
-                while c.blockTrial<numel(c.blocks(c.block).list)
+                while c.blocks(c.block).trial<c.blocks(c.block).nrTrials
                     c.trial = c.trial+1;
                     c.blocks(c.block).trial=c.blocks(c.block).trial+1;                                       
+                    c.blockTrial = c.blocks(c.block).trial; % For logging and gui only
                     beforeTrial(c);
                     notify(c,'BASEBEFORETRIAL');
                     
                     %ITI - wait 
                     if c.trial>1
-                        nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialEndTime));
+                        nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
                             Screen('Flip',c.onscreenWindow,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
@@ -775,7 +776,7 @@ classdef cic < neurostim.plugin
                     Screen('FillRect',c.window,c.screen.color.background);
                     
                     [vbl,stimOn,flip,~]=Screen('Flip', c.onscreenWindow,0,1-c.clear);%#ok<ASGLU>
-                    c.trialEndTime = stimOn*1000;
+                    c.trialStopTime = stimOn*1000;
                     c.frame = c.frame+1;
                     notify(c,'BASEAFTERTRIAL');
                     afterTrial(c);
@@ -795,7 +796,7 @@ classdef cic < neurostim.plugin
                     KbWait([],2);
                 end
             end %blocks
-            c.trialEndTime = c.clockTime;
+            c.trialStopTime = c.clockTime;
             c.stopTime = now;
             DrawFormattedText(c.onscreenWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.onscreenWindow);

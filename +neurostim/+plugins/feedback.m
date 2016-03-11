@@ -61,8 +61,7 @@ classdef feedback < neurostim.plugin
         function o=feedback(c,name)
             o=o@neurostim.plugin(c,name);
             o.listenToEvent({'BEFORETRIAL', 'AFTERTRIAL','AFTERFRAME'});
-            o.addProperty('nItems',0);
-            c.add(o); % Add to cic.
+            o.addProperty('nItems',0);         
         end  
     end
     

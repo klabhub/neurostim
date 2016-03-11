@@ -12,13 +12,12 @@
 
 %% Prerequisites. 
 import neurostim.*
-Screen('Preference', 'SkipSyncTests', 1); % Not in production mode; this is just to run without requiring accurate timing.
 
 
 %% Setup CIC and the stimuli.
 c = bkConfig;                            % Create Command and Intelligence Center...
  
-plugins.gui(c);         % Show a gui (dual screens only)
+%plugins.gui(c);         % Show a gui (dual screens only)
 
 % Create a Gabor stimulus to adadot. 
 g=stimuli.gabor(c,'adapt');           
@@ -67,7 +66,7 @@ f.on                = 0;                % On from the start of the trial
 %% Behavioral control
 fix = plugins.fixate(c,'fixation');
 fix.from            = '@fixation.startTime';  % Require fixation from the moment fixation starts (i.e. once you look at it, you have to stay).
-fix.to              = '@testGabor.endTime';   % Require fixation until testGabor has been shown.
+fix.to              = '@testGabor.stopTime';   % Require fixation until testGabor has been shown.
 fix.X               = 0;
 fix.Y               = 0; 
 fix.tolerance       = 2;
@@ -79,12 +78,12 @@ et.useMouse         = true;
 
 %Subject's 2AFC response
 k = plugins.nafcResponse(c,'choice');
-k.on                = '@ testGabor.endTime';    % Responses are accepted only after test stimulus presenation
+k.on                = '@ testGabor.stopTime';    % Responses are accepted only after test stimulus presenation
 k.deadline          = Inf;                      % There is no time pressure to give an answer.
 k.keys              = {'a' 'l'};
 k.keyLabels         = {'ccw', 'cw'};
 % Trial ends when the choice has been made.
-c.trialDuration = '@ choice.endTime';           % The trial duration ( a cic property) is linked to the end of the choice; once a choice is made, the trial ends. 
+c.trialDuration = '@ choice.stopTime';           % The trial duration ( a cic property) is linked to the end of the choice; once a choice is made, the trial ends. 
 
 %% Define conditions and blocks
 % We want to show a 70 degree adapter for 30 seconds, then run a block of
@@ -99,7 +98,7 @@ cw.fac1.testGabor.orientation  = 90+(-3:1:3); % Test Orientation. This defines t
 cw.fac1.adapt.orientation      = 70;          % We make sure that the adapt stimulus has the correct orientation. Using a single level for a property means it will be used for all levels of the factor.  
 cw.fac1.adapt.duration          = 3000;       % Make sure the adapter duration is 3s.
 cwBlock=block('cwBlock',cw);                  % Define a block based on this factorial
-cwBlock.nrRepeats  =10;                        % Each condition is repeated this many times 
+cwBlock.nrRepeats  =5;                        % Each condition is repeated this many times 
 
 % Now the block with the 110 degree adapter.
 ccw=factorial('ccw',1); 

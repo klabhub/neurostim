@@ -34,8 +34,8 @@ classdef saccade < neurostim.plugins.behavior
                 o.startY = ['@(' o.fix1.name ') ' o.fix1.name '.Y'];
                 o.endX = ['@(' o.fix2.name ') ' o.fix2.name '.X'];
                 o.endY = ['@(' o.fix2.name ') ' o.fix2.name '.Y'];
-                o.from = ['@(' o.fix1.name ', cic) ' o.fix1.name '.endTime - cic.trialTime'];
-                o.fix1.cic.(o.fix2.name).from = ['@(' o.name ', cic) ' o.name '.endTime - cic.trialTime'];
+                o.from = ['@(' o.fix1.name ', cic) ' o.fix1.name '.stopTime - cic.trialTime'];
+                o.fix1.cic.(o.fix2.name).from = ['@(' o.name ', cic) ' o.name '.stopTime - cic.trialTime'];
                 
             elseif nargin == 2
                 error('Only one fixation object supplied.')
@@ -61,7 +61,7 @@ classdef saccade < neurostim.plugins.behavior
                     % if point is within tolerance of end position
                     % after min latency has passed
                     on = true;
-                    o.endTime = o.cic.clockTime;
+                    o.stopTime = o.cic.clockTime;
                     break;
                 elseif Y>=min(yvec) && Y<=max(yvec) && (o.cic.clockTime)<=(o.startTime+o.maxLatency)
                     % calculate using distance formula

@@ -43,7 +43,7 @@ classdef behavior < neurostim.plugin
             
             %Internal
             o.addProperty('startTime',Inf);                     %The time at which the behaviour was initiated (i.e. in progress).
-            o.addProperty('endTime',Inf);                       %The time at which a result was achieved (good or bad).
+            o.addProperty('stopTime',Inf);                       %The time at which a result was achieved (good or bad).
             o.addPostSet('done',[]);                            %True when a result (of any kind) has been achieved.
             o.addPostSet('inProgress',[]);                      %True if the subject is currently satisfying the requirement
             o.addProperty('success',false);                     %Whether the behavioral criterion was achieved.
@@ -57,7 +57,7 @@ classdef behavior < neurostim.plugin
             o.inProgress = false;
             o.done = false;
             o.startTime = Inf;
-            o.endTime = Inf;
+            o.stopTime = Inf;
             o.started = false;
             o.success = false;
         end
@@ -78,7 +78,7 @@ classdef behavior < neurostim.plugin
             if ~o.done && o.started
                 %The trial ended before the behaviour could be completed. Treat this as a completion.
                 o.result(true,'COMPLETE',false);
-                o.endTime = c.trialTime;
+                o.stopTime = c.trialTime;
             end
         end
         
@@ -147,7 +147,7 @@ classdef behavior < neurostim.plugin
         function result(o,success,outcome,endTrial)
             
             %Register that an outcome has been reached
-            o.endTime = o.cic.trialTime;
+            o.stopTime = o.cic.trialTime;
             o.done = true;
             
             %Set a flag indicating success or failure.

@@ -75,9 +75,9 @@ classdef output < neurostim.plugin
                 saveVariables = {'screen','subjectNr','paradigm',...
                     'nrStimuli','nrConditions','nrTrials',...
                     'fullFile','subject','blocks','responseKeys','trial','condition','block',...
-                    'startTime','stopTime','trialStartTime','trialEndTime', 'pluginOrder','profile','conditions'};
+                    'startTime','stopTime','trialStartTime','trialStopTime', 'pluginOrder','profile'};
             else %if we are just appending data
-                saveVariables = {'trial','condition','block','trialStartTime','trialEndTime'};
+                saveVariables = {'trial','condition','block','trialStartTime','trialStopTime'};
             end
                 if isempty(o.allSaveLogs)
                     o.allSaveLogs=[c.stimuli c.plugins 'cic']; %combine all stimuli and plugins to save

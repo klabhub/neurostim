@@ -244,7 +244,7 @@ classdef gui <neurostim.plugin
                 for j=1:numel(str)
                     tmp = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
                     if isnumeric(tmp)
-                        tmp = num2str(tmp);
+                        tmp = num2str(tmp(:)');
                     elseif islogical(tmp)
                         if (tmp);tmp = 'true';else tmp='false';end
                     end
