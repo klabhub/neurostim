@@ -94,20 +94,17 @@ classdef stimulus < neurostim.plugin
             
             %% internally-set properties
             s.addProperty('startTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus appears on screen
-            s.addProperty('endTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus does not appear after being run
+            s.addProperty('stopTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus does not appear after being run
             s.addProperty('isi',[],[],@isnumeric,{'neurostim.stimulus'});
         %    s.addProperty('subCond',[],[],[],{'neurostim.stimulus'},{'neurostim.plugin'});
             
         
         
             s.rsvp.active= false;
-            s.rsvp.property = '';
-            s.rsvp.values = {};
+            s.rsvp.design =neurostim.factorial('dummy',1);            
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
-            s.rsvp.randomization ='SEQUENTIAL';
-            s.rsvp.list =[];
-            
+           
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
@@ -203,20 +200,20 @@ classdef stimulus < neurostim.plugin
            
            function afterTrial(s,c,evt)
                % to be overloaded in subclasses; needed for baseAfterTrial
-               % (stimulus endTime check)
+               % (stimulus stopTime check)
            end
            
            function beforeExperiment(s,c,evt)
                % to be overloaded in subclasses; needed for baseBeforeExperiment
-               % (stimulus endTime check)
+               % (stimulus stopTime check)
            end
            
            
-            function addRSVP(s,property,values,varargin)
-%           addRSVP(s,property,value,varargin)
+            function addRSVP(s,design,varargin)
+%           addRSVP(s,design,varargin)
 %
 %           Rapid Serial Visual Presentation
-%           rsvpFactorial is a cell specifying the parameter(s) to be
+%           design is a factoral design (See factorial.m) specifying the parameter(s) to be
 %           maniupulated in the stream.
 %
 %           optionalArgs = {'param1',value,'param2',value,...}
@@ -225,26 +222,20 @@ classdef stimulus < neurostim.plugin
 %
 %           'duration'  [100]   - duration of each stimulus in the sequence
 %           'isi'       [0]     - inter-stimulus interval
-%           'randomization' ['RANDOMWITHREPLACEMENT'] - ordering of stimuli
-           
+          
             p=inputParser;
-            p.addRequired('property',@ischar);
-            p.addRequired('values',@iscell);
+            p.addRequired('design',@(x) (isa(x,'neurostim.factorial')));            
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
             p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
-            p.addParameter('randomization','RANDOMWITHOUTREPLACEMENT',@(x) any(strcmpi(x,{'RANDOMWITHOUTREPLACEMENT', 'RANDOMWITHREPLACEMENT','SEQUENTIAL'})));
-            p.addParameter('on',s.on);
             
-            p.parse(property,values,varargin{:});
+            p.parse(design,varargin{:});
             flds = fieldnames(p.Results);
             for i=1:numel(flds)
                 s.rsvp.(flds{i}) = p.Results.(flds{i});
-            end
-            s.rsvp.list = 1:numel(s.rsvp.values);
-            s.rsvp.active = true;
+            end            
+            setupExperiment(s.rsvp.design);
+            s.rsvp.active = true;           
             
-            reshuffleRSVP(s);
-
         end
            
            
@@ -259,16 +250,7 @@ classdef stimulus < neurostim.plugin
     % base functionality makes.
     methods (Access=private) 
                        
-        function reshuffleRSVP(s)
-           switch upper(s.rsvp.randomization)
-               case 'SEQUENTIAL'
-                   s.rsvp.list = 1:numel(s.rsvp.values);                   
-               case 'RANDOMWITHREPLACEMENT'
-                   s.rsvp.list=datasample(1:numel(s.rsvp.values),numel(s.rsvp.values));
-               case 'RANDOMWITHOUTREPLACEMENT'
-                   s.rsvp.list=Shuffle(1:numel(s.rsvp.values));
-           end
-        end
+        
         
         function setupDiode(s)
             pixelsize=s.diode.size*s.cic.screen.xpixels;
@@ -314,17 +296,20 @@ classdef stimulus < neurostim.plugin
                         frac = rsvpFrame-item;   % We are this far into the current rsvp item.                                              
                         if rsvpFrame==item % Last element
                             % Wrap
-                            s.reshuffleRSVP;
+                            s.rsvp.design.reshuffle;
                         end
                         if frac==0 % Start of a new element
-                             s.(s.rsvp.property) = s.rsvp.values{s.rsvp.list(mod(item,numel(s.rsvp.list))+1)};
+                            specs = s.rsvp.design.conditions(s.rsvp.design.list(mod(item,s.rsvp.design.nrConditions)+1));
+                            for g=1:3:numel(specs)
+                             s.(specs{g+1}) = specs{g+2};
+                            end
                         end
                         s.flags.on = s.flags.on && frac < s.rsvp.duration/(s.rsvp.isi+s.rsvp.duration);  % Blank during rsvp isi
                     end
                     
                     % get the stimulus end time
                     if s.prevOn
-                        s.endTime=c.flipTime;
+                        s.stopTime=c.flipTime;
                         s.prevOn=false;
                     end
                     
@@ -346,7 +331,7 @@ classdef stimulus < neurostim.plugin
                             c.getFlipTime=true; % get the next flip time for startTime
                         end
                     elseif s.stimstart && (c.frame==s.offFrame)% if the stimulus will not be shown, 
-                        % get the next screen flip for endTime
+                        % get the next screen flip for stopTime
                         c.getFlipTime=true;
                         s.stimstart=false;
                     end
@@ -364,17 +349,17 @@ classdef stimulus < neurostim.plugin
 %                         s.addRSVP(s.rsvp{:})
 %                     end
                     if s.rsvp.active
-                        s.reshuffleRSVP; % Reshuffle each trial                            
+                        s.rsvp.design.reshuffle; % Reshuffle each trial                            
                     end
                     %Reset variables here?
                     s.startTime = Inf;
-                    s.endTime = Inf; 
+                    s.stopTime = Inf; 
                     
                     notify(s,'BEFORETRIAL');
 
                 case 'BASEAFTERTRIAL'
-                    if isempty(s.endTime) || s.offFrame>=c.frame
-                        s.endTime=c.trialEndTime-c.trialStartTime;
+                    if isempty(s.stopTime) || s.offFrame>=c.frame
+                        s.stopTime=c.trialStopTime-c.trialStartTime;
                         s.prevOn=false;
                     end
                     notify(s,'AFTERTRIAL');

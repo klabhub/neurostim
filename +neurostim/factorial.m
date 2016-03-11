@@ -13,7 +13,7 @@ classdef factorial < dynamicprops
     %
     % Object member variables that you can changer are:
     % o.randomization
-    % 
+    %
     % Examples :
     % This should be of the format:
     % o.fac1.(stimName).(paramName) = parameters
@@ -24,7 +24,7 @@ classdef factorial < dynamicprops
     %
     % E.g.
     % To specify a single one-way factorial:
-    % myFac=factorial('myFactorial',1); 
+    % myFac=factorial('myFactorial',1);
     % myFac.fac1.dots.coherence={0 0.5 1};
     %
     % To vary both coherence and position together:
@@ -43,14 +43,14 @@ classdef factorial < dynamicprops
     % lifetime of the dots to 100 for this factorial (as opposed to the
     % default lifetime that you may have used in a different factorial)
     % myFac.fac1.dots.coherence={0 0.5 1};
-    % myFac.fac1.dots.lifetime = 100; 
-    % 
+    % myFac.fac1.dots.lifetime = 100;
+    %
     % TK, BK, 2016
     
     properties
         randomization='RANDOMWITHOUTREPLACEMENT';
         name;
-        nrFactors;       
+        nrFactors;
         conditions@neurostim.map;
         list;
     end
@@ -66,7 +66,7 @@ classdef factorial < dynamicprops
         factorSpecs;
     end
     
-        
+    
     methods  %/get/set
         
         function v=size(o)
@@ -152,7 +152,7 @@ classdef factorial < dynamicprops
             if nargin<2
                 nrFactors=1;
             end
-             o.name = name;
+            o.name = name;
             % levels under the name 'fac1','fac2',etc.
             for a=1:nrFactors
                 prop = ['fac' num2str(a)];
@@ -196,14 +196,6 @@ classdef factorial < dynamicprops
             o.reshuffle; % Setup the list
             
         end
-        
-    end
-    
-    
-    
-    
-    methods (Access = protected)
-        
         function reshuffle(o)
             conds=ones(1,o.nrConditions);
             conds=cumsum(conds);
@@ -213,10 +205,19 @@ classdef factorial < dynamicprops
                     o.list=weighted;
                 case 'RANDOMWITHREPLACEMENT'
                     o.list=datasample(weighted,numel(weighted));
-                case 'RANDOMWITHOUTREPLACEMENT'                    
+                case 'RANDOMWITHOUTREPLACEMENT'
                     o.list=Shuffle(weighted);
             end
         end
+        
+        
+        
+    end
+    
+    
+    
+    
+    methods (Access = protected)
         
         
         
@@ -246,6 +247,6 @@ classdef factorial < dynamicprops
                 end
             end
         end
-
+        
     end
 end
