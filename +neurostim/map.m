@@ -1,4 +1,4 @@
-classdef  map <handle & containers.Map
+classdef  map < handle & containers.Map
     
 properties (Constant)
     CHUNK = 10;             % Log size increase (NIY).
@@ -49,6 +49,14 @@ end
             else
                 value = '';
             end
+        end
+        
+        function value  =size(m,dim)
+            if nargin <2
+                dim = [1 2];
+            end
+            value = [length(m) 1];
+            value = value(dim);
         end
         
         function value = length(m)

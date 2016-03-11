@@ -1,5 +1,5 @@
 classdef factorial < dynamicprops
-    % Class for establishing factorials for experiment setup.
+    % Class for establishing factorial designs for experiments.
     % Constructor:
     % o=factorial(name,nrFactors)
     %
@@ -11,16 +11,20 @@ classdef factorial < dynamicprops
     %   o - passes out a factorial structure with editable fields for
     %       establishing a factorial design.
     %
+    % Object member variables that you can changer are:
+    % o.randomization
+    % 
+    % Examples :
     % This should be of the format:
-    % o.fac1.(stimName).(paramName) = {cell list of parameters}
-    % To vary multiple parameters together, add them under the same factor
-    % (i.e. fac1.(stimName2).(paramName2)={another cell list}.
+    % o.fac1.(stimName).(paramName) = parameters
+    % To vary multiple parameters in multiple stimuli together, add them under the same factor
+    % (i.e. fac1.(stimName2).(paramName2)= parameters
     % Each subsequent factor should be added with an increasing number
     % (i.e. fac2, fac3).
     %
     % E.g.
     % To specify a single one-way factorial:
-    % myFac=factorial('myFactorial',c,1)
+    % myFac=factorial('myFactorial',1); 
     % myFac.fac1.dots.coherence={0 0.5 1};
     %
     % To vary both coherence and position together:
@@ -34,30 +38,43 @@ classdef factorial < dynamicprops
     % To assign different weights to conditions:
     % myFac.fac1.weights=[1 1 2] % assigns fac1's parameters the according
     %   weights (in order), by repeating conditions the number of weighed times.
-    
+    %
+    % Singleton specifications are fine too. For instance to change the
+    % lifetime of the dots to 100 for this factorial (as opposed to the
+    % default lifetime that you may have used in a different factorial)
+    % myFac.fac1.dots.coherence={0 0.5 1};
+    % myFac.fac1.dots.lifetime = 100; 
+    % 
+    % TK, BK, 2016
     
     properties
         randomization='RANDOMWITHOUTREPLACEMENT';
-        nrFactors;
         name;
+        nrFactors;       
+        conditions@neurostim.map;
+        list;
     end
     
     properties (Dependent)
         nrLevels;
         weights;
-        conditionList;
-        conditions;
         nrConditions;
     end
+    
     
     properties (Dependent,Access=private)
         factorSpecs;
     end
     
-    methods
+        
+    methods  %/get/set
+        
+        function v=size(o)
+            v= o.nrLevels;
+        end
+        
         function v=get.nrLevels(o)
             currV=[];
-            %             v=zeros(size(o.nrFactors,1));
             for f=1:o.nrFactors
                 field1=fieldnames(o.(['fac' num2str(f)]));
                 field1=field1(~strcmp(field1,'weights'));
@@ -68,18 +85,18 @@ classdef factorial < dynamicprops
                         x=field2{c};
                         v=numel(o.(['fac' num2str(f)]).(q).(x));
                         currV(end+1)=v; %#ok<AGROW>
-                    end                   
-                end
-                 uV = unique(currV);
-                    % The nrLevels should be the same for all parameters, except that we
-                    % allow parameters to have just one value (that applies
-                    % to all levels of the other parms).
-                    if (numel(uV)==1 || numel(uV(uV~=1))==1)
-                        v(f)=max(uV); % Unique sorts 
-                        currV=[];
-                    else
-                        error('Number of levels is inconsistent.');
                     end
+                end
+                uV = unique(currV);
+                % The nrLevels should be the same for all parameters, except that we
+                % allow parameters to have just one value (that applies
+                % to all levels of the other parms).
+                if (numel(uV)==1 || numel(uV(uV~=1))==1)
+                    v(f)=max(uV); % Unique sorts
+                    currV=[];
+                else
+                    error('Number of levels is inconsistent.');
+                end
             end
         end
         
@@ -107,44 +124,6 @@ classdef factorial < dynamicprops
         end
         
         
-        function v=get.conditionList(o)
-            conds=ones(1,prod(o.nrLevels));
-            conds=cumsum(conds);
-            weighted=o.repeatElem(conds,o.weights);
-            switch upper(o.randomization)
-                case 'SEQUENTIAL'
-                    v=weighted;
-                case 'RANDOMWITHOUTREPLACEMENT'
-                    v=Shuffle(weighted);
-                case 'RANDOMWITHREPLACEMENT'
-                    v=datasample(weighted,numel(weighted));
-            end
-        end
-        
-        function v=get.conditions(o)
-            v=neurostim.map;
-            subs = cell(1,o.nrFactors);
-            for a=1:o.nrConditions
-                conditionName=[o.name '_' num2str(a)];
-                conditionSpecs= {};
-                [subs{:}]= ind2sub(o.nrLevels,a);
-                for f=1:o.nrFactors
-                    currSpecs =o.factorSpecs.(['fac' num2str(f)]);
-                    nrParms = numel(currSpecs)/3;
-                    for p=1:nrParms
-                        thisSpecs = currSpecs(3*p-2:3*p);
-                        if numel(currSpecs{3*p})==1 % Allow specifications of a single value for one property to apply to all levels of another property (i.e. scalar->vector expansion)
-                            thisSpecs(3) =currSpecs{3*p};
-                        else
-                            thisSpecs(3)= currSpecs{3*p}(subs{f});
-                        end
-                        conditionSpecs = cat(2,conditionSpecs,thisSpecs);
-                    end
-                end
-                v(conditionName)=conditionSpecs;
-            end
-        end
-        
         function v=get.factorSpecs(o)
             v=struct;
             for f=1:o.nrFactors
@@ -164,42 +143,90 @@ classdef factorial < dynamicprops
         end
     end
     
-    
-    
-    methods
+    methods (Access = public)
         
         function o=factorial(name,nrFactors)
             % o=factorial(name,nrFactors)
             % name - name of the Factorial
-            % c - pass in a reference to cic.
             % nrFactors - number of factors (for property creation)
             if nargin<2
                 nrFactors=1;
             end
-            o.name=name;
-              % levels under the name 'fac1','fac2',etc.
+             o.name = name;
+            % levels under the name 'fac1','fac2',etc.
             for a=1:nrFactors
-                o.addProperty(['fac' num2str(a)],struct('weights',[]))
+                prop = ['fac' num2str(a)];
+                h = o.addprop(prop);
+                h.SetObservable=true;
+                % Setup a listener for postprocessing
+                o.addlistener(prop,'PostSet',@(src,evt)postSetProperty(o,src,evt));
+                % Set it, this will call the postSetProperty function.
+                o.(prop)=struct('weights',[]);
             end
-            o.nrFactors=nrFactors; % Only set once the fac1..N properties have been added.          
+            o.nrFactors=nrFactors; % Only set once the fac1..N properties have been added.
         end
         
         
-        function addProperty(o,prop,value)
-            h = o.addprop(prop);
-            h.SetObservable=true;
-            % Setup a listener for postprocessing
-            o.addlistener(prop,'PostSet',@(src,evt)postSetProperty(o,src,evt));
-            % Set it, this will call the postSetProperty function.
-            o.(prop)=value;
+        %% Unpack the factorial into a conditions map and a list.
+        function setupExperiment(o)
+            
+            % Setup the conditions map.
+            o.conditions = neurostim.map; %  Start empty
+            subs = cell(1,o.nrFactors);
+            for a=1:o.nrConditions
+                conditionName=[o.name '_' num2str(a)];
+                conditionSpecs= {};
+                [subs{:}]= ind2sub(o.nrLevels,a);
+                for f=1:o.nrFactors
+                    currSpecs =o.factorSpecs.(['fac' num2str(f)]);
+                    nrParms = numel(currSpecs)/3;
+                    for p=1:nrParms
+                        thisSpecs = currSpecs(3*p-2:3*p);
+                        if numel(currSpecs{3*p})==1 % Allow specifications of a single value for one property to apply to all levels of another property (i.e. scalar->vector expansion)
+                            thisSpecs(3) =currSpecs{3*p};
+                        else
+                            thisSpecs(3)= currSpecs{3*p}(subs{f});
+                        end
+                        conditionSpecs = cat(2,conditionSpecs,thisSpecs);
+                    end
+                end
+                o.conditions(conditionName)=conditionSpecs;
+            end
+            
+            o.reshuffle; % Setup the list
+            
+        end
+        
+    end
+    
+    
+    
+    
+    methods (Access = protected)
+        
+        function reshuffle(o)
+            conds=ones(1,o.nrConditions);
+            conds=cumsum(conds);
+            weighted=neurostim.utils.repeat(conds,o.weights);
+            switch upper(o.randomization)
+                case 'SEQUENTIAL'
+                    o.list=weighted;
+                case 'RANDOMWITHREPLACEMENT'
+                    o.list=datasample(weighted,numel(weighted));
+                case 'RANDOMWITHOUTREPLACEMENT'                    
+                    o.list=Shuffle(weighted);
+            end
         end
         
         
         
-        function postSetProperty(o,src,evt)             
+        % Postprocess the values that a property in the factorial is set
+        % to. (Allowoing users to use vectors if possible).
+        % This is called in response to o.fac1.stim.prop = value
+        function postSetProperty(o,src,evt)
             for f=1:o.nrFactors
                 plgins=fieldnames(o.(['fac' num2str(f)]));
-                plgins=plgins(~strcmpi(plgins,'weights'));                
+                plgins=plgins(~strcmpi(plgins,'weights'));
                 for plgNr=1:numel(plgins)
                     props=fieldnames(o.(['fac' num2str(f)]).(plgins{plgNr}));
                     for propNr=1:numel(props)
@@ -208,7 +235,7 @@ classdef factorial < dynamicprops
                         % specify vectors or scalars more easily, we
                         % postprocess here
                         if ~iscell(values)
-                            if ischar(values) || isscalar(values) 
+                            if ischar(values) || isscalar(values)
                                 values = {values};
                             else
                                 values = neurostim.utils.vec2cell(values);
@@ -219,19 +246,6 @@ classdef factorial < dynamicprops
                 end
             end
         end
-        
-        function v=repeatElem(o,x,ind)
-            % repeats elements of vector x by the number of times given by
-            % indices ind.
-            if any(size(ind)~=size(x))
-                ind=ones(size(x))*ind;
-            end
-            cs=cumsum(ind);
-            idx=zeros(1,cs(end));
-            idx(1+[0 cs(1:end-1)]) = 1;
-            idx=cumsum(idx);
-            v=x(idx);
-        end
-        
+
     end
 end

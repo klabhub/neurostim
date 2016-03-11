@@ -111,7 +111,6 @@ classdef stimulus < neurostim.plugin
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
-            s.listenToEvent({'BEFORETRIAL','AFTERTRIAL'});
         end                      
         
         % Setup threshold estimation for one of the parameters. The user

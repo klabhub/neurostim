@@ -12,21 +12,36 @@ c.trialDuration = 500;
 c.dirs.output = 'c:\temp\';
 c.cursor = 'arrow';
 
+Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+
 
 %% Machine dependent changes
 switch upper(computerName)
     case 'KLAB-U'
-        c.screen.number = 2;
-        c.screen.xpixels  =1920;%[];800;
-        c.screen.ypixels  = 1080;%[];600;
+        if true
+            % Large, full screen
+        c.screen.number = 1;
+        c.screen.xpixels  =[];%[];800;
+        c.screen.ypixels  = [];;%[];600;
         c.screen.xorigin = [];
         c.screen.yorigin = [];
         c.screen.width= 38.3;
         c.screen.height = 38.3*1080/1920;
         c.screen.color.background = [0.5 0.5 0.5];
         c.screen.colorMode = 'RGB';
+        c.screen.frameRate=30;        
+        else            
+        c.screen.number = 2;
+        c.screen.xpixels  =[];900;
+        c.screen.ypixels  = [];1900;%[];600;
+        c.screen.xorigin = [];
+        c.screen.yorigin = [];
+        c.screen.width= 38.3;
+        c.screen.height = 38.3*1620/2880;
+        c.screen.color.background = [0.5 0.5 0.5];
+        c.screen.colorMode = 'RGB';
         c.screen.frameRate=60;        
-        
+        end
         
         
       case 'XPS2013'               
