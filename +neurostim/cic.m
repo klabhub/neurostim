@@ -139,7 +139,7 @@ classdef cic < neurostim.plugin
     % set and get methods for dependent properties
     methods
         function v=get.fullNrTrials(c)
-            v= sum(c.blocks.nrTrials);
+            v= sum([c.blocks.nrTrials]);
         end
         
         function v= get.nrStimuli(c)
@@ -149,7 +149,7 @@ classdef cic < neurostim.plugin
             v= c.blocks(c.block).nrTrials;         
         end
         function v= get.nrConditions(c)
-            v = sum(c.blocks.nrConditions);
+            v = sum([c.blocks.nrConditions]);
         end
         function v = get.center(c)
             [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
