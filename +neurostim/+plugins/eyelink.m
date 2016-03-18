@@ -63,7 +63,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         function beforeExperiment(o,c,evt)
             
             o.el=EyelinkInitDefaults(c.onscreenWindow);
-            
+             
             %Initialise connection to Eyelink. Currently not allowing dummy
             %mode, because dialog box comes up behind PTB screen.
             if ~o.useMouse
@@ -77,6 +77,10 @@ classdef eyelink < neurostim.plugins.eyetracker
             if result==-1
                 c.error('STOPEXPERIMENT','Eyelink failed to initialize');
                 return;
+            else
+                %Tell Eyelink about the pixel coordinates
+                rect=Screen(c.onscreenWindow,'Rect');           
+                Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
             end
             
             % setup sample rate
@@ -105,7 +109,9 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('StopRecording');
             Eyelink('CloseFile');
             try
+                writeToFeed(o,'Attempting to receive Eyelink edf file');
                 status=Eyelink('ReceiveFile',o.edfFile,[c.fullFile '.edf']); %change to OUTPUT dir
+                writeToFeed(o,'Success.');
             catch
                 error('Eyelink file failed to transfer to the NS computer');
             end

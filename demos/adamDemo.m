@@ -12,11 +12,12 @@ c = adamsConfig;%bkConfig;
 plugins.debug(c);
 
 %Use the experimenter GUI window
-neurostim.plugins.gui(c);
-gui.toleranceColor = [1 1 0];
+% neurostim.plugins.gui(c);
+% c.gui.toleranceColor = [1 1 0];
 c.screen.color.text = [1 1 1];
 
 %Use/simulate Eylink eye tracker
+% e = neurostim.plugins.eyelink(c);
 e = neurostim.plugins.eyetracker(c);
 e.useMouse = true;
 
@@ -41,7 +42,7 @@ d.duration = 1000;
 d.color = [0.3 0.3 0.3];
 d.size = 6;
 d.nrDots = 200;
-d.maxRadius = 8;
+d.maxRadius = 5;
 d.lifetime = Inf;
 d.noiseMode = 1;
 d.X = '@fix.X';
@@ -54,7 +55,7 @@ d.diode.on = true;
 %Subject's 2AFC response
 k = plugins.nafcResponse(c,'choice');
 k.on = '@dots.on + dots.duration';
-k.deadline = '@ choice.on + 3000';
+k.deadline = '@choice.on + 3000';
 k.keys = {'a' 'z'};
 k.keyLabels = {'up', 'down'};
 k.correctKey = '@double(dots.direction < 0) + 1';  %Function returns 1 or 2
@@ -74,11 +75,11 @@ g.tolerance = 3;
 %Give juice at the end of the trial for completing all fixations
 r = plugins.liquid(c,'juice');
 r.add('duration',100,'when','afterTrial','criterion','@f1.success');
+% neurostim.plugins.mcc(c);
 
 % Play a correct/incorrect sound for the 2AFC task
 %     Use the sound plugin
 plugins.sound(c);
-
 
 %     Add correct/incorrect feedback
 s= plugins.soundFeedback(c,'soundFeedback');

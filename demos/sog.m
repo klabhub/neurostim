@@ -13,10 +13,10 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = bkConfig;         % Create Command and Intelligence Center...
-c.trialDuration = 3000;
+c = adamsConfig;         % Create Command and Intelligence Center...
+c.trialDuration = '@fixation.startTime+3000';
 
-%plugins.gui(c);         % Show a gui (dual screens only)
+% plugins.gui(c);         % Show a gui (dual screens only)
 
 % Create a Gabor stimulus to adadot. 
 g=stimuli.gabor(c,'grating');           
@@ -63,8 +63,8 @@ f.on                = 0;                % On from the start of the trial
 fix = plugins.fixate(c,'fixation');
 fix.from            = '@fixation.startTime';  % Require fixation from the moment fixation starts (i.e. once you look at it, you have to stay).
 fix.to              = '@grating.stopTime';   % Require fixation until testGabor has been shown.
-fix.X               = 0;
-fix.Y               = 0; 
+fix.X               = '@reddot.X';
+fix.Y               = '@reddot.Y';
 fix.tolerance       = 2;
 
 % Add an eye tracker. eyetracker is a dummy eyetracker that follows mouse
@@ -90,6 +90,7 @@ blck=block('block',fac);                  % Define a block based on this factori
 blck.nrRepeats  =10;                        % Each condition is repeated this many times 
 
 %% Run the experiment   
+c.cursor = 'arrow';
 % Now tell CIC how we want to run these blocks 
 c.run(blck);
  

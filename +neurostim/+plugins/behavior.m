@@ -121,7 +121,7 @@ classdef behavior < neurostim.plugin
                 end
                 
                 %if the FROM deadline is reached without commencement of behavior
-                if (c.trialTime >=o.from) && ~o.started
+                if ~o.started && (c.trialTime >=o.from)
                     %Violation! Should have started by now.
                     o.result(false,'FAILEDTOSTART',o.failEndsTrial);
                     return;

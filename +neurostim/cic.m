@@ -250,7 +250,7 @@ classdef cic < neurostim.plugin
                 % Assuming code is in pixels
                 c.screen.height = c.screen.ypixels;
             end
-            if ~isequal(c.screen.xpixels/c.screen.ypixels,c.screen.width/c.screen.height)
+            if ~isequal(round(c.screen.xpixels/c.screen.ypixels,2),round(c.screen.width/c.screen.height,2))
                 warning('Physical aspect ratio and Pixel aspect ration are  not the same...');
             end
          end
@@ -1061,10 +1061,11 @@ classdef cic < neurostim.plugin
                 nPerRow = ceil(sqrt(nPlots));
                 
                 for j=1:nPlots
-                    subplot(nPerRow,nPerRow,j)
-                    hist(c.profile.(plugins{i}).(items{j}),100);
+                    subplot(nPerRow,nPerRow,j);
+                    vals = c.profile.(plugins{i}).(items{j});
+                    hist(vals,100);
                     xlabel 'Time (ms)'; ylabel '#'
-                    title(items{j});
+                    title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(vals),2))));
                 end
             end
         end
