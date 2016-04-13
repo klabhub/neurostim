@@ -67,13 +67,5 @@ classdef eyetracker < neurostim.plugin
                 end
             end
         end
-        
-        function [x,y] = mouseConnection(o,c)
-            if o.useMouse
-                %use the inbuilt mouse function
-                [x,y] = c.getMouse;
-            end
-        end
-        
     end
 end

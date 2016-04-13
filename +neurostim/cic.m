@@ -53,7 +53,7 @@ classdef cic < neurostim.plugin
         
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
             'width',[],'height',[],...
-            'color',struct('text',[1/3 1/3 50],...
+            'color',struct('text',[1 1 1],...
             'background',[1/3 1/3 5]),...
             'colorMode','xyL',...
             'frameRate',60,'number',[]);    %screen-related parameters.
@@ -109,7 +109,7 @@ classdef cic < neurostim.plugin
         lastFrameDrop=1;
         propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/fullNrTrials'};
         
-        profile=struct('cic',struct('FRAMELOOP',[]));
+        profile=struct('cic',struct('FRAMELOOP',[],'FLIPTIME',[]));
  
         guiWindow;
     
@@ -719,6 +719,7 @@ classdef cic < neurostim.plugin
                             Screen('Flip',c.onscreenWindow,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
+                    
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
@@ -727,19 +728,45 @@ classdef cic < neurostim.plugin
                     while (c.flags.trial && c.flags.experiment)
                         c.frame = c.frame+1;
                         notify(c,'BASEBEFOREFRAME');
+
                         Screen('DrawingFinished',c.window);
                         Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
                         Screen('DrawingFinished',c.onscreenWindow);
+
                         notify(c,'BASEAFTERFRAME');
+                         
+                
+                %Check the frame rate
+%                 if c.frame ==100
+%                     c.tic;
+%                     Screen('Flip', c.onscreenWindow,0);
+%                     elapsed1 = c.toc;
+%                 end
+%                 
                         c.KbQueueCheck;
+     
                         
                         if c.frame > 1 && c.PROFILE
                             c.addProfile('FRAMELOOP',c.name,c.toc);
                         end
-%                         
+%                       
+
+%                 %Check the frame rate
+%                 if c.frame ==100
+%                     c.tic;
+%                     Screen('Flip', c.onscreenWindow,0);
+%                     elapsed2 = c.toc;
+%                 end    
+%                 
+                        startFlipTime = c.clockTime;
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear); %#ok<ASGLU>
-                         c.tic;
+                        c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
+                        c.tic;
                         
+                         % -----
+                         %Send any stimulus digital outs here? (i.e. if o.mccChannel has been specified)
+                         %------
+                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime = stimOn*1000; % for trialDuration check
@@ -771,6 +798,8 @@ classdef cic < neurostim.plugin
                         end
                     end % Trial running
                     
+%                     writeToFeed(c,num2str(elapsed1));
+%                     writeToFeed(c,num2str(elapsed2));
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
                     Screen('FillRect',c.window,c.screen.color.background);

@@ -47,7 +47,7 @@ classdef mcc < neurostim.plugin
             o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0'), o.devices));    %DaqDeviceIndex
             
             err=DaqDConfigPort(o.daq,0,0); % configure digital port A for output
-            err=DaqDConfigPort(o.daq,1,1); % configure digital port B for input
+            err=DaqDConfigPort(o.daq,1,0); % configure digital port B for input
             
             o.mapList.type = [];
             o.mapList.channel =[];
@@ -77,7 +77,7 @@ classdef mcc < neurostim.plugin
         end
         
         
-        function  digitalOut(o,channel,value,varargin)
+        function digitalOut(o,channel,value,varargin)
             % digitalOut(o,channel,value [,duration])
             % Output the value to the digital channel
             % o.digitalOut(0,unit8(2)) will write '2' to port A
@@ -91,17 +91,18 @@ classdef mcc < neurostim.plugin
                 current = DaqDIn(o.daq);
                 port = (channel>8)+1;
                 current = current(port); %A or B
-                newValue = bitset(current,channel,value);
+                newValue = bitset(current,mod(channel,8),value);
                 DaqDOut(o.daq,port-1,newValue);
+                
+                if size(varargin) == 1
+                    duration = varargin{1};
+                    % timer function may override other functions when time is met
+                    % and could cause problems for time-critical tasks
+                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current));
+                    start(o.timer);
+                end
             else
                 error('Huh?')
-            end
-            if size(varargin) == 1
-                duration = varargin{1};
-                % timer function may override other functions when time is met
-                % and could cause problems for time-critical tasks
-                o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current(port)));
-                start(o.timer);
             end
         end
         

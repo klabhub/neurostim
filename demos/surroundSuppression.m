@@ -13,7 +13,7 @@ Screen('Preference', 'SkipSyncTests', 1); % Not in production mode; this is just
 
 
 %% Setup CIC and the stimuli.
-c = bkConfig;                            % Create Command and Intellige nce Center...
+c = adamsConfig;                            % Create Command and Intellige nce Center...
 c.trialDuration  = inf;
 plugins.debug(c); 
 
@@ -109,10 +109,10 @@ c.trialDuration = '@ choice.stopTime';
 plugins.sound(c);
 % 
 %     Add correct/incorrect feedback
- s = plugins.soundFeedback(c,'soundFeedback');
- s.path = 'C:/Users/bart.VISION/OneDrive/common/neurostim-ptb/nsSounds/sounds';
- s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.success & choice.correct');
- s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.success & ~choice.correct');
+%  s = plugins.soundFeedback(c,'soundFeedback');
+%  s.path = 'C:/Users/bart.VISION/OneDrive/common/neurostim-ptb/nsSounds/sounds';
+%  s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.success & choice.correct');
+%  s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.success & ~choice.correct');
 
 
 plugins.gui(c);
