@@ -11,7 +11,7 @@ classdef liquid < neurostim.plugins.feedback
         function o=liquid(c,name)
             o=o@neurostim.plugins.feedback(c,name);
             o.addProperty('mccChannel',9);
-            o.addProperty('jackpotPerc',50);
+            o.addProperty('jackpotPerc',1);
             o.addProperty('jackpotDur',1000);
             o.listenToEvent('BEFOREEXPERIMENT');
         end
