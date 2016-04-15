@@ -1,10 +1,16 @@
 function behaviorDemo
-%Two-alternative forced choice (2AFC) motion task with fixation control using (virtual or real) eye tracking.
-%Also shows use of gaze-contingent stimulus presentation.
+%Two-alternative forced choice (2AFC) motion task.
 %
-%Your task: Is the motion upward (press "a") or downward (press "z")? Respond only once motion disappears.
+%This demo shows how to use:
+%       - Visual stimuli
+%       - Fixation control using (virtual or real) eye tracking.
+%       - Gaze-contingent stimulus presentation.
+%       - Subject feedback/reward.
 %
-%"Fixate" on the fixation point to start the trial by moving the mouse and clicking on it (if you can't see the mouse, something might be wrong!)
+%Your task:
+%
+%       - "Fixate" on the fixation point to start the trial by moving the mouse and clicking on it (if you can't see the mouse, something might be wrong!)
+%       - Is the motion upward (press "a") or downward (press "z")? Respond only once motion disappears.
 
 import neurostim.*
 commandwindow;
@@ -13,6 +19,14 @@ commandwindow;
 
 %Create a CIC object. Here the cic is returned with some default settings intitialised for Adam's rigs.
 [c,opts] = adamsConfig;
+
+%Track gaze position
+if opts.eyeTracker
+    e = neurostim.plugins.eyelink(c);         %Use real eye tracker. Must be connected.
+else
+    e = neurostim.plugins.eyetracker(c);      %If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
+    e.useMouse = true;
+end
 
 %% ============== Add stimuli ==================
 
@@ -55,13 +69,15 @@ g.X = '@fix.X';
 g.Y = '@fix.Y';
 g.tolerance = 3;
 
-%% Track gaze position
-if opts.eyeTracker
-    e = neurostim.plugins.eyelink(c);         %Use real eye tracker. Must be connected.
-else
-    e = neurostim.plugins.eyetracker(c);      %If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
-    e.useMouse = true;
-end
+
+%% ========== Specify feedback/rewards ========= 
+% Play a correct/incorrect sound for the 2AFC task
+plugins.sound(c);           %Use the sound plugin
+
+% Add correct/incorrect feedback
+s= plugins.soundFeedback(c,'soundFeedback');
+s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@choice.success & choice.correct');
+s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@choice.success & ~choice.correct');
 
 %% Experimental design
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
