@@ -3,6 +3,8 @@ function behaviorDemo
 %Also shows use of gaze-contingent stimulus presentation.
 %
 %Your task: Is the motion upward (press "a") or downward (press "z")? Respond only once motion disappears.
+%
+%"Fixate" on the fixation point to start the trial by moving the mouse and clicking on it (if you can't see the mouse, something might be wrong!)
 
 import neurostim.*
 commandwindow;
