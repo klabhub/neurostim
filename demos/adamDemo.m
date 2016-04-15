@@ -15,9 +15,9 @@ plugins.debug(c);
 % c.gui.toleranceColor = [1 1 0];
 
 %Use/simulate Eylink eye tracker
-% e = neurostim.plugins.eyelink(c);
-e = neurostim.plugins.eyetracker(c);
-e.useMouse = true;
+e = neurostim.plugins.eyelink(c);
+% e = neurostim.plugins.eyetracker(c);
+% e.useMouse = true;
 
 %Add the Blackrock acquisition system
 % neurostim.plugins.blackrock(c);
@@ -73,7 +73,7 @@ g.tolerance = 3;
 %Give juice at the end of the trial for completing all fixations
 r = plugins.liquid(c,'juice');
 r.add('duration',100,'when','afterTrial','criterion','@f1.success');
-neurostim.plugins.mcc(c);
+% neurostim.plugins.mcc(c);
 
 % Play a correct/incorrect sound for the 2AFC task
 %     Use the sound plugin

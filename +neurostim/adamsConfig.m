@@ -1,4 +1,4 @@
-function c = adamsConfig(varargin)
+function [c,opts] = adamsConfig(varargin)
 
 import neurostim.*
 
@@ -14,7 +14,7 @@ switch computerName
         c.screen.frameRate=60;
         c.screen.width= 42;
         c.screen.number = max(Screen('screens'));
-        
+        opts.eyeTracker = false;
     case 'MU00042884'
         %Neurostim A (Display++)
         c.screen.xpixels  = 1920-1; %Currently -1 because getting weird frame drops if full-screen mode
@@ -22,6 +22,7 @@ switch computerName
         c.screen.frameRate=120;
         c.screen.width= 72;
         c.screen.number = 1;
+        opts.eyeTracker = true;
     case 'MOBOT'
         %Home
         c.screen.xpixels  = 1920;
@@ -29,9 +30,12 @@ switch computerName
         c.screen.frameRate=60;
         c.screen.width= 42;
         c.screen.number = 0;
-        
+        opts.eyeTracker = false;
     otherwise
+        c.screen.xpixels  = 400;
+        c.screen.ypixels  = 300;
         c.screen.frameRate = Screen('FrameRate',0);
+        opts.eyeTracker = false;
 end
 
 if halfSizeWin
@@ -47,5 +51,4 @@ c.screen.color.background = [0.5 0.5 0.5];
 c.screen.colorMode = 'RGB';
 c.iti = 500;
 c.trialDuration = 500;
-c.dirs.output = 'c:\temp\';
 
