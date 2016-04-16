@@ -57,6 +57,18 @@ switch upper(computerName)
         c.screen.frameRate=60;
         
     otherwise
-        error(['No CIC configuration settings defined for ' computerName]);
+        
+        c.screen.number = 0;
+        c.screen.xpixels= [];800;%[1600 0 3200+1280 1024];
+        c.screen.ypixels= [];600;%[1600 0 3200+1280 1024];
+        c.screen.xorigin = 0;%[1600 0 3200+1280 1024];
+        c.screen.yorigin= 0;%[1600 0 3200+1280 1024];
+        c.screen.width = 34.5;
+        c.screen.height= 19.5;
+        c.screen.color.background = [0.5 0.5 0.5];
+        c.screen.colorMode = 'RGB';
+        c.screen.frameRate=60;
+        
+        warning(['No CIC configuration settings defined for ' computerName]);
 end
 end

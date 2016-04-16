@@ -35,7 +35,7 @@ void main()
     gl_Position = ftransform();
 
     /* The center of the gabor patch has coordinate (0,0): */
-    gl_TexCoord[0] = gl_MultiTexCoord0 -vec4(size/2,0,0) ;
+    gl_TexCoord[0] = gl_MultiTexCoord0 -vec4(size/2.0,0,0) ;
 
     /* auxParameters0   = [o.phase, o.frequency, o.sigma, ]
        auxParameters1   = o.peakLuminance 0 0 0 ] */

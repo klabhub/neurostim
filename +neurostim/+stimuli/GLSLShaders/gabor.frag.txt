@@ -37,26 +37,27 @@ void main()
     if (mask==1){
         /* Gabor mask : Sigma = [stdev */
         ev = exp(-0.5 *dot(pos, pos) / (sigma1 * sigma1));
-        alpha =1;
+        alpha =1.0;
     }else if (mask==2){
         /* Hard circular mask: sigmae = outer*/
-        ev  = sqrt(dot(pos,pos))<=sigma1; 
+        ev  = float(sqrt(dot(pos,pos))<=sigma1); 
         alpha = ev; /* This makes the part of the texture outside the circle completely transparent */
     }else if (mask==3){
         /* Annulus  Sigma  = [inner outer]*/
         float tmp;
         tmp = sqrt(dot(pos,pos));
-        ev  = (tmp>=sigma1) && (tmp<=sigma2); 
+        ev  = float((tmp>=sigma1) && (tmp<=sigma2)); 
         alpha = ev; /* This makes the part of the texture outside the circle completely transparent */        
     }else{
         /* Throw an error; this is not a valid mask... */
-        ev =1;
-        alpha = 1;
+        ev =1.0;
+        alpha = 1.0;
     }
 
   
-    float factor =  (1+contrast *   ev * sv );
-    if (rgbColor){
+    float factor;
+    factor =  1.0 +contrast * ev * sv;
+    if (rgbColor==1){
         gl_FragColor[0] = color[0] * factor;
         gl_FragColor[1] = color[1] * factor;
         gl_FragColor[2] = color[2] * factor;

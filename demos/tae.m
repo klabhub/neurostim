@@ -15,7 +15,7 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = adamsConfig;                            % Create Command and Intelligence Center...
+c = bkConfig;                            % Create Command and Intelligence Center...
  
 %plugins.gui(c);         % Show a gui (dual screens only)
 

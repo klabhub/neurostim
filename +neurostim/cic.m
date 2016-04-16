@@ -978,6 +978,7 @@ classdef cic < neurostim.plugin
         
         %% PTB Imaging Pipeline Setup
         function PsychImaging(c)
+            InitializeMatlabOpenGL;
             AssertOpenGL;
             
             
@@ -1013,7 +1014,7 @@ classdef cic < neurostim.plugin
             %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
             PsychImaging('AddTask','General','UseFastOffscreenWindows');
             
-             c.onscreenWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
+            c.onscreenWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,[0 0 c.screen.xpixels c.screen.ypixels],[],2);
             switch upper(c.screen.colorMode)
                 case 'XYL'
@@ -1062,6 +1063,7 @@ classdef cic < neurostim.plugin
                     
                 
             end
+            
             
             
             
