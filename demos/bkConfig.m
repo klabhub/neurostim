@@ -9,10 +9,8 @@ computerName = getenv('COMPUTERNAME');
 c = neurostim.cic;
 c.iti = 500;
 c.trialDuration = 500;
-c.dirs.output = 'c:\temp\';
 c.cursor = 'arrow';
 
-Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
 
 
 %% Machine dependent changes
@@ -42,6 +40,7 @@ switch upper(computerName)
         c.screen.colorMode = 'RGB';
         c.screen.frameRate=60;        
         end
+Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         
         
       case 'XPS2013'               
@@ -55,9 +54,10 @@ switch upper(computerName)
         c.screen.color.background = [0.5 0.5 0.5];
         c.screen.colorMode = 'RGB';
         c.screen.frameRate=60;
+Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         
-    otherwise
-        
+    case ''
+        if ismac
         c.screen.number = 0;
         c.screen.xpixels= [];800;%[1600 0 3200+1280 1024];
         c.screen.ypixels= [];600;%[1600 0 3200+1280 1024];
@@ -68,7 +68,14 @@ switch upper(computerName)
         c.screen.color.background = [0.5 0.5 0.5];
         c.screen.colorMode = 'RGB';
         c.screen.frameRate=60;
+        Screen('Preference', 'SkipSyncTests', 0); 
         
-        warning(['No CIC configuration settings defined for ' computerName]);
+        c.dirs.output = '~/temp/';
+
+        end
+        
+    otherwise
+        
+        error(['No CIC configuration settings defined for ' computerName]);
 end
 end
