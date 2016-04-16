@@ -42,12 +42,13 @@ g2.duration         = 500;                  % Show test for 500 ms
 
 % Convpoly to create a dimming task
 circle = stimuli.convPoly(c,'dimmer');
-circle.radius = 3;
-circle.X = 0;
-circle.Y = 0;
-circle.nSides = 100;
-circle.filled = true;
-circle.color = [0.5 0.5 0.5 0.5];
+circle.radius       = '@testGabor.sigma';
+circle.X            = 0;
+circle.Y            = 0;
+circle.nSides       = 100;
+circle.filled       = true;
+circle.color        = '@[0.5 0.5 0.5 0.8*randi(60)>35]';
+circle.on           = '@adapt.on';
 
 
 
@@ -56,7 +57,7 @@ circle.color = [0.5 0.5 0.5 0.5];
 f = stimuli.fixation(c,'reddot');       % Add a fixation point stimulus
 f.color             = [1 0 0];
 f.shape             = 'CIRC';           % Shape of the fixation point
-f.size              = '@iff(reddot.time<4000,0.5+0.5*sin(reddot.time*0.01),0.5)';
+f.size              = 0.1;
 f.X                 = 0;
 f.Y                 = 0;
 f.on                = 0;                % On from the start of the trial

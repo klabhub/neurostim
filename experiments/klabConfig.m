@@ -1,6 +1,9 @@
-function c = bkConfig
-% Function that sets up a CIC for BK based on the machine that the code is
-% running on. 
+function c = klabConfig
+% Function that sets up a CIC for machines in the KLab.
+% Settings that are common across experiments are specified here.
+% Anything in the actual experiment script can overrule this. 
+%
+
 
 
 computerName = getenv('COMPUTERNAME');
@@ -15,6 +18,8 @@ c.cursor = 'arrow';
 
 %% Machine dependent changes
 switch upper(computerName)
+    case 'NEUROSTIMP'
+        
     case 'KLAB-U'
         if true
             % Large, full screen
@@ -59,8 +64,8 @@ Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just
     case ''
         if ismac
         c.screen.number = 0;
-        c.screen.xpixels= [];400;
-        c.screen.ypixels= []; 300;
+        c.screen.xpixels= [];800;
+        c.screen.ypixels= [];300;
         c.screen.xorigin = 0;
         c.screen.yorigin= 0;
         c.screen.width = 40;

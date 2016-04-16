@@ -105,7 +105,7 @@ classdef stimulus < neurostim.plugin
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT'});
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],[],@isnumeric);
-            
+            s.addProperty('userData',[],[]);
             %% internally-set properties
             s.addProperty('startTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus appears on screen
             s.addProperty('stopTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus does not appear after being run
