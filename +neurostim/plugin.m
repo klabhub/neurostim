@@ -42,6 +42,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     methods (Access=public)
         function o=plugin(c,n)
             % Create a named plugin
+            if ~isvarname(n)
+                error('Stimulus and plugin names must be valid Matlab variable names');
+            end
             o.name = n;
             % Initialize an empty log.
             o.log(1).parms  = {};

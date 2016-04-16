@@ -34,7 +34,12 @@ switch computerName
     otherwise
         c.screen.xpixels  = 400;
         c.screen.ypixels  = 300;
+        c.screen.width    = 42;
         c.screen.frameRate = Screen('FrameRate',0);
+        if c.screen.frameRate==0
+            c.screen.frameRate =60;
+        end
+        c.screen.number = max(Screen('screens'));
         opts.eyeTracker = false;
 end
 

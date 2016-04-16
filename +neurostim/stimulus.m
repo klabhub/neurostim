@@ -34,6 +34,8 @@ classdef stimulus < neurostim.plugin
         off;
         onFrame;
         offFrame;
+        time; % Time since start of stimulus.
+        frame; % frame since start of stimulus
     end
     
     properties (Access=protected)
@@ -46,16 +48,28 @@ classdef stimulus < neurostim.plugin
     end
     
     methods
+        function v = get.time(o)
+            v = o.cic.frames2ms(o.frame); 
+        end
+        
+        function v = get.frame(o)
+            if o.stimstart
+                v = o.cic.frame -o.onFrame; 
+            else
+                v = -inf;
+            end
+        end
         
         function v= get.off(o)
             v = o.on+o.duration;
         end
-        function v=get.onFrame(s)
-            on=s.on;
+        
+        function v=get.onFrame(o)
+            on=o.on;
             if on==0
                 v=1;
             else
-                v = s.cic.ms2frames(on)+1;
+                v = o.cic.ms2frames(on)+1;
             end
         end
         

@@ -11,7 +11,7 @@ elseif ~isempty(str) && strcmpi(str(1),'@')
     % Replace stim.size with this.cic.stim.size to allow indirection
     % through cic (assuming that in x.y x always refers to a
     % plugin/stimulus
-    funStr = ['@(this) (' regexprep(str(2:end),'(?<plgin>\<\w+\.)','this.cic.$0') ')'];
+    funStr = ['@(this) (' regexprep(str(2:end),'(?<plgin>\<\D\w*\.)','this.cic.$0') ')'];
     
     % Assignments a=b are not allowed in function handles. (Not sure why). 
     % Replaceit with set(a,b);
@@ -32,3 +32,4 @@ else
 end
 
 end
+ q

@@ -56,7 +56,7 @@ circle.color = [0.5 0.5 0.5 0.5];
 f = stimuli.fixation(c,'reddot');       % Add a fixation point stimulus
 f.color             = [1 0 0];
 f.shape             = 'CIRC';           % Shape of the fixation point
-f.size              = 0.25;
+f.size              = '@iff(reddot.time<4000,0.5+0.5*sin(reddot.time*0.01),0.5)';
 f.X                 = 0;
 f.Y                 = 0;
 f.on                = 0;                % On from the start of the trial
@@ -111,7 +111,7 @@ ccwBlock.nrRepeats = 10;
 % Now we define a "block" consisting of a single condition: the long
 % adapter. 
 longCwFac=factorial('longAdaptCw',1);  % Define a factorial with a single factor 
-longCwFac.fac1.adapt.duration =         30000;  % Adapter duration  - single condition
+longCwFac.fac1.adapt.duration =         10000;  % Adapter duration  - single condition
 longCwFac.fac1.adapt.orientation =      70;  % Adapter orientation 
 longCwBlock = block('longAdaptCw',longCwFac);
 longCwBlock.nrRepeats = 1;              % We'll only show this condition once. 
