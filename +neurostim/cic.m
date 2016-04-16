@@ -452,9 +452,11 @@ classdef cic < neurostim.plugin
                     error('File commit failed.');
                 end
             end
-            hash = '12';
             
-            c.addProperty('githash',hash);
+            %% now read the commit id
+            txt = git('show -s');
+            hash = regexp(txt,'commit (?<id>[\w]+)\n','names');           
+            c.addProperty('githash',hash.id);
             [~,ptb] =PsychtoolboxVersion;
             c.addProperty('PTBVersion',ptb);
         end
