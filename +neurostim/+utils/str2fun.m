@@ -32,6 +32,4 @@ elseif isempty(str)
 else
     error('Cannot parse function definition?');
 end
-
 end
- q

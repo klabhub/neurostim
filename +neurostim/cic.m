@@ -25,8 +25,8 @@ classdef cic < neurostim.plugin
         BASEBEFOREFRAME;
         BASEAFTERFRAME;
         
-    
-        FIRSTFRAME;       
+        
+        FIRSTFRAME;
         GIVEREWARD;
         
     end
@@ -36,7 +36,7 @@ classdef cic < neurostim.plugin
         PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
         SETUP   = 0;
         RUNNING = 1;
-        POST    = 2;       
+        POST    = 2;
     end
     
     %% Public properties
@@ -45,8 +45,8 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
         
-        dirs                    = struct('root','',... 
-                                         'output','')  % Output is the directory where files will be written
+        dirs                    = struct('root','',...
+            'output','')  % Output is the directory where files will be written
         subjectNr@double        = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
@@ -64,7 +64,7 @@ classdef cic < neurostim.plugin
         
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
         guiOn@logical=false; %flag. Is GUI on?
-        mirror =[]; % The experimenters copy        
+        mirror =[]; % The experimenters copy
         ticTime = -Inf;
     end
     
@@ -80,9 +80,9 @@ classdef cic < neurostim.plugin
         
         frame = 0;      % Current frame
         cursorVisible = false; % Set it through c.cursor =
-     
+        
         %% Internal lists to keep track of stimuli, , and blocks.
-        stimuli;    % Cell array of char with stimulus names.        
+        stimuli;    % Cell array of char with stimulus names.
         blocks@neurostim.block;     % Struct array with .nrRepeats .randomization .conditions
         blockFlow;
         plugins;    % Cell array of char with names of plugins.
@@ -105,14 +105,14 @@ classdef cic < neurostim.plugin
         
         
         pluginOrder = {};
-        EscPressedTime;      
+        EscPressedTime;
         lastFrameDrop=1;
         propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/fullNrTrials'};
         
         profile=struct('cic',struct('FRAMELOOP',[],'FLIPTIME',[]));
- 
+        
         guiWindow;
-    
+        
     end
     
     %% Dependent Properties
@@ -146,7 +146,7 @@ classdef cic < neurostim.plugin
             v= length(c.stimuli);
         end
         function v= get.nrTrials(c)
-            v= c.blocks(c.block).nrTrials;         
+            v= c.blocks(c.block).nrTrials;
         end
         function v= get.nrConditions(c)
             v = sum([c.blocks.nrConditions]);
@@ -182,11 +182,11 @@ classdef cic < neurostim.plugin
             v = c.blocks(c.block).name;
         end
         
-        function set.subject(c,value)           
+        function set.subject(c,value)
             if ischar(value)
-                asDouble = str2double(value);          
-                if isnan(asDouble)                     
-                    % Someone using initials 
+                asDouble = str2double(value);
+                if isnan(asDouble)
+                    % Someone using initials
                     c.subjectNr = double(value);
                 else
                     c.subjectNr = asDouble;
@@ -227,33 +227,33 @@ classdef cic < neurostim.plugin
             end
             
             windowPixels = Screen('Rect',c.screen.number); % Full screen
-            if ~isfield(c.screen,'xpixels') || isempty(c.screen.xpixels)            
+            if ~isfield(c.screen,'xpixels') || isempty(c.screen.xpixels)
                 c.screen.xpixels  = windowPixels(3)-windowPixels(1); % Width in pixels
             end
-            if ~isfield(c.screen,'ypixels') || isempty(c.screen.ypixels)  
+            if ~isfield(c.screen,'ypixels') || isempty(c.screen.ypixels)
                 c.screen.ypixels  = windowPixels(4)-windowPixels(2); % Height in pixels
             end
             
             screenPixels = Screen('GlobalRect',c.screen.number); % Full screen
-            if ~isfield(c.screen,'xorigin') || isempty(c.screen.xorigin)  
+            if ~isfield(c.screen,'xorigin') || isempty(c.screen.xorigin)
                 c.screen.xorigin = screenPixels(1);
             end
-            if ~isfield(c.screen,'yorigin') || isempty(c.screen.yorigin)  
+            if ~isfield(c.screen,'yorigin') || isempty(c.screen.yorigin)
                 c.screen.yorigin = screenPixels(2);
-            end            
+            end
             
-            if ~isfield(c.screen,'width') || isempty(c.screen.width)  
+            if ~isfield(c.screen,'width') || isempty(c.screen.width)
                 % Assuming code is in pixels
                 c.screen.width = c.screen.xpixels;
             end
-            if ~isfield(c.screen,'height') || isempty(c.screen.height)  
+            if ~isfield(c.screen,'height') || isempty(c.screen.height)
                 % Assuming code is in pixels
                 c.screen.height = c.screen.ypixels;
             end
             if ~isequal(round(c.screen.xpixels/c.screen.ypixels,2),round(c.screen.width/c.screen.height,2))
                 warning('Physical aspect ratio and Pixel aspect ration are  not the same...');
             end
-         end
+        end
         
         function v=get.defaultPluginOrder(c)
             v = [fliplr(c.stimuli) fliplr(c.plugins)];
@@ -277,12 +277,12 @@ classdef cic < neurostim.plugin
             if percError > 5
                 error('Actual frame rate doesn''t match the requested rate');
             else
-                c.screen.frameRate = 1000/frInterval;                
+                c.screen.frameRate = 1000/frInterval;
             end
             
             if ~isempty(c.pluginsByClass('gui'))
                 frInterval=Screen('GetFlipInterval',c.guiWindow)*1000;
-                 if isempty(c.guiFlipEvery)
+                if isempty(c.guiFlipEvery)
                     c.guiFlipEvery=ceil(frInterval*0.95/(1000/c.screen.frameRate));
                 elseif c.guiFlipEvery<ceil(frInterval*0.95/(1000/c.screen.frameRate));
                     error('GUI flip interval is too small; this will cause frame drops in experimental window.')
@@ -372,9 +372,9 @@ classdef cic < neurostim.plugin
             c.stimuli       = {};
             c.plugins       = {};
             c.cic           = c; % Need a reference to self to match plugins. This makes the use of functions much easier (see plugin.m)
-           
+            
             % The root directory is the directory that contains the
-            % +neurostim folder. 
+            % +neurostim folder.
             c.dirs.root     = strrep(fileparts(mfilename('fullpath')),'+neurostim','');
             c.dirs.output   = getenv('TEMP');
             
@@ -387,9 +387,9 @@ classdef cic < neurostim.plugin
             c.addProperty('trialStartTime',[],[],[],'private');
             c.addProperty('trialStopTime',[],[],[],'private');
             c.addProperty('condition',[],[],[],'private');
-            c.addProperty('block',0,[],[],'private');            
-            c.addProperty('blockTrial',0,[],[],'private');            
-            c.addProperty('trial',0,[],[],'private');            
+            c.addProperty('block',0,[],[],'private');
+            c.addProperty('blockTrial',0,[],[],'private');
+            c.addProperty('trial',0,[],[],'private');
             c.addProperty('iti',1000,[],@double); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,[],@double); % duration (ms)
             neurostim.plugins.output(c);
@@ -397,6 +397,67 @@ classdef cic < neurostim.plugin
             c.addKey('n',@keyboardResponse,'Next Trial');
         end
         
+        
+        function versionTracker(c,silent,push)
+            % Git Tracking Interface
+            %
+            % The idea:
+            % A laboratory forks the GitHub repo to add their own experiments
+            % in the experiments folder.  These additions are only tracked in the
+            % forked repo, so the central code maintainer does not have to be bothered
+            % by it. The new laboratory can still contribute to the core code, by
+            % making changes and then sending pull requests.
+            %
+            % The goal of the gitTracker is to log the state of the entire repo
+            % for a particular laboratory at the time an experiment is run. It checks
+            % whether there are any uncommitted changes, and asks/forces them to be
+            % committed before the experiment runs. The hash corresponding to the final
+            % commit is stored in the data file such that the complete code state can
+            % easily be reproduced later.
+            %
+            % BK  - Apr 2016
+           if nargin<3
+               push =false;
+               if nargin <2
+                   silent = false;
+               end
+           end
+            
+            if ~exist('git.m','file')
+                error('The gitTracker class depends on a wrapper for git that you can get from github.com/manur/MATLAB-git');
+            end
+            
+            [status,txt] = system('git --version');
+            if status==0
+                %    match = regexp(txt,'git version (?<version>\d\.\d\.\d)\w*','names');
+                %    v=match.version;
+            else
+                 error('versionTracker requires git. Please install it first.');
+            end
+                       
+            [txt,status] = git('status --porcelain');
+            changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','names');
+            nrMods= numel(changes);
+            if nrMods>0
+                disp([num2str(nrMods) ' files have changed (or need to be added). These have to be committed before running this experiment']);
+                changes.mods;
+                if silent
+                    msg = ['Silent commit  (' getenv('USER') ' before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
+                else
+                    msg = input('Code has changed. Please provide a commit message','s');
+                end
+                [txt,status]=  git(['commit -a -m ''' msg ' ('  getenv('USER') ' ) ''']);
+                if status >0
+                    txt
+                    error('File commit failed.');
+                end
+            end
+            hash = '12';
+            
+            c.addProperty('githash',hash);
+            [~,ptb] =PsychToolboxVersion;
+            c.addProperty('PTBVersion',ptb);
+        end
         function addScript(c,when, fun,keys)
             % It may sometimes be more convenient to specify a function m-file
             % as the basic control script (rather than write a plugin that does
@@ -419,7 +480,7 @@ classdef cic < neurostim.plugin
             c.add(plg);
         end
         
-             
+        
         function keyboardResponse(c,key)
             %             CIC Responses to keystrokes.
             %             q = quit experiment
@@ -474,7 +535,7 @@ classdef cic < neurostim.plugin
         end
         
         
-
+        
         
         
         function pluginOrder = order(c,varargin)
@@ -493,7 +554,7 @@ classdef cic < neurostim.plugin
                     for j = 1:nargin-1
                         a{j} = varargin{j}.name;
                     end
-                end                
+                end
                 [~,indpos]=ismember(c.pluginOrder,a);
                 reorder=c.pluginOrder(logical(indpos));
                 [~,i]=sort(indpos(indpos>0));
@@ -501,7 +562,7 @@ classdef cic < neurostim.plugin
                 neworder=cell(size(c.pluginOrder));
                 neworder(~indpos)=c.pluginOrder(~indpos);
                 neworder(logical(indpos))=reorder;
-                c.pluginOrder=neworder;                
+                c.pluginOrder=neworder;
             end
             
             if ~strcmp(c.pluginOrder(1),'gui') && any(strcmp(c.pluginOrder,'gui'))
@@ -515,7 +576,7 @@ classdef cic < neurostim.plugin
             pluginOrder = c.pluginOrder;
         end
         
-        function plgs = pluginsByClass(c,classType)            
+        function plgs = pluginsByClass(c,classType)
             %Return pointers to all active plugins of the specified class type.
             ind=1; plgs = [];
             for i=1:numel(c.plugins)
@@ -591,31 +652,31 @@ classdef cic < neurostim.plugin
             p.addParameter('nrRepeats',1,@isnumeric);
             p.addParameter('weights',[],@isnumeric);
             
-            %% First create the blocks and blockFlow 
+            %% First create the blocks and blockFlow
             isblock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
             c.blocks = [varargin{isblock}];
             args = varargin(~isblock);
             parse(p,args{:});
-           if isempty(p.Results.weights)
-            c.blockFlow.weights = ones(size(c.blocks));
-           else
-               c.blockFlow.weights = p.Results.weights;
-           end
-           c.blockFlow.nrRepeats = p.Results.nrRepeats;
-           c.blockFlow.randomization = p.Results.randomization;
-           c.blockFlow.list =neurostim.utils.repeat((1:numel(c.blocks)),c.blockFlow.weights);
-           switch(c.blockFlow.randomization)
-               case 'SEQUENTIAL'
-                     %c.blockFlow.list
+            if isempty(p.Results.weights)
+                c.blockFlow.weights = ones(size(c.blocks));
+            else
+                c.blockFlow.weights = p.Results.weights;
+            end
+            c.blockFlow.nrRepeats = p.Results.nrRepeats;
+            c.blockFlow.randomization = p.Results.randomization;
+            c.blockFlow.list =neurostim.utils.repeat((1:numel(c.blocks)),c.blockFlow.weights);
+            switch(c.blockFlow.randomization)
+                case 'SEQUENTIAL'
+                    %c.blockFlow.list
                 case 'RANDOMWITHREPLACEMENT'
-                     c.blockFlow.list =Shuffle(c.blockFlow.list);
+                    c.blockFlow.list =Shuffle(c.blockFlow.list);
                 case 'RANDOMWITHOUTREPLACEMENT'
-                     c.blockFlow.list=datasample(c.blockFlow.list,numel(c.blockFlow.list));
-           end
-           %% Then let each block set itself up
-           for blk = c.blocks
+                    c.blockFlow.list=datasample(c.blockFlow.list,numel(c.blockFlow.list));
+            end
+            %% Then let each block set itself up
+            for blk = c.blocks
                 setupExperiment(blk);
-           end
+            end
         end
         
         function beforeTrial(c)
@@ -663,14 +724,14 @@ classdef cic < neurostim.plugin
         
         %% Main function to run an experiment. All input args are passed to
         % setupExperiment.
-        function run(c,varargin)            
-             if isempty(c.subject)
-                response = input('Subject code?','s');                
-                c.subject = response;                
+        function run(c,varargin)
+            if isempty(c.subject)
+                response = input('Subject code?','s');
+                c.subject = response;
             end
-           
+            
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation, and postprocessig  will now be active
-                        
+            
             %% Set up order and event listeners
             c.order;
             c.createEventListeners;
@@ -690,7 +751,7 @@ classdef cic < neurostim.plugin
             nrBlocks = numel(c.blocks);
             for blockNr=1:nrBlocks
                 c.flags.block = true;
-                c.block = c.blockFlow.list(blockNr); % Logged.                
+                c.block = c.blockFlow.list(blockNr); % Logged.
                 
                 waitforkey=false;
                 if ~isempty(c.blocks(c.block).beforeMessage)
@@ -707,12 +768,12 @@ classdef cic < neurostim.plugin
                 c.blocks(c.block).trial=0;
                 while c.blocks(c.block).trial<c.blocks(c.block).nrTrials
                     c.trial = c.trial+1;
-                    c.blocks(c.block).trial=c.blocks(c.block).trial+1;                                       
+                    c.blocks(c.block).trial=c.blocks(c.block).trial+1;
                     c.blockTrial = c.blocks(c.block).trial; % For logging and gui only
                     beforeTrial(c);
                     notify(c,'BASEBEFORETRIAL');
                     
-                    %ITI - wait 
+                    %ITI - wait
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
@@ -724,49 +785,49 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     c.frameStart=c.clockTime;
-
+                    
                     while (c.flags.trial && c.flags.experiment)
                         c.frame = c.frame+1;
                         notify(c,'BASEBEFOREFRAME');
-
+                        
                         Screen('DrawingFinished',c.window);
                         Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
                         Screen('DrawingFinished',c.onscreenWindow);
-
+                        
                         notify(c,'BASEAFTERFRAME');
-                         
-                
-                %Check the frame rate
-%                 if c.frame ==100
-%                     c.tic;
-%                     Screen('Flip', c.onscreenWindow,0);
-%                     elapsed1 = c.toc;
-%                 end
-%                 
+                        
+                        
+                        %Check the frame rate
+                        %                 if c.frame ==100
+                        %                     c.tic;
+                        %                     Screen('Flip', c.onscreenWindow,0);
+                        %                     elapsed1 = c.toc;
+                        %                 end
+                        %
                         c.KbQueueCheck;
-     
+                        
                         
                         if c.frame > 1 && c.PROFILE
                             c.addProfile('FRAMELOOP',c.name,c.toc);
                         end
-%                       
-
-%                 %Check the frame rate
-%                 if c.frame ==100
-%                     c.tic;
-%                     Screen('Flip', c.onscreenWindow,0);
-%                     elapsed2 = c.toc;
-%                 end    
-%                 
+                        %
+                        
+                        %                 %Check the frame rate
+                        %                 if c.frame ==100
+                        %                     c.tic;
+                        %                     Screen('Flip', c.onscreenWindow,0);
+                        %                     elapsed2 = c.toc;
+                        %                 end
+                        %
                         startFlipTime = c.clockTime;
                         [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear); %#ok<ASGLU>
                         c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
                         c.tic;
                         
-                         % -----
-                         %Send any stimulus digital outs here? (i.e. if o.mccChannel has been specified)
-                         %------
-                         
+                        % -----
+                        %Send any stimulus digital outs here? (i.e. if o.mccChannel has been specified)
+                        %------
+                        
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime = stimOn*1000; % for trialDuration check
@@ -793,13 +854,13 @@ classdef cic < neurostim.plugin
                         end
                         if c.guiOn
                             if mod(c.frame,c.guiFlipEvery)==0
-                                    Screen('Flip',c.guiWindow,0,[],2);
+                                Screen('Flip',c.guiWindow,0,[],2);
                             end
                         end
                     end % Trial running
                     
-%                     writeToFeed(c,num2str(elapsed1));
-%                     writeToFeed(c,num2str(elapsed2));
+                    %                     writeToFeed(c,num2str(elapsed1));
+                    %                     writeToFeed(c,num2str(elapsed2));
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
                     Screen('FillRect',c.window,c.screen.color.background);
@@ -892,11 +953,11 @@ classdef cic < neurostim.plugin
         end
         
         function fr = ms2frames(c,ms,rounded)
-            %Set rounded to false to get number of frames as a non-integer 
+            %Set rounded to false to get number of frames as a non-integer
             if nargin<3
                 rounded=true;
-            end            
-            fr = ms.*c.screen.frameRate/1000;            
+            end
+            fr = ms.*c.screen.frameRate/1000;
             if rounded
                 fr = round(fr);
             end
@@ -925,7 +986,7 @@ classdef cic < neurostim.plugin
                 c.lastFrameDrop=c.lastFrameDrop+frames;
             end
         end
-            
+        
     end
     
     
@@ -1026,41 +1087,41 @@ classdef cic < neurostim.plugin
             
             
             if any(strcmpi(c.plugins,'gui'))%if gui is added
-                 
+                
                 guiScreen = setdiff(Screen('screens'),[c.screen.number 0]);
-            if isempty(guiScreen)
-%                    error('You need two screens to show a gui...');
-                guiScreen = 0;
-                guiRect = [800 0 1600 600];
-
-            else
-                guiRect  = Screen('GlobalRect',guiScreen);
-%                 if ~isempty(.screen.xorigin)
-%                     guiRect(1) =o.screen.xorigin;
-%                 end
-%                 if ~isempty(o.screen.yorigin)
-%                     guiRect(2) =o.screen.yorigin;
-%                 end
-%                 if ~isempty(o.screen.xpixels)
-%                     guiRect(3) =guiRect(1)+ o.screen.xpixels;
-%                 end                
-%                 if ~isempty(o.screen.ypixels)
-%                     guiRect(4) =guiRect(2)+ o.screen.ypixels;
-%                 end
-            end
-            if isempty(c.mirrorPixels)
+                if isempty(guiScreen)
+                    %                    error('You need two screens to show a gui...');
+                    guiScreen = 0;
+                    guiRect = [800 0 1600 600];
+                    
+                else
+                    guiRect  = Screen('GlobalRect',guiScreen);
+                    %                 if ~isempty(.screen.xorigin)
+                    %                     guiRect(1) =o.screen.xorigin;
+                    %                 end
+                    %                 if ~isempty(o.screen.yorigin)
+                    %                     guiRect(2) =o.screen.yorigin;
+                    %                 end
+                    %                 if ~isempty(o.screen.xpixels)
+                    %                     guiRect(3) =guiRect(1)+ o.screen.xpixels;
+                    %                 end
+                    %                 if ~isempty(o.screen.ypixels)
+                    %                     guiRect(4) =guiRect(2)+ o.screen.ypixels;
+                    %                 end
+                end
+                if isempty(c.mirrorPixels)
                     c.mirrorPixels=Screen('Rect',guiScreen);
                 end
                 c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
-                    switch upper(c.screen.colorMode)
-                        case 'XYL'
-                            PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
-                            %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
-                        case 'RGB'
-                            %                         Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                    end
-                    
-                    
+                switch upper(c.screen.colorMode)
+                    case 'XYL'
+                        PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
+                        %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                    case 'RGB'
+                        %                         Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                end
+                
+                
                 
             end
             
@@ -1071,7 +1132,7 @@ classdef cic < neurostim.plugin
         
         
         
-        end
+    end
     
     
     

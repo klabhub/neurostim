@@ -63,6 +63,7 @@ Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just
          
     case ''
         if ismac
+            
         c.screen.number = 0;
         c.screen.xpixels= [];800;
         c.screen.ypixels= [];300;
@@ -76,7 +77,7 @@ Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just
         Screen('Preference', 'SkipSyncTests', 2); 
         
         c.dirs.output = '~/temp/';
-        plugins.gitTracker(c); % Force gittracking
+        c.versionTracker; % Force tracking
         end
         
     otherwise
