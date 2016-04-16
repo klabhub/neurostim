@@ -61,7 +61,22 @@ classdef gitTracker < neurostim.plugin
             % log.
             
             [txt,status] = git('status');
-            
+            changes = regexp(txt,'(?<mods>\<modified:.+)no changes added','names');
+           nrMods = numel(strfind(txt,'modified:'));
+           
+            if nrMods>0
+                disp([num2str(nrMods) ' files have changed. These have to be committed before running this experiment']);
+                disp(changes.mods);
+                if o.silent
+                    msg = ['Silent commit before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')]);
+                else
+                    msg = input('Code has changed. Please provide a commit message','s');
+                end
+               [txt,status]=  git(['commit -a -m ''' msg '''']);
+               if status >0
+                   error('File commit failed.');
+               end
+            end
         end
     end
     
