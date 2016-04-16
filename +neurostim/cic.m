@@ -455,7 +455,7 @@ classdef cic < neurostim.plugin
             hash = '12';
             
             c.addProperty('githash',hash);
-            [~,ptb] =PsychToolboxVersion;
+            [~,ptb] =PsychtoolboxVersion;
             c.addProperty('PTBVersion',ptb);
         end
         function addScript(c,when, fun,keys)
