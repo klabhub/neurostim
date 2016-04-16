@@ -60,20 +60,20 @@ classdef gitTracker < neurostim.plugin
             % (i.e. the experiment code that actually ran) is added to the
             % log.
             
-            [txt,status] = git('status');
-            changes = regexp(txt,'(?<mods>\<modified:.+)no changes added','names');
-           nrMods = numel(strfind(txt,'modified:'));
-           
+            [txt,status] = git('status --porcelain');
+            changes = regexp([txt 10],'\s*[\w!?]{1,2}\s+(?<mods>.+)\s+\n','names');
+           nrMods = numel(strfind(txt,'modified:'));          
             if nrMods>0
                 disp([num2str(nrMods) ' files have changed. These have to be committed before running this experiment']);
                 disp(changes.mods);
                 if o.silent
-                    msg = ['Silent commit before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')]);
+                    msg = ['Silent commit  (' getenv('USER') ' before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')]);
                 else
                     msg = input('Code has changed. Please provide a commit message','s');
                 end
-               [txt,status]=  git(['commit -a -m ''' msg '''']);
+               [txt,status]=  git(['commit -a -m ''' msg ' ('  getenv('USER') ' ) ''']);
                if status >0
+                   txt
                    error('File commit failed.');
                end
             end
