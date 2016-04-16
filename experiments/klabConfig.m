@@ -60,9 +60,10 @@ Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just
         c.screen.colorMode = 'RGB';
         c.screen.frameRate=60;
 Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
-        
+         
     case ''
         if ismac
+            
         c.screen.number = 0;
         c.screen.xpixels= [];800;
         c.screen.ypixels= [];300;
@@ -76,7 +77,7 @@ Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just
         Screen('Preference', 'SkipSyncTests', 2); 
         
         c.dirs.output = '~/temp/';
-
+        c.versionTracker; % Force tracking
         end
         
     otherwise
