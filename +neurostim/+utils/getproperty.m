@@ -53,7 +53,7 @@ end
 experimentTime = time - output.events.cic{TIME,1}; % Relative to first event in CIC.
 
 
-if p.Results.onePerTrial 
+if p.Results.onePerTrial    
     ix = find(trial==0,1,'last'); % Setting before starting trial 1
     current = data(ix);    
     currentETime = experimentTime(ix);
@@ -66,6 +66,8 @@ if p.Results.onePerTrial
            currentETime = experimentTime(ix);
        elseif nrInTrial >1
            error([ eventName '  changes within a trial']);
+       elseif nrInTrial==0
+           continue;
        end
        dataPerTrial(tr) = current;
        eTimePerTrial(tr) = currentETime;
@@ -79,4 +81,4 @@ if p.Results.onePerTrial
    trialTime = timePerTrial;
 end
 
-data = matrixifpossible(data);
+%data = matrixifpossible(data);
