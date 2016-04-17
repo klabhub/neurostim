@@ -19,6 +19,7 @@ classdef factorial < dynamicprops
     % o.fac1.(stimName).(paramName) = parameters
     % To vary multiple parameters in multiple stimuli together, add them under the same factor
     % (i.e. fac1.(stimName2).(paramName2)= parameters
+    
     % Each subsequent factor should be added with an increasing number
     % (i.e. fac2, fac3).
     %
@@ -74,29 +75,19 @@ classdef factorial < dynamicprops
         end
         
         function v=get.nrLevels(o)
-            currV=[];
-            for f=1:o.nrFactors
-                field1=fieldnames(o.(['fac' num2str(f)]));
-                field1=field1(~strcmp(field1,'weights'));
-                for b=1:numel(field1)
-                    q=field1{b};
-                    field2=fieldnames(o.(['fac' num2str(f)]).(q));
-                    for c=1:numel(field2)
-                        x=field2{c};
-                        v=numel(o.(['fac' num2str(f)]).(q).(x));
-                        currV(end+1)=v; %#ok<AGROW>
-                    end
-                end
-                uV = unique(currV);
-                % The nrLevels should be the same for all parameters, except that we
-                % allow parameters to have just one value (that applies
-                % to all levels of the other parms).
-                if (numel(uV)==1 || numel(uV(uV~=1))==1)
-                    v(f)=max(uV); % Unique sorts
-                    currV=[];
-                else
-                    error('Number of levels is inconsistent.');
-                end
+            %Get the number of levels for each factor
+            for i=1:o.nrFactors
+               thisFac = (horzcat('fac',num2str(i)));
+               plugins = fieldnames(o.(thisFac));
+               plugins = setdiff(plugins,'weights');
+               
+               %Can just check first entry because all are ensured to match at the time they are set
+               if ~isempty(plugins)     %Empty only when factors are yet to be specified.
+                   props = fieldnames(o.(thisFac).(plugins{1}));
+                   v(i) = numel(o.(thisFac).(plugins{1}).(props{1}));
+               else
+                   v(i) = 0;
+               end
             end
         end
         
@@ -182,11 +173,7 @@ classdef factorial < dynamicprops
                     nrParms = numel(currSpecs)/3;
                     for p=1:nrParms
                         thisSpecs = currSpecs(3*p-2:3*p);
-                        if numel(currSpecs{3*p})==1 % Allow specifications of a single value for one property to apply to all levels of another property (i.e. scalar->vector expansion)
-                            thisSpecs(3) =currSpecs{3*p};
-                        else
-                            thisSpecs(3)= currSpecs{3*p}(subs{f});
-                        end
+                        thisSpecs(3)= currSpecs{3*p}(subs{f});
                         conditionSpecs = cat(2,conditionSpecs,thisSpecs);
                     end
                 end
@@ -221,29 +208,57 @@ classdef factorial < dynamicprops
         
         
         
-        % Postprocess the values that a property in the factorial is set
-        % to. (Allowoing users to use vectors if possible).
+        % Postprocess factorial specification to ensure validity
+        % and to allow users to use vectors, and single
+        % entries that should be used for all levels of a factor.
         % This is called in response to o.fac1.stim.prop = value
         function postSetProperty(o,src,evt)
             for f=1:o.nrFactors
+                nLevels = [];
                 plgins=fieldnames(o.(['fac' num2str(f)]));
                 plgins=plgins(~strcmpi(plgins,'weights'));
                 for plgNr=1:numel(plgins)
-                    props=fieldnames(o.(['fac' num2str(f)]).(plgins{plgNr}));
-                    for propNr=1:numel(props)
-                        values = o.(['fac' num2str(f)]).(plgins{plgNr}).(props{propNr});
-                        % All values should be cells, but to allow users to
-                        % specify vectors or scalars more easily, we
-                        % postprocess here
-                        if ~iscell(values)
-                            if ischar(values) || isscalar(values)
-                                values = {values};
-                            else
-                                values = neurostim.utils.vec2cell(values);
-                            end
-                            o.(['fac' num2str(f)]).(plgins{plgNr}).(props{propNr}) = values;
+                    thisPlugIn = o.(['fac' num2str(f)]).(plgins{plgNr});                    
+                    props=fieldnames(thisPlugIn);
+                    nLev = structfun(@numel,thisPlugIn);
+                    
+                    %Allow the user to give a single value for a property to be used for all levels of the current factor
+                    if any(nLev==1) && max(nLev) > 1
+                        
+                        %Duplicate the single value across all levels to match the other property
+                        theseProps = props(nLev==1);
+                        for i=1:numel(theseProps)
+                            thisPlugIn.(theseProps{i}) = repmat(thisPlugIn.(theseProps{i}),1,max(nLev));
                         end
                     end
+                    
+                    %Check that all properties now have the same number of levels
+                    nLev = structfun(@numel,thisPlugIn);
+                    if numel(unique(nLev))>1
+                        error('Invalid factorial specification. The number of levels must be constant across properties.');
+                    else
+                        nLevels(plgNr) = unique(nLev);
+                    end
+                    
+                    %If a vector is specified rather than a cell array, convert
+                    theseProps = props(~structfun(@iscell,thisPlugIn));
+                    for i=1:numel(theseProps)
+                        values = thisPlugIn.(theseProps{i});
+                        if ischar(values) || isscalar(values)
+                            values = {values};
+                        else
+                            values = neurostim.utils.vec2cell(values);
+                        end
+                        thisPlugIn.(theseProps{i}) = values;
+                    end
+                    
+                    %All done. Use this structure
+                    o.(['fac' num2str(f)]).(plgins{plgNr}) = thisPlugIn;
+                end
+                
+                %Check that number of levels match across plugins
+                if numel(unique(nLevels))>1
+                    error('Invalid factorial specification. The number of levels is inconsistent across plugins.');
                 end
             end
         end

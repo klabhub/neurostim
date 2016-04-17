@@ -134,6 +134,7 @@ classdef block < dynamicprops
             for r=1:o.nrRepeats
                 for f=1:o.nrFactorials
                     tmp=[];
+                    thisList = [];
                     for i=1:o.weights(f)
                         tmp = [tmp o.factorials(f).list]; %#ok<AGROW>
                     end

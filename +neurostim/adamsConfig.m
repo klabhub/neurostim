@@ -25,8 +25,8 @@ switch computerName
         opts.eyeTracker = true;
     case 'MOBOT'
         %Home
-        c.screen.xpixels  = 1920;
-        c.screen.ypixels  = 1200;
+        c.screen.xpixels  = 1920/4;
+        c.screen.ypixels  = 1200/4;
         c.screen.frameRate=60;
         c.screen.width= 42;
         c.screen.number = 0;

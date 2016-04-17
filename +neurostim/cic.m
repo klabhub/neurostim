@@ -333,7 +333,7 @@ classdef cic < neurostim.plugin
         end
         
         function out=collectPropMessage(c)
-            out='\n';
+            out='\n======================\n';
             for i=1:numel(c.propsToInform)
                 str=strsplit(c.propsToInform{i},'/');
                 for j=1:numel(str)
@@ -678,7 +678,7 @@ classdef cic < neurostim.plugin
             
             % %Setup PTB
             PsychImaging(c);
-            c.KbQueueCreate;
+             c.KbQueueCreate;
             c.KbQueueStart;
             c.checkFrameRate;
             %% Start preparation in all plugins.
@@ -911,7 +911,7 @@ classdef cic < neurostim.plugin
             if c.guiOn
                 c.gui.writeToFeed(message);
             else
-                message=[num2str(c.trial) ': ' message '\n'];
+                message=horzcat('\n',num2str(c.trial), ': ', message, '\n');
                 fprintf(message);
             end
         end
