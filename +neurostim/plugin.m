@@ -15,7 +15,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     events
-        BEFOREFRAME;
+        BEFOREFRAME;    
         AFTERFRAME;    
         BEFORETRIAL;
         AFTERTRIAL;    
@@ -42,6 +42,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     methods (Access=public)
         function o=plugin(c,n)
             % Create a named plugin
+            if ~isvarname(n)
+                error('Stimulus and plugin names must be valid Matlab variable names');
+            end
             o.name = n;
             % Initialize an empty log.
             o.log(1).parms  = {};
@@ -159,7 +162,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             h.GetObservable =true;
             % Parse the specified function and make it into an anonymous
             % function.  
-            fun = neurostim.str2fun(funcstring);
+            fun = neurostim.utils.str2fun(funcstring);
             % Assign the  function to be the PreGet function; it will be
             % called everytime a client requests the value of this
             % property.
@@ -275,20 +278,23 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % to addProperty.
         function evalParmGet(o,src,evt,fun)            
             srcName=src.Name;
+                
             oldValue = o.(srcName);            
+           
             if ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
                 value=fun(o);
+                % Check if changed, assign and log if needed.
+                if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+                        || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
+                    o.(srcName) = value; % This calls PostSet and logs the new value
+                end
             else
                 % Not all objects have been setup so function may not work
                 % yet. Evaluate to NaN for now; validation is disabled for
                 % now.
-                value = NaN; 
-            end            
-            % Check if changed, assign and log if needed.
-            if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
-                    || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
-                o.(srcName) = value; % This calls PostSet and logs the new value
-            end
+                %value = NaN; 
+            end   
+            
         end                      
     end
     

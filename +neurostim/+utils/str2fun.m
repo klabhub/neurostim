@@ -11,13 +11,19 @@ elseif ~isempty(str) && strcmpi(str(1),'@')
     % Replace stim.size with this.cic.stim.size to allow indirection
     % through cic (assuming that in x.y x always refers to a
     % plugin/stimulus
-    funStr = ['@(this) (' regexprep(str(2:end),'(?<plgin>\<\w+\.)','this.cic.$0') ')'];
+    % The tricky thing is to exclude all characters that cannot be the
+    % start of the name of an object. We could add some sanity check here
+    % that when xxx.y is replaced with this.cic.xxx.y that xxx is actually
+    % a plugin/stimulus.
+    funStr = ['@(this) (' regexprep(str(2:end),'(?<plgin>\<[^\d,\[\(\]\)\+-\*\\/~]\w*\.)','this.cic.$0') ')'];
     
     % Assignments a=b are not allowed in function handles. (Not sure why). 
-    % Replaceit with set(a,b);
-       
+    % Replaceit with set(a,b);       
     funStr = regexprep(funStr,'(?<plgin>this.cic.\w+)\.(?<param>\<\w+)\s*=\s*(?<value>\w+)','setProperty($1,''$2'',$3)');
-    
+
+    % Make sure the iff function is found inside the utils package.`
+    funStr = regexprep(funStr,'\<iff\(','neurostim.utils.iff(');    
+
     % Now evaluate the string to create the function    
     try 
         f= eval(funStr);
@@ -30,5 +36,4 @@ elseif isempty(str)
 else
     error('Cannot parse function definition?');
 end
-
 end

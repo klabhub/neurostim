@@ -21,11 +21,16 @@ classdef behavior < neurostim.plugin
     
     properties (Dependent)
         enabled;
+        time;
     end
     
     methods
         function v= get.enabled(o)
             v = (o.cic.trialTime >= o.on) && (o.cic.trialTime <= (o.on + o.duration));
+        end
+        
+        function v=get.time(o)
+            v = o.cic.trialTime - o.startTime;
         end
     end
     

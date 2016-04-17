@@ -15,7 +15,7 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = adamsConfig;                            % Create Command and Intelligence Center...
+c = bkConfig;                            % Create Command and Intelligence Center...
  
 %plugins.gui(c);         % Show a gui (dual screens only)
 
@@ -42,12 +42,13 @@ g2.duration         = 500;                  % Show test for 500 ms
 
 % Convpoly to create a dimming task
 circle = stimuli.convPoly(c,'dimmer');
-circle.radius = 3;
-circle.X = 0;
-circle.Y = 0;
-circle.nSides = 100;
-circle.filled = true;
-circle.color = [0.5 0.5 0.5 0.5];
+circle.radius       = '@testGabor.sigma';
+circle.X            = 0;
+circle.Y            = 0;
+circle.nSides       = 100;
+circle.filled       = true;
+circle.color        = '@[0.5 0.5 0.5 0.8*randi(60)>35]';
+circle.on           = '@adapt.on';
 
 
 
@@ -56,7 +57,7 @@ circle.color = [0.5 0.5 0.5 0.5];
 f = stimuli.fixation(c,'reddot');       % Add a fixation point stimulus
 f.color             = [1 0 0];
 f.shape             = 'CIRC';           % Shape of the fixation point
-f.size              = 0.25;
+f.size              = 0.1;
 f.X                 = 0;
 f.Y                 = 0;
 f.on                = 0;                % On from the start of the trial
@@ -111,7 +112,7 @@ ccwBlock.nrRepeats = 10;
 % Now we define a "block" consisting of a single condition: the long
 % adapter. 
 longCwFac=factorial('longAdaptCw',1);  % Define a factorial with a single factor 
-longCwFac.fac1.adapt.duration =         30000;  % Adapter duration  - single condition
+longCwFac.fac1.adapt.duration =         10000;  % Adapter duration  - single condition
 longCwFac.fac1.adapt.orientation =      70;  % Adapter orientation 
 longCwBlock = block('longAdaptCw',longCwFac);
 longCwBlock.nrRepeats = 1;              % We'll only show this condition once. 
