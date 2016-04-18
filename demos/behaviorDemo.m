@@ -44,8 +44,8 @@ d.X = '@fix.X';                 %Parameters can be set to arbitrary, dynamic fun
 d.Y = '@fix.Y';                 %Here, wherever the fixation point goes, so too will the dots, even if it changes in real-time.       
 d.on = '@f1.startTime+500';     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
 d.duration = 1000;
-d.color = [0.3 0.3 0.3];
-d.size = 4;
+d.color = [1 1 1];
+d.size = 2;
 d.nrDots = 200;
 d.maxRadius = 5;
 d.lifetime = Inf;
@@ -92,7 +92,6 @@ myBlock=block('myBlock',myFac);             %Create a block of trials using the 
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
-c.cursor = 'arrow';
 c.order('sound','fix','dots','f1','choice','liquid','soundFeedback','Eyelink','gui');   %Ignore this for now - we hope to remove the need for this.
 c.subject = 'trump';
 c.run(myBlock);

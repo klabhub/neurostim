@@ -26,7 +26,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     end
     
     properties
-        doTrackerSetup@logical  = false;  % Do it before the next trial
+        doTrackerSetup@logical  = true;  % Do it before the next trial
         doDriftCorrect@logical  = false;  % Do it before the next trial
     end
 
