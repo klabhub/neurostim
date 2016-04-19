@@ -583,7 +583,7 @@ classdef cic < neurostim.plugin
             ind=1; plgs = [];
             for i=1:numel(c.plugins)
                 thisPlg = c.(c.plugins{i});
-                if isa(thisPlg,horzcat('neurostim.plugins.',classType));
+                if isa(thisPlg,horzcat('neurostim.plugins.',lower(classType)));
                     plgs{ind} = thisPlg;
                     ind=ind+1;
                 end

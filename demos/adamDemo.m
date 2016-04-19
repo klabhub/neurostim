@@ -18,15 +18,7 @@ commandwindow;
 %% ========= Specify rig configuration  =========
 
 %Create a CIC object. Here the cic is returned with some default settings intitialised for Adam's rigs.
-[c,opts] = adamsConfig;
-
-%Track gaze position
-if opts.eyeTracker
-    e = neurostim.plugins.eyelink(c);         %Use real eye tracker. Must be connected.
-else
-    e = neurostim.plugins.eyetracker(c);      %If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
-    e.useMouse = true;
-end
+c = adamsConfig;
 
 %% ============== Add stimuli ==================
 
@@ -44,7 +36,7 @@ d.X = '@fix.X';                 %Parameters can be set to arbitrary, dynamic fun
 d.Y = '@fix.Y';                 %Here, wherever the fixation point goes, so too will the dots, even if it changes in real-time.       
 d.on = '@f1.startTime+500';     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
 d.duration = 1000;
-d.color = [0.3 0.3 0.3];
+d.color = [1 1 1];
 d.size = 4;
 d.nrDots = 200;
 d.maxRadius = 5;
