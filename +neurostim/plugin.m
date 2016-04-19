@@ -15,10 +15,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     events
-        BEFOREFRAME;    
-        AFTERFRAME;    
+        BEFOREFRAME;
+        AFTERFRAME;
         BEFORETRIAL;
-        AFTERTRIAL;    
+        AFTERTRIAL;
         BEFOREEXPERIMENT;
         AFTEREXPERIMENT;
     end
@@ -36,7 +36,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     properties (Access = private)
-        listenerHandle = struct;
+        
     end
     
     methods (Access=public)
@@ -68,12 +68,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % this evaluates the function attached.
             
             if any(strcmpi(key,fieldnames(o.keyFunc)))
-               o.keyFunc.(key)(o,key);
+                o.keyFunc.(key)(o,key);
             end
             
         end
         
-
+        
         
         function success=addKey(o,key,fnHandle,varargin)
             % addKey(key, fnHandle [,keyHelp])
@@ -108,17 +108,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
         end
         
-        function ok = setProperty(o,prop,value)            
-            o.(prop) =value;
-            ok = true;
-        end
     end
     
-
+    
     
     % Only the (derived) class designer should have access to these
     % methods.
-    methods (Access = protected, Sealed)        
+    methods (Access = protected, Sealed)
         function s= copyElement(o,name)
             % This protected function is called from the public (sealed)
             % copy member of matlab.mixin.Copyable. We overload it here to
@@ -138,38 +134,32 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             s.name=name;
             for p=1:numel(dynProps)
                 pName = dynProps{p};
-                s.addProperty(pName,o.(pName)); 
+                s.addProperty(pName,o.(pName));
                 % Because the dynprops are added to the copy here, their PostSet and PreGet listeners are setup appropriately.
             end
             o.cic.add(s);
         end
         
-        % Define a property as a function of some other property.
+        % Define a property as a function of sme other property.
         % This function is called at the initial logParmSet of a parameter.
         % funcstring is the function definition. It is a string which
-        % references a stimulus/plugin by its assigned name and reuses that 
-        % property name if it uses an object/variable of that property. e.g. 
+        % references a stimulus/plugin by its assigned name and reuses that
+        % property name if it uses an object/variable of that property. e.g.
         % dots.size='@ sin(cic.frame)' or
         % fixation.X='@ dots.X + 1' or
         % fixation.color='@ cic.screen.color.background'
         % % The @ sign should be the first character in the string.
         function setupFunction(o,prop,funcstring)
             h=findprop(o,prop);
-            listenprop=prop;
             if isempty(h)
                 o.cic.error('STOPEXPERIMENT',[prop ' is not a property of ' o.name '. Add it first']);
             end
             h.GetObservable =true;
             % Parse the specified function and make it into an anonymous
-            % function.  
-            fun = neurostim.utils.str2fun(funcstring);
-            % Assign the  function to be the PreGet function; it will be
-            % called everytime a client requests the value of this
-            % property.
-            o.listenerHandle.preGet.(prop) = o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,fun));            
+            % function.
         end
         
-       
+        
         
         % Add properties that will be time-logged automatically, fun
         % is an optional argument that can be used to modify the parameter
@@ -197,46 +187,55 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 end
             end
             % Setup a listener for logging, validation, and postprocessing
-            o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
+            o.addlistener(prop,'PostSet',@(src,evt) postSetProperty(o,src,evt,postprocess,validate));
             o.(prop) = value; % Set it, this will call the logParmSet function now.
-            h.GetAccess=GetAccess;
-            h.SetAccess=SetAccess;
+            h.GetAccess= GetAccess;
+            h.SetAccess= SetAccess;
         end
         
-
         
         % For properties that have been added already, you cannot call addProperty again
         % (to prevent duplication and enforce name space consistency)
         % But the user may want to add a postprocessor to a built in property like
-        % X. This function does exactly that
-        function addPostSet(o,prop,postprocess,validate)            
-            if nargin <4
-                validate = '';
-            end
-            h =findprop(o,prop);
-            if isempty(h)
-                error([prop ' is not a property of ' o.name '. Add it first']);
-            end
-            o.listenerHandle.(prop) = o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
-            o.(prop) = o.(prop); % Force a call to the postprocessor.
-        end
-        
-        function removeListener(o,prop)
-            delete(o.listenerHandle.(prop));
-        end
+        % X. This function does that
+        %         function addPostSet(o,prop,postprocess,validate)
+        %             if nargin <4
+        %                 validate = '';
+        %             end
+        %             h =findprop(o,prop);
+        %             if isempty(h)
+        %                 error([prop ' is not a property of ' o.name '. Add it first']);
+        %             end
+        %            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
+        %             o.(prop) = o.(prop); % Force a call to the postprocessor.
+        %         end
+        %
         
         % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
-        function logParmSet(o,src,evt,postprocess,validate)
-            if ~strcmpi(o.name,evt.AffectedObject.name)
-                disp '1'
+        function postSetProperty(o,src,evt,postprocess,validate)
+            prop = src.Name;
+            if src.GetObservable
+                % Matlab no longer provides access to the raw new value in
+                % the postSet event. So we cannot use that to update the
+                % function. Just throw an error (until we can fix this).
+                % There is one hacked solution that could make this
+                % possible: write preGetProperty to return a struct that
+                % contains both he function and the value, then we can
+                % check that here... Seems a lot of overhead for something
+                % that is probably just an error.
+                error(['The ' prop ' property in ' o.name ' cannot be changed (it''s a function)']);
             end
-            srcName=src.Name;
-            value = o.(srcName); % The raw value that has just been set
+            value  = o.(prop);% The value that was just set (or the outcome of the function; which causes the problem above).
+            
             %if this is a function, add a listener
-            if ~isempty(value) && strcmpi(value(1),'@') %%ischar(value) && any(regexp(value,'@\((\w*)*'))
-                setupFunction(o,srcName,value);
-                value=o.(srcName);
+            if strncmpi(value,'@',1)
+                fun = neurostim.utils.str2fun(value);
+                % Assign the  function to be the PreGet function; it will be
+                % called everytime a client requests the value of this
+                % property.
+                src.GetObservable = true;
+                o.addlistener(prop,'PreGet',@(src,evt) preGetProperty(o,src,evt,fun));
                 if isempty(o.cic) || o.cic.stage <= o.cic.SETUP
                     % Validation and postprocessing doesn't necessarily
                     % work yet because not all objects that this property
@@ -245,21 +244,24 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     postprocess = '';
                 end
             end
-                                        
+            
             if  nargin >=5 && ~isempty(validate)
                 success = validate(value);
                 if ~success
-                    error(['Setting ' srcName ' failed validation ' func2str(validate)]);
+                    error(['Setting ' prop ' failed validation ' func2str(validate)]);
                 end
             end
+            
             if nargin>=4 && ~isempty(postprocess)
                 % This re-sets the value to something else.
                 % Matlab is clever enough not to
                 % generate another postSet event.
-                o.(srcName) = postprocess(o,value);
+                value  = postprocess(o,value);
             end
-             o.addToLog(srcName,value);
+            o.(prop) = value; % This won't call post set again (non-recursive)
+            addToLog(o,prop,value);
         end
+        
         
         % Protected access to logging
         function addToLog(o,name,value)
@@ -276,26 +278,25 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
-        function evalParmGet(o,src,evt,fun)            
-            srcName=src.Name;
-                
-            oldValue = o.(srcName);            
-           
-            if ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
+        function preGetProperty(o,src,evt,fun)
+            prop=src.Name;
+            oldValue = o.(prop);
+            disp('todo')
+            if true || ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
                 value=fun(o);
                 % Check if changed, assign and log if needed.
                 if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
-                        || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
-                    o.(srcName) = value; % This calls PostSet and logs the new value
+                        || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
+                    o.(prop) = value; % This calls PostSet and logs the new value
                 end
             else
                 % Not all objects have been setup so function may not work
                 % yet. Evaluate to NaN for now; validation is disabled for
                 % now.
-                %value = NaN; 
-            end   
+                %value = NaN;
+            end
             
-        end                      
+        end
     end
     
     % Convenience wrapper functions to pass the buck to CIC
@@ -340,7 +341,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 KbQueueCreate(cicref);
                 KbQueueStart(cicref);
             end
-                    
+            
             
             if ~isempty(keys)
                 o.keyStrokes= cat(2,o.keyStrokes,keys);
@@ -371,19 +372,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             if ~strcmp(tmp{1},tmp{2}) && ~strcmpi(tmp{2},'addScript')
                 error('Cannot create event listener outside constructor.')
             else
-            if ischar(evts);evts= {evts};end
-            if isempty(evts)
-                o.evts = {};
-            else
-                o.evts = union(o.evts,evts)';    %Only adds if not already listed.
-            end
+                if ischar(evts);evts= {evts};end
+                if isempty(evts)
+                    o.evts = {};
+                else
+                    o.evts = union(o.evts,evts)';    %Only adds if not already listed.
+                end
             end
         end
         
     end
     
     methods (Access = public)
-
+        
         function baseEvents(o,c,evt)
             if c.PROFILE;ticTime = c.clockTime;end
             
