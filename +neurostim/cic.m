@@ -1,8 +1,6 @@
 % Command and Intelligence Center for Neurostim using PsychToolBox.
 % See demos directory for examples
 %  BK, AM, TK, 2015
-
-
 classdef cic < neurostim.plugin
     %% Events
     % All communication with plugins is through events. CIC generates events
@@ -345,15 +343,15 @@ classdef cic < neurostim.plugin
                     end
                     if numel(str)>1
                         if j==1
-                            out=[out c.propsToInform{i} ': ' tmp];
+                            out=[out c.propsToInform{i} ': ' tmp]; %#ok<AGROW>
                         else
-                            out=[out '/' tmp];
+                            out=[out '/' tmp];%#ok<AGROW>
                         end
                     else
-                        out = [out c.propsToInform{i} ': ' tmp];
+                        out = [out c.propsToInform{i} ': ' tmp]; %#ok<AGROW>
                     end
                 end
-                out=[out '\n'];
+                out=[out '\n']; %#ok<AGROW>
             end
         end
     end
@@ -398,7 +396,7 @@ classdef cic < neurostim.plugin
         end
         
         
-        function versionTracker(c,silent,push)
+        function versionTracker(c,silent,push) %#ok<INUSD>
             % Git Tracking Interface
             %
             % The idea:
@@ -416,26 +414,23 @@ classdef cic < neurostim.plugin
             % easily be reproduced later.
             %
             % BK  - Apr 2016
-           if nargin<3
-               push =false;
-               if nargin <2
-                   silent = false;
-               end
-           end
+            if nargin<3
+                push =false;
+                if nargin <2
+                    silent = false;
+                end
+            end
             
             if ~exist('git.m','file')
                 error('The gitTracker class depends on a wrapper for git that you can get from github.com/manur/MATLAB-git');
             end
             
-            [status,txt] = system('git --version');
-            if status==0
-                %    match = regexp(txt,'git version (?<version>\d\.\d\.\d)\w*','names');
-                %    v=match.version;
-            else
-                 error('versionTracker requires git. Please install it first.');
+            [status] = system('git --version');
+            if status~=0
+                error('versionTracker requires git. Please install it first.');
             end
-                       
-            [txt,status] = git('status --porcelain');
+            
+            [txt] = git('status --porcelain');
             changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','names');
             nrMods= numel(changes);
             if nrMods>0
@@ -448,14 +443,14 @@ classdef cic < neurostim.plugin
                 end
                 [txt,status]=  git(['commit -a -m ''' msg ' ('  getenv('USER') ' ) ''']);
                 if status >0
-                    txt
+                    disp(txt);
                     error('File commit failed.');
                 end
             end
             
             %% now read the commit id
             txt = git('show -s');
-            hash = regexp(txt,'commit (?<id>[\w]+)\n','names');           
+            hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
             c.addProperty('githash',hash.id);
             [~,ptb] =PsychtoolboxVersion;
             c.addProperty('PTBVersion',ptb);
@@ -554,7 +549,7 @@ classdef cic < neurostim.plugin
                     a = varargin;
                 else
                     for j = 1:nargin-1
-                        a{j} = varargin{j}.name;
+                        a{j} = varargin{j}.name; %#ok<AGROW>
                     end
                 end
                 [~,indpos]=ismember(c.pluginOrder,a);
@@ -900,7 +895,7 @@ classdef cic < neurostim.plugin
             if c.PROFILE; report(c);end
         end
         
-        function delete(c)
+        function delete(c)%#ok<INUSD>
             %Destructor. Release all resources. Maybe more to add here?
             Screen('CloseAll');
         end
@@ -1020,7 +1015,7 @@ classdef cic < neurostim.plugin
         end
         
         function KbQueueCheck(c)
-            [pressed, firstPress, firstRelease, lastPress, lastRelease]= KbQueueCheck(c.keyDeviceIndex);
+            [pressed, firstPress, firstRelease, lastPress, lastRelease]= KbQueueCheck(c.keyDeviceIndex);%#ok<ASGLU>
             if pressed
                 % Some key was pressed, pass it to the plugin that wants
                 % it.
@@ -1146,17 +1141,17 @@ classdef cic < neurostim.plugin
     
     methods
         function report(c)
-            plugins = fieldnames(c.profile);
-            for i=1:numel(plugins)
-                figure('Name',plugins{i});
+            plgns = fieldnames(c.profile);
+            for i=1:numel(plgns)
+                figure('Name',plgns{i});
                 
-                items = fieldnames(c.profile.(plugins{i}));
+                items = fieldnames(c.profile.(plgns{i}));
                 nPlots = numel(items);
                 nPerRow = ceil(sqrt(nPlots));
                 
                 for j=1:nPlots
                     subplot(nPerRow,nPerRow,j);
-                    vals = c.profile.(plugins{i}).(items{j});
+                    vals = c.profile.(plgns{i}).(items{j});
                     hist(vals,100);
                     xlabel 'Time (ms)'; ylabel '#'
                     title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(vals),2))));

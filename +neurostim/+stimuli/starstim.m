@@ -44,6 +44,13 @@ classdef starstim < neurostim.stimulus
            o.addProperty('template',tmplate,@ischar,[],'protected');
            o.addProperty('fake',fake,@islogical,[],'protected');
            o.addProperty('z',NaN,@isnumeric,[],'protected');
+           o.addProperty('channel',[],@isnumeric);
+           o.addProperty('startTime',[],@isnumeric);
+           o.addProperty('duration',[],@isnumeric);
+           o.addProperty('amplitude',[],@isnumeric);
+           o.addProperty('transition',[],@isnumeric);
+           o.addProperty('frequency',[],@isnumeric);
+           
            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME'});
 
         end
@@ -66,6 +73,8 @@ classdef starstim < neurostim.stimulus
                 o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
                 delete(timrs)
             end
+            
+            impedance(o); % Measure starting impedance.
         end
 
         
@@ -80,10 +89,19 @@ classdef starstim < neurostim.stimulus
                 stop(o);
             end
             
+            impedance(o); % Measure Z after experiment.
             
             
         end
-        
+
+        function beforeFrame(o,c,evt)
+            startNow = o.startTime >= 
+            
+        end
+    end
+    
+    
+    methods (Access=protected)
         function tacs(o,amplitude,channel,transition,duration,frequency)
             % function tacs(o,amplitude,channel,transition,duration,frequency)
             % Apply tACS at a given amplitude, channel, frequency. The current is ramped
@@ -157,8 +175,6 @@ classdef starstim < neurostim.stimulus
             o.z = impedance;  % Update the impedance.          
         end
         
-    end
-    methods (Access= protected)
         function checkRet(o,ret,msg)
             % Check a return value and display a message if something is
             % wrong.

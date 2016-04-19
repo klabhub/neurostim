@@ -33,6 +33,10 @@ flicker.color        = '@[1 1 1 (0.5*sin(2*pi*(fixation.time-250)*flicker.userDa
 flicker.on           = '@fixation.startTime+250';
 
 
+stim = stimuli.starstim(c,'stim');
+stim.fake           = true;
+stim.host           = 'localhost';
+stim.template       = 'steadystate';
 
 
 % Red fixation point
