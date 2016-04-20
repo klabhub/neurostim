@@ -1,4 +1,7 @@
 classdef questResponder < neurostim.plugin;
+    % TODO
+    
+    
     properties
         simulatedThreshold = [-2 -3 -1 -0.5];
         simulate = true; % Simulate responses

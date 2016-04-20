@@ -26,16 +26,16 @@ classdef gabor < neurostim.stimulus
             %% Base Teture parameters, see CreateProceduralGabor.m for details
             % No need to change unless you want to save texture memory and draw
             % only small Gabors.
-            o.addProperty('width',10,'',@isnumeric);
-            o.addProperty('height',10,'',@isnumeric);
+            o.addProperty('width',10,'validate',@isnumeric);
+            o.addProperty('height',10,'validate',@isnumeric);
             
             %%  Gabor parameters
-            o.addProperty('orientation',0,[],@isnumeric);
-            o.addProperty('contrast',1,[],@isnumeric);
-            o.addProperty('phase',0,[],@isnumeric);
-            o.addProperty('frequency',0.05,[],@isnumeric);
-            o.addProperty('sigma',1,[],@isnumeric); % [Inner Outer] or  [Outer]
-            o.addProperty('mask','Gauss','',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));
+            o.addProperty('orientation',0,'validate',@isnumeric);
+            o.addProperty('contrast',1,'validate',@isnumeric);
+            o.addProperty('phase',0,'validate',@isnumeric);
+            o.addProperty('frequency',0.05,'validate',@isnumeric);
+            o.addProperty('sigma',1,'validate',@isnumeric); % [Inner Outer] or  [Outer]
+            o.addProperty('mask','Gauss','validate',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));
             
             %% Motion
             o.addProperty('phaseSpeed',0);

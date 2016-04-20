@@ -8,10 +8,10 @@ classdef fixate < neurostim.plugins.behavior
    methods
        function o=fixate(c,name)
            o=o@neurostim.plugins.behavior(c,name);
-           o.addProperty('X',0,[],@isnumeric);                 %X,Y,Z - the position of a target for the behaviour (e.g. fixation point)
-           o.addProperty('Y',0,[],@isnumeric);
-           o.addProperty('Z',0,[],@isnumeric);
-           o.addProperty('tolerance',1,[],@isnumeric);
+           o.addProperty('X',0,'validate',@isnumeric);                 %X,Y,Z - the position of a target for the behaviour (e.g. fixation point)
+           o.addProperty('Y',0,'validate',@isnumeric);
+           o.addProperty('Z',0,'validate',@isnumeric);
+           o.addProperty('tolerance',1,'validate',@isnumeric);
            o.continuous = true;
            if isfield(c,'eye')
                warning(c,'No eye data in CIC. This behavior control is unlikely to work');

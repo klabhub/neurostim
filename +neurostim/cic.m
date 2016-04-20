@@ -221,7 +221,7 @@ classdef cic < neurostim.plugin
         
         function setupScreen(c,value)
             if isempty(c.screen.number)
-                value.number = max(Screen('screens'));
+                value.number = max(Screen('screens',1));
             end
             
             windowPixels = Screen('Rect',c.screen.number); % Full screen
@@ -381,15 +381,15 @@ classdef cic < neurostim.plugin
             c.allKeyStrokes = [];
             c.allKeyHelp  = {};
             % Keys handled by CIC
-            c.addProperty('frameDrop',[],[],[],'private');
-            c.addProperty('trialStartTime',[],[],[],'private');
-            c.addProperty('trialStopTime',[],[],[],'private');
-            c.addProperty('condition',[],[],[],'private');
-            c.addProperty('block',0,[],[],'private');
-            c.addProperty('blockTrial',0,[],[],'private');
-            c.addProperty('trial',0,[],[],'private');
-            c.addProperty('iti',1000,[],@double); %inter-trial interval (ms)
-            c.addProperty('trialDuration',1000,[],@double); % duration (ms)
+            c.addProperty('frameDrop',[],'SetAccess','protected');
+            c.addProperty('trialStartTime',[],'SetAccess','protected');
+            c.addProperty('trialStopTime',[],'SetAccess','protected');
+            c.addProperty('condition',[],'SetAccess','protected');
+            c.addProperty('block',0,'SetAccess','protected');
+            c.addProperty('blockTrial',0,'SetAccess','protected');
+            c.addProperty('trial',0,'SetAccess','protected');
+            c.addProperty('iti',1000,'validate',@double); %inter-trial interval (ms)
+            c.addProperty('trialDuration',1000,'validate',@double); % duration (ms)
             neurostim.plugins.output(c);
             c.addKey('ESCAPE',@keyboardResponse,'Quit');
             c.addKey('n',@keyboardResponse,'Next Trial');
@@ -468,13 +468,10 @@ classdef cic < neurostim.plugin
             if ismember('eScript',c.plugins)
                 plg = c.eScript;
             else
-                plg = neurostim.plugins.eScript;
+                plg = neurostim.plugins.eScript(c);
                 
             end
-            plg.addScript(when,fun,keys);
-            % Add or update the plugin (must call after adding script
-            % so that all events are listened to
-            c.add(plg);
+            plg.addScript(when,fun,keys);         
         end
         
         

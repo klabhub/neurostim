@@ -47,8 +47,8 @@ circle.X            = 0;
 circle.Y            = 0;
 circle.nSides       = 100;
 circle.filled       = true;
-circle.color        = '@[0.5 0.5 0.5 0.8*randi(60)>35]';
-circle.on           = '@adapt.on';
+circle.color        = 0;'@[0.5 0.5 0.5 0.8*randi(60)>35]';
+circle.on           = Inf;'@adapt.on';
 
 
 

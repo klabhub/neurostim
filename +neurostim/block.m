@@ -103,10 +103,16 @@ classdef block < dynamicprops
     
     
     methods
+        
+        
         % Constructor
         function o=block(name,varargin)
             o.name=name;
             o.factorials=[varargin{:}];
+        end
+        
+        function disp(o)
+            disp([o.name ': block with ' num2str(numel(o.factorials)) ' factorials']); 
         end
         
         % Return the specs (a cell array) of the current condition
@@ -155,9 +161,9 @@ classdef block < dynamicprops
                 case 'SEQUENTIAL'
                     % This makes most sense?
                 case 'RANDOMWITHOUTREPLACEMENT'
-                    o.list =Shuffle(o.list);
+                    o.list =Shuffle(o.list',2)';
                 case 'RANDOMWITHREPLACEMENT'
-                    o.list=datasample(o.list,numel(o.list));
+                    o.list=datasample(o.list',size(o.list,2))';
             end
         end
     end    
