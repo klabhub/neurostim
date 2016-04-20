@@ -234,10 +234,11 @@ classdef factorial < dynamicprops
                     
                     %Check that all properties now have the same number of levels
                     nLev = structfun(@numel,thisPlugIn);
-                    if numel(unique(nLev))>1
+                    uLev = unique(nLev);
+                    if sum(uLev>1)>1
                         error('Invalid factorial specification. The number of levels must be constant across properties.');
                     else
-                        nLevels(plgNr) = unique(nLev);
+                        nLevels(plgNr) = max(uLev);
                     end
                     
                     %If a vector is specified rather than a cell array, convert
@@ -257,7 +258,9 @@ classdef factorial < dynamicprops
                 end
                 
                 %Check that number of levels match across plugins
-                if numel(unique(nLevels))>1
+                uLevs = unique(nLevels);
+                
+                if sum(uLevs>1)>1 
                     error('Invalid factorial specification. The number of levels is inconsistent across plugins.');
                 end
             end
