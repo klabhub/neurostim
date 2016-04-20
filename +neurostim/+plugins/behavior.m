@@ -11,13 +11,8 @@ classdef behavior < neurostim.plugin
     
     properties (SetAccess=protected)
         started = false;
-
     end
     
-    properties (SetObservable=true,GetObservable=true,AbortSet)
-        inProgress@logical = false;
-        done@logical=false;
-    end
     
     properties (Dependent)
         enabled;
@@ -39,20 +34,20 @@ classdef behavior < neurostim.plugin
             o = o@neurostim.plugin(c,name);
             
             %User settable
-            o.addProperty('on',0,[],@isnumeric);                %The time the plugin should begin sampling behavior
-            o.addProperty('duration',Inf,[],@isnumeric);        %The time the plugin should stop sampling behavior
-            o.addProperty('continuous',false,[],@islogical);    %Behaviour continues over an interval of time (as opposed to one-shot behavior).
-            o.addProperty('from',Inf,[],@isnumeric);            %The time from which the behaviour *must* be satisfied (for continuous)
-            o.addProperty('to',Inf,[],@isnumeric);              %The time to which the behaviour *must* be satisfied (for continuous).
-            o.addProperty('deadline',Inf,[],@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
+            o.addProperty('on',0,'validate',@isnumeric);                %The time the plugin should begin sampling behavior
+            o.addProperty('duration',Inf,'validate',@isnumeric);        %The time the plugin should stop sampling behavior
+            o.addProperty('continuous',false,'validate',@islogical);    %Behaviour continues over an interval of time (as opposed to one-shot behavior).
+            o.addProperty('from',Inf,'validate',@isnumeric);            %The time from which the behaviour *must* be satisfied (for continuous)
+            o.addProperty('to',Inf,'validate',@isnumeric);              %The time to which the behaviour *must* be satisfied (for continuous).
+            o.addProperty('deadline',Inf,'validate',@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
             
             %Internal
-            o.addProperty('startTime',Inf);                     %The time at which the behaviour was initiated (i.e. in progress).
-            o.addProperty('stopTime',Inf);                       %The time at which a result was achieved (good or bad).
-            o.addPostSet('done',[]);                            %True when a result (of any kind) has been achieved.
-            o.addPostSet('inProgress',[]);                      %True if the subject is currently satisfying the requirement
-            o.addProperty('success',false);                     %Whether the behavioral criterion was achieved.
-            o.addProperty('outcome','',[],@ischar);             %For logging different types of outcome 
+            o.addProperty('startTime',Inf,'validate',@isnumeric);                     %The time at which the behaviour was initiated (i.e. in progress).
+            o.addProperty('stopTime',Inf,'validate',@isnumeric);                       %The time at which a result was achieved (good or bad).
+            o.addProperty('done',false,'validate',@islogical);                            %True when a result (of any kind) has been achieved.
+            o.addProperty('inProgress',false,'validate',@islogical);                      %True if the subject is currently satisfying the requirement
+            o.addProperty('success',false,'validate',@islogical);                     %Whether the behavioral criterion was achieved.
+            o.addProperty('outcome','','validate',@ischar);             %For logging different types of outcome 
 
             o.listenToEvent({'BEFORETRIAL','AFTERTRIAL','AFTERFRAME'});
         end

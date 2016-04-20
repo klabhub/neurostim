@@ -9,7 +9,6 @@
 
 %% Prerequisites. 
 import neurostim.*
-Screen('Preference', 'SkipSyncTests', 1); % Not in production mode; this is just to run without requiring accurate timing.
 
 
 %% Setup CIC and the stimuli.
@@ -40,7 +39,7 @@ g.duration  = Inf;
 % Duplicate the testGab grating to serve as a reference (its contrast is
 % constant). Call this new stimulus 'reference'
 g2= duplicate(g,'reference');
-g2.X='@ -testGab.X'; % X  = -X of the testGab
+g2.X='@ -1*testGab.X'; % X  = -X of the testGab
 g2.contrast = 0.5;  
 
 % Duplicate the testGab grating to make a surround
@@ -48,11 +47,11 @@ g3= duplicate(g,'surround');
 g3.mask = 'ANNULUS';
 g3.sigma = [1 2];
 g3.contrast  = 0.5;
-g3.X='@ testGab.X'; % X= X of the testGab
+g3.X='@testGab.X'; % X= X of the testGab
 
 % Duplicate the surround to use as the surround of the reference
 g4 = duplicate(g3,'referenceSurround');
-g4.X='@ -testGab.X';
+g4.X='@ -1*testGab.X';
 g4.contrast = 1;
 
 % Red fixation point
@@ -65,10 +64,10 @@ f.Y = 0;
 
 
 fix = plugins.fixate(c,'f1');
-fix.from = 200; %'@(f1) f1.startTime';
-fix.to = 1000; %'@(dots) dots.stopTime';
-fix.X = 0;% '@(fix) fix.X';
-fix.Y = 0; %'@(fix) fix.Y';
+fix.from = '@f1.startTime';
+fix.to = '@dots.stopTime';
+fix.X = '@fix.X';
+fix.Y = '@fix.Y';
 fix.tolerance = 3;
  
 %% Define conditions and blocks
@@ -109,13 +108,9 @@ c.trialDuration = '@ choice.stopTime';
 plugins.sound(c);
 % 
 %     Add correct/incorrect feedback
-%  s = plugins.soundFeedback(c,'soundFeedback');
-%  s.path = 'C:/Users/bart.VISION/OneDrive/common/neurostim-ptb/nsSounds/sounds';
-%  s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.success & choice.correct');
-%  s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.success & ~choice.correct');
+s = plugins.soundFeedback(c,'soundFeedback');
+s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.success & choice.correct');
+s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.success & ~choice.correct');
 
-
-plugins.gui(c);
-% c.order('fix','reference', 'gui');
 c.run(myBlock);
  

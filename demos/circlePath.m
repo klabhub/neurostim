@@ -9,7 +9,7 @@ speed = 0.1 * sin(c.frame/30); %cm/frame. Ths value is not logged automatically.
 % the speed parameter was set to.
 
 
-radius = 0.1*sqrt(sum(c.screen.physical.^2));
+radius = 0.1*sqrt(sum(c.screen.width.^2));
 % However, any assignment to stimulus properties is logged, so the disaster
 % recovery is unlikely to be needed?
 c.gabor.X = radius*cos(c.frame * speed ); 

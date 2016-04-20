@@ -33,11 +33,11 @@ classdef mouse < neurostim.stimulus
             o.listenToEvent({'BEFOREEXPERIMENT','BEFOREFRAME','AFTERFRAME','AFTERTRIAL'})
             
             %% internally set parameters.
-            o.addProperty('clickx',[],[],[],'private');
-            o.addProperty('clicky',[],[],[],'private');
-            o.addProperty('clickbutton',[],[],[],'private');
-            o.addProperty('clicktime',[],[],[],'private');
-            o.addProperty('clickNumber',0,[],[],'private');
+            o.addProperty('clickx',[],'SetAccess','private');
+            o.addProperty('clicky',[],'SetAccess','private');
+            o.addProperty('clickbutton','SetAccess','private');
+            o.addProperty('clicktime',[],'SetAccess','private');
+            o.addProperty('clickNumber',0,'SetAccess','private');
             
         end
         
@@ -98,12 +98,13 @@ classdef mouse < neurostim.stimulus
         
         
         function afterTrial(o,c,evt)
-            o.addPostSet('trajX',[]);
-            o.addPostSet('trajY',[]);
-            o.addPostSet('trajTime',[]);
-            o.removeListener('trajX');
-            o.removeListener('trajY');
-            o.removeListener('trajTime');
+            %TODO : not clear to BK what this does...or why it is needed...stop listening in ITI? but then it has to be started again beforeTrial 
+%             q o.addPostSet('trajX',[]);
+%             o.addPostSet('trajY',[]);
+%             o.addPostSet('trajTime',[]);
+%             o.removeListener('trajX');
+%             o.removeListener('trajY');
+%             o.removeListener('trajTime');
         end
     end
 end

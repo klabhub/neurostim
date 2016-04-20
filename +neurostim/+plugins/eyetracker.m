@@ -31,14 +31,15 @@ classdef eyetracker < neurostim.plugin
         function o= eyetracker(c)
             o = o@neurostim.plugin(c,'eye'); % Always eye such that it can be accessed through cic.eye
             o.listenToEvent('AFTERFRAME');
-            o.addProperty('eyeClockTime',[],[],[],'private');
+            o.addProperty('eyeClockTime',[],'SetAccess','private');
             o.addProperty('hardwareModel',[]);
-            o.addProperty('sampleRate',1000,[],@isnumeric);
+            o.addProperty('sampleRate',1000,'validate',@isnumeric);
             o.addProperty('backgroundColor',[]);
             o.addProperty('foregroundColor',[]);
             o.addProperty('clbTargetColor',[]);
             o.addProperty('clbTargetSize',[]);
             o.addProperty('eyeToTrack','left');
+            o.addProperty('continuous',false);
         end
         
         
@@ -46,7 +47,7 @@ classdef eyetracker < neurostim.plugin
         function afterFrame(o,c,evt)
             if o.useMouse
                 [currentX,currentY,buttons] = c.getMouse;
-                if buttons(1)
+                if buttons(1) || o.continuous
                     o.x=currentX;
                     o.y=currentY;
                 end

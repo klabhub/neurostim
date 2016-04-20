@@ -14,10 +14,10 @@ classdef convPoly < neurostim.stimulus
     methods (Access = public)
         function o = convPoly(c,name)
             o = o@neurostim.stimulus(c,name);
-            o.addProperty('radius',3,[],@isnumeric);
-            o.addProperty('nSides',5,[],@isnumeric);
-            o.addProperty('filled',true,[],@islogical);
-            o.addProperty('linewidth',10,[],@isnumeric); %Used only for unfilled polygon.
+            o.addProperty('radius',3,'validate',@isnumeric);
+            o.addProperty('nSides',5,'validate',@isnumeric);
+            o.addProperty('filled',true,'validate',@islogical);
+            o.addProperty('linewidth',10,'validate',@isnumeric); %Used only for unfilled polygon.
             o.listenToEvent('BEFOREFRAME');
         end
         
