@@ -1,84 +1,95 @@
-function [c,opts] = adamsConfig(varargin)
+function c = adamsConfig(varargin)
 
 import neurostim.*
 
-fullScreen = false;
+smallWindow = false;    %Use a half-screen window
 computerName = getenv('COMPUTERNAME');
 c = cic;
 c.cursor = 'arrow';
 
 switch computerName
     case 'MU00043185'
+        
         %Office PC
-        c.screen.xpixels  = 1680;
-        c.screen.ypixels  = 1050;
-        c.screen.frameRate=60;
-        c.screen.width= 42;
-        c.screen.number = max(Screen('screens'));
-        opts.eyeTracker = false;
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',1680,'ypixels',1050,'screenWidth',42,'frameRate',60,'screenNumber',max(Screen('screens')));
+        smallWindow = true;
+        
     case 'MU00042884'
-
+        
         %Neurostim A (Display++)
-        c.screen.xpixels  = 1920-1; %Currently -1 because getting weird frame drops if full-screen mode
-        c.screen.ypixels  = 1080-1; %Currently -1 because getting weird frame drops if full-screen mode
-        c.screen.frameRate=120;
-        c.screen.width= 72;
-        c.screen.number = 1;
-        opts.eyeTracker = true;
-        fullScreen = true;
+        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1920-1,'ypixels',1080-1,'screenWidth',72,'frameRate',120,'screenNumber',1,'eyelinkCommands',{'calibration_area_proportion=0.3 0.3','validation_area_proportion=0.3 0.3'});
 
     case 'MU00080600'
+        
         %Neurostim B (CRT)
-        subjDisp = false;
-        opts.eyeTracker = true;        
-        if subjDisp
-            c.screen.xpixels  = 1600-1; %Currently -1 because getting weird frame drops if full-screen mode
-            c.screen.ypixels  = 1200-1; %Currently -1 because getting weird frame drops if full-screen mode
-            c.screen.frameRate=85;
-            c.screen.width= 40;
-            c.screen.number = 0;
-            fullScreen = true;
-        else
-            c.screen.xpixels  = 600; %Currently -1 because getting weird frame drops if full-screen mode
-            c.screen.ypixels  = 450; %Currently -1 because getting weird frame drops if full-screen mode
-            c.screen.frameRate=60;
-            c.screen.width= 40;
-            c.screen.number = 1;
-            opts.eyeTracker = true;
-            fullScreen = true;
-        end
+        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0);
+
     case 'MOBOT'
+        
         %Home
-        c.screen.xpixels  = 1920/4;
-        c.screen.ypixels  = 1200/4;
-        c.screen.frameRate=60;
-        c.screen.width= 42;
-        c.screen.number = 0;
-        opts.eyeTracker = false;
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
+        smallWindow = true;
+
     otherwise
-        c.screen.width  = 42;
-        c.screen.number = max(Screen('screens'));
-        c.screen.frameRate = Screen('FrameRate',0);
-        if c.screen.frameRate==0
-            c.screen.frameRate =60;
-        end
-        rect = Screen('rect',c.screen.number);
-        c.screen.xpixels  = rect(3);
-        c.screen.ypixels  = rect(4);
-        opts.eyeTracker = false;
+        scrNr = max(Screen('screens'));
+        fr = Screen('FrameRate',scrNr);
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        smallWindow = true;
 end
 
-if ~fullScreen
+if smallWindow
     c.screen.xpixels = c.screen.xpixels/2;
     c.screen.ypixels = c.screen.ypixels/2;
 end
 
 c.screen.xorigin = [];
 c.screen.yorigin = [];
-
 c.screen.height = c.screen.width*c.screen.ypixels/c.screen.xpixels;
 c.screen.color.background = [0.25 0.25 0.25];
 c.screen.colorMode = 'RGB';
 c.iti = 500;
 c.trialDuration = 500;
 
+function c = rig(c,varargin)
+            
+pin = inputParser;
+pin.addParameter('xpixels',[]);
+pin.addParameter('ypixels',[]);
+pin.addParameter('screenWidth',[]);
+pin.addParameter('frameRate',[]);
+pin.addParameter('screenNumber',[]);
+pin.addParameter('eyelink',[]);
+pin.addParameter('eyelinkCommands',[]);
+pin.addParameter('mcc',[]);
+pin.parse(varargin{:});
+
+if ~isempty(pin.Results.xpixels)
+    c.screen.xpixels  = pin.Results.xpixels;
+end
+if ~isempty(pin.Results.ypixels)
+    c.screen.ypixels  = pin.Results.ypixels;
+end
+if ~isempty(pin.Results.frameRate)
+    c.screen.frameRate  = pin.Results.frameRate;
+end
+if ~isempty(pin.Results.screenWidth)
+    c.screen.width  = pin.Results.screenWidth;
+end
+if ~isempty(pin.Results.screenNumber)
+    c.screen.number  = pin.Results.screenNumber;
+end
+if pin.Results.eyelink
+    neurostim.plugins.eyelink(c);
+    if ~isempty(pin.Results.eyelinkCommands)
+        for i=1:numel(pin.Results.eyelinkCommands)
+            c.eye.command(pin.Results.eyelinkCommands{i});
+        end
+    end
+else
+    e = neurostim.plugins.eyetracker(c);      %If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
+    e.useMouse = true;
+end
+if pin.Results.mcc
+    neurostim.plugins.mcc(c);
+end
