@@ -18,7 +18,13 @@ commandwindow;
 %% ========= Specify rig configuration  =========
 
 %Create a CIC object. Here the cic is returned with some default settings intitialised for Adam's rigs.
-c = adamsConfig;
+c = myRig;
+
+%Make sure there is an eye tracker (or at least a virtual one)
+if isempty(c.pluginsByClass('eyetracker'))
+    e = neurostim.plugins.eyetracker(c);      %Eye tracker plugin not yet added, so use the virtual one. Mouse is used to control gaze position (click)
+    e.useMouse = true;
+end
 
 %% ============== Add stimuli ==================
 

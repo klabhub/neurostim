@@ -1,12 +1,18 @@
-function c = adamsConfig(varargin)
+function c = myRig(varargin)
+
+%Convenience function to set up a CIC object with appropriate settings for the current rig/computer.
+%Feel free to add your PC/rig to the list
+pin = inputParser;
+pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
+pin.parse(varargin{:});
+smallWindow = pin.Results.smallWindow; 
 
 import neurostim.*
 
-smallWindow = false;    %Use a half-screen window
-computerName = getenv('COMPUTERNAME');
+%Create a Command and Intelligence Center object - the central controller for Neurostim.
 c = cic;
 c.cursor = 'arrow';
-
+computerName = getenv('COMPUTERNAME');
 switch computerName
     case 'MU00043185'
         
@@ -31,6 +37,7 @@ switch computerName
         smallWindow = true;
 
     otherwise
+        warning('This computer is not recognised. Using default settings.');
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
