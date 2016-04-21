@@ -9,7 +9,7 @@ function behaviorDemo
 %
 %Your task:
 %
-%       - "Fixate" on the fixation point to start the trial by moving the mouse and clicking on it (if you can't see the mouse, something might be wrong!)
+%       - "Fixate" on the fixation point to start the trial by moving the mouse and clicking on it
 %       - Is the motion upward (press "a") or downward (press "z")? Respond only once motion disappears.
 
 import neurostim.*
@@ -17,8 +17,8 @@ commandwindow;
 
 %% ========= Specify rig configuration  =========
 
-%Create a CIC object. Here the cic is returned with some default settings intitialised for Adam's rigs.
-c = adamsConfig;
+%Create a CIC object. Here the cic is returned with some default settings for this computer, if it is recognized.
+c = myRig;
 
 %Make sure there is an eye tracker (or at least a virtual one)
 if isempty(c.pluginsByClass('eyetracker'))

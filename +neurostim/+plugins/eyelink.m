@@ -57,15 +57,22 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addKey('F8',@keyboard,'EyelinkSetup');
             o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'}); %The parent class is also listening to the AFTERFRAME event. Intended?
             o.addProperty('eyeEvts',struct);
-
+            o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
         end
         
         function beforeExperiment(o,c,evt)
             
+            %Initalise default Eyelink el structure and set some values.
             o.el=EyelinkInitDefaults(c.onscreenWindow);
+            o.el.calibrationtargetcolour = o.clbTargetColor;
+            o.el.calibrationtargetsize = o.clbTargetSize./o.cic.screen.width*100; %Eyelink sizes are percentages of screen
+            if isempty(o.clbTargetInnerSize)
+                o.el.calibrationtargetwidth = o.clbTargetSize/2/o.cic.screen.width*100; %default to half radius
+            else
+                o.el.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
+            end
             
-            %Initialise connection to Eyelink. Currently not allowing dummy
-            %mode, because dialog box comes up behind PTB screen.
+            %Initialise connection to Eyelink.
             if ~o.useMouse
                 result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
             end
@@ -81,14 +88,14 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             % setup sample rate
             if any(o.sampleRate==[250, 500, 1000])
-                o.commands{end+1} = ['sample_rate = ' num2str(o.sampleRate)];
+                o.command(horzcat('sample_rate = ', num2str(o.sampleRate)))
             else
-               c.error('STOPEXPERIMENT','Requested eyelink sample rate is invalid'); 
-            end  
+                c.error('STOPEXPERIMENT','Requested eyelink sample rate is invalid');
+            end
             
-            % make sure that we get gaze data from the Eyelink
+            %Pass all commands to Eyelink
             for i=1:length(o.commands)
-                Eyelink('Command', o.commands{i});
+               result = Eyelink('Command', o.commands{i}); %TODO: handle results
             end
             
             % open file to record data to
@@ -110,7 +117,7 @@ classdef eyelink < neurostim.plugins.eyetracker
 %                 status=Eyelink('ReceiveFile',o.edfFile,[c.fullFile '.edf']); %change to OUTPUT dir
 %                 writeToFeed(o,'Success.');
             catch
-                error('Eyelink file failed to transfer to the NS computer');
+                error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
             end
           Eyelink('Shutdown');
         end
@@ -202,6 +209,28 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
         end
         
+        % Add an eyelink command that will be executed before the
+        % experiment starts. Passing an empty string resets the command
+        % list.
+        function command(o,commandStr)
+            %Currently, only beforeExperiment commands are accepted
+            if o.cic.trial>0
+                o.cic.error('STOPEXPERIMENT','Eyelink commands are currently not permitted once the experiment has started.');
+            end
+            
+            %Assign the command
+            if isempty(commandStr)
+                o.commands= {};
+            else
+                o.commands = cat(2,o.commands,{commandStr});
+                if ~isempty(strfind(upper(commandStr),'LINK_SAMPLE_DATA'))
+                    o.getSamples = true;
+                elseif ~isempty(strfind(upper(commandStr),'LINK_EVENT_DATA'))
+                    o.getEvents = true;
+                end
+            end
+        end
+        
         function keyboard(o,key,~)
             switch upper(key)
                 case 'F9'
@@ -214,21 +243,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     end
     
     methods (Access=protected)
-        % Add an eyelink command that will be executed before the
-        % experiment starts. Passing an empty string resets the command
-        % list.
-        function command(o,string)
-            if isempty(string)
-                o.commands= {};
-            else
-                o.commands = cat(2,o.commands,{string});
-                if ~isempty(strfind(upper(string),'LINK_SAMPLE_DATA'))
-                    o.getSamples = true;
-                elseif ~isempty(strfind(upper(string),'LINK_EVENT_DATA'))
-                    o.getEvents = true;
-                end
-            end
-        end
+
         
         function restoreExperimentSetup(o)
             % function restoreExperimentSetup(o)
@@ -236,22 +251,10 @@ classdef eyelink < neurostim.plugins.eyetracker
             % colours.
             o.el.backgroundcolour = o.cic.screen.color.background;
             o.el.foregroundcolour = o.cic.screen.color.text;
-            o.el.calibrationtargetcolour = o.el.foregroundcolour;
-            
-%             for i=1
-                PsychEyelinkDispatchCallback(o.el);
-                
-                EyelinkClearCalDisplay(o.el);
-                
-%                 %Check the frame rate
-%                 for j=1:100
-%                     o.cic.tic;
-%                     Screen('Flip', o.cic.onscreenWindow,0);
-%                     elapsed(i,j) = o.cic.toc;
-%                 end
-%             end
-%             writeToFeed(o,num2str(median(elapsed,2)'));
-%             keyboard;
+  
+            PsychEyelinkDispatchCallback(o.el);
+            EyelinkClearCalDisplay(o.el);
+
         end
         
         function eyelinkSetup(o)
@@ -260,10 +263,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             % as specified.
             o.el.backgroundcolour = o.backgroundColor;
             o.el.foregroundcolour = o.foregroundColor;
-            o.el.calibrationtargetcolour = o.clbTargetColor;
-            o.el.calibrationtargetsize = o.clbTargetSize;
             PsychEyelinkDispatchCallback(o.el);
-
         end
     end
 end

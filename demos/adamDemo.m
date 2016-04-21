@@ -18,7 +18,13 @@ commandwindow;
 %% ========= Specify rig configuration  =========
 
 %Create a CIC object. Here the cic is returned with some default settings intitialised for Adam's rigs.
-c = adamsConfig;
+c = myRig;
+
+%Make sure there is an eye tracker (or at least a virtual one)
+if isempty(c.pluginsByClass('eyetracker'))
+    e = neurostim.plugins.eyetracker(c);      %Eye tracker plugin not yet added, so use the virtual one. Mouse is used to control gaze position (click)
+    e.useMouse = true;
+end
 
 %% ============== Add stimuli ==================
 
@@ -76,7 +82,9 @@ c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC r
 
 %Specify experimental conditions
 myFac=factorial('myFactorial',2);           %Using a 3 x 2 factorial design.  Type "help neurostim/factorial" for more options.
-myFac.fac1.fix.X={-10 0 10};                       %Three different fixation positions along horizontal meridian
+myFac.fac1.fix.X={-10 0 10};
+myFac.fac1.fix.Y=0;
+myFac.fac1.dots.X={-5}; %Three different fixation positions along horizontal meridian
 myFac.fac2.dots.direction={-90 90};         %Two dot directions
 
 %Specify a block of trials

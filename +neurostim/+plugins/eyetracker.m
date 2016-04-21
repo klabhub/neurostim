@@ -7,7 +7,7 @@ classdef eyetracker < neurostim.plugin
 %
 %   sampleRate - rate of samples to be taken.
 %   backgroundColor - background colour for eyetracker functions.
-%   foregroundColor - foreground colour for eyetracker functions.
+%   c oundColor - foreground colour for eyetracker functions.
 %   clbTargetColor - calibration target color.
 %   clbTargetSize - calibration target size.
 %   eyeToTrack - one of 'left','right','binocular' or 0,1,2.
@@ -36,8 +36,8 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('sampleRate',1000,[],@isnumeric);
             o.addProperty('backgroundColor',[]);
             o.addProperty('foregroundColor',[]);
-            o.addProperty('clbTargetColor',[]);
-            o.addProperty('clbTargetSize',[]);
+            o.addProperty('clbTargetColor',[1,0,0]);
+            o.addProperty('clbTargetSize',0.25);
             o.addProperty('eyeToTrack','left');
         end
         
