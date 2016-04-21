@@ -38,9 +38,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             o.name = n;
             % Initialize an empty log.
-            o.log(1).parms  = {};
+            o.log(1).parms = {};
             o.log(1).values = {};
-            o.log(1).t =[];
+            o.log(1).t = [];
+            o.log(1).cntr =0;
+            o.log(1).capacity=0;
             if~isempty(c) % Need this to construct cic itself...dcopy
                 c.add(o);
             end
@@ -239,12 +241,23 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % TODO: improve performance by block allocating space and keeping a
         % counter.
         function addToLog(o,name,value)
-            o.log.parms{end+1}  = name;
-            o.log.values{end+1} = value;
+            o.log.cntr=o.log.cntr+1;
+            %% Allocate space if needed 
+            if o.log.cntr> o.log.capacity
+                BLOCKSIZE = 500; % Allocate in chunks to save time. Overallocation is pruned by plugins.output if needed.
+         
+                o.log.parms = cat(2,o.log.parms,cell(1,BLOCKSIZE));
+                o.log.values = cat(2,o.log.values,cell(1,BLOCKSIZE));
+                 o.log.t  = cat(2,o.log.t,nan(1,BLOCKSIZE));
+                 o.log.capacity = numel(o.log.parms);
+            end
+            %% Fill the log.
+            o.log.parms{o.log.cntr}  = name;
+            o.log.values{o.log.cntr} = value;
             if isempty(o.cic)
-                o.log.t(end+1)       = -Inf;
+                o.log.t(o.log.cntr)       = -Inf;
             else
-                o.log.t(end+1)      = o.cic.clockTime;
+                o.log.t(o.log.cntr)      = o.cic.clockTime;
             end
         end      
     end
