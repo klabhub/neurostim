@@ -5,7 +5,7 @@ function c = myRig(varargin)
 pin = inputParser;
 pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
 pin.parse(varargin{:});
-smallWindow = pin.Results.smallWindow; 
+smallWindow = pin.Results.smallWindow;
 
 import neurostim.*
 
@@ -13,6 +13,12 @@ import neurostim.*
 c = cic;
 c.cursor = 'arrow';
 computerName = getenv('COMPUTERNAME');
+if isempty(computerName)
+    [~,computerName] =system('hostname');
+    computerName = deblank(computerName);
+end
+c.dirs.output = tempdir; % Output files will be stored here.
+
 switch computerName
     case 'MU00043185'
         
@@ -24,18 +30,43 @@ switch computerName
         
         %Neurostim A (Display++)
         c = rig(c,'eyelink',true,'mcc',true,'xpixels',1920-1,'ypixels',1080-1,'screenWidth',72,'frameRate',120,'screenNumber',1,'eyelinkCommands',{'calibration_area_proportion=0.3 0.3','validation_area_proportion=0.3 0.3'});
-
+        
     case 'MU00080600'
         
         %Neurostim B (CRT)
         c = rig(c,'eyelink',true,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0);
-
+        
     case 'MOBOT'
         
         %Home
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
         smallWindow = true;
-
+        
+    case 'CMBN-Presentation-Airbook.local'
+        %Airbook
+        scrNr =0;
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',60,'screenNumber',scrNr);
+        smallWindow = false;
+        
+    case 'KLAB-U'
+        scrNr = 1;
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
+        c.screen.colorMode = 'RGB';
+        c.screen.frameRate=30;
+        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        smallWindow = false;
+        
+    case 'XPS2013'
+        scrNr=0;
+        rect = Screen('rect',scrNr);
+        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
+        c.screen.colorMode = 'RGB';
+        smallWindow = true;
+        
+        
     otherwise
         warning('This computer is not recognised. Using default settings.');
         scrNr = max(Screen('screens'));
@@ -59,7 +90,7 @@ c.iti = 500;
 c.trialDuration = 500;
 
 function c = rig(c,varargin)
-            
+
 pin = inputParser;
 pin.addParameter('xpixels',[]);
 pin.addParameter('ypixels',[]);

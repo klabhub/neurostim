@@ -12,7 +12,7 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = demoLabConfig;                            % Create Command and Intellige nce Center...
+c = myRig;                            % Create Command and Intellige nce Center...
 c.trialDuration  = inf;
 plugins.debug(c); 
 

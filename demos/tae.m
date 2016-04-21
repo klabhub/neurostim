@@ -15,7 +15,7 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = demoLabConfig;                            % Create Command and Intelligence Center...
+c = myRig;                            % Create Command and Intelligence Center...
  
 
 % Create a Gabor stimulus to adadot. 

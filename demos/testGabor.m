@@ -1,7 +1,7 @@
 import neurostim.*
 
 %% Setup CIC and the stimuli.
-c = demoLabConfig;
+c = myRig;
 c.trialDuration  = inf;
 plugins.debug(c); 
 

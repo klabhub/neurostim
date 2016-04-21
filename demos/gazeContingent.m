@@ -2,7 +2,7 @@ function gazeContingent
 
 import neurostim.*
 
-c= demoLabConfig;
+c= myRig;
 c.trialDuration = 5000;
 
 % Fake an eye tracker that updates continuously with the mouse.

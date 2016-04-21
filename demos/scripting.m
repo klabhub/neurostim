@@ -2,7 +2,7 @@ function c=scripting
 %% This demo shows how to use control scripts.
 
 %% Setup CIC and the stimuli.
-c = demoLabConfig;                            
+c = myRig;                            
 
 % We'll use two experiment scripts to control this experiment. One is called before
 % every frame and it is specified in a separate m-file that should be on
