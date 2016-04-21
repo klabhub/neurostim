@@ -62,7 +62,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         
         function beforeExperiment(o,c,evt)
             
-            o.el=EyelinkInitDefaults(c.onscreenWindow);
+            o.el=EyelinkInitDefaults(c.window);
             
             %Initialise connection to Eyelink. Currently not allowing dummy
             %mode, because dialog box comes up behind PTB screen.
@@ -76,7 +76,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
             
             %Tell Eyelink about the pixel coordinates
-            rect=Screen(c.onscreenWindow,'Rect');
+            rect=Screen(c.window,'Rect');
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
             
             % setup sample rate
@@ -237,21 +237,8 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.el.backgroundcolour = o.cic.screen.color.background;
             o.el.foregroundcolour = o.cic.screen.color.text;
             o.el.calibrationtargetcolour = o.el.foregroundcolour;
-            
-%             for i=1
-                PsychEyelinkDispatchCallback(o.el);
-                
-                EyelinkClearCalDisplay(o.el);
-                
-%                 %Check the frame rate
-%                 for j=1:100
-%                     o.cic.tic;
-%                     Screen('Flip', o.cic.onscreenWindow,0);
-%                     elapsed(i,j) = o.cic.toc;
-%                 end
-%             end
-%             writeToFeed(o,num2str(median(elapsed,2)'));
-%             keyboard;
+            PsychEyelinkDispatchCallback(o.el);                
+            EyelinkClearCalDisplay(o.el);
         end
         
         function eyelinkSetup(o)

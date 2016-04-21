@@ -269,7 +269,7 @@ classdef stimulus < neurostim.plugin
         function setupDiode(s)
             pixelsize=s.diode.size*s.cic.screen.xpixels;
             if isempty(s.diode.color)
-                s.diode.color=WhiteIndex(s.cic.onscreenWindow);
+                s.diode.color=WhiteIndex(s.cic.window);
             end
            switch lower(s.diode.location)
                case 'ne'

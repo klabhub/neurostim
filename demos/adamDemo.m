@@ -17,8 +17,9 @@ commandwindow;
 
 %% ========= Specify rig configuration  =========
 
-%Create a CIC object. Here the cic is returned with some default settings intitialised for Adam's rigs.
-c = adamsConfig;
+%Create a CIC object. Here the cic is returned with some default settings
+%based on the rig in which the experiment is started.
+c = demoLabConfig;
 
 %% ============== Add stimuli ==================
 

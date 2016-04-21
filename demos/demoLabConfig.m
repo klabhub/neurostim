@@ -1,15 +1,26 @@
-function c = adamsConfig(varargin)
+function c = demoLabConfig(varargin)
+% A user or a laboratory could have a configuration script like this that
+% changes basic experiemtn settings depending on which computer the experiment 
+% is started. This allows you to have one setting for debugging on your office workstation
+% and another for real experiments on a different computer.
+%  The variants shown here were in use by the developers when writing these
+%  demo scripts.
+%
+% AM/BK 2016
 
 import neurostim.*
 
 smallWindow = false;    %Use a half-screen window
 computerName = getenv('COMPUTERNAME');
+if isempty(computerName)
+    [~,computerName] =system('hostname');
+end
 c = cic;
-c.cursor = 'arrow';
+c.cursor = 'arrow'; 
+c.dirs.output = tempdir; % Output files will be stored here.
 
 switch computerName
-    case 'MU00043185'
-        
+    case 'MU00043185'        
         %Office PC
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1680,'ypixels',1050,'screenWidth',42,'frameRate',60,'screenNumber',max(Screen('screens')));
         smallWindow = true;
@@ -30,16 +41,29 @@ switch computerName
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
         smallWindow = true;
 
-    case ''
-        if ismac
-            %BK mac
-            scrNr =0;
-            fr = 60;
-            rect = Screen('rect',scrNr);
-            c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
-          smallWindow = false; 
+    case 'CMBN-Presentation-Airbook.local'
+        %Airbook 
+        scrNr =0;
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',60,'screenNumber',scrNr);
+        smallWindow = false;
         
-        end
+    case 'KLAB-U'
+        scrNr = 1;
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);        
+        c.screen.colorMode = 'RGB';
+        c.screen.frameRate=30;        
+        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        smallWindow = false;
+        
+      case 'XPS2013'        
+        scrNr=0;
+        rect = Screen('rect',scrNr);
+        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
+        c.screen.colorMode = 'RGB';
+        smallWindow = true;
     otherwise
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);

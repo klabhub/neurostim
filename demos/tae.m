@@ -15,9 +15,8 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = bkConfig;                            % Create Command and Intelligence Center...
+c = demoLabConfig;                            % Create Command and Intelligence Center...
  
-%plugins.gui(c);         % Show a gui (dual screens only)
 
 % Create a Gabor stimulus to adadot. 
 g=stimuli.gabor(c,'adapt');           
