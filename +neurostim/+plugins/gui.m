@@ -141,7 +141,7 @@ classdef gui <neurostim.plugin
         
         function beforeFrame(o,c,evt)
             % Draw
-            Screen('glLoadIdentity', c.onscreenWindow);
+            Screen('glLoadIdentity', c.window);
             
             drawParams(o,c);
             drawMirror(o,c);
@@ -230,8 +230,6 @@ classdef gui <neurostim.plugin
         end
         
         function drawParams(o,c)
-%             Screen('FillRect',c.onscreenWindow,c.screen.color.background,o.guiRect);
-%             Screen('DrawTexture',c.guiWindow,o.guiText,[],o.guiRect,[],0);
                 Screen('DrawTexture',c.guiWindow,o.guiText,[],[],[],0);
 %             DrawFormattedText(win, tstring [, sx][, sy][, color][, wrapat][, flipHorizontal][, flipVertical][, vSpacing][, righttoleft][, winRect])
         end
