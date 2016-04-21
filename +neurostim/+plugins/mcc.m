@@ -40,14 +40,16 @@ classdef mcc < neurostim.plugin
         function o =mcc(c)
             o  = o@neurostim.plugin(c,'mcc');
             
+            o.listenToEvent({'AFTERTRIAL','AFTERFRAME'});
+            
             % Check what is there.
             o.devices = PsychHID('Devices');
             
             %Find the main MCC Interface.
             o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0'), o.devices));    %DaqDeviceIndex
             
-            err=DaqDConfigPort(o.daq,0,0); % configure digital port A for output
-            err=DaqDConfigPort(o.daq,1,0); % configure digital port B for input
+            err=DaqDConfigPort(o.daq,0,1); % configure digital port A for input
+            err=DaqDConfigPort(o.daq,1,0); % configure digital port B for output
             
             o.mapList.type = [];
             o.mapList.channel =[];
@@ -71,9 +73,8 @@ classdef mcc < neurostim.plugin
             o.mapList.type      = cat(2,o.mapList.type,o.(upper(type)));
             o.mapList.channel   = cat(2,o.mapList.channel,channel);
             o.mapList.prop      = cat(2,o.mapList.prop,prop);
-            o.mapList.when      = cat(2,o.mapList.when,o.(upper(when)));
-            
-            o.listenToEvent(o.mapList.when);
+            o.mapList.when      = cat(2,o.mapList.when,upper(when));
+
         end
         
         
@@ -140,15 +141,15 @@ classdef mcc < neurostim.plugin
         end
         
         function afterTrial(o,c,evt)
-            ix = find(o.mapList.when ==o.AFTERTRIAL);
-            if ~isempty(ix)
+            ix = any(strcmp(o.mapList.when,'AFTERTRIAL'));
+            if ix
                 read(o,ix);
             end
         end
         
         function afterFrame(o,c,evt)
-            ix = find(o.mapList.when ==o.AFTERFRAME);
-            if ~isempty(ix)
+            ix = any(strcmp(o.mapList.when,'AFTERFRAME'));
+            if ix
                 read(o,ix);
             end
         end
