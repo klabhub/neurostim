@@ -381,18 +381,26 @@ classdef cic < neurostim.plugin
             c.allKeyStrokes = [];
             c.allKeyHelp  = {};
             % Keys handled by CIC
+            c.addKey('ESCAPE',@keyboardResponse,'Quit');
+            c.addKey('n',@keyboardResponse,'Next Trial');
+            
+            
+            
             c.addProperty('frameDrop',[],'SetAccess','protected');
+            
             c.addProperty('trialStartTime',[],'SetAccess','protected');
             c.addProperty('trialStopTime',[],'SetAccess','protected');
             c.addProperty('condition',[],'SetAccess','protected');
             c.addProperty('block',0,'SetAccess','protected');
             c.addProperty('blockTrial',0,'SetAccess','protected');
             c.addProperty('trial',0,'SetAccess','protected');
+            
             c.addProperty('iti',1000,'validate',@double); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@double); % duration (ms)
+            
+            % Generate default output files
             neurostim.plugins.output(c);
-            c.addKey('ESCAPE',@keyboardResponse,'Quit');
-            c.addKey('n',@keyboardResponse,'Next Trial');
+            
         end
         
         
@@ -471,7 +479,7 @@ classdef cic < neurostim.plugin
                 plg = neurostim.plugins.eScript(c);
                 
             end
-            plg.addScript(when,fun,keys);         
+            plg.addScript(when,fun,keys);
         end
         
         
@@ -733,7 +741,7 @@ classdef cic < neurostim.plugin
             
             % %Setup PTB
             PsychImaging(c);
-             c.KbQueueCreate;
+            c.KbQueueCreate;
             c.KbQueueStart;
             c.checkFrameRate;
             %% Start preparation in all plugins.
@@ -813,9 +821,14 @@ classdef cic < neurostim.plugin
                         %                     elapsed2 = c.toc;
                         %                 end
                         %
+                        
                         startFlipTime = c.clockTime;
-                        [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear); %#ok<ASGLU>
-                        c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
+                        [vbl,stimOn,flip,missed] = Screen('Flip', c.onscreenWindow,0,1-c.clear); %#ok<ASGLU>
+                        if c.PROFILE
+                            c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
+                        end
+                        
+                        
                         c.tic;
                         
                         % -----
@@ -827,25 +840,40 @@ classdef cic < neurostim.plugin
                             c.trialStartTime = stimOn*1000; % for trialDuration check
                             c.flipTime=0;
                         end
-                        if c.frame>1 && ((vbl*1000-c.frameDeadline) > (0.1*(1000/c.screen.frameRate)))
-                            c.frameDrop = c.frame;
-                            if c.guiOn
-                                c.writeToFeed('Missed Frame');
+                        
+                        PTBTimingCheck = true;
+                        if PTBTimingCheck
+                            if missed>0
+                                c.frameDrop = missed;
+                                if c.guiOn
+                                    c.writeToFeed('Missed Frame');
+                                end
                             end
-                        elseif c.getFlipTime
-                            c.flipTime = stimOn*1000-c.trialStartTime;
-                            c.getFlipTime=false;
+                        else
+                            
+                            if c.frame>1 && ((vbl*1000-c.frameDeadline) > (0.1*(1000/c.screen.frameRate)))
+                                c.frameDrop = c.frame;
+                                if c.guiOn
+                                    c.writeToFeed('Missed Frame');
+                                end
+                            elseif c.getFlipTime
+                                c.flipTime = stimOn*1000-c.trialStartTime;
+                                c.getFlipTime=false;
+                            end
+                            
+                            c.frameStart = vbl*1000;
+                            c.frameDeadline = (vbl*1000)+(1000/c.screen.frameRate);
                         end
                         
-                        c.frameStart = vbl*1000;
-                        c.frameDeadline = (vbl*1000)+(1000/c.screen.frameRate);
                         
                         if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
                         end
+                        
                         if c.clear
                             Screen('FillRect',c.window,c.screen.color.background);
                         end
+                        
                         if c.guiOn
                             if mod(c.frame,c.guiFlipEvery)==0
                                 Screen('Flip',c.guiWindow,0,[],2);
