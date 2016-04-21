@@ -30,6 +30,16 @@ switch computerName
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
         smallWindow = true;
 
+    case ''
+        if ismac
+            %BK mac
+            scrNr =0;
+            fr = 60;
+            rect = Screen('rect',scrNr);
+            c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+          smallWindow = false; 
+        
+        end
     otherwise
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
