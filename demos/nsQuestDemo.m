@@ -3,7 +3,7 @@
 erro('NOT FUNCTIONAL')
 import neurostim.*
 
-c= bkConfig;
+c= demoLabConfig;
 % Add a limited lifetime dot pattern
 l=stimuli.rdp(c,'dots');
 % Vary the nrDots across conditions. This factorial is given the name 'nrDots'

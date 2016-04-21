@@ -8,7 +8,7 @@ function c=contrastDetection
 import neurostim.*
 
 %% Setup CIC and the stimuli.
-c = bkConfig;   
+c = demoLabConfig;   
 c.trialDuration = Inf; % A trial can only be ended by a mouse click
 c.cursor = 'arrow';
 
