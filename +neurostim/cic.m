@@ -71,7 +71,6 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =protected)
         %% Program Flow
         window =[]; % The PTB window
-        onscreenWindow=[]; % The display/onscreen window
         
         stage@double;
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
@@ -211,17 +210,17 @@ classdef cic < neurostim.plugin
                 value = -1;
             end
             if value==-1  % neurostim convention -1 or 'none'
-                HideCursor(c.onscreenWindow);
+                HideCursor(c.window);
                 c.cursorVisible = false;
             else
-                ShowCursor(value,c.onscreenWindow);
+                ShowCursor(value,c.window);
                 c.cursorVisible = true;
             end
         end
         
         function setupScreen(c,value)
             if isempty(c.screen.number)
-                value.number = max(Screen('screens'));
+                value.number = max(Screen('screens',1));
             end
             
             windowPixels = Screen('Rect',c.screen.number); % Full screen
@@ -270,7 +269,7 @@ classdef cic < neurostim.plugin
                 error('frameRate not specified');
             end
             
-            frInterval = Screen('GetFlipInterval',c.onscreenWindow)*1000;
+            frInterval = Screen('GetFlipInterval',c.window)*1000;	
             percError = abs(frInterval-(1000/c.screen.frameRate))/frInterval*100;
             if percError > 5
                 error('Actual frame rate doesn''t match the requested rate');
@@ -381,18 +380,26 @@ classdef cic < neurostim.plugin
             c.allKeyStrokes = [];
             c.allKeyHelp  = {};
             % Keys handled by CIC
-            c.addProperty('frameDrop',[],[],[],'private');
-            c.addProperty('trialStartTime',[],[],[],'private');
-            c.addProperty('trialStopTime',[],[],[],'private');
-            c.addProperty('condition',[],[],[],'private');
-            c.addProperty('block',0,[],[],'private');
-            c.addProperty('blockTrial',0,[],[],'private');
-            c.addProperty('trial',0,[],[],'private');
-            c.addProperty('iti',1000,[],@double); %inter-trial interval (ms)
-            c.addProperty('trialDuration',1000,[],@double); % duration (ms)
-            neurostim.plugins.output(c);
             c.addKey('ESCAPE',@keyboardResponse,'Quit');
             c.addKey('n',@keyboardResponse,'Next Trial');
+            
+            
+            
+            c.addProperty('frameDrop',[],'SetAccess','protected');
+            
+            c.addProperty('trialStartTime',[],'SetAccess','protected');
+            c.addProperty('trialStopTime',[],'SetAccess','protected');
+            c.addProperty('condition',[],'SetAccess','protected');
+            c.addProperty('block',0,'SetAccess','protected');
+            c.addProperty('blockTrial',0,'SetAccess','protected');
+            c.addProperty('trial',0,'SetAccess','protected');
+            
+            c.addProperty('iti',1000,'validate',@double); %inter-trial interval (ms)
+            c.addProperty('trialDuration',1000,'validate',@double); % duration (ms)
+            
+            % Generate default output files
+            neurostim.plugins.output(c);
+            
         end
         
         
@@ -468,13 +475,10 @@ classdef cic < neurostim.plugin
             if ismember('eScript',c.plugins)
                 plg = c.eScript;
             else
-                plg = neurostim.plugins.eScript;
+                plg = neurostim.plugins.eScript(c);
                 
             end
             plg.addScript(when,fun,keys);
-            % Add or update the plugin (must call after adding script
-            % so that all events are listened to
-            c.add(plg);
         end
         
         
@@ -508,7 +512,7 @@ classdef cic < neurostim.plugin
         end
         
         function [x,y,buttons] = getMouse(c)
-            [x,y,buttons] = GetMouse(c.onscreenWindow);
+            [x,y,buttons] = GetMouse(c.window);
             [x,y] = c.pixel2Physical(x,y);
         end
         
@@ -651,7 +655,16 @@ classdef cic < neurostim.plugin
             
             %% First create the blocks and blockFlow
             isblock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
-            c.blocks = [varargin{isblock}];
+            if any(isblock)
+                % Store the blocks
+                c.blocks = [varargin{isblock}];
+            else
+                % No blocks specified. Create a fake block (single
+                % condition; mainly for testing purposes)
+                fac= neurostim.factorial('dummy',1);
+                fac.fac1.cic.trialDuration = c.trialDuration;
+                c.blocks = neurostim.block('dummy',fac);
+            end
             args = varargin(~isblock);
             parse(p,args{:});
             if isempty(p.Results.weights)
@@ -736,13 +749,13 @@ classdef cic < neurostim.plugin
             
             % %Setup PTB
             PsychImaging(c);
-             c.KbQueueCreate;
+            c.KbQueueCreate;
             c.KbQueueStart;
             c.checkFrameRate;
             %% Start preparation in all plugins.
             notify(c,'BASEBEFOREEXPERIMENT');
-            DrawFormattedText(c.onscreenWindow, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.onscreenWindow));
-            Screen('Flip', c.onscreenWindow);
+            DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.window));
+            Screen('Flip', c.window);
             KbWait();
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
@@ -757,8 +770,7 @@ classdef cic < neurostim.plugin
                 elseif ~isempty(c.blocks(c.block).beforeFunction)
                     waitforkey=c.blocks(c.block).beforeFunction(c);
                 end
-                Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
-                Screen('Flip',c.onscreenWindow);
+                Screen('Flip',c.window);
                 if waitforkey
                     KbWait([],2);
                 end
@@ -774,7 +786,7 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
-                            Screen('Flip',c.onscreenWindow,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
                     
@@ -788,66 +800,58 @@ classdef cic < neurostim.plugin
                         notify(c,'BASEBEFOREFRAME');
                         
                         Screen('DrawingFinished',c.window);
-                        Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
-                        Screen('DrawingFinished',c.onscreenWindow);
                         
                         notify(c,'BASEAFTERFRAME');
                         
-                        
-                        %Check the frame rate
-                        %                 if c.frame ==100
-                        %                     c.tic;
-                        %                     Screen('Flip', c.onscreenWindow,0);
-                        %                     elapsed1 = c.toc;
-                        %                 end
-                        %
                         c.KbQueueCheck;
-                        
-                        
+                      
                         if c.frame > 1 && c.PROFILE
                             c.addProfile('FRAMELOOP',c.name,c.toc);
                         end
-                        %
                         
-                        %                 %Check the frame rate
-                        %                 if c.frame ==100
-                        %                     c.tic;
-                        %                     Screen('Flip', c.onscreenWindow,0);
-                        %                     elapsed2 = c.toc;
-                        %                 end
-                        %
                         startFlipTime = c.clockTime;
-                        [vbl,stimOn,flip,~] = Screen('Flip', c.onscreenWindow,0,1-c.clear); %#ok<ASGLU>
-                        c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
+                        [vbl,stimOn,flip,missed] = Screen('Flip', c.window,0,1-c.clear); %#ok<ASGLU>
+                        if c.PROFILE
+                            c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
+                        end
+                        
+                        
                         c.tic;
                         
-                        % -----
-                        %Send any stimulus digital outs here? (i.e. if o.mccChannel has been specified)
-                        %------
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
                             c.trialStartTime = stimOn*1000; % for trialDuration check
                             c.flipTime=0;
                         end
-                        if c.frame>1 && ((vbl*1000-c.frameDeadline) > (0.1*(1000/c.screen.frameRate)))
-                            c.frameDrop = c.frame;
-                            if c.guiOn
-                                c.writeToFeed('Missed Frame');
+                        
+                        PTBTimingCheck = true;
+                        if PTBTimingCheck
+                            if missed>0
+                                c.frameDrop = missed;
+                                if c.guiOn
+                                    c.writeToFeed('Missed Frame');
+                                end
                             end
-                        elseif c.getFlipTime
-                            c.flipTime = stimOn*1000-c.trialStartTime;
-                            c.getFlipTime=false;
+                        else
+                            
+                            if c.frame>1 && ((vbl*1000-c.frameDeadline) > (0.1*(1000/c.screen.frameRate)))
+                                c.frameDrop = c.frame;
+                                if c.guiOn
+                                    c.writeToFeed('Missed Frame');
+                                end
+                            elseif c.getFlipTime
+                                c.flipTime = stimOn*1000-c.trialStartTime;
+                                c.getFlipTime=false;
+                            end
+                            
+                            c.frameStart = vbl*1000;
+                            c.frameDeadline = (vbl*1000)+(1000/c.screen.frameRate);
                         end
                         
-                        c.frameStart = vbl*1000;
-                        c.frameDeadline = (vbl*1000)+(1000/c.screen.frameRate);
                         
                         if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
-                        end
-                        if c.clear
-                            Screen('FillRect',c.window,c.screen.color.background);
                         end
                         if c.guiOn
                             if mod(c.frame,c.guiFlipEvery)==0
@@ -859,10 +863,8 @@ classdef cic < neurostim.plugin
                     %                     writeToFeed(c,num2str(elapsed1));
                     %                     writeToFeed(c,num2str(elapsed2));
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
-                    Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
-                    Screen('FillRect',c.window,c.screen.color.background);
                     
-                    [vbl,stimOn,flip,~]=Screen('Flip', c.onscreenWindow,0,1-c.clear);%#ok<ASGLU>
+                    [~,stimOn]=Screen('Flip', c.window,0,1-c.clear);
                     c.trialStopTime = stimOn*1000;
                     c.frame = c.frame+1;
                     notify(c,'BASEAFTERTRIAL');
@@ -877,18 +879,16 @@ classdef cic < neurostim.plugin
                 elseif ~isempty(c.blocks(blockNr).afterFunction)
                     waitforkey=c.blocks(blockNr).afterFunction(c);
                 end
-                Screen('DrawTexture',c.onscreenWindow,c.window,[0 0 c.screen.xpixels c.screen.ypixels],[0 0 c.screen.xpixels c.screen.ypixels],[],0);
-                Screen('Flip',c.onscreenWindow);
+                Screen('Flip',c.window);
                 if waitforkey
                     KbWait([],2);
                 end
             end %blocks
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
-            DrawFormattedText(c.onscreenWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.onscreenWindow);
+            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
+            Screen('Flip', c.window);
             notify(c,'BASEAFTEREXPERIMENT');
-            Screen('glLoadIdentity',c.window);
             c.KbQueueStop;
             KbWait;
             Screen('CloseAll');
@@ -1072,11 +1072,10 @@ classdef cic < neurostim.plugin
             %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
             PsychImaging('AddTask','General','UseFastOffscreenWindows');
             
-            c.onscreenWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
-            c.window=Screen('OpenOffscreenWindow',c.onscreenWindow,c.screen.color.background,[0 0 c.screen.xpixels c.screen.ypixels],[],2);
+            c.window = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             switch upper(c.screen.colorMode)
                 case 'XYL'
-                    PsychColorCorrection('SetSensorToPrimary', c.onscreenWindow, cal);
+                    PsychColorCorrection('SetSensorToPrimary', c.window, cal);
                     %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
                 case 'RGB'
                     Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1110,16 +1109,15 @@ classdef cic < neurostim.plugin
                     c.mirrorPixels=Screen('Rect',guiScreen);
                 end
                 c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
+                
+                % TODO should this be separate for the mirrorWindow? 
                 switch upper(c.screen.colorMode)
                     case 'XYL'
                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
-                        %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                        
                     case 'RGB'
-                        %                         Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                end
-                
-                
-                
+                       Screen(c.guiWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                end               
             end
             
             

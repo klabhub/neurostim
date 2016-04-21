@@ -13,7 +13,7 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = adamsConfig;         % Create Command and Intelligence Center...
+c = demoLabConfig;         % Create Command and Intelligence Center...
 c.trialDuration = '@fixation.startTime+3000';
 
 % plugins.gui(c);         % Show a gui (dual screens only)

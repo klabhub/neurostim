@@ -15,9 +15,8 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = bkConfig;                            % Create Command and Intelligence Center...
+c = demoLabConfig;                            % Create Command and Intelligence Center...
  
-%plugins.gui(c);         % Show a gui (dual screens only)
 
 % Create a Gabor stimulus to adadot. 
 g=stimuli.gabor(c,'adapt');           
@@ -47,8 +46,8 @@ circle.X            = 0;
 circle.Y            = 0;
 circle.nSides       = 100;
 circle.filled       = true;
-circle.color        = '@[0.5 0.5 0.5 0.8*randi(60)>35]';
-circle.on           = '@adapt.on';
+circle.color        = 0;'@[0.5 0.5 0.5 0.8*randi(60)>35]';
+circle.on           = Inf;'@adapt.on';
 
 
 

@@ -62,10 +62,10 @@ classdef output < neurostim.plugin
            else
                startAt=1;
            end
-           
-           o.data.events.(stimName)(1,:)=thisLog.parms(startAt:end);
-           o.data.events.(stimName)(2,:)=thisLog.values(startAt:end);
-           o.data.events.(stimName)(3,:)=num2cell(thisLog.t(startAt:end));
+           lastT = find(isnan(thisLog.t),1,'first')-1;         
+           o.data.events.(stimName)(1,:)=thisLog.parms(startAt:lastT);
+           o.data.events.(stimName)(2,:)=thisLog.values(startAt:lastT);
+           o.data.events.(stimName)(3,:)=num2cell(thisLog.t(startAt:lastT));
         end
         
             

@@ -1,19 +1,14 @@
 % Quest threshold estimation demo
-
+% TODO
+erro('NOT FUNCTIONAL')
 import neurostim.*
 
-Screen('Preference', 'SkipSyncTests', 1);
-
-% Create a CIC object
-c= cic;
-c.screen.pixels = [0 0 200 100];
+c= demoLabConfig;
 % Add a limited lifetime dot pattern
-l=stimuli.rdp('dots');
-c.add(l);
+l=stimuli.rdp(c,'dots');
 % Vary the nrDots across conditions. This factorial is given the name 'nrDots'
-% c.addFactorial('nrDots',{'lldots','nrDots',{10 20 30 40}});
 myFac=factorial('nrDots',1);
-myFac.fac1.dots.nrDots={10 20 30 40};
+myFac.fac1.dots.nrDots= [10:10:40];
 
 % We will do threshold estimation by varying the coherence parameter 
 % using a separate QUEST for each condition

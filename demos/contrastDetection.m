@@ -6,31 +6,18 @@ function c=contrastDetection
 
 %% Prerequisites. 
 import neurostim.*
-Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
-
-%% Variables
-bg = 0.5;
 
 %% Setup CIC and the stimuli.
-c = neurostim.cic;                            
-c.pixels= 0.5*[0200 0 1600 900];
-%c.mirrorPixels= 0.5*[1600 0 1600 900];
-c.physical = 1 *[16 9]; % Assume that the 3200 pixels map onto 32 cm.
-c.color.background= bg*[1 1 1]; 
-c.colorMode = 'RGB';   
-c.trialDuration = 1000;
-
-o = neurostim.output.mat;
-o.mode = 'DAYFOLDERS';
-o.root ='c:\temp\'; 
-c.add(o);
+c = demoLabConfig;   
+c.trialDuration = Inf; % A trial can only be ended by a mouse click
+c.cursor = 'arrow';
 
 c.addScript('AfterFrame',@respondMouse); 
 c.addScript('BeforeTrial',@beginTrial); 
 function beginTrial(c)
     % Start each trial at a new random position.
-  c.gabor.X = (0.5-0.9*rand)*c.physical(1) ; 
-  c.gabor.Y = (0.5-0.9* rand)*c.physical(2) ;
+  c.gabor.X = (0.5-0.9*rand)*c.screen.width ; 
+  c.gabor.Y = (0.5-0.9* rand)*c.screen.height ;
 end
 
 function respondMouse(c)
@@ -42,31 +29,31 @@ function respondMouse(c)
         end
         distance = sqrt(sum(([x y]-[c.gabor.X c.gabor.Y]).^2)); 
         if distance < 1 
-            Snd('Play',0.5*sin((0:10000)/3))
+            Snd('Play',0.5*sin((0:10000)/3)); %Correct; high tone
         else
-            Snd('Play',0.5*sin((0:10000)/10))
+            Snd('Play',0.5*sin((0:10000)/10)) % too far: low tone
         end
         c.nextTrial;
     end
 end
 
 % Add a Gabor stimulus . 
-g=stimuli.gabor('gabor');           
-g.color = [bg bg ];
-g.luminance = bg ;
+g=stimuli.gabor(c,'gabor');           
+g.color = [0.5 0.5 0.5 ];
 g.sigma = 0.5;    
 g.frequency = 3;
 g.phaseSpeed = 0;
 g.orientation = 0;
 g.mask ='GAUSS';
-
-c.add(g);                
+g.duration = 250;
 
 
 %% Define conditions and blocks, then run. 
 % This demonstrates how a condition can keep all 
 % stimulus parameters constant, but change some cic parameters.
-c.addFactorial('contrast',{'gabor','contrast',{0, 0.1 ,0.2 ,0.3 ,0.4 ,0.5}}) ;
-c.addBlock('contrast','contrast',10,'RANDOMWITHREPLACEMENT')
-c.run
+fac = factorial('contrast',1);
+fac.fac1.gabor.contrast = 0:0.1:0.5;
+blk = block('contrast',fac);
+blk.nrRepeats = 10;
+c.run(blk);
 end 

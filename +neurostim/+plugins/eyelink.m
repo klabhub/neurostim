@@ -63,7 +63,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         function beforeExperiment(o,c,evt)
             
             %Initalise default Eyelink el structure and set some values.
-            o.el=EyelinkInitDefaults(c.onscreenWindow);
+            o.el=EyelinkInitDefaults(c.window);
             o.el.calibrationtargetcolour = o.clbTargetColor;
             o.el.calibrationtargetsize = o.clbTargetSize./o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
@@ -83,7 +83,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
             
             %Tell Eyelink about the pixel coordinates
-            rect=Screen(c.onscreenWindow,'Rect');
+            rect=Screen(c.window,'Rect');
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
             
             % setup sample rate

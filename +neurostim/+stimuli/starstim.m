@@ -40,16 +40,16 @@ classdef starstim < neurostim.stimulus
                 fake= false;
            end            
            o=o@neurostim.stimulus(c,'starstim');           
-           o.addProperty('host',h,@ischar,[],'protected');
-           o.addProperty('template',tmplate,@ischar,[],'protected');
-           o.addProperty('fake',fake,@islogical,[],'protected');
-           o.addProperty('z',NaN,@isnumeric,[],'protected');
-           o.addProperty('channel',[],@isnumeric);
-           o.addProperty('startTime',[],@isnumeric);
-           o.addProperty('duration',[],@isnumeric);
-           o.addProperty('amplitude',[],@isnumeric);
-           o.addProperty('transition',[],@isnumeric);
-           o.addProperty('frequency',[],@isnumeric);
+           o.addProperty('host',h,'validate',@ischar,'SetAccess','protected');
+           o.addProperty('template',tmplate,'validate',@ischar,'SetAccess','protected');
+           o.addProperty('fake',fake,'validate',@islogical,'SetAccess','protected');
+           o.addProperty('z',NaN,'validate',@isnumeric,'SetAccess','protected');
+           o.addProperty('channel','validate',@isnumeric);
+           o.addProperty('startTime','validate',@isnumeric);
+           o.addProperty('duration','validate',@isnumeric);
+           o.addProperty('amplitude','validate',@isnumeric);
+           o.addProperty('transition','validate',@isnumeric);
+           o.addProperty('frequency','validate',@isnumeric);
            
            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME'});
 

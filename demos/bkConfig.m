@@ -71,7 +71,7 @@ Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just
         Screen('Preference', 'SkipSyncTests', 2); 
         
         c.dirs.output = '~/temp/';
-
+        %neurostim.plugins.gui(c)
         end
         
     otherwise

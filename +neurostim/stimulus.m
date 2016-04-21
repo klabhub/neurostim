@@ -88,29 +88,29 @@ classdef stimulus < neurostim.plugin
         function s= stimulus(c,name)
             s = s@neurostim.plugin(c,name);
             %% user-settable properties
-            s.addProperty('X',0,[],@isnumeric);
-            s.addProperty('Y',0,[],@isnumeric);
-            s.addProperty('Z',0,[],@isnumeric);  
-            s.addProperty('on',0,[],@isnumeric);  
-            s.addProperty('duration',Inf,[],@isnumeric);  
-            s.addProperty('color',[1/3 1/3 50],[],@isnumeric);
-            s.addProperty('alpha',1,[],@(x)x<=1&&x>=0);
+            s.addProperty('X',0,'validate',@isnumeric);
+            s.addProperty('Y',0,'validate',@isnumeric);
+            s.addProperty('Z',0,'validate',@isnumeric);  
+            s.addProperty('on',0,'validate',@isnumeric);  
+            s.addProperty('duration',Inf,'validate',@isnumeric);  
+            s.addProperty('color',[1/3 1/3 50],'validate',@isnumeric);
+            s.addProperty('alpha',1,'validate',@(x)x<=1&&x>=0);
             s.addProperty('scale',struct('x',1,'y',1,'z',1));
-            s.addProperty('angle',0,[],@isnumeric);
-            s.addProperty('rx',0,[],@isnumeric);
-            s.addProperty('ry',0,[],@isnumeric);
-            s.addProperty('rz',1,[],@isnumeric);
-        %    s.addProperty('rsvp',{},[],@(x)iscell(x)||isempty(x));
-            s.addProperty('rngSeed',[],[],@isnumeric);
+            s.addProperty('angle',0,'validate',@isnumeric);
+            s.addProperty('rx',0,'validate',@isnumeric);
+            s.addProperty('ry',0,'validate',@isnumeric);
+            s.addProperty('rz',1,'validate',@isnumeric);
+        
+            s.addProperty('rngSeed',[],'validate',@isnumeric);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT'});
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
-            s.addProperty('mccChannel',[],[],@isnumeric);
-            s.addProperty('userData',[],[]);
+            s.addProperty('mccChannel',[],'validate',@isnumeric);
+            s.addProperty('userData',[]);
             %% internally-set properties
-            s.addProperty('startTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus appears on screen
-            s.addProperty('stopTime',Inf,[],[],{'neurostim.stimulus'},'public');   % first time the stimulus does not appear after being run
-            s.addProperty('isi',[],[],@isnumeric,{'neurostim.stimulus'});
-        %    s.addProperty('subCond',[],[],[],{'neurostim.stimulus'},{'neurostim.plugin'});
+           
+            s.addProperty('startTime',Inf,'SetAccess','protected');   % first time the stimulus appears on screen
+            s.addProperty('stopTime',Inf,'SetAccess','protected');   % first time the stimulus does not appear after being run
+            s.addProperty('isi',[],'validate',@isnumeric,'SetAccess','protected');
             
         
         
@@ -269,7 +269,7 @@ classdef stimulus < neurostim.plugin
         function setupDiode(s)
             pixelsize=s.diode.size*s.cic.screen.xpixels;
             if isempty(s.diode.color)
-                s.diode.color=WhiteIndex(s.cic.onscreenWindow);
+                s.diode.color=WhiteIndex(s.cic.window);
             end
            switch lower(s.diode.location)
                case 'ne'

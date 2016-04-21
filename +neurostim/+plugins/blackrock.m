@@ -12,13 +12,13 @@ classdef blackrock < neurostim.plugin
        
        function o=blackrock(c)
            o=o@neurostim.plugin(c,'blackrock');
-           o.addProperty('useMCC',true,[],[],'private');
-           o.addProperty('blackrockClockTime',[],[],[],'private');
-           o.addProperty('eventData',[],[],[],'private');
-           o.addProperty('continuousData',[],[],[],'private');
-           o.addProperty('bufferResetTime',[],[],[],'private');
-           o.addProperty('mccChannel',[],[],@isnumeric);
-           o.addProperty('comments','Neurostim experiment',[],@ischar);  %String sent to Central at start of experiment, saved with data file and displayed
+           o.addProperty('useMCC',true,'SetAccess','private');
+           o.addProperty('blackrockClockTime',[],'SetAccess','private');
+           o.addProperty('eventData',[],'SetAccess','private');
+           o.addProperty('continuousData',[],'SetAccess','private');
+           o.addProperty('bufferResetTime',[],'SetAccess','private');
+           o.addProperty('mccChannel',[],'validate',@isnumeric);
+           o.addProperty('comments','Neurostim experiment','validate',@ischar);  %String sent to Central at start of experiment, saved with data file and displayed
            o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT'});
        end
        

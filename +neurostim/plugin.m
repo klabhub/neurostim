@@ -1,15 +1,6 @@
 classdef plugin  < dynamicprops & matlab.mixin.Copyable
     % Base class for plugins. Includes logging, functions, etc.
     %
-    % Issue: In setupFunction()
-    %   While functions will work for assigning one-level structure references,
-    %   i.e. fixation.diode.color = '@(cic) cic.screen.color.text'
-    %   there may be timing problems if there are multiple one-level
-    %   references to the same structure, as functions within the structure
-    %   will be evaluated every time the structure is called.
-    %   Multiple-level structure references are also currently not supported
-    %   for assignation.
-    %
     properties (SetAccess=public)
         cic;  % Pointer to CIC
     end
@@ -36,7 +27,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     properties (Access = private)
-        
+        propertyValues; % Internal storage for the current values of the parameters of stimuli/plugins. 
     end
     
     methods (Access=public)
@@ -47,13 +38,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             o.name = n;
             % Initialize an empty log.
-            o.log(1).parms  = {};
+            o.log(1).parms = {};
             o.log(1).values = {};
-            o.log(1).t =[];
+            o.log(1).t = [];
+            o.log(1).cntr =0;
+            o.log(1).capacity=0;
             if~isempty(c) % Need this to construct cic itself...dcopy
                 c.add(o);
             end
-            
         end
         
         function s= duplicate(o,name)
@@ -66,13 +58,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function keyboard(o,key,time)
             % Generic keyboard handler; when keys are added using keyFun,
             % this evaluates the function attached.
-            
             if any(strcmpi(key,fieldnames(o.keyFunc)))
                 o.keyFunc.(key)(o,key);
             end
-            
         end
-        
         
         
         function success=addKey(o,key,fnHandle,varargin)
@@ -86,7 +75,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             else
                 keyhelp = varargin{1};
             end
-            
             o.listenToKeyStroke(key,keyhelp);
             o.keyFunc.(key) = fnHandle;
             success=true;
@@ -106,8 +94,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         %% GUI Functions
         function writeToFeed(o,message)
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
-        end
-        
+        end        
     end
     
     
@@ -134,108 +121,75 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             s.name=name;
             for p=1:numel(dynProps)
                 pName = dynProps{p};
+                %TODO: postprocess/validate/set/get access
                 s.addProperty(pName,o.(pName));
-                % Because the dynprops are added to the copy here, their PostSet and PreGet listeners are setup appropriately.
             end
             o.cic.add(s);
         end
         
-        % Define a property as a function of sme other property.
-        % This function is called at the initial logParmSet of a parameter.
-        % funcstring is the function definition. It is a string which
-        % references a stimulus/plugin by its assigned name and reuses that
-        % property name if it uses an object/variable of that property. e.g.
-        % dots.size='@ sin(cic.frame)' or
-        % fixation.X='@ dots.X + 1' or
-        % fixation.color='@ cic.screen.color.background'
-        % % The @ sign should be the first character in the string.
-        function setupFunction(o,prop,funcstring)
-            h=findprop(o,prop);
-            if isempty(h)
-                o.cic.error('STOPEXPERIMENT',[prop ' is not a property of ' o.name '. Add it first']);
-            end
-            h.GetObservable =true;
-            % Parse the specified function and make it into an anonymous
-            % function.
-        end
         
         
-        
-        % Add properties that will be time-logged automatically, fun
-        % is an optional argument that can be used to modify the parameter
-        % when it is set. This function will be called with the plugin object
-        % as its first and the raw value as its second argument.
-        % The function should return the desired value. For
-        % instance, to add a Gaussian jitter around a set value:
-        % jitterFun = @(obj,value)(value+randn);
-        % or, you can pass a handle to a member function. For instance the
-        % @afterFirstFixation member function which will add the frame at
-        % which fixation was first obtained to, for instance an on-frame.
-        function addProperty(o,prop,value,postprocess,validate,SetAccess,GetAccess)
-            h = o.addprop(prop);
-            h.SetObservable = true;
-            if nargin<7
-                GetAccess='public';
-                if nargin<6
-                    SetAccess='public';
-                    if nargin <5
-                        validate = '';
-                        if nargin<4
-                            postprocess = '';
-                        end
-                    end
+        % Add properties that will be time-logged automatically, and that
+        % can be validated, and postprocessed after being set.
+        % These properties can also be assigned a function to dynamically
+        % link properties of one object to another. (g.X='@g.Y+5')
+        function addProperty(o,prop,value,varargin)
+            p=inputParser;
+            p.addParameter('postprocess',[]);
+            p.addParameter('validate',[]);
+            p.addParameter('SetAccess','public');
+            p.addParameter('GetAccess','public');
+            p.addParameter('thisIsAnUpdate',false,@islogical);
+            p.parse(varargin{:});
+            
+            
+            % First check if it is already there.
+            h =findprop(o,prop); 
+            if p.Results.thisIsAnUpdate
+                if isempty(h)
+                    error([prop ' is not a property of ' o.name '. (Use addProperty to add new properties) ']);
                 end
+            else
+                if ~isempty(h)
+                    error([prop ' is already a property of ' o.name '. (Use updateProperty if you want to change postprocessing or validation)']);
+                end
+                % Add the property as a dynamicprop (this allows users to write
+                % things like o.X = 10;
+                h = o.addprop(prop);
             end
-            % Setup a listener for logging, validation, and postprocessing
-            o.addlistener(prop,'PostSet',@(src,evt) postSetProperty(o,src,evt,postprocess,validate));
-            o.(prop) = value; % Set it, this will call the logParmSet function now.
-            h.GetAccess= GetAccess;
-            h.SetAccess= SetAccess;
+            
+            % Behind the scenes we have special handlers that control
+            % setting values
+            h.SetMethod  = @(obj,value) setProperty(obj,value,prop,p.Results.postprocess,p.Results.validate);
+            % and getting values.
+            h.GetMethod = @(obj) getProperty(obj,prop,[]);
+            o.(prop) = value; % Set the value, this will call the SetMethod now.
+            h.GetAccess= p.Results.GetAccess;
+            h.SetAccess= 'public'; p.Results.SetAccess; % Restric access if requested. (e.g. limit users from writing to cic.frameDrop)
         end
         
         
         % For properties that have been added already, you cannot call addProperty again
         % (to prevent duplication and enforce name space consistency)
         % But the user may want to add a postprocessor to a built in property like
-        % X. This function does that
-        %         function addPostSet(o,prop,postprocess,validate)
-        %             if nargin <4
-        %                 validate = '';
-        %             end
-        %             h =findprop(o,prop);
-        %             if isempty(h)
-        %                 error([prop ' is not a property of ' o.name '. Add it first']);
-        %             end
-        %            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,postprocess,validate));
-        %             o.(prop) = o.(prop); % Force a call to the postprocessor.
-        %         end
-        %
+        % X. This function allows that.
+        function updateProperty(o,prop,value,varargin)
+            addProperty(o,prop,value,varargin{:},'thisIsAnUpdate',true);
+        end
         
+       
         % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
-        function postSetProperty(o,src,evt,postprocess,validate)
-            prop = src.Name;
-            if src.GetObservable
-                % Matlab no longer provides access to the raw new value in
-                % the postSet event. So we cannot use that to update the
-                % function. Just throw an error (until we can fix this).
-                % There is one hacked solution that could make this
-                % possible: write preGetProperty to return a struct that
-                % contains both he function and the value, then we can
-                % check that here... Seems a lot of overhead for something
-                % that is probably just an error.
-                error(['The ' prop ' property in ' o.name ' cannot be changed (it''s a function)']);
-            end
-            value  = o.(prop);% The value that was just set (or the outcome of the function; which causes the problem above).
-            
+        function setProperty(o,value,prop,postprocess,validate)
             %if this is a function, add a listener
             if strncmpi(value,'@',1)
                 fun = neurostim.utils.str2fun(value);
                 % Assign the  function to be the PreGet function; it will be
                 % called everytime a client requests the value of this
                 % property.
-                src.GetObservable = true;
-                o.addlistener(prop,'PreGet',@(src,evt) preGetProperty(o,src,evt,fun));
+                h= findprop(o,prop);
+                h.GetMethod = @(obj) getProperty(obj,prop,fun);
+                value =fun;
                 if isempty(o.cic) || o.cic.stage <= o.cic.SETUP
                     % Validation and postprocessing doesn't necessarily
                     % work yet because not all objects that this property
@@ -254,49 +208,58 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             if nargin>=4 && ~isempty(postprocess)
                 % This re-sets the value to something else.
-                % Matlab is clever enough not to
-                % generate another postSet event.
                 value  = postprocess(o,value);
             end
-            o.(prop) = value; % This won't call post set again (non-recursive)
-            addToLog(o,prop,value);
+            o.propertyValues.(prop) = value; % Store the value in a separate struct to avoid calling SetMethod again.
+            addToLog(o,prop,value); % Log 
         end
-        
-        
-        % Protected access to logging
-        function addToLog(o,name,value)
-            o.log.parms{end+1}  = name;
-            o.log.values{end+1} = value;
-            if isempty(o.cic)
-                o.log.t(end+1)       = -Inf;
-            else
-                o.log.t(end+1)      = o.cic.clockTime;
-            end
-        end
-        
         
         
         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
-        function preGetProperty(o,src,evt,fun)
-            prop=src.Name;
-            oldValue = o.(prop);
-            disp('todo')
-            if true || ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
-                value=fun(o);
+        function newValue = getProperty(o,prop,fun)
+            if isempty(fun)
+                newValue = o.propertyValues.(prop);
+            elseif ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
+                oldValue = o.propertyValues.(prop);
+                newValue=fun(o);
                 % Check if changed, assign and log if needed.
-                if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
-                        || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
-                    o.(prop) = value; % This calls PostSet and logs the new value
+                if ~isequal(newValue,oldValue) || (ischar(newValue) && ~(strcmp(oldValue,newValue))) || (ischar(oldValue)) && ~ischar(newValue)...
+                        || (~isempty(newValue) && isnumeric(newValue) && (isempty(oldValue) || all(oldValue ~= newValue))) || (isempty(newValue) && ~isempty(oldValue))
+                    o.(prop) = newValue; % This calls SetMethod and stores,validates, postprocesses, and logs the new value
                 end
             else
                 % Not all objects have been setup so function may not work
                 % yet. Evaluate to NaN for now; validation is disabled for
                 % now.
-                %value = NaN;
-            end
-            
+                newValue = NaN;
+            end            
         end
+        
+        
+        % Log name/value pairs in a simple growing struct.
+        % TODO: improve performance by block allocating space and keeping a
+        % counter.
+        function addToLog(o,name,value)
+            o.log.cntr=o.log.cntr+1;
+            %% Allocate space if needed 
+            if o.log.cntr> o.log.capacity
+                BLOCKSIZE = 500; % Allocate in chunks to save time. Overallocation is pruned by plugins.output if needed.
+         
+                o.log.parms = cat(2,o.log.parms,cell(1,BLOCKSIZE));
+                o.log.values = cat(2,o.log.values,cell(1,BLOCKSIZE));
+                 o.log.t  = cat(2,o.log.t,nan(1,BLOCKSIZE));
+                 o.log.capacity = numel(o.log.parms);
+            end
+            %% Fill the log.
+            o.log.parms{o.log.cntr}  = name;
+            o.log.values{o.log.cntr} = value;
+            if isempty(o.cic)
+                o.log.t(o.log.cntr)       = -Inf;
+            else
+                o.log.t(o.log.cntr)      = o.cic.clockTime;
+            end
+        end      
     end
     
     % Convenience wrapper functions to pass the buck to CIC
@@ -383,6 +346,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         
     end
     
+    
     methods (Access = public)
         
         function baseEvents(o,c,evt)
@@ -431,8 +395,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 case 'BASEAFTEREXPERIMENT'
                     notify(o,'AFTEREXPERIMENT');
             end
-        end
-        
-        
+        end    
     end
 end
