@@ -214,30 +214,40 @@ classdef factorial < dynamicprops
         % This is called in response to o.fac1.stim.prop = value
         function postSetProperty(o,src,evt)
             for f=1:o.nrFactors
-                nLevels = [];
-                plgins=fieldnames(o.(['fac' num2str(f)]));
+                thisFac = o.(['fac' num2str(f)]);
+                
+                %Which plugins are part of this factorial?
+                plgins=fieldnames(thisFac);
                 plgins=plgins(~strcmpi(plgins,'weights'));
+                
+                %How many levels does this factor have? (max number across all plugins and properties [some can have one value that is to be replicated)
+                nLevels = 0;
                 for plgNr=1:numel(plgins)
-                    thisPlugIn = o.(['fac' num2str(f)]).(plgins{plgNr});                    
+                    thisPlugIn = thisFac.(plgins{plgNr}); 
+                    nLevels = max(vertcat(nLevels, structfun(@numel,thisPlugIn)));
+                end
+                
+                %Check that levels match across plugins and props. Expand singletons if necessary.
+                for plgNr=1:numel(plgins)
+                    thisPlugIn = thisFac.(plgins{plgNr});                    
                     props=fieldnames(thisPlugIn);
                     nLev = structfun(@numel,thisPlugIn);
                     
                     %Allow the user to give a single value for a property to be used for all levels of the current factor
-                    if any(nLev==1) && max(nLev) > 1
+                    if any(nLev==1)
                         
-                        %Duplicate the single value across all levels to match the other property
+                        %Duplicate the single value across all levels
                         theseProps = props(nLev==1);
                         for i=1:numel(theseProps)
-                            thisPlugIn.(theseProps{i}) = repmat(thisPlugIn.(theseProps{i}),1,max(nLev));
+                            thisPlugIn.(theseProps{i}) = repmat(thisPlugIn.(theseProps{i}),1,nLevels);
                         end
                     end
                     
                     %Check that all properties now have the same number of levels
                     nLev = structfun(@numel,thisPlugIn);
-                    if numel(unique(nLev))>1
-                        error('Invalid factorial specification. The number of levels must be constant across properties.');
-                    else
-                        nLevels(plgNr) = unique(nLev);
+                    allOK = numel(unique(nLev))==1 && unique(nLev)== nLevels;
+                    if ~allOK
+                        error('Invalid factorial specification. The number of levels must be constant across plugins/properties.');
                     end
                     
                     %If a vector is specified rather than a cell array, convert
