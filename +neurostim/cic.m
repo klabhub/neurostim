@@ -825,7 +825,7 @@ classdef cic < neurostim.plugin
                             c.flipTime=0;
                         end
                         
-                        PTBTimingCheck = true;
+                        PTBTimingCheck = false;
                         if PTBTimingCheck
                             if missed>0
                                 c.frameDrop = missed;
