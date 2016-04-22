@@ -171,14 +171,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
             srcName=src.Name;
-            value = o.(srcName); % The raw value that has just been set
-            
-            if src.GetObservable
-                % Matlab no longer provides access to the raw new value in
-                % the postSet event. So we cannot use that to update the
-                % function. Just throw an error (until we can fix this (ongoing work on beta branch)).
-                error(['The ' srcName ' property in ' o.name ' cannot be changed (it''s a function)']);
-            end
+            value = o.(srcName); % The raw value that has just been set        
             
             %if this is a function, add a listener
             if strncmpi(value,'@',1)
