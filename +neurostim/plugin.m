@@ -156,18 +156,49 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % Add the property as a dynamicprop (this allows users to write
                 % things like o.X = 10;
                 h = o.addprop(prop);
+                  h.SetObservable = true; 
             end
             
-            % Behind the scenes we have special handlers that control
-            % setting values
-            h.SetMethod  = @(obj,value) setProperty(obj,value,prop,p.Results.postprocess,p.Results.validate);
-            % and getting values.
-            h.GetMethod = @(obj) getProperty(obj,prop,[]);
-            o.(prop) = value; % Set the value, this will call the SetMethod now.
-            h.GetAccess= p.Results.GetAccess;
-            h.SetAccess= 'public'; p.Results.SetAccess; % Restric access if requested. (e.g. limit users from writing to cic.frameDrop)
+            % Setup a listener for logging, validation, and postprocessing
+            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,p.Results.postprocess,p.Results.validate));
+            o.(prop) = value; % Set it, this will call the logParmSet function now.
+            h.GetAccess=p.Results.GetAccess;
+            h.SetAccess='public';% TODO: figure out how to limit setAccess p.Results.SetAccess;            
         end
         
+        
+         % Log the parameter setting and postprocess it if requested in the call
+        % to addProperty.
+        function logParmSet(o,src,evt,postprocess,validate)
+            srcName=src.Name;
+            value = o.(srcName); % The raw value that has just been set
+            %if this is a function, add a listener
+            if strncmpi(value,'@',1)
+                setupFunction(o,srcName,value);
+                value=o.(srcName);
+                if isempty(o.cic) || o.cic.stage <= o.cic.SETUP
+                    % Validation and postprocessing doesn't necessarily
+                    % work yet because not all objects that this property
+                    % depends on have been setup.
+                    validate = '';
+                    postprocess = '';
+                end
+            end
+                                        
+            if  nargin >=5 && ~isempty(validate)
+                success = validate(value);
+                if ~success
+                    error(['Setting ' srcName ' failed validation ' func2str(validate)]);
+                end
+            end
+            if nargin>=4 && ~isempty(postprocess)
+                % This re-sets the value to something else.
+                % Matlab is clever enough not to
+                % generate another postSet event.
+                o.(srcName) = postprocess(o,value);
+            end
+             o.addToLog(srcName,value);
+        end
         
         % For properties that have been added already, you cannot call addProperty again
         % (to prevent duplication and enforce name space consistency)
@@ -178,69 +209,60 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         end
         
        
-        % Log the parameter setting and postprocess it if requested in the call
-        % to addProperty.
-        function setProperty(o,value,prop,postprocess,validate)
-            %if this is a function, add a listener
-            if strncmpi(value,'@',1)
-                fun = neurostim.utils.str2fun(value);
-                % Assign the  function to be the PreGet function; it will be
-                % called everytime a client requests the value of this
-                % property.
-                h= findprop(o,prop);
-                h.GetMethod = @(obj) getProperty(obj,prop,fun);
-                value =fun;
-                if isempty(o.cic) || o.cic.stage <= o.cic.SETUP
-                    % Validation and postprocessing doesn't necessarily
-                    % work yet because not all objects that this property
-                    % depends on have been setup.
-                    validate = '';
-                    postprocess = '';
-                end
+     
+        % Define a property as a function of some other property.
+        % This function is called at the initial logParmSet of a parameter.
+        % funcstring is the function definition. It is a string which
+        % references a stimulus/plugin by its assigned name and reuses that 
+        % property name if it uses an object/variable of that property. e.g. 
+        % dots.size='@ sin(cic.frame)' or
+        % fixation.X='@ dots.X + 1' or
+        % fixation.color='@ cic.screen.color.background'
+        % % The @ sign should be the first character in the string.
+        function setupFunction(o,prop,funcstring)
+            h=findprop(o,prop);
+            listenprop=prop;
+            if isempty(h)
+                o.cic.error('STOPEXPERIMENT',[prop ' is not a property of ' o.name '. Add it first']);
             end
-            
-            if  nargin >=5 && ~isempty(validate)
-                success = validate(value);
-                if ~success
-                    error(['Setting ' prop ' failed validation ' func2str(validate)]);
-                end
-            end
-            
-            if nargin>=4 && ~isempty(postprocess)
-                % This re-sets the value to something else.
-                value  = postprocess(o,value);
-            end
-            o.propertyValues.(prop) = value; % Store the value in a separate struct to avoid calling SetMethod again.
-            addToLog(o,prop,value); % Log 
+            h.GetObservable =true;
+            % Parse the specified function and make it into an anonymous
+            % function.  
+            fun = neurostim.utils.str2fun(funcstring);
+            % Assign the  function to be the PreGet function; it will be
+            % called everytime a client requests the value of this
+            % property.
+            o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,fun));            
         end
         
         
-        % Evaluate a function to get a parameter and validate it if requested in the call
+         % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
-        function newValue = getProperty(o,prop,fun)
-            if isempty(fun)
-                newValue = o.propertyValues.(prop);
-            elseif ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
-                oldValue = o.propertyValues.(prop);
-                newValue=fun(o);
+        function evalParmGet(o,src,evt,fun)            
+            srcName=src.Name;
+                
+            oldValue = o.(srcName);            
+           
+            if ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
+                value=fun(o);
                 % Check if changed, assign and log if needed.
-                if ~isequal(newValue,oldValue) || (ischar(newValue) && ~(strcmp(oldValue,newValue))) || (ischar(oldValue)) && ~ischar(newValue)...
-                        || (~isempty(newValue) && isnumeric(newValue) && (isempty(oldValue) || all(oldValue ~= newValue))) || (isempty(newValue) && ~isempty(oldValue))
-                    o.(prop) = newValue; % This calls SetMethod and stores,validates, postprocesses, and logs the new value
+                if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+                        || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
+                    o.(srcName) = value; % This calls PostSet and logs the new value
                 end
             else
                 % Not all objects have been setup so function may not work
                 % yet. Evaluate to NaN for now; validation is disabled for
                 % now.
-                newValue = NaN;
-            end            
-        end
+                %value = NaN; 
+            end   
+            
+        end                    
+        
         
         
         % Log name/value pairs in a simple growing struct.
-        % TODO: improve performance by block allocating space and keeping a
-        % counter.
-        function addToLog(o,name,value)
+          function addToLog(o,name,value)
             o.log.cntr=o.log.cntr+1;
             %% Allocate space if needed 
             if o.log.cntr> o.log.capacity
