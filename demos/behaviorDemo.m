@@ -1,4 +1,4 @@
-function behaviorDemo
+function c=behaviorDemo
 %Two-alternative forced choice (2AFC) motion task.
 %
 %This demo shows how to use:

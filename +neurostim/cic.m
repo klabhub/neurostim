@@ -106,7 +106,7 @@ classdef cic < neurostim.plugin
         lastFrameDrop=1;
         propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/fullNrTrials'};
         
-        profile=struct('cic',struct('FRAMELOOP',[],'FLIPTIME',[]));
+        profile=struct('cic',struct('FRAMELOOP',[],'FLIPTIME',[],'cntr',0));
         
         guiWindow;
         
@@ -269,7 +269,7 @@ classdef cic < neurostim.plugin
                 error('frameRate not specified');
             end
             
-            frInterval = Screen('GetFlipInterval',c.window)*1000;	
+            frInterval = Screen('GetFlipInterval',c.window)*1000;
             percError = abs(frInterval-(1000/c.screen.frameRate))/frInterval*100;
             if percError > 5
                 error('Actual frame rate doesn''t match the requested rate');
@@ -521,6 +521,7 @@ classdef cic < neurostim.plugin
             Screen('glLoadIdentity', window);
             Screen('glTranslate', window,c.screen.xpixels/2,c.screen.ypixels/2);
             Screen('glScale', window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
+            
         end
         
         
@@ -626,7 +627,7 @@ classdef cic < neurostim.plugin
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
                 if strcmp(nm,'plugins') && c.PROFILE
-                    c.profile.(o.name)=struct('BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[]);
+                    c.profile.(o.name)=struct('BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'cntr',0);
                 end
             end
             
@@ -796,7 +797,9 @@ classdef cic < neurostim.plugin
                     c.frameStart=c.clockTime;
                     
                     while (c.flags.trial && c.flags.experiment)
+                        %%  Trial runnning -                         
                         c.frame = c.frame+1;
+                        
                         notify(c,'BASEBEFOREFRAME');
                         
                         Screen('DrawingFinished',c.window);
@@ -804,20 +807,17 @@ classdef cic < neurostim.plugin
                         notify(c,'BASEAFTERFRAME');
                         
                         c.KbQueueCheck;
-                      
-                        if c.frame > 1 && c.PROFILE
-                            c.addProfile('FRAMELOOP',c.name,c.toc);
-                        end
+                        
                         
                         startFlipTime = c.clockTime;
                         [vbl,stimOn,flip,missed] = Screen('Flip', c.window,0,1-c.clear); %#ok<ASGLU>
-                        if c.PROFILE
+                        if c.frame > 1 && c.PROFILE
+                            c.addProfile('FRAMELOOP',c.name,c.toc);
+                            c.tic
+                        end
+                        if c.frame > 1 && c.PROFILE
                             c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
                         end
-                        
-                        
-                        c.tic;
-                        
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
@@ -825,8 +825,10 @@ classdef cic < neurostim.plugin
                             c.flipTime=0;
                         end
                         
-                        PTBTimingCheck = false;
+                        %% Check Timing 
+                        PTBTimingCheck = true;
                         if PTBTimingCheck
+                            % Use builtin PTB timing check
                             if missed>0
                                 c.frameDrop = missed;
                                 if c.guiOn
@@ -834,7 +836,7 @@ classdef cic < neurostim.plugin
                                 end
                             end
                         else
-                            
+                            % Use NS Timing check
                             if c.frame>1 && ((vbl*1000-c.frameDeadline) > (0.1*(1000/c.screen.frameRate)))
                                 c.frameDrop = c.frame;
                                 if c.guiOn
@@ -843,13 +845,10 @@ classdef cic < neurostim.plugin
                             elseif c.getFlipTime
                                 c.flipTime = stimOn*1000-c.trialStartTime;
                                 c.getFlipTime=false;
-                            end
-                            
+                            end                            
                             c.frameStart = vbl*1000;
                             c.frameDeadline = (vbl*1000)+(1000/c.screen.frameRate);
                         end
-                        
-                        
                         if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
                         end
@@ -857,7 +856,12 @@ classdef cic < neurostim.plugin
                             if mod(c.frame,c.guiFlipEvery)==0
                                 Screen('Flip',c.guiWindow,0,[],2);
                             end
-                        end
+                       end
+                       %% end timing check 
+                        
+                        
+                        
+                                              
                     end % Trial running
                     
                     %                     writeToFeed(c,num2str(elapsed1));
@@ -1110,14 +1114,14 @@ classdef cic < neurostim.plugin
                 end
                 c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
                 
-                % TODO should this be separate for the mirrorWindow? 
+                % TODO should this be separate for the mirrorWindow?
                 switch upper(c.screen.colorMode)
                     case 'XYL'
                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
                         
                     case 'RGB'
-                       Screen(c.guiWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                end               
+                        Screen(c.guiWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                end
             end
             
             
@@ -1144,6 +1148,7 @@ classdef cic < neurostim.plugin
                 figure('Name',plgns{i});
                 
                 items = fieldnames(c.profile.(plgns{i}));
+                items(strcmpi(items,'cntr'))=[];
                 nPlots = numel(items);
                 nPerRow = ceil(sqrt(nPlots));
                 
@@ -1158,7 +1163,13 @@ classdef cic < neurostim.plugin
         end
         
         function addProfile(c,what,name,duration)
-            c.profile.(name).(what) = [c.profile.(name).(what) duration];
+            BLOCKSIZE = 1500;
+            c.profile.(name).cntr = c.profile.(name).cntr+1;
+            thisCntr = c.profile.(name).cntr;            
+            if thisCntr > numel(c.profile.(name).(what))
+                c.profile.(name).(what) = [c.profile.(name).(what) nan(1,BLOCKSIZE)];
+            end
+            c.profile.(name).(what)(thisCntr) =  duration;
         end
         
         function tic(c)

@@ -64,7 +64,7 @@ switch computerName
         Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
         c.screen.colorMode = 'RGB';
-        smallWindow = true;
+        smallWindow = false;
         
         
     otherwise

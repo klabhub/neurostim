@@ -11,6 +11,15 @@ classdef behavior < neurostim.plugin
     
     properties (SetAccess=protected)
         started = false;
+        
+        
+       startTime;%The time at which the behaviour was initiated (i.e. in progress).
+            stopTime;                       %The time at which a result was achieved (good or bad).
+            done;                            %True when a result (of any kind) has been achieved.
+            inProgress;                      %True if the subject is currently satisfying the requirement
+            success;                     %Whether the behavioral criterion was achieved.
+            outcome;             %For logging different types of outcome 
+
     end
     
     
@@ -41,14 +50,7 @@ classdef behavior < neurostim.plugin
             o.addProperty('to',Inf,'validate',@isnumeric);              %The time to which the behaviour *must* be satisfied (for continuous).
             o.addProperty('deadline',Inf,'validate',@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
             
-            %Internal
-            o.addProperty('startTime',Inf,'validate',@isnumeric);                     %The time at which the behaviour was initiated (i.e. in progress).
-            o.addProperty('stopTime',Inf,'validate',@isnumeric);                       %The time at which a result was achieved (good or bad).
-            o.addProperty('done',false,'validate',@islogical);                            %True when a result (of any kind) has been achieved.
-            o.addProperty('inProgress',false,'validate',@islogical);                      %True if the subject is currently satisfying the requirement
-            o.addProperty('success',false,'validate',@islogical);                     %Whether the behavioral criterion was achieved.
-            o.addProperty('outcome','','validate',@ischar);             %For logging different types of outcome 
-
+    
             o.listenToEvent({'BEFORETRIAL','AFTERTRIAL','AFTERFRAME'});
         end
         

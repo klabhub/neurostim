@@ -156,13 +156,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % Add the property as a dynamicprop (this allows users to write
                 % things like o.X = 10;
                 h = o.addprop(prop);
-                  h.SetObservable = true; 
+                h.SetObservable = true; 
             end
             
             % Setup a listener for logging, validation, and postprocessing
             o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,p.Results.postprocess,p.Results.validate));
             o.(prop) = value; % Set it, this will call the logParmSet function now.
-            h.GetAccess=p.Results.GetAccess;
+            h.AbortSet = true;
+            h.GetAccess=p.Results.GetAccess; 
             h.SetAccess='public';% TODO: figure out how to limit setAccess p.Results.SetAccess;            
         end
         
@@ -242,16 +243,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function evalParmGet(o,src,evt,fun)            
             srcName=src.Name;
                 
-            oldValue = o.(srcName);            
+        %    oldValue = o.(srcName);            
            
-            if ~isempty(o.cic) && o.cic.stage >o.cic.SETUP
+            if o.cic.stage >o.cic.SETUP
                 value=fun(o);
                 % Check if changed, assign and log if needed.
-                if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
-                        || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
+          %      if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+            %            || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
                     o.(srcName) = value; % This calls PostSet and logs the new value
-                end
-            else
+              %  end
+           else
                 % Not all objects have been setup so function may not work
                 % yet. Evaluate to NaN for now; validation is disabled for
                 % now.
@@ -267,7 +268,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             o.log.cntr=o.log.cntr+1;
             %% Allocate space if needed 
             if o.log.cntr> o.log.capacity
-                BLOCKSIZE = 500; % Allocate in chunks to save time. Overallocation is pruned by plugins.output if needed.
+                BLOCKSIZE = 1500; % Allocate in chunks to save time. Overallocation is pruned by plugins.output if needed.
          
                 o.log.parms = cat(2,o.log.parms,cell(1,BLOCKSIZE));
                 o.log.values = cat(2,o.log.values,cell(1,BLOCKSIZE));

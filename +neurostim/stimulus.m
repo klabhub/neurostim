@@ -1,23 +1,23 @@
 classdef stimulus < neurostim.plugin
-% Base class for stimuli in PTB.
-% 
-% Adjustable variables:
-%   X,Y,Z - position of stimulus
-%   on - time the stimulus should come 'on' (ms) from start of trial
-%   duration - length of time the stimulus should be 'on' (ms)
-%   color - color of the stimulus
-%   alpha - alpha blend of the stimulus.
-%   scale.x,scale.y,scale.z - scale of the stimulus along various axes
-%   angle - angle of the stimulus
-%   rx, ry, rz - rotation of the stimulus
-%   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
-%       details)
-%   rngSeed - seed of the RNG.
-%   diode.on,diode.color,diode.location,diode.size - a square box of
-%       specified color in the corner of the screen specified ('nw','sw', etc.),
-%   for use with a photodiode recording.
-%   mccChannel - a linked MCC Channel to output alongside a stimulus.
-% 
+    % Base class for stimuli in PTB.
+    %
+    % Adjustable variables:
+    %   X,Y,Z - position of stimulus
+    %   on - time the stimulus should come 'on' (ms) from start of trial
+    %   duration - length of time the stimulus should be 'on' (ms)
+    %   color - color of the stimulus
+    %   alpha - alpha blend of the stimulus.
+    %   scale.x,scale.y,scale.z - scale of the stimulus along various axes
+    %   angle - angle of the stimulus
+    %   rx, ry, rz - rotation of the stimulus
+    %   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
+    %       details)
+    %   rngSeed - seed of the RNG.
+    %   diode.on,diode.color,diode.location,diode.size - a square box of
+    %       specified color in the corner of the screen specified ('nw','sw', etc.),
+    %   for use with a photodiode recording.
+    %   mccChannel - a linked MCC Channel to output alongside a stimulus.
+    %
     
     properties (SetAccess = public,GetAccess=public)
         quest@struct;
@@ -27,9 +27,9 @@ classdef stimulus < neurostim.plugin
         beforeFrameListenerHandle =[];
         afterFrameListenerHandle =[];
     end
-    properties 
-        flags = struct('on',true);                
-    end    
+    properties
+        flags = struct('on',true);
+    end
     properties (Dependent)
         off;
         onFrame;
@@ -43,18 +43,18 @@ classdef stimulus < neurostim.plugin
         stimstop = false;
         prevOn@logical;
         rsvp;
-
+        
         diodePosition;
     end
     
     methods
         function v = get.time(o)
-            v = o.cic.frames2ms(o.frame); 
+            v = o.cic.frames2ms(o.frame);
         end
         
         function v = get.frame(o)
             if o.stimstart
-                v = o.cic.frame -o.onFrame; 
+                v = o.cic.frame -o.onFrame;
             else
                 v = -inf;
             end
@@ -65,20 +65,14 @@ classdef stimulus < neurostim.plugin
         end
         
         function v=get.onFrame(o)
-            on=o.on;
-            if on==0
-                v=1;
-            else
-                v = o.cic.ms2frames(on)+1;
-            end
+            v = o.cic.ms2frames(o.on,true)+1; % rounded==true
         end
         
-        function v=get.offFrame(s)
-
-            if s.off==Inf
-                v=Inf;
+        function v=get.offFrame(o)
+            if isfinite(o.off)==Inf
+                v= o.cic.ms2frames(o.on+o.duration,true);
             else
-                v=s.onFrame+s.cic.ms2frames(s.duration);
+                v=Inf;
             end
         end
     end
@@ -90,9 +84,9 @@ classdef stimulus < neurostim.plugin
             %% user-settable properties
             s.addProperty('X',0,'validate',@isnumeric);
             s.addProperty('Y',0,'validate',@isnumeric);
-            s.addProperty('Z',0,'validate',@isnumeric);  
-            s.addProperty('on',0,'validate',@isnumeric);  
-            s.addProperty('duration',Inf,'validate',@isnumeric);  
+            s.addProperty('Z',0,'validate',@isnumeric);
+            s.addProperty('on',0,'validate',@isnumeric);
+            s.addProperty('duration',Inf,'validate',@isnumeric);
             s.addProperty('color',[1/3 1/3 50],'validate',@isnumeric);
             s.addProperty('alpha',1,'validate',@(x)x<=1&&x>=0);
             s.addProperty('scale',struct('x',1,'y',1,'z',1));
@@ -100,37 +94,37 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rx',0,'validate',@isnumeric);
             s.addProperty('ry',0,'validate',@isnumeric);
             s.addProperty('rz',1,'validate',@isnumeric);
-        
+            
             s.addProperty('rngSeed',[],'validate',@isnumeric);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT'});
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
             %% internally-set properties
-           
+            
             s.addProperty('startTime',Inf,'SetAccess','protected');   % first time the stimulus appears on screen
             s.addProperty('stopTime',Inf,'SetAccess','protected');   % first time the stimulus does not appear after being run
             s.addProperty('isi',[],'validate',@isnumeric,'SetAccess','protected');
             
-        
-        
+            
+            
             s.rsvp.active= false;
-            s.rsvp.design =neurostim.factorial('dummy',1);            
+            s.rsvp.design =neurostim.factorial('dummy',1);
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
-           
+            
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
-        end                      
+        end
         
         % Setup threshold estimation for one of the parameters. The user
-        % has to call answer(s,true/false) to update the adaptive estimation 
+        % has to call answer(s,true/false) to update the adaptive estimation
         % procedure. One estimator will be created for each condition so
         % this function should only be called after calls to addFactorial
         % and addCondition.
         function setupThresholdEstimation(s,prop,method,varargin)
-           
+            
             if s.cic.nrConditions ==0
                 error('Experimental design should be completed before calling threshold');
             end
@@ -139,7 +133,7 @@ classdef stimulus < neurostim.plugin
             % QUEST. See Quest and Quest Create
             p = inputParser;
             p.addParameter('guess',-1);   % Log Contrast for QUEST
-            p.addParameter('guessSD',2);  % 
+            p.addParameter('guessSD',2);  %
             p.addParameter('threshold',0.82); %Target threshold
             p.addParameter('beta',3.5); % Steepness of assumed Weibull
             p.addParameter('delta',0.01); % Fraction of blind presses
@@ -156,7 +150,7 @@ classdef stimulus < neurostim.plugin
                     end
                     q =QuestCreate(p.Results.guess,p.Results.guessSD,p.Results.threshold,p.Results.beta,p.Results.delta,p.Results.gamma,p.Results.grain,p.Results.range,p.Results.plotIt);
                     s.quest =struct('q', repmat(q,[1 s.cic.nrConditions]),'prop',prop);
-                 otherwise
+                otherwise
                     error('NIY');
             end
             % Install a PreGet event listener to update the dynamic
@@ -168,24 +162,24 @@ classdef stimulus < neurostim.plugin
             end
             h.GetObservable = true;
             h.SetObservable = false;
-            s.addlistener(prop,'PreGet',@(src,evt)updateAdaptive(s,src,evt));                    
+            s.addlistener(prop,'PreGet',@(src,evt)updateAdaptive(s,src,evt));
         end
-               
+        
         % Clients should call this to inform the adaptive method whether
         % the answer (in response to the current intensity) was correct or
         % not.
         function answer(s,correct)
             if ~islogical(correct)
-           %     error('The answer can only be correct or incorrect');
+                %     error('The answer can only be correct or incorrect');
             end
-            s.quest.q(s.cic.condition) =QuestUpdate(s.quest.q(s.cic.condition),s.(s.quest.prop),correct); % Add the new datum .          
+            s.quest.q(s.cic.condition) =QuestUpdate(s.quest.q(s.cic.condition),s.(s.quest.prop),correct); % Add the new datum .
         end
         
         % This is called before returning the current value for the
         % adaptive method. Basically the function retrieves teh current
         % proposed intensity from the adaptive method and places it in the
         % dynamic property.
-        function updateAdaptive(s,src,~)   
+        function updateAdaptive(s,src,~)
             c = s.cic.condition;
             if ~isnan(c)
                 s.(src.Name) = QuestQuantile(s.quest.q(s.cic.condition));
@@ -203,42 +197,42 @@ classdef stimulus < neurostim.plugin
             end
         end
         
-
+        
     end
     
     methods (Access= public)
-           function beforeTrial(s,c,evt)
+        function beforeTrial(s,c,evt)
             % to be overloaded in subclasses; necessary for baseBeforeTrial
             % (RSVP re-check)
-           end
-           
-           function afterTrial(s,c,evt)
-               % to be overloaded in subclasses; needed for baseAfterTrial
-               % (stimulus stopTime check)
-           end
-           
-           function beforeExperiment(s,c,evt)
-               % to be overloaded in subclasses; needed for baseBeforeExperiment
-               % (stimulus stopTime check)
-           end
-           
-           
-            function addRSVP(s,design,varargin)
-%           addRSVP(s,design,varargin)
-%
-%           Rapid Serial Visual Presentation
-%           design is a factoral design (See factorial.m) specifying the parameter(s) to be
-%           maniupulated in the stream.
-%
-%           optionalArgs = {'param1',value,'param2',value,...}
-%         
-%           Optional parameters [default]:
-%
-%           'duration'  [100]   - duration of each stimulus in the sequence
-%           'isi'       [0]     - inter-stimulus interval
-          
+        end
+        
+        function afterTrial(s,c,evt)
+            % to be overloaded in subclasses; needed for baseAfterTrial
+            % (stimulus stopTime check)
+        end
+        
+        function beforeExperiment(s,c,evt)
+            % to be overloaded in subclasses; needed for baseBeforeExperiment
+            % (stimulus stopTime check)
+        end
+        
+        
+        function addRSVP(s,design,varargin)
+            %           addRSVP(s,design,varargin)
+            %
+            %           Rapid Serial Visual Presentation
+            %           design is a factoral design (See factorial.m) specifying the parameter(s) to be
+            %           maniupulated in the stream.
+            %
+            %           optionalArgs = {'param1',value,'param2',value,...}
+            %
+            %           Optional parameters [default]:
+            %
+            %           'duration'  [100]   - duration of each stimulus in the sequence
+            %           'isi'       [0]     - inter-stimulus interval
+            
             p=inputParser;
-            p.addRequired('design',@(x) (isa(x,'neurostim.factorial')));            
+            p.addRequired('design',@(x) (isa(x,'neurostim.factorial')));
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
             p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
             
@@ -246,24 +240,24 @@ classdef stimulus < neurostim.plugin
             flds = fieldnames(p.Results);
             for i=1:numel(flds)
                 s.rsvp.(flds{i}) = p.Results.(flds{i});
-            end            
+            end
             setupExperiment(s.rsvp.design);
-            s.rsvp.active = true;           
+            s.rsvp.active = true;
             
         end
-           
-           
-           
-    end
         
-    %% Methods that the user cannot change. 
-    % These are called from by CIC for all stimuli to provide 
+        
+        
+    end
+    
+    %% Methods that the user cannot change.
+    % These are called from by CIC for all stimuli to provide
     % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
     % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
-    % the derived class an oppurtunity to respond to changes that this 
+    % the derived class an oppurtunity to respond to changes that this
     % base functionality makes.
-    methods (Access=private) 
-                       
+    methods (Access=private)
+        
         
         
         function setupDiode(s)
@@ -271,18 +265,18 @@ classdef stimulus < neurostim.plugin
             if isempty(s.diode.color)
                 s.diode.color=WhiteIndex(s.cic.window);
             end
-           switch lower(s.diode.location)
-               case 'ne'
-                   s.diodePosition=[s.cic.screen.xpixels-pixelsize 0 s.cic.screen.xpixels pixelsize];
-               case 'se'
-                   s.diodePosition=[s.cic.screen.xpixels-pixelsize s.cic.screen.ypixels-pixelsize s.cic.screen.xpixels s.cic.screen.ypixels];
-               case 'sw'
-                   s.diodePosition=[0 s.cic.screen.ypixels-pixelsize pixelsize s.cic.screen.ypixels];
-               case 'nw'
-                   s.diodePosition=[0 0 pixelsize pixelsize];
-               otherwise
-                   error(['Diode Location ' s.diode.location ' not supported.'])
-           end
+            switch lower(s.diode.location)
+                case 'ne'
+                    s.diodePosition=[s.cic.screen.xpixels-pixelsize 0 s.cic.screen.xpixels pixelsize];
+                case 'se'
+                    s.diodePosition=[s.cic.screen.xpixels-pixelsize s.cic.screen.ypixels-pixelsize s.cic.screen.xpixels s.cic.screen.ypixels];
+                case 'sw'
+                    s.diodePosition=[0 s.cic.screen.ypixels-pixelsize pixelsize s.cic.screen.ypixels];
+                case 'nw'
+                    s.diodePosition=[0 0 pixelsize pixelsize];
+                otherwise
+                    error(['Diode Location ' s.diode.location ' not supported.'])
+            end
         end
         
     end
@@ -294,20 +288,25 @@ classdef stimulus < neurostim.plugin
                 case 'BASEBEFOREFRAME'
                     
                     glScreenSetup(c,c.window);
-                    %Apply stimulus transform
-                    Screen('glTranslate',c.window,s.X,s.Y,s.Z);
-                    Screen('glScale',c.window,s.scale.x,s.scale.y);
-                    Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
+                    if  any([s.X s.Y s.Z]~=0)
+                        Screen('glTranslate',c.window,s.X,s.Y,s.Z);
+                    end
+                    if any([s.scale.x s.scale.y] ~=1)
+                        Screen('glScale',c.window,s.scale.x,s.scale.y);
+                    end
+                    if  s.angle ~=0
+                        Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
+                    end  %Apply stimulus transform
                     
                     
                     s.flags.on = c.frame>=s.onFrame && c.frame <s.offFrame;
-
+                    
                     
                     %% RSVP
-                    if s.rsvp.active 
+                    if s.rsvp.active
                         rsvpFrame = c.frame/c.ms2frames(s.rsvp.duration+s.rsvp.isi);
                         item = floor(rsvpFrame); % This element of the rsvp list should be shown now (base-0)
-                        frac = rsvpFrame-item;   % We are this far into the current rsvp item.                                              
+                        frac = rsvpFrame-item;   % We are this far into the current rsvp item.
                         if rsvpFrame==item % Last element
                             % Wrap
                             s.rsvp.design.reshuffle;
@@ -315,7 +314,7 @@ classdef stimulus < neurostim.plugin
                         if frac==0 % Start of a new element
                             specs = s.rsvp.design.conditions(s.rsvp.design.list(mod(item,s.rsvp.design.nrConditions)+1));
                             for g=1:3:numel(specs)
-                             s.(specs{g+1}) = specs{g+2};
+                                s.(specs{g+1}) = specs{g+2};
                             end
                         end
                         s.flags.on = s.flags.on && frac < s.rsvp.duration/(s.rsvp.isi+s.rsvp.duration);  % Blank during rsvp isi
@@ -329,11 +328,11 @@ classdef stimulus < neurostim.plugin
                     
                     
                     %%
-                    if c.frame==s.offFrame                        
+                    if c.frame==s.offFrame
                         s.prevOn=true;
                     end
                     
-                    if s.flags.on 
+                    if s.flags.on
                         if c.frame==s.onFrame+1 % get stimulus on time
                             s.startTime = c.flipTime;
                         end
@@ -344,7 +343,7 @@ classdef stimulus < neurostim.plugin
                         if c.frame==s.onFrame
                             c.getFlipTime=true; % get the next flip time for startTime
                         end
-                    elseif s.stimstart && (c.frame==s.offFrame)% if the stimulus will not be shown, 
+                    elseif s.stimstart && (c.frame==s.offFrame)% if the stimulus will not be shown,
                         % get the next screen flip for stopTime
                         c.getFlipTime=true;
                         s.stimstart=false;
@@ -354,43 +353,43 @@ classdef stimulus < neurostim.plugin
                         Screen('FillRect',c.window,s.diode.color,s.diodePosition);
                     end
                 case 'BASEAFTERFRAME'
-                    if s.flags.on 
+                    if s.flags.on
                         notify(s,'AFTERFRAME');
                     end
                 case 'BASEBEFORETRIAL'
-%                     if ~isempty(s.rsvp) TODO different rsvps in different
-%                     conditions
-%                         s.addRSVP(s.rsvp{:})
-%                     end
+                    %                     if ~isempty(s.rsvp) TODO different rsvps in different
+                    %                     conditions
+                    %                         s.addRSVP(s.rsvp{:})
+                    %                     end
                     if s.rsvp.active
-                        s.rsvp.design.reshuffle; % Reshuffle each trial                            
+                        s.rsvp.design.reshuffle; % Reshuffle each trial
                     end
                     %Reset variables here?
                     s.startTime = Inf;
-                    s.stopTime = Inf; 
+                    s.stopTime = Inf;
                     
                     notify(s,'BEFORETRIAL');
-
+                    
                 case 'BASEAFTERTRIAL'
                     if isempty(s.stopTime) || s.offFrame>=c.frame
                         s.stopTime=c.trialStopTime-c.trialStartTime;
                         s.prevOn=false;
                     end
                     notify(s,'AFTERTRIAL');
-
+                    
                 case 'BASEBEFOREEXPERIMENT'
                     if s.diode.on
                         setupDiode(s);
                     end
-                     if ~isempty(s.mccChannel) && any(strcmp(s.cic.plugins,'mcc'))
+                    if ~isempty(s.mccChannel) && any(strcmp(s.cic.plugins,'mcc'))
                         s.cic.mcc.map(s,'DIGITAL',s.mccChannel,s.on,'FIRSTFRAME')
                     end
                     notify(s,'BEFOREEXPERIMENT');
-
-                case 'BASEAFTEREXPERIMENT'    
+                    
+                case 'BASEAFTEREXPERIMENT'
                     notify(s,'AFTEREXPERIMENT');
-
+                    
             end
-        end        
+        end
     end
 end
