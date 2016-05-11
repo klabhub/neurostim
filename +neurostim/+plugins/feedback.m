@@ -127,6 +127,7 @@ classdef feedback < neurostim.plugin
         function afterTrial(o,c,evt)
             %Check if any feedback items should be delivered
             deliverPending(o,o.afterTrialQueue);
+            report(o);
         end
     end
     
@@ -142,6 +143,12 @@ classdef feedback < neurostim.plugin
             %Function that should be overloaded in derived class to deliver the feedback.
             %e.g. deliver juice, or present a feedback screen to a subject.            
             disp(['Feedback delivered for ' num2str(o.(['item' num2str(item) 'duration'])) 'ms'])
+        end
+        
+        function report(o)
+            %Overload in child class. Called at the end of the trial to
+            %provide some info to the GUI. e.g. number of rewards,
+            %proportion correct etc.
         end
     end
         

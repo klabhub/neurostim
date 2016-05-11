@@ -69,7 +69,7 @@ classdef stimulus < neurostim.plugin
         end
         
         function v=get.offFrame(o)
-            if isfinite(o.off)==Inf
+            if isfinite(o.off)
                 v= o.cic.ms2frames(o.on+o.duration,true);
             else
                 v=Inf;
@@ -300,7 +300,6 @@ classdef stimulus < neurostim.plugin
                     
                     
                     s.flags.on = c.frame>=s.onFrame && c.frame <s.offFrame;
-                    
                     
                     %% RSVP
                     if s.rsvp.active

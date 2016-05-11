@@ -5,6 +5,8 @@ classdef liquid < neurostim.plugins.feedback
     
     properties
         mcc = [];
+        nrDelivered = 0;
+        totalDelivered = 0;
     end
     
     methods (Access=public)
@@ -13,7 +15,7 @@ classdef liquid < neurostim.plugins.feedback
             o.addProperty('mccChannel',9);
             o.addProperty('jackpotPerc',1);
             o.addProperty('jackpotDur',1000);
-            o.listenToEvent('BEFOREEXPERIMENT');
+            o.listenToEvent({'BEFOREEXPERIMENT'});
         end
         
         function beforeExperiment(o,c,evt)
@@ -43,9 +45,18 @@ classdef liquid < neurostim.plugins.feedback
                     duration = o.jackpotDur;
                 end
                 o.mcc.digitalOut(o.mccChannel,true,duration);
+                
+                %Keep track of how much has been delivered.
+                o.nrDelivered = o.nrDelivered + 1;
+                o.totalDelivered = o.totalDelivered + duration;
             else
                 o.writeToFeed(['No MCC detected for liquid reward (' num2str(duration) 'ms)']);
             end
+        end
+        
+        function report(o)
+            %Provide an update of performance to the GUI.
+            o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total duration: ',num2str(o.totalDelivered)));
         end
     end
 end
