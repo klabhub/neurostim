@@ -11,6 +11,7 @@ import neurostim.*
 c = myRig;   
 c.trialDuration = Inf; % A trial can only be ended by a mouse click
 c.cursor = 'arrow';
+c.screen.color.background = 0.5*ones(1,3);
 
 c.addScript('AfterFrame',@respondMouse); 
 c.addScript('BeforeTrial',@beginTrial); 

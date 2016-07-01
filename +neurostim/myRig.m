@@ -66,7 +66,14 @@ switch computerName
         c.screen.colorMode = 'RGB';
         smallWindow = false;
         
-        
+    case 'PTB-P'
+        scrNr =1;
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
+        c.screen.colorMode = 'RGB';
+        c.screen.frameRate=60;
+        Screen('Preference', 'SkipSyncTests', 0); % Not in production mode; this is just to run without requiring accurate timing.
+        smallWindow = false;
     otherwise
         warning('This computer is not recognised. Using default settings.');
         scrNr = max(Screen('screens'));
