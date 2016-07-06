@@ -34,7 +34,7 @@ switch computerName
     case 'MU00080600'
         
         %Neurostim B (CRT)
-        c = rig(c,'eyelink',false,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0,'eyelinkCommands',{'calibration_area_proportion=0.6 0.6','validation_area_proportion=0.6 0.6'});
+        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0);
         
     case 'MOBOT'
         
