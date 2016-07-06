@@ -94,40 +94,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         %% GUI Functions
         function writeToFeed(o,message)
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
-        end        
-    end
-    
-    
-    
-    % Only the (derived) class designer should have access to these
-    % methods.
-    methods (Access = protected, Sealed)
-        function s= copyElement(o,name)
-            % This protected function is called from the public (sealed)
-            % copy member of matlab.mixin.Copyable. We overload it here to
-            % copy not just the static properties but also the
-            % dynamicprops.
-            %
-            % Example:
-            % b=copy(a)
-            % This will make a copy (with separate properties) of a in b.
-            % This in contrast to b=a, which only copies the handle (so essentialy b==a).
-            
-            % First a shallow copy of fixed properties
-            s = copyElement@matlab.mixin.Copyable(o);
-            
-            % Then setup the dynamic props again.
-            dynProps = setdiff(properties(o),properties(s));
-            s.name=name;
-            for p=1:numel(dynProps)
-                pName = dynProps{p};
-                %TODO: postprocess/validate/set/get access
-                s.addProperty(pName,o.(pName));
-            end
-            o.cic.add(s);
-        end
-        
-        
+        end   
         
         % Add properties that will be time-logged automatically, and that
         % can be validated, and postprocessed after being set.
@@ -166,8 +133,38 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             h.GetAccess=p.Results.GetAccess; 
             h.SetAccess='public';% TODO: figure out how to limit setAccess p.Results.SetAccess;            
         end
-        
-        
+    end
+    
+    
+    
+    % Only the (derived) class designer should have access to these
+    % methods.
+    methods (Access = protected, Sealed)
+        function s= copyElement(o,name)
+            % This protected function is called from the public (sealed)
+            % copy member of matlab.mixin.Copyable. We overload it here to
+            % copy not just the static properties but also the
+            % dynamicprops.
+            %
+            % Example:
+            % b=copy(a)
+            % This will make a copy (with separate properties) of a in b.
+            % This in contrast to b=a, which only copies the handle (so essentialy b==a).
+            
+            % First a shallow copy of fixed properties
+            s = copyElement@matlab.mixin.Copyable(o);
+            
+            % Then setup the dynamic props again.
+            dynProps = setdiff(properties(o),properties(s));
+            s.name=name;
+            for p=1:numel(dynProps)
+                pName = dynProps{p};
+                %TODO: postprocess/validate/set/get access
+                s.addProperty(pName,o.(pName));
+            end
+            o.cic.add(s);
+        end
+         
          % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)

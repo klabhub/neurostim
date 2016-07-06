@@ -6,8 +6,9 @@ function c=behaviorDemo
 %       - Fixation control using (virtual or real) eye tracking.
 %       - Gaze-contingent stimulus presentation.
 %       - Subject feedback/reward.
+%       - Specification of experiemntal design (factorials, blocks, trial randomization)
 %
-%Your task:
+%The task:
 %
 %       - "Fixate" on the fixation point to start the trial by moving the mouse and clicking on it
 %       - Is the motion upward (press "a") or downward (press "z")? Respond only once motion disappears.
@@ -17,7 +18,7 @@ commandwindow;
 
 %% ========= Specify rig configuration  =========
 
-%Create a CIC object. Here the cic is returned with some default settings for this computer, if it is recognized.
+%Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
 c = myRig;
 
 %Make sure there is an eye tracker (or at least a virtual one)
@@ -35,6 +36,7 @@ f.size = 0.25;
 f.color = [1 0 0];
 f.on=0;                         %What time should the stimulus come on? (all times are in ms)
 f.duration = Inf;               %How long should it be displayed?
+jitter(c,'fix','Y',[0,4],'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
 
 %Random dot pattern
 d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
@@ -82,7 +84,7 @@ c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC r
 
 %Specify experimental conditions
 myFac=factorial('myFactorial',2);           %Using a 3 x 2 factorial design.  Type "help neurostim/factorial" for more options.
-myFac.fac1.fix.X={-10 0 10};                       %Three different fixation positions along horizontal meridian
+myFac.fac1.fix.X={-10 0 10};                %Three different fixation positions along horizontal meridian
 myFac.fac2.dots.direction={-90 90};         %Two dot directions
 
 %Specify a block of trials
