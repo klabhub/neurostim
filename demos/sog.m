@@ -67,12 +67,6 @@ fix.X               = '@reddot.X';
 fix.Y               = '@reddot.Y';
 fix.tolerance       = 2;
 
-% Add an eye tracker. eyetracker is a dummy eyetracker that follows mouse
-% clicks. Without this, the fixation object will not work.
-et = plugins.eyetracker(c);
-et.useMouse         = true;     
-
-
 
 %% Define conditions and blocks
 % We will show the stream of gratings with different contrasts in each

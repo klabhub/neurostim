@@ -18,10 +18,12 @@ classdef stimulus < neurostim.plugin
     %   for use with a photodiode recording.
     %   mccChannel - a linked MCC Channel to output alongside a stimulus.
     %
+    %
+    %TODO: Should we have a small class for storing durations in both
+    %frames and msec in a dependent way? used for "on", 
     
     properties (SetAccess = public,GetAccess=public)
         quest@struct;
-        subConditions;
     end
     properties (SetAccess=private,GetAccess=public)
         beforeFrameListenerHandle =[];
@@ -41,9 +43,8 @@ classdef stimulus < neurostim.plugin
     properties (Access=protected)
         stimstart = false;
         stimstop = false;
-        prevOn@logical;
+        logOffset@logical;
         rsvp;
-        
         diodePosition;
     end
     
@@ -100,19 +101,15 @@ classdef stimulus < neurostim.plugin
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
+            
             %% internally-set properties
-            
             s.addProperty('startTime',Inf,'SetAccess','protected');   % first time the stimulus appears on screen
-            s.addProperty('stopTime',Inf,'SetAccess','protected');   % first time the stimulus does not appear after being run
-            s.addProperty('isi',[],'validate',@isnumeric,'SetAccess','protected');
-            
-            
-            
+            s.addProperty('stopTime',Inf,'SetAccess','protected');   % first time the stimulus does NOT appear after being run
+      
             s.rsvp.active= false;
             s.rsvp.design =neurostim.factorial('dummy',1);
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
-            
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
@@ -195,9 +192,7 @@ classdef stimulus < neurostim.plugin
                 m =QuestMean(s.quest.q);
                 sd = QuestSd(s.quest.q);
             end
-        end
-        
-        
+        end      
     end
     
     methods (Access= public)
@@ -222,43 +217,65 @@ classdef stimulus < neurostim.plugin
             %
             %           Rapid Serial Visual Presentation
             %           design is a factoral design (See factorial.m) specifying the parameter(s) to be
-            %           maniupulated in the stream.
+            %           manipulated in the stream.
             %
             %           optionalArgs = {'param1',value,'param2',value,...}
             %
             %           Optional parameters [default]:
             %
-            %           'duration'  [100]   - duration of each stimulus in the sequence
-            %           'isi'       [0]     - inter-stimulus interval
+            %           'duration'  [100]   - duration of each stimulus in the sequence (msec)
+            %           'isi'       [0]     - inter-stimulus interval (msec)
             
             p=inputParser;
             p.addRequired('design',@(x) (isa(x,'neurostim.factorial')));
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
-            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
-            
+            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);           
             p.parse(design,varargin{:});
             flds = fieldnames(p.Results);
             for i=1:numel(flds)
                 s.rsvp.(flds{i}) = p.Results.(flds{i});
             end
-            setupExperiment(s.rsvp.design);
-            s.rsvp.active = true;
             
-        end
-        
-        
-        
+            %Elaborate the factorial design into (sub)condition lists for RSVP
+            setupExperiment(s.rsvp.design);
+            s.rsvp.active = true;    
+        end        
     end
     
-    %% Methods that the user cannot change.
-    % These are called from by CIC for all stimuli to provide
-    % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
-    % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
-    % the derived class an oppurtunity to respond to changes that this
-    % base functionality makes.
+
     methods (Access=private)
         
-        
+        function s = updateRSVP(s,c)
+            
+            %How many frames for item + blank (ISI)?
+            nFramesPerItem = c.ms2frames(s.rsvp.duration+s.rsvp.isi);
+            
+            %How many frames since the RSVP stream started?
+            rsvpFrame = c.frame-s.onFrame;
+            
+            %Which item in the sequence are we up to?
+            itemNum = floor(rsvpFrame./nFramesPerItem);
+            
+            %Which item frame are we in?
+            itemFrame = mod(rsvpFrame, nFramesPerItem);
+            
+            %If at the start of a new element, update param values
+            if itemFrame==0
+                curCondInd = mod(itemNum,s.rsvp.design.nrConditions)+1;
+                specs = s.rsvp.design.conditions(s.rsvp.design.list(curCondInd));
+                for g=1:3:numel(specs)
+                    s.(specs{g+1}) = specs{g+2};
+                end
+            end
+            
+            %Blank now if it's time to do so.
+            s.flags.on = itemFrame < c.ms2frames(s.rsvp.duration);  % Blank during rsvp isi
+            
+            %If this item is the last condition in the factorial, reshuffle conditions
+            if itemNum==s.rsvp.design.nrConditions-1
+                s.rsvp.design.reshuffle;
+            end
+        end
         
         function setupDiode(s)
             pixelsize=s.diode.size*s.cic.screen.xpixels;
@@ -281,6 +298,12 @@ classdef stimulus < neurostim.plugin
         
     end
     
+     %% Methods that the user cannot change.
+    % These are called by CIC for all stimuli to provide
+    % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
+    % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
+    % the derived class an oppurtunity to respond to changes that this
+    % base functionality makes.   
     methods (Access=public)
         
         function baseEvents(s,c,evt)
@@ -288,6 +311,8 @@ classdef stimulus < neurostim.plugin
                 case 'BASEBEFOREFRAME'
                     
                     glScreenSetup(c,c.window);
+                    
+                    %Apply stimulus transform
                     if  any([s.X s.Y s.Z]~=0)
                         Screen('glTranslate',c.window,s.X,s.Y,s.Z);
                     end
@@ -296,56 +321,48 @@ classdef stimulus < neurostim.plugin
                     end
                     if  s.angle ~=0
                         Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
-                    end  %Apply stimulus transform
+                    end 
                     
-                    
+                    %Should the stimulus be drawn on this frame?
                     s.flags.on = c.frame>=s.onFrame && c.frame <s.offFrame;
                     
-                    %% RSVP
-                    if s.rsvp.active
-                        rsvpFrame = c.frame/c.ms2frames(s.rsvp.duration+s.rsvp.isi);
-                        item = floor(rsvpFrame); % This element of the rsvp list should be shown now (base-0)
-                        frac = rsvpFrame-item;   % We are this far into the current rsvp item.
-                        if rsvpFrame==item % Last element
-                            % Wrap
-                            s.rsvp.design.reshuffle;
-                        end
-                        if frac==0 % Start of a new element
-                            specs = s.rsvp.design.conditions(s.rsvp.design.list(mod(item,s.rsvp.design.nrConditions)+1));
-                            for g=1:3:numel(specs)
-                                s.(specs{g+1}) = specs{g+2};
-                            end
-                        end
-                        s.flags.on = s.flags.on && frac < s.rsvp.duration/(s.rsvp.isi+s.rsvp.duration);  % Blank during rsvp isi
+                    %% RSVP mode
+                    %   Update parameter values if necesssary
+                    if s.rsvp.active && s.flags.on
+                        s=updateRSVP(s,c);
                     end
-                    
-                    % get the stimulus end time
-                    if s.prevOn
-                        s.stopTime=c.flipTime;
-                        s.prevOn=false;
-                    end
-                    
                     
                     %%
-                    if c.frame==s.offFrame
-                        s.prevOn=true;
+                    % get the stimulus end time
+                    if s.logOffset
+                        s.stopTime=c.flipTime;
+                        s.logOffset=false;
                     end
                     
+                    %If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
+                    if c.frame==s.offFrame
+                        s.logOffset=true;
+                    end
+                   
+                    %If the stimulus should be drawn on this frame:
                     if s.flags.on
-                        if c.frame==s.onFrame+1 % get stimulus on time
+                        %If this is the first frame that the stimulus will be drawn, register that it has started.
+                        if ~s.stimstart
+                            s.stimstart = true;
+                            c.getFlipTime=true; % tell CIC to store the next flip time, to log startTime in next frame
+                        end
+                        
+                        %If the previous frame was the first frame, log the time that the flip aactually happened.
+                        if c.frame==s.onFrame+1
                             s.startTime = c.flipTime;
                         end
+                        
+                        %Pass control to the child class and any other listeners
                         notify(s,'BEFOREFRAME');
-                        if s.stimstart ~= true
-                            s.stimstart = true;
-                        end
-                        if c.frame==s.onFrame
-                            c.getFlipTime=true; % get the next flip time for startTime
-                        end
+                        
                     elseif s.stimstart && (c.frame==s.offFrame)% if the stimulus will not be shown,
                         % get the next screen flip for stopTime
                         c.getFlipTime=true;
-                        s.stimstart=false;
                     end
                     Screen('glLoadIdentity', c.window);
                     if s.diode.on && s.flags.on
@@ -363,20 +380,34 @@ classdef stimulus < neurostim.plugin
                     if s.rsvp.active
                         s.rsvp.design.reshuffle; % Reshuffle each trial
                     end
+                    
                     %Reset variables here?
                     s.startTime = Inf;
                     s.stopTime = Inf;
+                    s.stimstart=false;
                     
                     notify(s,'BEFORETRIAL');
                     
                 case 'BASEAFTERTRIAL'
                     if isempty(s.stopTime) || s.offFrame>=c.frame
                         s.stopTime=c.trialStopTime-c.trialStartTime;
-                        s.prevOn=false;
+                        s.logOffset=false;
                     end
                     notify(s,'AFTERTRIAL');
                     
                 case 'BASEBEFOREEXPERIMENT'
+                    if s.rsvp.active
+                        %Check that stimulus durations and ISIs are multiples of the frame interval (defined as within 5% of a frame)
+                        [dur,rem1] = c.ms2frames(s.rsvp.duration,true);
+                        [isi,rem2] = c.ms2frames(s.rsvp.isi,true);
+                        if any(abs([rem1,rem2])>0.05)
+                            s.writeToFeed('Requested RSVP duration or ISI is impossible. (non-multiple of frame interval)');
+                        else
+                            %Set to multiple of frame interval
+                            s.rsvp.duration = dur*1000/c.screen.frameRate;
+                            s.rsvp.isi = isi*1000/c.screen.frameRate;
+                        end
+                    end
                     if s.diode.on
                         setupDiode(s);
                     end
@@ -386,8 +417,7 @@ classdef stimulus < neurostim.plugin
                     notify(s,'BEFOREEXPERIMENT');
                     
                 case 'BASEAFTEREXPERIMENT'
-                    notify(s,'AFTEREXPERIMENT');
-                    
+                    notify(s,'AFTEREXPERIMENT');     
             end
         end
     end

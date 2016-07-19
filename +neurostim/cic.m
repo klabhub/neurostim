@@ -666,7 +666,7 @@ classdef cic < neurostim.plugin
             %Optional param/value pairs:
             %'distribution'     - the name of a built-in pdf [default = 'uniform'], or a handle to a custom function, f(prms) (all parameters except 'prms' are ignored for custom functions)
             %'bounds'           - 2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
-            %'size'             - MxN matrix specifying the size of the output (i.e. number of samples). Behaves as for "sz" in Matlab's ones() and zeros()
+            %'size'             - 2-element vector, [m,n], specifying the size of the output (i.e. number of samples). Behaves as for "sz" in Matlab's ones() and zeros()
             %'cancel'           - [false] Turn off a previously applied jitter. The property will retain its most recent value.
             %
             %Examples:
@@ -1071,14 +1071,16 @@ classdef cic < neurostim.plugin
             b = c.screen.ypixels.*(0.5-y./c.screen.height);
         end
         
-        function fr = ms2frames(c,ms,rounded)
-            %Set rounded to false to get number of frames as a non-integer
-            if nargin<3
-                rounded=true;
-            end
+        function [fr,rem] = ms2frames(c,ms,rounded)
+            %Convert a duration in msec to frames.
+            %If rounded is true, fr is an integer, with the remainder
+            %(in frames) returned as rem.
+            if nargin<3, rounded=true;end
             fr = ms.*c.screen.frameRate/1000;
             if rounded
-                fr = round(fr);
+                inFr = round(fr);
+                rem = fr-inFr;
+                fr = inFr;
             end
         end
         
