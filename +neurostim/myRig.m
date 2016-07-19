@@ -29,12 +29,12 @@ switch computerName
     case 'MU00042884'
         
         %Neurostim A (Display++)
-        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1920-1,'ypixels',1080-1,'screenWidth',72,'frameRate',120,'screenNumber',1,'output','C:\Neurostim Data Store','eyelinkCommands',{'calibration_area_proportion=0.3 0.3','validation_area_proportion=0.3 0.3'});
+        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1920-1,'ypixels',1080-1,'screenWidth',72,'frameRate',120,'screenNumber',1,'eyelinkCommands',{'calibration_area_proportion=0.3 0.3','validation_area_proportion=0.3 0.3'});
         
     case 'MU00080600'
         
         %Neurostim B (CRT)
-        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0,'output','C:\Neurostim Data Store');
+        c = rig(c,'eyelink',false,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0,'eyelinkCommands',{'calibration_area_proportion=0.6 0.6','validation_area_proportion=0.6 0.6'});
         
     case 'MOBOT'
         
@@ -97,7 +97,6 @@ pin.addParameter('ypixels',[]);
 pin.addParameter('screenWidth',[]);
 pin.addParameter('frameRate',[]);
 pin.addParameter('screenNumber',[]);
-pin.addParameter('output',[]);
 pin.addParameter('eyelink',[]);
 pin.addParameter('eyelinkCommands',[]);
 pin.addParameter('mcc',[]);
@@ -117,13 +116,6 @@ if ~isempty(pin.Results.screenWidth)
 end
 if ~isempty(pin.Results.screenNumber)
     c.screen.number  = pin.Results.screenNumber;
-end
-if ~isempty(pin.Results.output)
-    if exist(pin.Results.output,'dir')
-        c.dirs.output  = pin.Results.output;
-    else
-        error(horzcat('Output folder ', pin.Results.output, ' does not exist.'));
-    end
 end
 if pin.Results.eyelink
     neurostim.plugins.eyelink(c);
