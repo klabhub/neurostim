@@ -20,6 +20,12 @@ end
 c.dirs.output = tempdir; % Output files will be stored here.
 
 switch computerName
+    case 'MU00101417X'
+      
+        % Shaun's MacBook Pro
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',2560,'ypixels',1600,'screenWidth',28.6,'frameRate',60,'screenNumber',max(Screen('screens')),'keyboardNumber',max(GetKeyboardIndices()));
+        smallWindow = true;
+        
     case 'MU00043185'
         
         %Office PC
@@ -97,6 +103,7 @@ pin.addParameter('ypixels',[]);
 pin.addParameter('screenWidth',[]);
 pin.addParameter('frameRate',[]);
 pin.addParameter('screenNumber',[]);
+pin.addParameter('keyboardNumber',[]);
 pin.addParameter('eyelink',[]);
 pin.addParameter('eyelinkCommands',[]);
 pin.addParameter('mcc',[]);
@@ -116,6 +123,9 @@ if ~isempty(pin.Results.screenWidth)
 end
 if ~isempty(pin.Results.screenNumber)
     c.screen.number  = pin.Results.screenNumber;
+end
+if ~isempty(pin.Results.keyboardNumber)
+    c.keyDeviceIndex  = pin.Results.keyboardNumber;
 end
 if pin.Results.eyelink
     neurostim.plugins.eyelink(c);
