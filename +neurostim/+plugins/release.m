@@ -26,7 +26,7 @@ classdef release < neurostim.plugins.behavior
                 o.cic.error('STOPEXPERIMENT','The hold plugin requires an MCC plug-in. None (or more than one) detected)');
             end
             
-            o.mcc.map('DIGITAL',o.mccChannel,'isRelease', 'AFTERFRAME')
+            o.mcc.map('DIGITAL',o.mccChannel,'isHolding', 'AFTERFRAME')
         end
         
     end
@@ -34,7 +34,8 @@ classdef release < neurostim.plugins.behavior
     methods (Access=protected)
         function inProgress = validateBehavior(o)
             % validateBehavior returns o.on = true when behavior passes all checks.
-            inProgress = ~logical(o.mcc.isRelease);
+            inProgress = ~logical(o.mcc.isHolding);
+            
         end
     end
     
