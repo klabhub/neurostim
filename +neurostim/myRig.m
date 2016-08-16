@@ -72,6 +72,13 @@ switch computerName
         c.screen.colorMode = 'RGB';
         smallWindow = false;
         
+    case '2014B'
+        scrNr = 2;
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
+        c.screen.colorMode = 'RGB';
+        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        smallWindow = false;
         
     otherwise
         warning('This computer is not recognised. Using default settings.');
