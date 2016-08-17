@@ -7,70 +7,62 @@ classdef egi < neurostim.plugin
     % before the experiment starts sends a STRT event at the start of every
     % trial, and stops recording at the end of the experiment.
     %
-    % e = egi('192.169.1.110'); % IP address of the NetStation
-    % e.syncLimit = 2.5;  %Synchrontization must be better than this (ms).
-    % c.add(e) ; % Add to CIC. Done.
-    %
-    %
     % BK - Nov 2015
+    % JD - Aug 2016: overhaul
     
     properties
-        host@char;
+        host@char = '10.10.10.42'; % '10.10.10.42' is NetStation default.
         port@double = 55513; % Default port for connection to NetStation.
         syncLimit  = 2.5; % Limits for acceptable sync (in ms).
     end
-    
-    
     methods (Access=public)
-        function o = egi(c,h)
-            o = o@neurostim.plugin(c,'egi');
-            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT'});
-            if nargin >0
-                o.host = h;
+        function o = egi(c,name)
+            if ~exist('name','var') || isempty(name)
+                name=mfilename;
             end
+            o = o@neurostim.plugin(c,name);
+            o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT'});
         end
-        
         function beforeExperiment(o,c,evt)
             o.connect;
             o.synchronize; % Check that we can sync, and set the NetStation clock to ours.
             o.startRecording;
+            o.event('BREC','DESC','Begin recording','DATE',datestr(now),'PDGM',c.paradigm,'SUBJ',c.subject);
         end
-        
         function afterExperiment(o,c,evt)
+            o.event('EREC','DESC','End recording','DATE',datestr(now));
             o.stopRecording;
             o.disconnect;
         end
-        
         function beforeTrial(o,c,evt)
             % Should we sync again? Or is once enough beforeExperiment?
             % O.synchronize; .
-            
-            % Put a sync event with the current time and trial in the EGI file.
-            o.event('STRT',c.clockTime,0.001,'TRIA',c.trial);
+            o.event('BTRL','DESC','Begin trial','TRIA',c.trial,'BLCK',c.block,'COND',c.conditionName);
+            disp('beftr evt');
         end
-        
+        function afterTrial(o,c,evt)
+            o.event('ETRL','DESC','End trial','TRIA',c.trial,'BLCK',c.block,'COND',c.conditionName);
+            disp('afttr evt');
+        end
     end
     
-    
-    %%
     % Functions below are simple wrappers around the NetStation.m
-    % funcionality.    
+    % funcionality.
     methods (Access=protected)
-        
         % Connect to a named host
         function connect(o,h,p)
-            if nargin>1
+            if exist('h','var') && ~isempty(h)
                 o.host = h;
             end
-            if nargin >2
+            if exist('p','var') && ~isempty(p)
                 o.port = p;
             end
-            warning(['Connecting to ' o.host])
+            disp(['Connecting to EGI-host ' o.host ':' num2str(o.port)]);
             [status,err] = NetStation('Connect',o.host,o.port);
             if status~=0
                 o.cic.error('STOPEXPERIMENT',err);
             else
-                warning(['Connected to  ' o.host ]);
+                disp(['Connected to EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
         
@@ -80,21 +72,21 @@ classdef egi < neurostim.plugin
             if status~=0
                 o.cic.error('STOPEXPERIMENT',err);
             else
-                warning(['Disconnected from ' o.host ]);
+                disp(['Disconnected from EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
         
         % synchronize the clocks off the computer running PTB and the
         % NetStation.
         function synchronize(o,slimit)
-            if nargin>1
+            if exist('slimit','var') && ~isempty(slimit)
                 o.syncLimit = slimit;
             end
             [status,err] = NetStation('Synchronize',o.syncLimit);
             if status~=0
                 o.cic.error('STOPEXPERIMENT',err);
             else
-                warning(['Synchronized with ' o.host ]);
+                disp(['Synchronized with EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
         
@@ -105,63 +97,29 @@ classdef egi < neurostim.plugin
             if status~=0
                 o.cic.error('STOPEXPERIMENT',err);
             else
-                warning(['Started recording on ' o.host ]);
-            end
+                disp(['Started recording on EGI-host ' o.host ':' num2str(o.port) ]);
+             end
         end
         
         % stop recording
         function stopRecording(o)
-            [status,err] =NetStation('StopRecording');
+            NetStation('FlushReadbuffer');
+            [status,err]=NetStation('StopRecording');
             if status~=0
                 o.cic.error('STOPEXPERIMENT',err);
             else
-                warning(['Stopped recording on ' o.host ]);
+                disp(['Stopped recording on EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
         
-        % Send an event to the NetStation (and the data file).
-        % code = a unique identifier for this event
-        % startTime = the time (in local time) that this event happened
-        % duration = duration of the event
-        % keyCode  = a four character code
-        % keyValue = data associated with this code.
-        % ack  = true/false to wait for acknowledgment
-        % varargin = parm/value pairs to store additional data. Parms
-        % should be 4 char codes.
+        % Send a timestamped event
         % See NetStation.m for details.
-        function event(o,code,startTime, duration, keyCode,keyValue,ack,varargin)
-            nin = nargin;
-            % Set the same defaults as NetStation.m does.
-            if nin<7
-                ack=true;
-                if nin <6
-                    keyValue = 0;
-                    if nin <5
-                        keyCode = 'dumm';
-                        if nin<4
-                            duration = 0.001; %s
-                            if nin<3
-                                startTime = GetSecs();
-                                if nin< 2
-                                    code = 'EVEN';
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            
-            if ack
-                [status,err] = NetStation('Event',code,startTime, duration, keyCode, keyValue, varargin{:});
-            else
-                % No Ack
-                [status,err] = NetStation('EventNoAck',code,startTime, duration, keyCode, keyValue, varargin{:});
-            end
+        function event(o,code,varargin)
+            %NetStation('Event' [,code] [,starttime] [,duration] [,keycode1] [,keyvalue1] [...])
+            [status,err] = NetStation('Event',code,GetSecs,1/1000,varargin{:});
             if status~=0
                 o.cic.error('STOPEXPERIMENT',err);
             end
-            
         end
-        
     end
 end

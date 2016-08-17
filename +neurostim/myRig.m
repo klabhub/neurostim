@@ -21,29 +21,24 @@ c.dirs.output = tempdir; % Output files will be stored here.
 
 switch computerName
     case 'MU00101417X'
-      
         % Shaun's MacBook Pro
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',2560,'ypixels',1600,'screenWidth',28.6,'frameRate',60,'screenNumber',max(Screen('screens')),'keyboardNumber',max(GetKeyboardIndices()));
         smallWindow = true;
         
     case 'MU00043185'
-        
         %Office PC
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1680,'ypixels',1050,'screenWidth',42,'frameRate',60,'screenNumber',max(Screen('screens')));
         smallWindow = true;
         
     case 'MU00042884'
-        
         %Neurostim A (Display++)
         c = rig(c,'eyelink',true,'mcc',true,'xpixels',1920-1,'ypixels',1080-1,'screenWidth',72,'frameRate',120,'screenNumber',1,'eyelinkCommands',{'calibration_area_proportion=0.3 0.3','validation_area_proportion=0.3 0.3'});
         
     case 'MU00080600'
-        
         %Neurostim B (CRT)
         c = rig(c,'eyelink',false,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0,'eyelinkCommands',{'calibration_area_proportion=0.6 0.6','validation_area_proportion=0.6 0.6'});
         
     case 'MOBOT'
-        
         %Home
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
         smallWindow = true;
@@ -78,6 +73,14 @@ switch computerName
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
         c.screen.colorMode = 'RGB';
         Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        smallWindow = false;
+        
+    case 'PTB-P'
+        scrNr=0;
+        rect = Screen('rect',scrNr);
+        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',400,'ypixels',300,'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
+        c.screen.colorMode = 'RGB';
         smallWindow = false;
         
     otherwise
