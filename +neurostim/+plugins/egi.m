@@ -8,7 +8,7 @@ classdef egi < neurostim.plugin
     % trial, and stops recording at the end of the experiment.
     %
     % BK - Nov 2015
-    % JD - Aug 2016: overhaul
+    % JD - Aug 2016: Major overhaul
     
     properties
         host@char = '10.10.10.42'; % '10.10.10.42' is NetStation default.
@@ -50,18 +50,10 @@ classdef egi < neurostim.plugin
     % funcionality.
     methods (Access=protected)
         % Connect to a named host
-        function connect(o,h,p)
-            if exist('h','var') && ~isempty(h)
-                o.host = h;
-            end
-            if exist('p','var') && ~isempty(p)
-                o.port = p;
-            end
+        function connect(o)
             disp(['Connecting to EGI-host ' o.host ':' num2str(o.port)]);
             [status,err] = NetStation('Connect',o.host,o.port);
-            if status~=0
-                o.cic.error('STOPEXPERIMENT',err);
-            else
+            if checkStatusOk(status,err)
                 disp(['Connected to EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
@@ -69,9 +61,7 @@ classdef egi < neurostim.plugin
         % Disconnect
         function disconnect(o)
             [status,err] = NetStation('Disconnect');
-            if status~=0
-                o.cic.error('STOPEXPERIMENT',err);
-            else
+            if checkStatusOk(status,err)
                 disp(['Disconnected from EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
@@ -83,31 +73,25 @@ classdef egi < neurostim.plugin
                 o.syncLimit = slimit;
             end
             [status,err] = NetStation('Synchronize',o.syncLimit);
-            if status~=0
-                o.cic.error('STOPEXPERIMENT',err);
-            else
+            if checkStatusOk(status,err)
                 disp(['Synchronized with EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
-        
-        
+
         % start recording
         function startRecording(o)
-            [status,err] =NetStation('StartRecording');
-            if status~=0
-                o.cic.error('STOPEXPERIMENT',err);
-            else
+            [status(1),err{1}]=NetStation('StartRecording');
+            [status(2),err{2}]=NetStation('FlushReadbuffer'); % not sure what this does (JD)
+            if checkStatusOk(status,err)
                 disp(['Started recording on EGI-host ' o.host ':' num2str(o.port) ]);
-             end
+            end
         end
         
         % stop recording
         function stopRecording(o)
-            NetStation('FlushReadbuffer');
+            NetStation('FlushReadbuffer'); % not sure what this does (JD)
             [status,err]=NetStation('StopRecording');
-            if status~=0
-                o.cic.error('STOPEXPERIMENT',err);
-            else
+            if checkStatusOk(status,err)
                 disp(['Stopped recording on EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
@@ -117,8 +101,17 @@ classdef egi < neurostim.plugin
         function event(o,code,varargin)
             %NetStation('Event' [,code] [,starttime] [,duration] [,keycode1] [,keyvalue1] [...])
             [status,err] = NetStation('Event',code,GetSecs,1/1000,varargin{:});
-            if status~=0
-                o.cic.error('STOPEXPERIMENT',err);
+            checkStatusOk(status,err);
+        end
+        
+        % Function to check 1 or more status reports
+        function ok = checkStatusOk(status,err)
+            ok=true;
+            for i=1:numel(status)
+                if status(i)~=0
+                    ok=false;
+                    o.cic.error('STOPEXPERIMENT',err{i});
+                end
             end
         end
     end
