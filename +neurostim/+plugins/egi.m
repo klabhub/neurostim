@@ -89,8 +89,8 @@ classdef egi < neurostim.plugin
         
         % stop recording
         function stopRecording(o)
-            NetStation('FlushReadbuffer'); % not sure what this does (JD)
-            [status,err]=NetStation('StopRecording');
+            [status(1),err{1}]=NetStation('FlushReadbuffer'); % not sure what this does (JD)
+            [status(2),err{2}]=NetStation('StopRecording');
             if checkStatusOk(status,err)
                 disp(['Stopped recording on EGI-host ' o.host ':' num2str(o.port) ]);
             end
@@ -104,8 +104,9 @@ classdef egi < neurostim.plugin
             checkStatusOk(status,err);
         end
         
-        % Function to check 1 or more status reports
+        % support function to check 1 or more status reports
         function ok = checkStatusOk(status,err)
+            if ~iscell(err), err={err}; end
             ok=true;
             for i=1:numel(status)
                 if status(i)~=0
