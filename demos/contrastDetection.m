@@ -34,7 +34,7 @@ function respondMouse(c)
         else
             Snd('Play',0.5*sin((0:10000)/10)) % too far: low tone
         end
-        c.nextTrial;
+        c.endTrial;
     end
 end
 
