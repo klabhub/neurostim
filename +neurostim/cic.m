@@ -49,13 +49,15 @@ classdef cic < neurostim.plugin
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         
+        keyDeviceIndex          = []; % Use the first device by default
+                
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
             'width',[],'height',[],...
             'color',struct('text',[1 1 1],...
             'background',[1/3 1/3 5]),...
             'colorMode','xyL',...
             'frameRate',60,'number',[]);    %screen-related parameters.
-        
+           
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to get the frame flip time.
         requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
@@ -98,7 +100,7 @@ classdef cic < neurostim.plugin
         %% Keyboard interaction
         allKeyStrokes          = []; % PTB numbers for each key that is handled.
         allKeyHelp             = {}; % Help info for key
-        keyDeviceIndex          = []; % Use the first device by default
+%         keyDeviceIndex          = []; % Use the first device by default
         keyHandlers             = {}; % Handles for the plugins that handle the keys.
         
         
@@ -909,7 +911,7 @@ classdef cic < neurostim.plugin
             notify(c,'BASEBEFOREEXPERIMENT');
             DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.window));
             Screen('Flip', c.window);
-            KbWait();
+            KbWait(c.keyDeviceIndex);
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
             for blockNr=1:nrBlocks
@@ -925,7 +927,7 @@ classdef cic < neurostim.plugin
                 end
                 Screen('Flip',c.window);
                 if waitforkey
-                    KbWait([],2);
+                    KbWait(c.keyDeviceIndex,2);
                 end
                 
                 while c.blocks(c.block).trial<c.blocks(c.block).nrTrials
@@ -1037,7 +1039,7 @@ classdef cic < neurostim.plugin
                 end
                 Screen('Flip',c.window);
                 if waitforkey
-                    KbWait([],2);
+                    KbWait(c.keyDeviceIndex,2);
                 end
             end %blocks
             c.trialStopTime = c.clockTime;
@@ -1046,7 +1048,7 @@ classdef cic < neurostim.plugin
             Screen('Flip', c.window);
             notify(c,'BASEAFTEREXPERIMENT');
             c.KbQueueStop;
-            KbWait;
+            KbWait(c.keyDeviceIndex);
             Screen('CloseAll');
             if c.PROFILE; report(c);end
         end
