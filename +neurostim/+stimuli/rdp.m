@@ -55,7 +55,7 @@ classdef rdp < neurostim.stimulus
             o.addProperty('lifetime',50,'validate',@isnumeric);
             o.addProperty('dwellTime',1,'validate',@isnumeric);
             o.addProperty('coordSystem',0,'validate',@(x)x==0||x==1);
-            o.addProperty('noiseMode',0,'validate',@(x)x==0||x==1);       % proportion, distribution
+            o.addProperty('noiseMode',0,'validate',@(x)x==0||x==1);       % coherence, distribution
             o.addProperty('noiseDist',0,'validate',@(x)x==0||x==1);       % gaussian, uniform
             o.addProperty('noiseWidth',50,'validate',@isnumeric);
         end

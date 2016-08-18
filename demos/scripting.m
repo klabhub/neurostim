@@ -29,7 +29,7 @@ function respondMouse(c)
         end
         c.fix.X = x; % Move the fixation point ('fix') to the click location
         c.fix.Y = y;
-        c.nextTrial;
+        c.endTrial;
     end
 end 
 
