@@ -86,9 +86,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         end
         
         % Convenience wrapper; just passed to CIC
-        function nextTrial(o)
+        function endTrial(o)
             % Move to the next trial
-            nextTrial(o.cic);
+            endTrial(o.cic);
         end
         
         %% GUI Functions

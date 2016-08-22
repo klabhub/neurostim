@@ -113,9 +113,9 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('StopRecording');
             Eyelink('CloseFile');
             try
-%                 writeToFeed(o,'Attempting to receive Eyelink edf file');
-%                 status=Eyelink('ReceiveFile',o.edfFile,[c.fullFile '.edf']); %change to OUTPUT dir
-%                 writeToFeed(o,'Success.');
+                writeToFeed(o,'Attempting to receive Eyelink edf file');
+                status=Eyelink('ReceiveFile',o.edfFile,[c.fullFile '.edf']); %change to OUTPUT dir
+                writeToFeed(o,'Success.');
             catch
                 error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
             end

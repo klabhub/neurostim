@@ -32,8 +32,13 @@ classdef release < neurostim.plugins.behavior
     end
     
     methods (Access=protected)
-        function inProgress = validateBehavior(o)
-            % validateBehavior returns o.on = true when behavior passes all checks.
+        end
+        
+    end
+    
+    methods (Access=protected)
+        function inProgress = validate(o)
+            % validate returns o.on = true when behavior passes all checks.
             inProgress = ~logical(o.mcc.isHolding);
             
         end

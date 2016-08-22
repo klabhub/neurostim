@@ -43,14 +43,13 @@ classdef block < dynamicprops
         afterMessage@char='';
         beforeFunction; % function handle which takes cic as first arg
         afterFunction;
-        trial;
     end
     
     properties (GetAccess=public, SetAccess = protected)
         factorials@neurostim.factorial; % The collection of factorial designs that will run in this block
         list=[];    % Each column corresponds to a trial. First row specifies the factorial, second row the condition in the factorial.  [1 2 3; 2 2 1] means run condition 2 from factorial 1 then condition 2 from factorial 2 and then condition 1 from
         name='';    % Name of the block
-        
+        trial=0;       
     end
     
     properties (Dependent)
@@ -109,6 +108,10 @@ classdef block < dynamicprops
         function o=block(name,varargin)
             o.name=name;
             o.factorials=[varargin{:}];
+        end
+        
+        function o = nextTrial(o)
+            o.trial = o.trial+1;
         end
         
         function disp(o)

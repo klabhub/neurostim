@@ -73,11 +73,11 @@ classdef output < neurostim.plugin
 
             if o.last == 1 || o.dumpNum==0  % if the file desn't exist or it is an afterExperiment save               
                 saveVariables = {'screen','subjectNr','paradigm',...
-                    'nrStimuli','nrConditions','nrTrials',...
-                    'fullFile','subject','blocks','responseKeys','trial','condition','block',...
-                    'startTime','stopTime','trialStartTime','trialStopTime', 'pluginOrder','profile'};
+                    'nrStimuli','nrConditions',...
+                    'subject','blocks','responseKeys',...
+                    'startTime','stopTime', 'pluginOrder','profile'};
             else %if we are just appending data
-                saveVariables = {'trial','condition','block','trialStartTime','trialStopTime'};
+                saveVariables = {}; %no longer anything appended. it's all logged as events.
             end
                 if isempty(o.allSaveLogs)
                     o.allSaveLogs=[c.stimuli c.plugins 'cic']; %combine all stimuli and plugins to save
@@ -107,6 +107,12 @@ classdef output < neurostim.plugin
                 for var = saveVariables % saves all requested variables to o.data
                     o.data.(var{1}) = c.(var{1});
                 end
+                o.data.nrTrials = c.trial;
+                o.data.nrBlocks = c.block;
+                o.data.matlabVers = version;
+                o.data.expScript = c.expScript;
+                o.data.ptbVers = PsychtoolboxVersion;
+                o.data = orderfields(o.data);
         end
                 
         function saveFileBase(o,c)
@@ -126,7 +132,7 @@ classdef output < neurostim.plugin
                     warning('There was a problem saving to disk. Attempting save to c:\temp.... success');
                 catch
                     warning('There was a problem saving to disk. Failed. Halting execution to allow manual recovery');
-                    %sca; Maybe add this here?
+                    sca;
                     keyboard;
                 end
             end

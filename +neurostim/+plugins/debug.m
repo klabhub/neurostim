@@ -14,7 +14,7 @@ classdef debug < neurostim.plugin
             switch upper(key)
                 case 'N'
                     % End trial immediately and move to the next
-                    o.nextTrial;
+                    o.endTrial;
                 case 'E'
                     % Toggle the 'clear'ing of the window.
                     o.cic.clear = 1-o.cic.clear;

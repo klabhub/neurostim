@@ -44,7 +44,7 @@ classdef nafcResponse < neurostim.plugins.behavior
    
    methods (Access=protected)
        
-       function inProgress = validateBehavior(o)
+       function inProgress = validate(o)
           inProgress = o.inProgress;
        end
        
