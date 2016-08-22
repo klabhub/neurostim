@@ -35,6 +35,7 @@ classdef hold < neurostim.plugins.behavior
         function inProgress = validateBehavior(o)
             % validateBehavior returns o.on = true when behavior passes all checks.
             inProgress = logical(o.mcc.isHolding);
+            
         end
     end
     

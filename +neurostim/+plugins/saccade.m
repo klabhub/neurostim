@@ -2,8 +2,8 @@ classdef saccade < neurostim.plugins.behavior
     % Behavioral plugin which checks for a saccade.
     % saccade(name,fixation1,fixation2)
     % Creates a saccade from fixation1 to fixation2, adjusting start and
-    % end points accordingly, and also adjusts fixation2's startTime to be 
-    % equal to the end of the saccade. 
+    % end points accordingly, and also adjusts fixation2's startTime to be
+    % equal to the end of the saccade.
     %
     properties  (Access=private)
         fix1;
@@ -12,37 +12,7 @@ classdef saccade < neurostim.plugins.behavior
         allowable;
     end
     
-        
-    
-    methods
-        function o=saccade(c,name,varargin)
-            o=o@neurostim.plugins.behavior(c,name);
-            o.continuous = true;
-            o.addProperty('startX',0,'validate',@isnumeric);
-            o.addProperty('startY',0,'validate',@isnumeric);
-            o.addProperty('endX',[5 -5],'validate',@isnumeric);   % end possibilities - calculated as an OR
-            o.addProperty('endY',[5 5],'validate',@(x) isnumeric(x) && all(size(x)==size(o.endX)));
-            o.addProperty('minLatency',80,'validate',@isnumeric);
-            o.addProperty('maxLatency',500,'validate',@isnumeric);
-            if nargin == 3   % two fixation inputs
-                o.fix1 = varargin{1};
-                o.fix2 = varargin{2};
-                
-                % set initial values
-                o.duration = o.minLatency;
-                o.startX = ['@(' o.fix1.name ') ' o.fix1.name '.X'];
-                o.startY = ['@(' o.fix1.name ') ' o.fix1.name '.Y'];
-                o.endX = ['@(' o.fix2.name ') ' o.fix2.name '.X'];
-                o.endY = ['@(' o.fix2.name ') ' o.fix2.name '.Y'];
-                o.from = ['@(' o.fix1.name ', cic) ' o.fix1.name '.stopTime - cic.trialTime'];
-                o.fix1.cic.(o.fix2.name).from = ['@(' o.name ', cic) ' o.name '.stopTime - cic.trialTime'];
-                
-            elseif nargin == 2
-                error('Only one fixation object supplied.')
-            end
-            o.duration = o.maxLatency;
-        end
-        
+    methods (Access=protected)
         function on = validateBehavior(o)
             % calculates the validity of a saccade. This is done through
             % creating a convex hull around the two fixation points and
@@ -84,6 +54,38 @@ classdef saccade < neurostim.plugins.behavior
             end
             
         end
+    end
+    
+    methods
+        function o=saccade(c,name,varargin)
+            o=o@neurostim.plugins.behavior(c,name);
+            o.continuous = true;
+            o.addProperty('startX',0,'validate',@isnumeric);
+            o.addProperty('startY',0,'validate',@isnumeric);
+            o.addProperty('endX',[5 -5],'validate',@isnumeric);   % end possibilities - calculated as an OR
+            o.addProperty('endY',[5 5],'validate',@(x) isnumeric(x) && all(size(x)==size(o.endX)));
+            o.addProperty('minLatency',80,'validate',@isnumeric);
+            o.addProperty('maxLatency',500,'validate',@isnumeric);
+            if nargin == 3   % two fixation inputs
+                o.fix1 = varargin{1};
+                o.fix2 = varargin{2};
+                
+                % set initial values
+                o.duration = o.minLatency;
+                o.startX = ['@(' o.fix1.name ') ' o.fix1.name '.X'];
+                o.startY = ['@(' o.fix1.name ') ' o.fix1.name '.Y'];
+                o.endX = ['@(' o.fix2.name ') ' o.fix2.name '.X'];
+                o.endY = ['@(' o.fix2.name ') ' o.fix2.name '.Y'];
+                o.from = ['@(' o.fix1.name ', cic) ' o.fix1.name '.stopTime - cic.trialTime'];
+                o.fix1.cic.(o.fix2.name).from = ['@(' o.name ', cic) ' o.name '.stopTime - cic.trialTime'];
+                
+            elseif nargin == 2
+                error('Only one fixation object supplied.')
+            end
+            o.duration = o.maxLatency;
+        end
+        
+        
         
     end
     
