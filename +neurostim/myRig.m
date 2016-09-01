@@ -3,6 +3,11 @@ function c = myRig(varargin)
 %Convenience function to set up a CIC object with appropriate settings for the current rig/computer.
 %Feel free to add your PC/rig to the list
 smallWindow = false;
+pin = inputParser;
+pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
+pin.parse(varargin{:});
+smallWindow = pin.Results.smallWindow;
+
 import neurostim.*
 
 %Create a Command and Intelligence Center object - the central controller for Neurostim.
@@ -13,11 +18,17 @@ if isempty(computerName)
     [~,computerName] =system('hostname');
     computerName = deblank(computerName);
 end
+c.dirs.output = tempdir; % Output files will be stored here.
 
 switch computerName
+    case 'MU00101417X'
+        % Shaun's MacBook Pro
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',2560,'ypixels',1600,'screenWidth',28.6,'frameRate',60,'screenNumber',max(Screen('screens')),'keyboardNumber',max(GetKeyboardIndices()));
+        smallWindow = true;
+        
     case 'MU00043185'
-        %Adam's office PC
-        c = rig(c,'xpixels',1680,'ypixels',1050,'screenWidth',42,'frameRate',60,'screenNumber',max(Screen('screens')));
+        %Office PC
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',1680,'ypixels',1050,'screenWidth',42,'frameRate',60,'screenNumber',max(Screen('screens')));
         smallWindow = true;
         
     case 'MU00042884'
@@ -26,7 +37,7 @@ switch computerName
         
     case 'MU00080600'
         %Neurostim B (CRT)
-        c = rig(c,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0,'eyelinkCommands',{'calibration_area_proportion=0.6 0.6','validation_area_proportion=0.6 0.6'});
+        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1600-1,'ypixels',1200-1,'screenWidth',40,'frameRate',85,'screenNumber',0,'eyelinkCommands',{'calibration_area_proportion=0.6 0.6','validation_area_proportion=0.6 0.6'});
         
     case 'MOBOT'
         %Home
@@ -55,6 +66,21 @@ switch computerName
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
         smallWindow = false;
         
+    case '2014B'
+        scrNr = 2;
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
+        c.screen.colorMode = 'RGB';
+        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        smallWindow = false;
+        
+    case 'PTB-P'
+        scrNr=0;
+        rect = Screen('rect',scrNr);
+        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',400,'ypixels',300,'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
+        c.screen.colorMode = 'RGB';
+        smallWindow = false;
     otherwise
         warning('This computer is not recognised. Using default settings.');
         scrNr = max(Screen('screens'));
@@ -114,6 +140,9 @@ if ~isempty(pin.Results.screenDist)
 end
 if ~isempty(pin.Results.screenNumber)
     c.screen.number  = pin.Results.screenNumber;
+end
+if ~isempty(pin.Results.keyboardNumber)
+    c.keyDeviceIndex  = pin.Results.keyboardNumber;
 end
 if ~isempty(pin.Results.outputDir)
     c.dirs.output  = pin.Results.outputDir;

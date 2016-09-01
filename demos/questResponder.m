@@ -20,7 +20,7 @@ classdef questResponder < neurostim.plugin;
                 % to generate responses
                 response=QuestSimulate(o.cic.lldots.quest.q(o.cic.condition),o.cic.lldots.coherence,o.simulatedThreshold(o.cic.condition));
                 answer(o.cic.lldots,(response));
-                o.nextTrial;
+                o.endTrial;
             end
         end
         

@@ -1,9 +1,18 @@
 classdef hold < neurostim.plugins.behavior
-    % Behavioral plugin which monitors touch pad/bar
-    % hold - behavioural plugin which sets on = true when the mcc value is
-    % high (monkey is holding)
+    % Behavioural plugin to require the HOLD or RELEASE of an external
+    % button/touchbar/device. Really, it just monitors a
+    % DIGITAL line of the MCC for a required state (high or low bit), so it's
+    % a generic plugin to listen to an external device.
     %
-    
+    % Assuming a hardware configuration in which the bit goes HIGH when
+    % a touchbar/button is pressed, the plugin defaults to a HOLD
+    % behaviour. To require a RELEASE, set "invert" to true.
+    %
+    % Parameters:
+    %
+    % mccChannel:   the DIGITAL channel to monitor [default = 1]
+    % invert:       set to true to software-invert the bit value. 
+
     properties
         mcc = [];
     end
@@ -11,6 +20,7 @@ classdef hold < neurostim.plugins.behavior
     methods (Access=public)
         function o=hold(c,name)
             o=o@neurostim.plugins.behavior(c,name);
+            o.addProperty('invert',false);
             o.addProperty('mccChannel',1);
             o.listenToEvent('BEFOREEXPERIMENT');
             o.continuous = true;
@@ -32,9 +42,9 @@ classdef hold < neurostim.plugins.behavior
     end
     
     methods (Access=protected)
-        function inProgress = validateBehavior(o)
-            % validateBehavior returns o.on = true when behavior passes all checks.
-            inProgress = logical(o.mcc.isHolding);
+        function inProgress = validate(o)
+            % validate returns o.on = true when behavior passes all checks.
+            inProgress = logical(o.mcc.isHolding)~=o.invert;
         end
     end
     

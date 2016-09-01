@@ -48,6 +48,10 @@ classdef mcc < neurostim.plugin
             %Find the main MCC Interface.
             o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0'), o.devices));    %DaqDeviceIndex
             
+            if isempty(o.daq)
+               error('MCC plugin added but no device could be found.'); 
+            end
+            
             err=DaqDConfigPort(o.daq,0,1); % configure digital port A for input
             err=DaqDConfigPort(o.daq,1,0); % configure digital port B for output
             
