@@ -22,7 +22,7 @@ switch computerName
         
     case 'MU00042884'
         %Neurostim A (Display++)
-        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1920-1,'ypixels',1080-1,'screenWidth',72,'frameRate',120,'screenNumber',1,'eyelinkCommands',{'calibration_area_proportion=0.3 0.3','validation_area_proportion=0.3 0.3'},'outputDir','C:\Neurostim Data Store');
+        c = rig(c,'eyelink',true,'mcc',true,'xpixels',1920-1,'ypixels',1080-1,'screenWidth',72,'screenDist',42,'frameRate',120,'screenNumber',0,'eyelinkCommands',{'calibration_area_proportion=0.3 0.3','validation_area_proportion=0.3 0.3'},'outputDir','C:\Neurostim Data Store');
         
     case 'MU00080600'
         %Neurostim B (CRT)
@@ -82,6 +82,7 @@ pin.addParameter('xorigin',[]);
 pin.addParameter('yorigin',[]);
 pin.addParameter('screenWidth',[]);
 pin.addParameter('screenHeight',[]);
+pin.addParameter('screenDist',[]);
 pin.addParameter('frameRate',[]);
 pin.addParameter('screenNumber',[]);
 pin.addParameter('eyelink',false);
@@ -107,6 +108,9 @@ if ~isempty(pin.Results.screenHeight)
     c.screen.height = pin.Results.screenHeight;
 else
     c.screen.height = c.screen.width*c.screen.ypixels/c.screen.xpixels;
+end
+if ~isempty(pin.Results.screenDist)
+    c.screen.viewDist  = pin.Results.screenDist;
 end
 if ~isempty(pin.Results.screenNumber)
     c.screen.number  = pin.Results.screenNumber;
