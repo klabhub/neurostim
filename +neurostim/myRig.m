@@ -2,7 +2,6 @@ function c = myRig(varargin)
 
 %Convenience function to set up a CIC object with appropriate settings for the current rig/computer.
 %Feel free to add your PC/rig to the list
-smallWindow = false;
 pin = inputParser;
 pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
 pin.parse(varargin{:});
@@ -111,6 +110,7 @@ pin.addParameter('screenHeight',[]);
 pin.addParameter('screenDist',[]);
 pin.addParameter('frameRate',[]);
 pin.addParameter('screenNumber',[]);
+pin.addParameter('keyboardNumber',[]);
 pin.addParameter('eyelink',false);
 pin.addParameter('eyelinkCommands',[]);
 pin.addParameter('outputDir',[]);
