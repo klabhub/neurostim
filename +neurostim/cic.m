@@ -378,7 +378,7 @@ classdef cic < neurostim.plugin
             %Check MATLAB version. Warn if using an older version.
             ver = version('-release');
             v=regexp(ver,'(?<year>\d+)(?<release>\w)','names');
-            if ~((str2double(v.year) > 2015) || (str2double(v.year) == 2015 && f.release == 'b'))
+            if ~((str2double(v.year) > 2015) || (str2double(v.year) == 2015 && v.release == 'b'))
                 warning(['The installed version of MATLAB (' ver ') is relatively slow. Consider updating to 2015b or later for better performance (e.g. fewer frame-drops).']);
             end
             
