@@ -20,11 +20,17 @@ elseif ~isempty(str) && strcmpi(str(1),'@')
     % Set flavor to pcre, with modifier (right hand box) of 'g'.
     % One catch is that \< (Matlab) should be replaced with \b (online)
     funStr = ['@(this) (' regexprep(str(2:end),'(\<[a-zA-Z_]+\w*\.\w+)','this.cic.$0') ')'];
-    
-    % Assignments a=b are not allowed in function handles. (Not sure why). 
-    % Replaceit with set(a,b);       
-    funStr = regexprep(funStr,'(?<plgin>this.cic.\w+)\.(?<param>\<\w+)\s*=\s*(?<value>\w+)','setProperty($1,''$2'',$3)');
 
+    % temporarily replace == with eqMarker to simplify assignment (=) parsing below.
+    eqMarker = '*eq*';
+    funStr = strrep(funStr,'==',eqMarker);
+    % Assignments a=b are not allowed in function handles. (Not sure why). 
+    % Replaceit with set(a,b);    
+    funStr = regexprep(funStr,'(?<plgin>this.cic.\w+)\.(?<param>\<\w+)\s*=\s*(.+)','setProperty($1,''$2'',$3)');
+    % Replace the eqMarker with ==
+    funStr = strrep(funStr,eqMarker,'==');
+
+    
     % Make sure the iff function is found inside the utils package.`
     funStr = regexprep(funStr,'\<iff\(','neurostim.utils.iff(');    
 
