@@ -15,12 +15,22 @@ elseif ~isempty(str) && strcmpi(str(1),'@')
     % start of the name of an object. We could add some sanity check here
     % that when xxx.y is replaced with this.cic.xxx.y that xxx is actually
     % a plugin/stimulus.
-    funStr = ['@(this) (' regexprep(str(2:end),'(?<plgin>\<[^\d,\[\(\]\)\+-\*\\/~]\w*\.)','this.cic.$0') ')'];
-    
-    % Assignments a=b are not allowed in function handles. (Not sure why). 
-    % Replaceit with set(a,b);       
-    funStr = regexprep(funStr,'(?<plgin>this.cic.\w+)\.(?<param>\<\w+)\s*=\s*(?<value>\w+)','setProperty($1,''$2'',$3)');
+    %
+    % Note: Here's an online tool to test and visualise regexp matches: https://regex101.com/
+    % Set flavor to pcre, with modifier (right hand box) of 'g'.
+    % One catch is that \< (Matlab) should be replaced with \b (online)
+    funStr = ['@(this) (' regexprep(str(2:end),'(\<[a-zA-Z_]+\w*\.\w+)','this.cic.$0') ')'];
 
+    % temporarily replace == with eqMarker to simplify assignment (=) parsing below.
+    eqMarker = '*eq*';
+    funStr = strrep(funStr,'==',eqMarker);
+    % Assignments a=b are not allowed in function handles. (Not sure why). 
+    % Replaceit with set(a,b);    
+    funStr = regexprep(funStr,'(?<plgin>this.cic.\w+)\.(?<param>\<\w+)\s*=\s*(.+)','setProperty($1,''$2'',$3)');
+    % Replace the eqMarker with ==
+    funStr = strrep(funStr,eqMarker,'==');
+
+    
     % Make sure the iff function is found inside the utils package.`
     funStr = regexprep(funStr,'\<iff\(','neurostim.utils.iff(');    
 
