@@ -417,8 +417,8 @@ classdef cic < neurostim.plugin
             c.addProperty('blockTrial',0,'SetAccess','protected');
             c.addProperty('trial',0,'SetAccess','protected');
             c.addProperty('expScript',[],'SetAccess','protected');
-            c.addProperty('iti',1000,'validate',@double); %inter-trial interval (ms)
-            c.addProperty('trialDuration',1000,'validate',@double); % duration (ms)
+            c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
+            c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             
             % Generate default output files
             neurostim.plugins.output(c);
