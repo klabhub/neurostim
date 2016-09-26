@@ -1,7 +1,5 @@
 classdef liquid < neurostim.plugins.feedback
-    %Feedback plugin to deliver liquid reward (through MCC).
-    %Plugin to deliver liquid reward to animals. See parent class for
-    %usage.
+    % Feedback plugin to deliver liquid reward (through MCC).
     
     properties
         mcc = [];
@@ -35,6 +33,16 @@ classdef liquid < neurostim.plugins.feedback
     
     methods (Access=protected)
  
+        function chAdd(o,varargin)
+          p = inputParser;
+          p.StructExpand = true; % The parent class passes as a struct
+          p.addParameter('duration',Inf);
+          p.parse(varargin{:});
+      
+          % store the duration
+          o.addProperty(['item', num2str(o.nItems), 'duration'],p.Results.duration);
+        end
+      
         function deliver(o,item)
             % Responds by calling the MCC plugin to activate liquid reward.
             % This currently uses the timer() function for duration, which
