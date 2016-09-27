@@ -64,9 +64,9 @@ classdef visualFeedback < neurostim.plugins.feedback
 
       args = p.Unmatched;
       
-      % overide any supplied 'when' parameter
+      % check for any supplied 'when' parameter
       if isfield(args,'when') && ~strcmpi(args.when,'AFTERFRAME')
-          o.cic.error('CONTINUE','''Invalid ''when'' parameter for visual feedback item. Forcing ''AFTERFRAME''...');
+          o.cic.error('STOPEXPERIMENT','''Invalid ''when'' parameter for visual feedback item. Type ''help visualFeedback'' for details.');
       end
       
       args.when = 'AFTERFRAME';
