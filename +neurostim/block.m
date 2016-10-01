@@ -108,6 +108,8 @@ classdef block < dynamicprops
         function o=block(name,varargin)
             o.name=name;
             o.factorials=[varargin{:}];
+            
+            o.weights = ones(1,o.nrFactorials);
         end
         
         function o = nextTrial(o)
@@ -127,15 +129,15 @@ classdef block < dynamicprops
         % Parse the factorials to setup a single list of
         % factorial/condition list
         function setupExperiment(o)
-            % Setup each factorial first
+            assert(numel(o.weights) == o.nrFactorials, ...
+              'NEUROSTIM:block:sizeMismatch', ...
+              'Length of weight vector must match the number of factorials.');
+
+            % Setup each factorial
             for f=1:o.nrFactorials
                 setupExperiment(o.factorials(f));
             end
-            
-            if isempty(o.weights)
-                o.weights=ones(1,o.nrFactorials);
-            end
-            
+                        
             thisList = [];
             
             % TODO - not sure whether this randomization makes much sense.
