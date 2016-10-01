@@ -153,15 +153,16 @@ classdef block < dynamicprops
                         tmp = [tmp o.factorials(f).list]; %#ok<AGROW>
                     end
                     thisList= cat(2,thisList,[f*ones(size(tmp));tmp]);
+  
+                    switch upper(o.factorials(f).randomization) % If the fac specifies randomization, we redo that every repeat of the factorial
+                      case 'SEQUENTIAL'
+                      case 'RANDOMWITHOUTREPLACEMENT'
+                          thisList=Shuffle(thisList',2)';
+                      case 'RANDOMWITHREPLACEMENT'
+                          thisList(2,:)=datasample(thisList(2,:),size(thisList,2));
+                    end
+                    o.list = [o.list thisList];
                 end
-                switch upper(o.factorials(f).randomization) % If the fac specifies randomization, we redo that every repeat of the factorial
-                    case 'SEQUENTIAL'
-                    case 'RANDOMWITHOUTREPLACEMENT'
-                        thisList=Shuffle(thisList',2)';
-                    case 'RANDOMWITHREPLACEMENT'
-                        thisList(2,:)=datasample(thisList(2,:),size(thisList,2));
-                end
-                o.list = [o.list thisList];
             end
             
             % Randomize the order of the factorials
