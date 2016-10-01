@@ -106,6 +106,9 @@ classdef block < dynamicprops
         
         % Constructor
         function o=block(name,varargin)
+            assert(nargin > 1,'NEUROSTIM:block:notEnoughInputs', ...
+              'Not enough input arguments.');
+            
             o.name=name;
             o.factorials=[varargin{:}];
             
