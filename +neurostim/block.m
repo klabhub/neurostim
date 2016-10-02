@@ -77,13 +77,12 @@ classdef block < dynamicprops
             v = numel(o.factorials);
         end
         
-        
-        function v= get.factorialIx(o)
-            v =o.list(1,o.trial);
+        function v = get.factorialIx(o)
+            v = o.list(1,o.trial);
         end
         
-        function v= get.conditionIx(o)
-            v =o.list(2,o.trial);
+        function v = get.conditionIx(o)
+            v = o.list(2,o.trial);
         end
         
         function set.beforeFunction(o,fun)
@@ -94,8 +93,8 @@ classdef block < dynamicprops
             o.afterFunction = neurostim.utils.str2fun(fun);
         end
         
-        function v=get.nrConditions(o)
-            v= sum(o.factorials.nrConditions);
+        function v = get.nrConditions(o)
+            v = sum(o.factorials.nrConditions);
         end
         
     end
@@ -103,11 +102,15 @@ classdef block < dynamicprops
     
     methods
         
-        
         % Constructor
-        function o=block(name,varargin)
-            o.name=name;
-            o.factorials=[varargin{:}];
+        function o = block(name,varargin)
+            assert(nargin > 1,'NEUROSTIM:block:notEnoughInputs', ...
+              'Not enough input arguments.');
+            
+            o.name = name;
+            o.factorials = [varargin{:}];
+            
+            o.weights = ones(1,o.nrFactorials);
         end
         
         function o = nextTrial(o)
@@ -115,59 +118,52 @@ classdef block < dynamicprops
         end
         
         function disp(o)
-            disp([o.name ': block with ' num2str(numel(o.factorials)) ' factorials']); 
+            disp([o.name ': block with ' num2str(o.nrFactorials) ' factorials']); 
         end
         
         % Return the specs (a cell array) of the current condition
         function v = get.condition(o)
-            v =o.factorials(o.factorialIx).conditions(o.conditionIx);
+            v = o.factorials(o.factorialIx).conditions(o.conditionIx);
         end
-        
-        
-        % Parse the factorials to setup a single list of
-        % factorial/condition list
+
+        % Parse the factorials to setup a single 2xN list of
+        % N factorial/condition pairs, one for each trial
         function setupExperiment(o)
-            % Setup each factorial first
-            for f=1:o.nrFactorials
+            assert(numel(o.weights) == o.nrFactorials, ...
+              'NEUROSTIM:block:sizeMismatch', ...
+              'Length of weight vector must match the number of factorials.');
+
+            % Setup each factorial
+            for f = 1:o.nrFactorials
                 setupExperiment(o.factorials(f));
             end
-            
-            if isempty(o.weights)
-                o.weights=ones(1,o.nrFactorials);
-            end
-            
-            thisList = [];
-            
-            % TODO - not sure whether this randomization makes much sense.
-            
-            for r=1:o.nrRepeats
-                for f=1:o.nrFactorials
-                    tmp=[];
-                    thisList = [];
-                    for i=1:o.weights(f)
-                        tmp = [tmp o.factorials(f).list]; %#ok<AGROW>
-                    end
-                    thisList= cat(2,thisList,[f*ones(size(tmp));tmp]);
-                end
-                switch upper(o.factorials(f).randomization) % If the fac specifies randomization, we redo that every repeat of the factorial
+                        
+            for r = 1:o.nrRepeats
+                % build the list of factorials..
+                fNum = cell2mat(arrayfun(@(x,y) repmat(x,1,y),1:o.nrFactorials,o.weights,'UniformOutput',false));
+              
+                % randomize order of factorials
+                switch upper(o.randomization)
                     case 'SEQUENTIAL'
+                        % do nothing...
                     case 'RANDOMWITHOUTREPLACEMENT'
-                        thisList=Shuffle(thisList',2)';
+                        fNum = Shuffle(fNum);
                     case 'RANDOMWITHREPLACEMENT'
-                        thisList(2,:)=datasample(thisList(2,:),size(thisList,2));
+                        fNum = datasample(fNum,size(fNum,2));
                 end
-                o.list = [o.list thisList];
-            end
-            
-            % Randomize the order of the factorials
-            switch upper(o.randomization) % If the block specifies randomization, we want to resample the total list
-                case 'SEQUENTIAL'
-                    % This makes most sense?
-                case 'RANDOMWITHOUTREPLACEMENT'
-                    o.list =Shuffle(o.list',2)';
-                case 'RANDOMWITHREPLACEMENT'
-                    o.list=datasample(o.list',size(o.list,2))';
+                
+                for f = fNum
+                    list  = [f*ones(1,o.factorials(f).nrConditions); ...
+                             o.factorials(f).list];
+                    o.list = cat(2,o.list,list); 
+                    
+                    % if the factorial specifies randomization, we
+                    % should 'reshuffle' each repeat
+                    o.factorials(f).reshuffle();
+                end
             end
         end
-    end    
-end
+        
+    end % methods 
+    
+end % classdef
