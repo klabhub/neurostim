@@ -412,8 +412,9 @@ classdef cic < neurostim.plugin
             
             c.addProperty('trialStartTime',[],'SetAccess','protected');
             c.addProperty('trialStopTime',[],'SetAccess','protected');
-            c.addProperty('condition',[],'SetAccess','protected');
-            c.addProperty('block',0,'SetAccess','protected');
+            c.addProperty('condition',[],'SetAccess','protected','AbortSet',false);
+            c.addProperty('factorial',[],'SetAccess','protected','AbortSet',false);
+            c.addProperty('block',0,'SetAccess','protected','AbortSet',false);
             c.addProperty('blockTrial',0,'SetAccess','protected');
             c.addProperty('trial',0,'SetAccess','protected');
             c.addProperty('expScript',[],'SetAccess','protected');
@@ -761,7 +762,7 @@ classdef cic < neurostim.plugin
             end
             c.blockFlow.nrRepeats = p.Results.nrRepeats;
             c.blockFlow.randomization = p.Results.randomization;
-            c.blockFlow.list =neurostim.utils.repeat((1:numel(c.blocks)),c.blockFlow.weights);
+            c.blockFlow.list = neurostim.utils.repeat((1:numel(c.blocks)),c.blockFlow.weights);
             switch(c.blockFlow.randomization)
                 case 'SEQUENTIAL'
                     %c.blockFlow.list
@@ -782,9 +783,14 @@ classdef cic < neurostim.plugin
             %factorial in case design contains functions/dynamic properties that depend on the jittered prop)
             jitterProps(c);
             
-            %Which condition should we run?
-            c.condition = c.blocks(c.block).conditionIx; %used only for logging purposes
-            
+            % this craziness is for loggin purposes...
+            %
+            % we want the block, factorial and condition to be logged for
+            % each trial
+            c.block = c.block; % index into @cic.blocks
+            c.factorial = c.blocks(c.block).factorialIx; % index into @block.factorials
+            c.condition = c.blocks(c.block).conditionIx; % index into @factorial.conditions
+                        
             %Retrieve the plugin/parameter/value specs for the current condition
             specs = c.blocks(c.block).condition;
             nrParms = length(specs)/3;
