@@ -106,6 +106,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             p.addParameter('validate',[]);
             p.addParameter('SetAccess','public');
             p.addParameter('GetAccess','public');
+            p.addParameter('AbortSet',true); % Set to true to avoid logging when new value same as old, false for logging all
             p.addParameter('thisIsAnUpdate',false,@islogical);
             p.parse(varargin{:});
             
@@ -129,7 +130,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Setup a listener for logging, validation, and postprocessing
             o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,p.Results.postprocess,p.Results.validate));
             o.(prop) = value; % Set it, this will call the logParmSet function now.
-            h.AbortSet = true;
+            h.AbortSet = p.Results.AbortSet;
             h.GetAccess=p.Results.GetAccess; 
             h.SetAccess='public';% TODO: figure out how to limit setAccess p.Results.SetAccess;            
         end
