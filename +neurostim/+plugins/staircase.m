@@ -15,7 +15,7 @@ classdef staircase < neurostim.plugin
   properties
     plugin;
     property;
-%     criterion;
+    criterion;
   end
   
   methods
@@ -29,6 +29,7 @@ classdef staircase < neurostim.plugin
       %   criterion - a function to be evaluated immediately before 
       %               each trial and returning true (correct) or fale
       %               (incorrect)
+      %   active    - true/false, enabling or disabling staircase updates
       
       % call the parent constructor
       s = s@neurostim.plugin(c,name);
@@ -36,8 +37,10 @@ classdef staircase < neurostim.plugin
       
       s.plugin = plugin;
       s.property = property;
-%       s.criterion = criterion;
-      s.addProperty('criterion',criterion);                
+      s.criterion = criterion;
+%       s.addProperty('criterion',criterion);
+
+      s.addProperty('active',true); % default: 'active'
     end
     
 %     function beforeExperiment(s,c,evt)
@@ -46,15 +49,16 @@ classdef staircase < neurostim.plugin
     
     function beforeTrial(s,c,evt)
       % evaluate criterion and set the new property value...
-
+      if ~s.active, return; end
+      
       v = s.update(s.criterion);
       
       c.(s.plugin).(s.property) = v;
     end
-
+    
     % abstract method, result = TRUE or FALSE, must return the
     % new property value
-    v = update(s,result); % abstract method
+    update(s,result); % abstract method
     
   end % methods
   
