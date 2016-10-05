@@ -1,4 +1,4 @@
-classdef staircase < neurostim.plugin
+classdef (Abstract) staircase < neurostim.plugin
   % Abstract staircase class.
   %
   % This plugin will set a given plugin property before each trial
@@ -10,12 +10,11 @@ classdef staircase < neurostim.plugin
   % receives a single argument that is either TRUE or FALSE, reflecting
   % the value of the supplied criterion.
 
-  % 2016-10-03 - Shaun L. Cloherty <s.cloherty@ieee.org>
+  % 2016-10-05 - Shaun L. Cloherty <s.cloherty@ieee.org>
   
   properties
     plugin;
     property;
-    criterion;
   end
   
   methods
@@ -37,8 +36,7 @@ classdef staircase < neurostim.plugin
       
       s.plugin = plugin;
       s.property = property;
-      s.criterion = criterion;
-%       s.addProperty('criterion',criterion);
+      s.addProperty('criterion',criterion,'AbortSet',false); % logged for every trial
 
       s.addProperty('active',true); % default: 'active'
     end
@@ -56,10 +54,11 @@ classdef staircase < neurostim.plugin
       c.(s.plugin).(s.property) = v;
     end
     
-    % abstract method, result = TRUE or FALSE, must return the
-    % new property value
-    update(s,result); % abstract method
-    
   end % methods
+  
+  methods (Abstract)
+    % update() should return the new property value, result = TRUE or FALSE
+    v = update(s,result); % abstract method
+  end
   
 end % classdef
