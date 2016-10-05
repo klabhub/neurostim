@@ -1,4 +1,4 @@
-classdefs (Abstract) staircase < neurostim.plugin
+classdef (Abstract) staircase < neurostim.plugin
   % Abstract staircase class.
   %
   % This plugin will set a given plugin property before each trial
