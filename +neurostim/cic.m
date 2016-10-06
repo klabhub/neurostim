@@ -822,15 +822,15 @@ classdef cic < neurostim.plugin
                 bounds = c.jitterList(i).bounds;
                 sz = c.jitterList(i).size;
                 
+                if ~iscell(prms)
+                  prms = num2cell(prms);
+                end
+                
                 if isa(dist,'function_handle')
                     %User-defined function. Call it.
-                    c.(plg).(prop) = dist(prms);
+                    c.(plg).(prop) = dist(prms{:});
                 else
                     %Name of a standard distribution (i.e. known to Matlab's random,cdf,etc.)
-                    if ~iscell(prms)
-                        prms = num2cell(prms);
-                    end
-                    
                     if isempty(bounds)
                         %Sample from specified distribution (unbounded)
                         if ~iscell(sz)
