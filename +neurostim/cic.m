@@ -823,7 +823,7 @@ classdef cic < neurostim.plugin
                 prms = c.jitterList(i).prms;
                 dist = c.jitterList(i).dist;
                 bounds = c.jitterList(i).bounds;
-                sz = c.jitterList(i).size;zazaz
+                sz = c.jitterList(i).size;
                 
                 if isa(dist,'function_handle')
                     %User-defined function. Call it.
