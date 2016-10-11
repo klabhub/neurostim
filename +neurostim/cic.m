@@ -825,6 +825,10 @@ classdef cic < neurostim.plugin
                 bounds = c.jitterList(i).bounds;
                 sz = c.jitterList(i).size;
                 
+                if ~iscell(prms)
+                  prms = num2cell(prms);
+                end
+                
                 if isa(dist,'function_handle')
                     %User-defined function. Call it.
                     c.(plg).(prop) = dist(prms{:});
