@@ -669,7 +669,7 @@ classdef cic < neurostim.plugin
             %Required arguments:
             %'plugin'           - the name of the plugin instance that owns the property
             %'prop'             - the name of the property to be randomized
-            %'prms'             - 1xN vector of parameters for the N-parameter pdf (see RANDOM)
+            %'prms'             - parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)
             %
             %Optional param/value pairs:
             %'distribution'     - the name of a built-in pdf [default = 'uniform'], or a handle to a custom function, f(prms) (all parameters except 'prms' are ignored for custom functions)
@@ -679,23 +679,26 @@ classdef cic < neurostim.plugin
             %
             %Examples:
             %               1) Randomize the Y-coordinate of the 'fix' stimulus between -5 and 5.
-            %                  jitter(c,'fix','Y',[-5,5]);
+            %                  jitter(c,'fix','Y',{-5,5});
             %
             %               2) Draw from Gaussian with [mean,sd] = [0,4], but accept only values within +/- 5 (i.e., truncated Gaussian)
-            %                  jitter(c,'fix','Y',[0,4],'distribution','normal','bounds',[-5 5]);
+            %                  jitter(c,'fix','Y',{0,4},'distribution','normal','bounds',[-5 5]);
             %
             %   See also RANDOM.
             
             p = inputParser;
             p.addRequired('plugin');
             p.addRequired('prop');
-            p.addRequired('prms');
+            p.addRequired('prms',@(x) iscell(x) || numel(x)==1);
             p.addParameter('distribution','uniform');
             p.addParameter('bounds',[], @(x) isempty(x) || (numel(x)==2 && ~any(isinf(x)) && diff(x) > 0));
             p.addParameter('size',1);
             p.addParameter('cancel',false);
             p.parse(plugin,prop,prms,varargin{:});
             p=p.Results;
+            if ~iscell(p.prms)
+                p.prms = {p.prms};
+            end
             
             %Check whether this property is already in the list
             ind = find(arrayfun(@(x) strcmpi(x.plugin,p.plugin) & strcmpi(x.prop,p.prop),c.jitterList));
@@ -820,17 +823,13 @@ classdef cic < neurostim.plugin
                 prms = c.jitterList(i).prms;
                 dist = c.jitterList(i).dist;
                 bounds = c.jitterList(i).bounds;
-                sz = c.jitterList(i).size;
+                sz = c.jitterList(i).size;zazaz
                 
                 if isa(dist,'function_handle')
                     %User-defined function. Call it.
-                    c.(plg).(prop) = dist(prms);
+                    c.(plg).(prop) = dist(prms{:});
                 else
                     %Name of a standard distribution (i.e. known to Matlab's random,cdf,etc.)
-                    if ~iscell(prms)
-                        prms = num2cell(prms);
-                    end
-                    
                     if isempty(bounds)
                         %Sample from specified distribution (unbounded)
                         if ~iscell(sz)

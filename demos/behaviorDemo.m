@@ -36,7 +36,7 @@ f.size = 0.25;
 f.color = [1 0 0];
 f.on=0;                         %What time should the stimulus come on? (all times are in ms)
 f.duration = Inf;               %How long should it be displayed?
-jitter(c,'fix','Y',[0,4],'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
+jitter(c,'fix','Y',(0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
 
 %Random dot pattern
 d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
