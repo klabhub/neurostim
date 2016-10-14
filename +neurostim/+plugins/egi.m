@@ -53,7 +53,7 @@ classdef egi < neurostim.plugin
         function connect(o)
             disp(['Connecting to EGI-host ' o.host ':' num2str(o.port)]);
             [status,err] = NetStation('Connect',o.host,o.port);
-            if checkStatusOk(status,err)
+            if o.checkStatusOk(status,err)
                 disp(['Connected to EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
@@ -61,7 +61,7 @@ classdef egi < neurostim.plugin
         % Disconnect
         function disconnect(o)
             [status,err] = NetStation('Disconnect');
-            if checkStatusOk(status,err)
+            if o.checkStatusOk(status,err)
                 disp(['Disconnected from EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
@@ -73,7 +73,7 @@ classdef egi < neurostim.plugin
                 o.syncLimit = slimit;
             end
             [status,err] = NetStation('Synchronize',o.syncLimit);
-            if checkStatusOk(status,err)
+            if o.checkStatusOk(status,err)
                 disp(['Synchronized with EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
@@ -82,7 +82,7 @@ classdef egi < neurostim.plugin
         function startRecording(o)
             [status(1),err{1}]=NetStation('StartRecording');
             [status(2),err{2}]=NetStation('FlushReadbuffer'); % not sure what this does (JD)
-            if checkStatusOk(status,err)
+            if o.checkStatusOk(status,err)
                 disp(['Started recording on EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
@@ -91,7 +91,7 @@ classdef egi < neurostim.plugin
         function stopRecording(o)
             [status(1),err{1}]=NetStation('FlushReadbuffer'); % not sure what this does (JD)
             [status(2),err{2}]=NetStation('StopRecording');
-            if checkStatusOk(status,err)
+            if o.checkStatusOk(status,err)
                 disp(['Stopped recording on EGI-host ' o.host ':' num2str(o.port) ]);
             end
         end
@@ -101,11 +101,11 @@ classdef egi < neurostim.plugin
         function event(o,code,varargin)
             %NetStation('Event' [,code] [,starttime] [,duration] [,keycode1] [,keyvalue1] [...])
             [status,err] = NetStation('Event',code,GetSecs,1/1000,varargin{:});
-            checkStatusOk(status,err);
+            o.checkStatusOk(status,err);
         end
-        
+    
         % support function to check 1 or more status reports
-        function ok = checkStatusOk(status,err)
+        function ok = checkStatusOk(o,status,err)
             if ~iscell(err), err={err}; end
             ok=true;
             for i=1:numel(status)
@@ -115,5 +115,7 @@ classdef egi < neurostim.plugin
                 end
             end
         end
+        
+            
     end
 end
