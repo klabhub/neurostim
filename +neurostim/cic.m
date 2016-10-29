@@ -689,16 +689,13 @@ classdef cic < neurostim.plugin
             p = inputParser;
             p.addRequired('plugin');
             p.addRequired('prop');
-            p.addRequired('prms',@(x) iscell(x) || numel(x)==1);
+            p.addRequired('prms',@(x) iscell(x));
             p.addParameter('distribution','uniform');
             p.addParameter('bounds',[], @(x) isempty(x) || (numel(x)==2 && ~any(isinf(x)) && diff(x) > 0));
             p.addParameter('size',1);
             p.addParameter('cancel',false);
             p.parse(plugin,prop,prms,varargin{:});
             p=p.Results;
-            if ~iscell(p.prms)
-                p.prms = {p.prms};
-            end
             
             %Check whether this property is already in the list
             ind = find(arrayfun(@(x) strcmpi(x.plugin,p.plugin) & strcmpi(x.prop,p.prop),c.jitterList));

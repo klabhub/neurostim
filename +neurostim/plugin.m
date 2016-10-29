@@ -27,7 +27,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     properties (Access = private)
-        propertyValues; % Internal storage for the current values of the parameters of stimuli/plugins. 
+
     end
     
     methods (Access=public)
@@ -46,8 +46,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             if~isempty(c) % Need this to construct cic itself...dcopy
                 c.add(o);
             end
+            
+            %Add a map object to store listeners for function (dynamic)
+            %props. CAREFUL!!! This has to be done here, in the constructor,
+            %not in class definition above (otherwise all instances of
+            %class have the same map by reference)
+            addprop(o,'propLstnrMap');
+            o.propLstnrMap = containers.Map;
         end
-        
+                
         function s= duplicate(o,name)
             % This copies the plugin and gives it a new name. See
             % plugin.copyElement
@@ -134,10 +141,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             h.GetAccess=p.Results.GetAccess; 
             h.SetAccess='public';% TODO: figure out how to limit setAccess p.Results.SetAccess;            
         end
+
     end
     
-    
-    
+
     % Only the (derived) class designer should have access to these
     % methods.
     methods (Access = protected, Sealed)
@@ -165,13 +172,26 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             o.cic.add(s);
         end
-         
+
          % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
+ 
             srcName=src.Name;
             value = o.(srcName); % The raw value that has just been set        
             
+            %Is this a dynamic property? If so, we likely got here
+            %through evalParmGet. BUT: If it is and we got
+            %here from somewhere else, someone is over-riding this prop
+            %with a new value. So we must delete the property listener.
+            if o.propLstnrMap.isKey(srcName)
+                stack = dbstack;
+                if ~strcmp(stack(3).name,'plugin.evalParmGet')
+                    delete(o.propLstnrMap(srcName));
+                    o.propLstnrMap.remove(srcName);
+                end
+            end
+  
             %if this is a function, add a listener
             if strncmpi(value,'@',1)
                 setupFunction(o,srcName,value);
@@ -231,14 +251,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             fun = neurostim.utils.str2fun(funcstring);
             % Assign the  function to be the PreGet function; it will be
             % called everytime a client requests the value of this
-            % property.
-            o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,fun));            
+            % property. The handle is stored in a map object.
+            o.propLstnrMap(listenprop) = o.addlistener(listenprop,'PreGet',@(src,evt)evalParmGet(o,src,evt,fun));
         end
         
         
          % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
-        function evalParmGet(o,src,evt,fun)            
+        function evalParmGet(o,src,evt,fun)
+            
             srcName=src.Name;
                 
         %    oldValue = o.(srcName);            
