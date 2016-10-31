@@ -47,10 +47,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 c.add(o);
             end
             
-            %Add a map object to store listeners for function (dynamic)
-            %props. CAREFUL!!! This has to be done here, in the constructor,
-            %not in class definition above (otherwise all instances of
-            %class have the same map by reference)
+            %Add a map object to store listeners for those dynamic properties that
+            % are defined as functions (using our  '@' notation).
+            % CAREFUL!!! This has to be done here, in the constructor,
+            % not in class definition above because this is a handle class
+            % and Matlab would otherwise use the same handle for all instances (and
+            % children) of this class.Insane but confirmed; handle
+            % classes as members are a bad idea in Matlab (BK).
             addprop(o,'propLstnrMap');
             o.propLstnrMap = containers.Map;
         end
@@ -155,14 +158,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % dynamicprops.
             %
             % Example:
-            % b=copy(a)
+            % b=copyElement(a)
             % This will make a copy (with separate properties) of a in b.
             % This in contrast to b=a, which only copies the handle (so essentialy b==a).
             
             % First a shallow copy of fixed properties
             s = copyElement@matlab.mixin.Copyable(o);
             
-            % Then setup the dynamic props again.
+            % Add the  propLsntrMap handle Map class            
+            addprop(s,'propLstnrMap');
+            s.propLstnrMap = containers.Map;
+            
+            % Then setup the dynamic props again. (We assume all remaining
+            % dynprops are parameters of the stimulus/plugin)
             dynProps = setdiff(properties(o),properties(s));
             s.name=name;
             for p=1:numel(dynProps)
@@ -180,13 +188,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             srcName=src.Name;
             value = o.(srcName); % The raw value that has just been set        
             
-            %Is this a dynamic property? If so, we likely got here
-            %through evalParmGet. BUT: If it is and we got
-            %here from somewhere else, someone is over-riding this prop
-            %with a new value. So we must delete the property listener.
+            %Is this a property defined as a function? If so, we likely got here
+            %through evalParmGet, which uses this function to validate and log.
+            %If we got here from somewhere else, someone is over-riding this prop
+            %with a new value. So we must delete the old PreGet property
+            %listener before assigning a new value below (or a new function).
             if o.propLstnrMap.isKey(srcName)
                 stack = dbstack;
-                if ~strcmp(stack(3).name,'plugin.evalParmGet')
+                % If called from evalParmGet it will be 3-deep in the stack                
+                if numel(stack)<3 || ~strcmpi(stack(3).name,'plugin.evalParmGet')
                     delete(o.propLstnrMap(srcName));
                     o.propLstnrMap.remove(srcName);
                 end

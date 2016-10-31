@@ -15,7 +15,7 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = myRig('variant','');                            % Create Command and Intelligence Center...
+c = myRig;                            % Create Command and Intelligence Center...
   
 
 % Create a Gabor stimulus to adadot. 
@@ -32,25 +32,25 @@ g.frequency         = 3;
 g.duration          = 1500;
 g.on                = '@fixation.startTime +250'; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
 
-g2=stimuli.gabor(c,'testGabor');           
-g2.color             = [0.5 0.5 0.5];
-g2.contrast          = 0.5;
-g2.Y                 = 0; 
-g2.X                 = 0;
-g2.sigma             = 3;                       
-g2.phaseSpeed        = 0;
-g2.orientation       = 15;
-g2.mask              ='CIRCLE';
-g2.frequency         = 3;
-g2.duration          = 500;
-g2.on                = '@adapt.off +1000';; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
+% g2=stimuli.gabor(c,'testGabor');           
+% g2.color             = [0.5 0.5 0.5];
+% g2.contrast          = 0.5;
+% g2.Y                 = 0; 
+% g2.X                 = 0;
+% g2.sigma             = 3;                       
+% g2.phaseSpeed        = 0;
+% g2.orientation       = 15;
+% g2.mask              ='CIRCLE';
+% g2.frequency         = 3;
+% g2.duration          = 500;
+% g2.on                = '@adapt.off +1000';; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
 
 
 % Duplicate the Gabor serve as a test stimulus 
-% g2= duplicate(g,'testGabor');
-% g2.contrast         = 0.25;  
-% g2.on               = '@adapt.off +1250';    % Leave a 250 ms blank between adapt and test
-% g2.duration         = 500;                  % Show test for 500 ms
+ g2= duplicate(g,'testGabor');
+ g2.contrast         = 0.25;  
+ g2.on               = '@adapt.off +250';    % Leave a 250 ms blank between adapt and test
+ g2.duration         = 500;                  % Show test for 500 ms
 
 % Convpoly to create a dimming task
 % circle = stimuli.convPoly(c,'dimmer');

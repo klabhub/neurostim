@@ -51,10 +51,10 @@ switch computerName
         smallWindow = false;
         
     case 'KLAB-U'
-        scrNr = 1;
+        scrNr = 2;
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
-        c.screen.frameRate=30;
+        %c.screen.frameRate=60;
         Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         smallWindow = false;
         
