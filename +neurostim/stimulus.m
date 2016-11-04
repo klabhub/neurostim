@@ -95,6 +95,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rx',0,'validate',@isnumeric);
             s.addProperty('ry',0,'validate',@isnumeric);
             s.addProperty('rz',1,'validate',@isnumeric);
+            s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             
             s.addProperty('rngSeed',[],'validate',@isnumeric);
             s.listenToEvent({'BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT'});
@@ -225,11 +226,13 @@ classdef stimulus < neurostim.plugin
             %
             %           'duration'  [100]   - duration of each stimulus in the sequence (msec)
             %           'isi'       [0]     - inter-stimulus interval (msec)
+            %           'log'       [false] - Log isi start and stop. For rapid changes this can require a lot of memory. 
             
             p=inputParser;
             p.addRequired('design',@(x) (isa(x,'neurostim.factorial')));
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
-            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);           
+            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);   
+            p.addParameter('log',false,@islogical);
             p.parse(design,varargin{:});
             flds = fieldnames(p.Results);
             for i=1:numel(flds)
@@ -238,6 +241,7 @@ classdef stimulus < neurostim.plugin
             
             %Elaborate the factorial design into (sub)condition lists for RSVP
             setupExperiment(s.rsvp.design);
+            s.rsvp.log = p.Results.log;
             s.rsvp.active = true;    
         end        
     end
@@ -269,7 +273,16 @@ classdef stimulus < neurostim.plugin
             end
             
             %Blank now if it's time to do so.
-            s.flags.on = itemFrame < c.ms2frames(s.rsvp.duration);  % Blank during rsvp isi
+            nowOn = s.flags.on;
+            startIsiFrame = c.ms2frames(s.rsvp.duration);
+            s.flags.on = itemFrame < startIsiFrame;  % Blank during rsvp isi
+            if s.rsvp.log 
+                if itemFrame == 0
+                    s.rsvpIsi = false;
+                elseif itemFrame==startIsiFrame;
+                    s.rsvpIsi = true;
+                end
+            end
             
             %If this item is the last condition in the factorial, reshuffle conditions
             if itemNum==s.rsvp.design.nrConditions-1
@@ -352,7 +365,7 @@ classdef stimulus < neurostim.plugin
                             c.getFlipTime=true; % tell CIC to store the next flip time, to log startTime in next frame
                         end
                         
-                        %If the previous frame was the first frame, log the time that the flip aactually happened.
+                        %If the previous frame was the first frame, log the time that the flip actually happened.
                         if c.frame==s.onFrame+1
                             s.startTime = c.flipTime;
                         end
