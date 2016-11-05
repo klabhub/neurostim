@@ -1,4 +1,4 @@
-classdef nDown1UpStaircase < neurostim.plugins.staircase
+classdef nDown1UpStaircase < neurostim.adaptiveParameter
   % Plugin class to implement a weighted (or transformed)
   % fixed-step-size (FSS) N-down-1-up staircase.
   %
@@ -52,9 +52,9 @@ classdef nDown1UpStaircase < neurostim.plugins.staircase
   end
   
   methods
-    function s = nDown1UpStaircase(c,name,plugin,property,criterion,varargin)
+    function s = nDown1UpStaircase(plugin,property,trialResult,varargin)
       % call the parent constructor
-      s = s@neurostim.plugins.staircase(c,name,plugin,property,criterion);
+      s = s@neurostim.adaptiveParameter(plugin,property,trialResult);
 
       p = inputParser;                             
       p.KeepUnmatched = true;
@@ -73,12 +73,11 @@ classdef nDown1UpStaircase < neurostim.plugins.staircase
       s.weights = p.Results.weights;
     end
     
-    function v = update(s,result)
+    function update(s,result)
       % calculate and return the updated property value
 
       % current value
-      v = s.cic.(s.plugin).(s.property);
-      
+      v = s.cic.(s.plugin).(s.property);      
       if result
         % increment correct count
         s.cnt = s.cnt + 1;
