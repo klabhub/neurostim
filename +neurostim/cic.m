@@ -35,6 +35,7 @@ classdef cic < neurostim.plugin
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
+        FRAMESLACK = 0.05; % Allow x% jitter in screen flip time.
     end
     
     %% Public properties
@@ -60,7 +61,6 @@ classdef cic < neurostim.plugin
            
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to get the frame flip time.
-        requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
         
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
         guiOn@logical=false; %flag. Is GUI on?
@@ -951,7 +951,7 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     c.frameStart=c.clockTime;
-                    
+                    FRAMEDURATION = 1000/c.screen.frameRate;
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -965,13 +965,22 @@ classdef cic < neurostim.plugin
                         c.KbQueueCheck;
                         
                         
-                        startFlipTime = c.clockTime;
-                        [vbl,stimOn,flip,missed] = Screen('Flip', c.window,0,1-c.clear); %#ok<ASGLU>
+                        startFlipTime = c.clockTime;                         
+
+                        % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened 
+                        % stimOn: An estimate of Stimulus-onset time 
+                        % flip: timestamp taken at the end of Flip's execution
+                        % missed: indicates if the requested presentation deadline for your stimulus has
+                        %           been missed. A negative value means that dead- lines have been satisfied.
+                        %            Positive values indicate a
+                        %            deadline-miss. (BK: we use timing
+                        %            info instead)                        
+                        % beampos: position of the monitor scanning beam when the time measurement was taken 
+                        [vbl,stimOn,flip] = Screen('Flip', c.window,0,1-c.clear); %#ok<ASGLU>
+                        vbl =vbl*1000; %ms.
                         if c.frame > 1 && c.PROFILE
                             c.addProfile('FRAMELOOP',c.name,c.toc);
                             c.tic
-                        end
-                        if c.frame > 1 && c.PROFILE
                             c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
                         end
                         
@@ -981,47 +990,39 @@ classdef cic < neurostim.plugin
                             c.flipTime=0;
                         end
                         
-                        %% Check Timing
-                        PTBTimingCheck = true;
-                        if PTBTimingCheck
-                            % Use builtin PTB timing check
-                            if missed>0
-                                c.frameDrop = missed;
-                                if c.guiOn
-                                    c.writeToFeed('Missed Frame');
-                                end
-                            end
-                        else
-                            % Use NS Timing check
-                            if c.frame>1 && ((vbl*1000-c.frameDeadline) > (0.1*(1000/c.screen.frameRate)))
-                                c.frameDrop = c.frame;
-                                if c.guiOn
-                                    c.writeToFeed('Missed Frame');
-                                end
-                            elseif c.getFlipTime
-                                c.flipTime = stimOn*1000-c.trialStartTime;
-                                c.getFlipTime=false;
-                            end
-                            c.frameStart = vbl*1000;
-                            c.frameDeadline = (vbl*1000)+(1000/c.screen.frameRate);
-                        end
-                        if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
-                            c.flags.trial=false;
-                        end
+                                                
                         if c.guiOn
                             if mod(c.frame,c.guiFlipEvery)==0
                                 Screen('Flip',c.guiWindow,0,[],2);
                             end
                         end
-                        %% end timing check
                         
                         
+                        %% Check Timing
+                        % Delta between actual and deadline of flip;
+                        deltaFlip       = (vbl-c.frameDeadline) ;
+                        missed          = c.frame>1 && abs(deltaFlip) > cic.FRAMESLACK*FRAMEDURATION;
+                        c.frameStart    = vbl; % Not logged, but used to check drops/jumps
+                        c.frameDeadline = vbl+FRAMEDURATION;
+                                                                        
+                        if missed
+                            c.frameDrop = [c.frame deltaFlip];
+                            if c.guiOn
+                                c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(deltaFlip)]);
+                            end
+                        end
                         
+                        if c.getFlipTime 
+                            c.flipTime = stimOn*1000-c.trialStartTime;% Used by stimuli to log their onset
+                            c.getFlipTime=false;
+                        end
                         
+                        %% Check for end of trial                        
+                        if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
+                            c.flags.trial=false;
+                        end                        
                     end % Trial running
                     
-                    %                     writeToFeed(c,num2str(elapsed1));
-                    %                     writeToFeed(c,num2str(elapsed2));
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
                     [~,stimOn]=Screen('Flip', c.window,0,1-c.clear);
