@@ -35,7 +35,7 @@ classdef cic < neurostim.plugin
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
-        FRAMESLACK = 0.05; % Allow x% jitter in screen flip time.
+        FRAMESLACK = 0.05; % Allow x% slack in screen flip time.
     end
     
     %% Public properties
@@ -67,8 +67,7 @@ classdef cic < neurostim.plugin
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
-        jitterList              = struct('plugin',[],'prop',[],'prms',[],'dist',[],'bounds',[],'size',[]);
-    end
+  end
     
     %% Protected properties.
     % These are set internally
@@ -132,9 +131,7 @@ classdef cic < neurostim.plugin
         blockName;      % Name of the current block
         defaultPluginOrder;
         trialTime;      % Time elapsed (ms) since the start of the trial
-        fullNrTrials;   % Number of trials total (all blocks)
-        nrJittered;     % Number of jittered parameters
-        
+        fullNrTrials;   % Number of trials total (all blocks)        
     end
     
     %% Public methods
@@ -156,13 +153,6 @@ classdef cic < neurostim.plugin
         end
         function v= get.nrConditions(c)
             v = sum([c.blocks.nrConditions]);
-        end
-        function v= get.nrJittered(c)
-            if isempty(c.jitterList(1).plugin)
-                v = 0;
-            else
-                v = numel(c.jitterList);
-            end
         end
         function v = get.center(c)
             [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
@@ -656,78 +646,6 @@ classdef cic < neurostim.plugin
             
         end
         
-        function jitter(c,plugin,prop,prms,varargin)
-            %jitter(c,plgin,prop,prms,varargin)
-            %
-            %Randomize a plugin's property value from trial-to-trial.
-            %A value is drawn from a specified probability distribution at
-            %the start of each trial. Default: uniform distribution with
-            %lower and upper bounds as prms(1) and prms(2).
-            %
-            %The work is done by Matlab's random/cdf/icdf functions and all
-            %distributions supported therein are available.
-            %
-            %Required arguments:
-            %'plugin'           - the name of the plugin instance that owns the property
-            %'prop'             - the name of the property to be randomized
-            %'prms'             - parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)
-            %
-            %Optional param/value pairs:
-            %'distribution'     - the name of a built-in pdf [default = 'uniform'], or a handle to a custom function, f(prms) (all parameters except 'prms' are ignored for custom functions)
-            %'bounds'           - 2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
-            %'size'             - 2-element vector, [m,n], specifying the size of the output (i.e. number of samples). Behaves as for "sz" in Matlab's ones() and zeros()
-            %'cancel'           - [false] Turn off a previously applied jitter. The property will retain its most recent value.
-            %
-            %Examples:
-            %               1) Randomize the Y-coordinate of the 'fix' stimulus between -5 and 5.
-            %                  jitter(c,'fix','Y',{-5,5});
-            %
-            %               2) Draw from Gaussian with [mean,sd] = [0,4], but accept only values within +/- 5 (i.e., truncated Gaussian)
-            %                  jitter(c,'fix','Y',{0,4},'distribution','normal','bounds',[-5 5]);
-            %
-            %   See also RANDOM.
-            
-            p = inputParser;
-            p.addRequired('plugin');
-            p.addRequired('prop');
-            p.addRequired('prms',@(x) iscell(x));
-            p.addParameter('distribution','uniform');
-            p.addParameter('bounds',[], @(x) isempty(x) || (numel(x)==2 && ~any(isinf(x)) && diff(x) > 0));
-            p.addParameter('size',1);
-            p.addParameter('cancel',false);
-            p.parse(plugin,prop,prms,varargin{:});
-            p=p.Results;
-            
-            %Check whether this property is already in the list
-            ind = find(arrayfun(@(x) strcmpi(x.plugin,p.plugin) & strcmpi(x.prop,p.prop),c.jitterList));
-            
-            if ~p.cancel
-                %Add/modify the item
-                if isempty(ind)
-                    %New jittered prop, so add it
-                    ind = c.nrJittered + 1;
-                end
-                c.jitterList(ind).plugin = p.plugin;
-                c.jitterList(ind).prop = p.prop;
-                c.jitterList(ind).prms = p.prms;
-                c.jitterList(ind).dist = p.distribution;
-                c.jitterList(ind).bounds = p.bounds;
-                c.jitterList(ind).size = p.size;
-            else
-                %Request to cancel an existing jitter. Oblige.
-                if isempty(ind)
-                    error(hozcat('The property ', p.prop,' of plugin ',p.plugin, 'cannot be cancelled. No previous instance.'));
-                end
-                if c.nrJittered ~= 1
-                    %Remove the item
-                    c.jitterList(ind) = [];
-                else
-                    %None left. Re-initialize empty structure
-                    c.jitterList = struct('plugin',[],'prop',[],'prms',[],'dist',[],'bounds',[],'size',[]);
-                end
-            end
-        end
-        
         %% -- Specify conditions -- %%
         function setupExperiment(c,varargin)
             % setupExperiment(c,block1,...blockEnd,'input',...)
@@ -780,9 +698,6 @@ classdef cic < neurostim.plugin
         
         function beforeTrial(c)
             
-            %Apply any jitter/randomization of property values (done before
-            %factorial in case design contains functions/dynamic properties that depend on the jittered prop)
-            jitterProps(c);
             
             % this craziness is for loggin purposes...
             %
@@ -799,6 +714,9 @@ classdef cic < neurostim.plugin
                 plgName =specs{3*(p-1)+1};
                 varName = specs{3*(p-1)+2};
                 value   = specs{3*(p-1)+3};
+                if isa(value,'neurostim.adaptive')
+                    value = getValue(value);
+                end
                 c.(plgName).(varName) = value;
             end
             if ~c.guiOn
@@ -812,40 +730,7 @@ classdef cic < neurostim.plugin
             c.collectFrameDrops;
         end
         
-        function jitterProps(c)
-            
-            %Draw a random sample for each of the jittered properties
-            for i=1:c.nrJittered
-                plg = c.jitterList(i).plugin;
-                prop = c.jitterList(i).prop;
-                prms = c.jitterList(i).prms;
-                dist = c.jitterList(i).dist;
-                bounds = c.jitterList(i).bounds;
-                sz = c.jitterList(i).size;
-                
-                if isa(dist,'function_handle')
-                    %User-defined function. Call it.
-                    c.(plg).(prop) = dist(prms{:});
-                else
-                    %Name of a standard distribution (i.e. known to Matlab's random,cdf,etc.)
-                    if isempty(bounds)
-                        %Sample from specified distribution (unbounded)
-                        if ~iscell(sz)
-                            sz = num2cell(sz);
-                        end
-                        
-                        c.(plg).(prop) = random(dist,prms{:},sz{:});
-                    else
-                        %Sample within the bounds via the (inverse) cumulative distribution
-                        %Find range on Y
-                        ybounds = cdf(dist,bounds,prms{:});
-                        
-                        %Return the samples
-                        c.(plg).(prop) = icdf(dist,ybounds(1)+diff(ybounds)*rand(sz),prms{:});
-                    end
-                end
-            end
-        end
+       
         
         function error(c,command,msg)
             switch (command)
@@ -1029,7 +914,8 @@ classdef cic < neurostim.plugin
                     [~,stimOn]=Screen('Flip', c.window,0,1-c.clear);
                     c.trialStopTime = stimOn*1000;
                     c.frame = c.frame+1;
-                    notify(c,'BASEAFTERTRIAL');
+                    e = neurostim.trialData(c.conditionName);
+                    notify(c,'BASEAFTERTRIAL',e);
                     afterTrial(c);
                 end %conditions in block
                 

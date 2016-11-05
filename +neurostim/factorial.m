@@ -174,10 +174,14 @@ classdef factorial < dynamicprops
                     for p=1:nrParms
                         thisSpecs = currSpecs(3*p-2:3*p);
                         thisSpecs(3)= currSpecs{3*p}(subs{f});
+                        if isa(thisSpecs{3},'neurostim.adaptive')
+                            listenTo(thisSpecs{3},conditionName); % Setup appropriate listener for this condition only
+                        end
                         conditionSpecs = cat(2,conditionSpecs,thisSpecs);
                     end
                 end
                 o.conditions(conditionName)=conditionSpecs;
+                
             end
             
             o.reshuffle; % Setup the list
@@ -221,21 +225,19 @@ classdef factorial < dynamicprops
                 plgins=plgins(~strcmpi(plgins,'weights'));
                 
                 %How many levels does this factor have? (max number across all plugins and properties [some can have one value that is to be replicated)
-                nLevels = 0;
+                nLevels = 1;
                 for plgNr=1:numel(plgins)
-                    thisPlugIn = thisFac.(plgins{plgNr}); 
-                    nLevels = max(vertcat(nLevels, structfun(@numel,thisPlugIn)));
+                    thisPlugIn = thisFac.(plgins{plgNr});                     
+                    nLevels = max(vertcat(nLevels, structfun(@numel,thisPlugIn)));                  
                 end
                 
                 %Check that levels match across plugins and props. Expand singletons if necessary.
                 for plgNr=1:numel(plgins)
                     thisPlugIn = thisFac.(plgins{plgNr});                    
-                    props=fieldnames(thisPlugIn);
+                    props=fieldnames(thisPlugIn);                    
                     nLev = structfun(@numel,thisPlugIn);
-                    
                     %Allow the user to give a single value for a property to be used for all levels of the current factor
-                    if any(nLev==1)
-                        
+                    if any(nLev==1)                        
                         %Duplicate the single value across all levels
                         theseProps = props(nLev==1);
                         for i=1:numel(theseProps)

@@ -153,9 +153,9 @@ classdef block < dynamicprops
                 end
                 
                 for f = fNum
-                    list  = [f*ones(1,o.factorials(f).nrConditions); ...
+                    lst  = [f*ones(1,o.factorials(f).nrConditions); ...
                              o.factorials(f).list];
-                    o.list = cat(2,o.list,list); 
+                    o.list = cat(2,o.list,lst); 
                     
                     % if the factorial specifies randomization, we
                     % should 'reshuffle' each repeat

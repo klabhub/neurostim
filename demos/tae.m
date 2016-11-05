@@ -32,20 +32,6 @@ g.frequency         = 3;
 g.duration          = 1500;
 g.on                = '@fixation.startTime +250'; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
 
-% g2=stimuli.gabor(c,'testGabor');           
-% g2.color             = [0.5 0.5 0.5];
-% g2.contrast          = 0.5;
-% g2.Y                 = 0; 
-% g2.X                 = 0;
-% g2.sigma             = 3;                       
-% g2.phaseSpeed        = 0;
-% g2.orientation       = 15;
-% g2.mask              ='CIRCLE';
-% g2.frequency         = 3;
-% g2.duration          = 500;
-% g2.on                = '@adapt.off +1000';; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
-
-
 % Duplicate the Gabor serve as a test stimulus 
  g2= duplicate(g,'testGabor');
  g2.contrast         = 0.25;  
@@ -134,5 +120,4 @@ longCcwBlock.nrRepeats = 1;
 %% Run the experiment   
 % Now tell CIC how we want to run these blocks (blocks are sequential,
 % conditions within a block are randomized by default)
-%c.run(longCwBlock,cwBlock,longCcwBlock,ccwBlock);
- c.run(cwBlock);
+c.run(longCwBlock,cwBlock,longCcwBlock,ccwBlock);
