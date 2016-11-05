@@ -123,34 +123,33 @@ classdef stimulus < neurostim.plugin
         % and addCondition.
         function setupThresholdEstimation(s,prop,method,varargin)
             
-            if s.cic.nrConditions ==0
-                error('Experimental design should be completed before calling threshold');
-            end
             % Measure threshold for a certain parm.
             % Interpret the input. Defaults are set as recommended for
             % QUEST. See Quest and Quest Create
             p = inputParser;
-            p.addParameter('guess',-1);   % Log Contrast for QUEST
-            p.addParameter('guessSD',2);  %
+            p.addParameter('guess',-1);   % Initial guess for the parameter
+            p.addParameter('guessSD',2);  %SD of the initial guess (i.e. prior)
             p.addParameter('threshold',0.82); %Target threshold
             p.addParameter('beta',3.5); % Steepness of assumed Weibull
             p.addParameter('delta',0.01); % Fraction of blind presses
-            p.addParameter('gamma',0.5); % Fraction of trials that will generate response when for intensity = -inf.
+            p.addParameter('gamma',0.5); % Fraction of trials that will generate response yes for intensity = -inf. (chance level)
             p.addParameter('grain',0.01); % Discretization of the range
             p.addParameter('range',5); % Range centered on guess.
             p.addParameter('plotIt',false);
             p.addParameter('normalizePdf',1);
+            p.addParameter('i2p',@(x)(x)); % Postprocess the 'intensity' returned by Quest with this function 
+            p.addParameter('p2i',@(x)(x));
             p.parse(varargin{:});
             switch upper(method)
                 case 'QUEST'
-                    if p.Results.guess>0
-                        warning('Contrast above 1? I dont think that will work');
-                    end
-                    q =QuestCreate(p.Results.guess,p.Results.guessSD,p.Results.threshold,p.Results.beta,p.Results.delta,p.Results.gamma,p.Results.grain,p.Results.range,p.Results.plotIt);
-                    s.quest =struct('q', repmat(q,[1 s.cic.nrConditions]),'prop',prop);
+                    s.quest       = struct('prop',prop,'q',QuestCreate(p.Results.guess,p.Results.guessSD,p.Results.threshold,p.Results.beta,p.Results.delta,p.Results.gamma,p.Results.grain,p.Results.range,p.Results.plotIt));                         
                 otherwise
                     error('NIY');
             end
+            
+            s.quest.i2p = p.Results.i2p;
+            s.quest.p2i = p.Results.p2i;
+            
             % Install a PreGet event listener to update the dynamic
             % property for this parameter just before it is returned to the
             % caller.
@@ -167,10 +166,9 @@ classdef stimulus < neurostim.plugin
         % the answer (in response to the current intensity) was correct or
         % not.
         function answer(s,correct)
-            if ~islogical(correct)
-                %     error('The answer can only be correct or incorrect');
-            end
-            s.quest.q(s.cic.condition) =QuestUpdate(s.quest.q(s.cic.condition),s.(s.quest.prop),correct); % Add the new datum .
+            parmValue = s.(s.quest.prop);
+            intensity = s.quest.p2i(parmValue);
+            s.quest.q(s.cic.condition) =QuestUpdate(s.quest.q(s.cic.condition),intensity,correct); % Add the new datum .
         end
         
         % This is called before returning the current value for the
@@ -178,20 +176,29 @@ classdef stimulus < neurostim.plugin
         % proposed intensity from the adaptive method and places it in the
         % dynamic property.
         function updateAdaptive(s,src,~)
-            c = s.cic.condition;
-            if ~isnan(c)
-                s.(src.Name) = QuestQuantile(s.quest.q(s.cic.condition));
-                %disp (['Qest:' num2str(s.(src.Name)) ])
+            cond = s.cic.condition;
+            if ~isnan(cond)
+                s.(src.Name) = s.quest.i2p(QuestQuantile(s.quest.q(cond)));                
             end
         end
         
-        function [m,sd]= threshold(s)
+        function [m,sd,values]= threshold(s)
             % Return the estimated thresholds for all conditions
+            % m = threshold estimate  (QuestMean)
+            % sd = standard deviation estimate (QuestStd)
+            % values = Cell array with one vector per condition containing
+            %               all  parameter values used in the experiment
             if isempty(s.quest)
                 m= [] ;
             else
                 m =QuestMean(s.quest.q);
                 sd = QuestSd(s.quest.q);
+                m= s.quest.i2p(m);
+                sd = s.quest.i2p(sd);% Not sure this is correct,...
+                values=cell(1,numel(s.quest.q));
+                for i=1:numel(s.quest.q)
+                    values{i}= s.quest.i2p(s.quest.q(i).intensity(1:s.quest.q(i).trialCount)'); 
+                end
             end
         end      
     end
@@ -420,6 +427,10 @@ classdef stimulus < neurostim.plugin
                             s.rsvp.duration = dur*1000/c.screen.frameRate;
                             s.rsvp.isi = isi*1000/c.screen.frameRate;
                         end
+                    end
+                    
+                    if ~isempty(s.quest)
+                        s.quest.q =repmat(s.quest.q,[1 s.cic.nrConditions]);
                     end
                     if s.diode.on
                         setupDiode(s);

@@ -55,7 +55,7 @@ switch computerName
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
         %c.screen.frameRate=60;
-        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        Screen('Preference', 'SkipSyncTests', 1); % Not in production mode; this is just to run without requiring accurate timing.
         smallWindow = false;
         
     case 'XPS2013'
@@ -63,7 +63,7 @@ switch computerName
         rect = Screen('rect',scrNr);
         Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
-        smallWindow = false;
+        smallWindow = true;
         
     case '2014B'
         scrNr = 2;

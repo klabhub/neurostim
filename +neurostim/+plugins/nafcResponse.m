@@ -20,6 +20,7 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('correct',false,'SetAccess','private');
             o.addProperty('pressedInd',[],'SetAccess','private');
             o.addProperty('pressedKey',[],'SetAccess','private');
+            o.addProperty('adapt','');  % if set, calls answer on this stimulus parameter. See nsQuestDemo
             o.listenToEvent('BEFOREEXPERIMENT');
        end
        
@@ -65,6 +66,10 @@ classdef nafcResponse < neurostim.plugins.behavior
 
                %Set flag so that behaviour class detects completion next frame
                o.inProgress = true;
+               
+               if ~isempty(o.adapt)
+                   answer(o.cic.(o.adapt),o.correct);
+               end
            end
        end
           
