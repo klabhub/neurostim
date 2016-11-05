@@ -61,6 +61,7 @@ classdef cic < neurostim.plugin
            
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to get the frame flip time.
+        requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
         
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
         guiOn@logical=false; %flag. Is GUI on?
@@ -1001,7 +1002,7 @@ classdef cic < neurostim.plugin
                         %% Check Timing
                         % Delta between actual and deadline of flip;
                         deltaFlip       = (vbl-c.frameDeadline) ;
-                        missed          = c.frame>1 && abs(deltaFlip) > cic.FRAMESLACK*FRAMEDURATION;
+                        missed          = c.frame>1 && abs(deltaFlip) > c.FRAMESLACK*FRAMEDURATION;
                         c.frameStart    = vbl; % Not logged, but used to check drops/jumps
                         c.frameDeadline = vbl+FRAMEDURATION;
                                                                         
