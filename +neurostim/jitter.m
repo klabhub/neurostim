@@ -1,13 +1,19 @@
 classdef jitter < neurostim.adaptive
-    properties
-        value;
-        parms;
-        distribution;
-        bounds;
-        size;
-        
+    % The jitter class is used to vary a parameter from trial to trial
+    % in random fashion.
+    %
+    % For usage, see adaptiveDemo 
+    %
+    % BK - Nov 2016 - derived from TK cic.jitter function
+    properties (SetAccess=protected, GetAccess=public)
+        parms;      %  Parameters of the distribution that values will be draw from
+        distribution; % The probability distribution 
+        bounds;     % Bounds on the random variables
+        size;       % Size of the random values determied and returned by getValue
     end
-    
+    properties (SetAccess = protected, GetAccess = protected)
+        value; % Internal storage
+    end
     methods
         function o=jitter(c,parms,varargin)
            %jitter(c,parms,varargin)
@@ -53,7 +59,8 @@ classdef jitter < neurostim.adaptive
         end
         
         function update(o,~)
-            % This is called after each trial. Update the internal value            
+            % The abstract adaptive parent class requires that we implement this
+            % This is called after each trial. Update the internal value. The second arg is the success of the current trial, irrelevant here.            
                 if isa(o.distribution,'function_handle')
                     %User-defined function. Call it.
                     o.value = o.distribution(o.parms{:});
@@ -78,7 +85,8 @@ classdef jitter < neurostim.adaptive
         end
         
         function v =getValue(o)
-            % Just return the currently stored value.
+            % Just return the currently stored value. The abstract adaptive
+            % parent class requires that we implement this.
             v=o.value;
         end
     end
