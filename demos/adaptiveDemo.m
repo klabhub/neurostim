@@ -50,9 +50,14 @@ p2i = @(x) (log10(x));
 % Define a quest procedure with an initial guess, and our confidence in
 % that guess, and tell the Quest procedure which function to evaluate to
 % determine whether the response was correct or not.
- myFac.fac1.grating.contrast = quest(c, '@choice.correct','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i);
+% myFac.fac1.grating.contrast = quest(c, '@choice.correct','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i);
+ myFac.fac1.grating.contrast = quest(c, '@grating.contrast>0.3*grating.cic.condition','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i);
  
- myBlock=block('myBlock',myFac);
+ % Or, estimate the threshold with a 1-up 1-down staircase with fixed 0.01 stepsize on contrast.
+% myFac.fac1.grating.contrast = nDown1UpStaircase(c,'@choice.correct',rand,'min',0,'max',1,'weights',[1 1],'delta',0.01);
+  %myFac.fac1.grating.contrast = nDown1UpStaircase(c,'@grating.contrast>0.5*grating.cic.condition',rand,'min',0,'max',1,'weights',[1 1],'delta',0.01);
+c.trialDuration = 150;
+  myBlock=block('myBlock',myFac);
 myBlock.nrRepeats = 40;
 c.run(myBlock);
 
