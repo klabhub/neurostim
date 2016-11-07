@@ -1,4 +1,4 @@
-classdef nDown1UpStaircase < neurostim.adaptive
+classdef nDown1UpStaircase < neurostim.plugins.adaptive
     %Class to implement a weighted (or transformed)
     % fixed-step-size (FSS) N-down-1-up staircase.
     %
@@ -57,7 +57,7 @@ classdef nDown1UpStaircase < neurostim.adaptive
             
                         
             % call the parent constructor
-            o = o@neurostim.adaptive(c,trialResult);
+            o = o@neurostim.plugins.adaptive(c,trialResult);
             o.n = p.Results.n;
             o.min = p.Results.min;
             o.max = p.Results.max;

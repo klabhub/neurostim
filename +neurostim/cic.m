@@ -714,7 +714,7 @@ classdef cic < neurostim.plugin
                 plgName =specs{3*(p-1)+1};
                 varName = specs{3*(p-1)+2};
                 value   = specs{3*(p-1)+3};
-                if isa(value,'neurostim.adaptive')
+                if isa(value,'neurostim.plugins.adaptive')
                     value = getValue(value);
                 end
                 c.(plgName).(varName) = value;
@@ -914,8 +914,7 @@ classdef cic < neurostim.plugin
                     [~,stimOn]=Screen('Flip', c.window,0,1-c.clear);
                     c.trialStopTime = stimOn*1000;
                     c.frame = c.frame+1;
-                    e = neurostim.trialData(c.conditionName);
-                    notify(c,'BASEAFTERTRIAL',e);
+                    notify(c,'BASEAFTERTRIAL');
                     afterTrial(c);
                 end %conditions in block
                 

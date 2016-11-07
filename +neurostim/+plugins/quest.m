@@ -1,4 +1,4 @@
-classdef quest < neurostim.adaptive
+classdef quest < neurostim.plugins.adaptive
     % The quest class is used to adaptively estimate a parameter using
     % the Quest procedure.
     %
@@ -10,8 +10,6 @@ classdef quest < neurostim.adaptive
     %
     % BK - Nov 2016
     properties (SetAccess=protected, GetAccess=public)
-        p2i@function_handle;
-        i2p@function_handle;
         Q@struct; % The struct that containst the Quest bookkeeping info.
     end
     
@@ -60,15 +58,14 @@ classdef quest < neurostim.adaptive
             p.addParameter('range',5); % Range centered on guess.
             p.addParameter('plotIt',false);
             p.addParameter('normalizePdf',1);
-            p.addParameter('i2p',@(x)(x)); % Postprocess the 'intensity' returned by Quest with this function
-            p.addParameter('p2i',@(x)(x));
+            p.addParameter('i2p',@(x)(x),@(x) (isa(x,'function_handle'))); % Postprocess the 'intensity' returned by Quest with this function
+            p.addParameter('p2i',@(x)(x),@(x) (isa(x,'function_handle')));
             p.parse(varargin{:});
             
             % Initialize the object
-            o = o@neurostim.adaptive(c,trialResult);
+            o = o@neurostim.plugins.adaptive(c,trialResult);
+            addProperty(o,'',p.Results); % Add all input parser fields as logged properties ( and set their values).
             o.Q = QuestCreate(p.Results.guess,p.Results.guessSD,p.Results.threshold,p.Results.beta,p.Results.delta,p.Results.gamma,p.Results.grain,p.Results.range,p.Results.plotIt);
-            o.i2p = p.Results.i2p;
-            o.p2i = p.Results.p2i;
         end
         
         function update(o,correct)
@@ -89,37 +86,37 @@ classdef quest < neurostim.adaptive
         end
         
         
-        
-        function [m,sd,values]= threshold(o)
-            % Return the estimated thresholds for all conditions
-            % m = threshold estimate  (QuestMean)
-            % sd = standard deviation estimate (QuestStd)
-            % values = Cell array with one vector per condition containing
-            %               all  parameter values used in the experiment
-            m = [] ; sd =[];values=[];
-            if ~isempty(o.Q)
-                m =QuestMean(o.Q);
-                sd = QuestSd(o.Q);
-                m= o.i2p(m);
-                sd = o.i2p(sd);% Not sure this is correct,...
-                values= o.i2p(o.Q.intensity(1:o.Q.trialCount)');
-            end
-            
-            
-            if false
-                figure;
-                hold on
-                for i=1:2
-                    plot(contrasts{i});
-                end
-                legend('Ori -45','Ori +45');
-                xlabel 'Trial'
-                ylabel 'Test Contrast'
-                title (['Quest Threshold Contrast Estimates. Mean: ' num2str(m,2) '  Std:' num2str(sd)])
-            end
-            
-        end
-        
+%         
+%         function [m,sd,values]= threshold(o)
+%             % Return the estimated thresholds for all conditions
+%             % m = threshold estimate  (QuestMean)
+%             % sd = standard deviation estimate (QuestStd)
+%             % values = Cell array with one vector per condition containing
+%             %               all  parameter values used in the experiment
+%             m = [] ; sd =[];values=[];
+%             if ~isempty(o.Q)
+%                 m =QuestMean(o.Q);
+%                 sd = QuestSd(o.Q);
+%                 m= o.i2p(m);
+%                 sd = o.i2p(sd);% Not sure this is correct,...
+%                 values= o.i2p(o.Q.intensity(1:o.Q.trialCount)');
+%             end
+%             
+%             
+%             if false
+%                 figure;
+%                 hold on
+%                 for i=1:2
+%                     plot(contrasts{i});
+%                 end
+%                 legend('Ori -45','Ori +45');
+%                 xlabel 'Trial'
+%                 ylabel 'Test Contrast'
+%                 title (['Quest Threshold Contrast Estimates. Mean: ' num2str(m,2) '  Std:' num2str(sd)])
+%             end
+%             
+%         end
+%         
     end
     
 end

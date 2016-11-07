@@ -1,4 +1,4 @@
-classdef jitter < neurostim.adaptive
+classdef jitter < neurostim.plugins.adaptive
     % The jitter class is used to vary a parameter from trial to trial
     % in random fashion.
     %
@@ -6,10 +6,7 @@ classdef jitter < neurostim.adaptive
     %
     % BK - Nov 2016 - derived from TK cic.jitter function
     properties (SetAccess=protected, GetAccess=public)
-        parms;      %  Parameters of the distribution that values will be draw from
-        distribution; % The probability distribution 
-        bounds;     % Bounds on the random variables
-        size;       % Size of the random values determied and returned by getValue
+     
     end
     properties (SetAccess = protected, GetAccess = protected)
         value; % Internal storage
@@ -50,11 +47,14 @@ classdef jitter < neurostim.adaptive
             p.addParameter('size',1);
             p.parse(parms,varargin{:});
             
-            o=o@neurostim.adaptive(c,'@0'); % The result fun is not used so just put something that evals to 0 always.
+            o=o@neurostim.plugins.adaptive(c,'@0'); % The result fun is not used so just put something that evals to 0 always.
+           o.addProperty('',p.Results);
+
             o.parms = p.Results.parms;
             o.distribution = p.Results.distribution;
             o.bounds = p.Results.bounds;
             o.size = p.Results.size;
+            
             update(o); % Call it once now to initialize.
         end
         

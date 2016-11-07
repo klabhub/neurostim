@@ -27,7 +27,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     end
     
     properties (Access = private)
-
+        
     end
     
     methods (Access=public)
@@ -53,11 +53,26 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % not in class definition above because this is a handle class
             % and Matlab would otherwise use the same handle for all instances (and
             % children) of this class.Insane but confirmed; handle
-            % classes as members are a bad idea in Matlab (BK).
+            % classes as members are a bad idea in Matlab (BK). 
+            % 
+            % Note that having this as a dynamic property causes problems
+            % when saving these objects to a file (this property should be
+            % transient). To fix this, the savobj member clears this map.
             addprop(o,'propLstnrMap');
             o.propLstnrMap = containers.Map;
         end
-                
+        
+        function o= saveobj(o)            
+            % Called before save.
+            % 
+            % Replace with empty map as this map contains proplisteners that cannot be saved.      
+            % If this object is still to be used after saving (i.e. an
+            % intermediate save during the experiment?) this will cause havoc. 
+            if isprop(o,'propLstnrMap')
+                rmprops(o,'propLstnrMap'); 
+            end
+        end
+        
         function s= duplicate(o,name)
             % This copies the plugin and gives it a new name. See
             % plugin.copyElement
@@ -104,7 +119,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         %% GUI Functions
         function writeToFeed(o,message)
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
-        end   
+        end
         
         % Add properties that will be time-logged automatically, and that
         % can be validated, and postprocessed after being set.
@@ -120,34 +135,40 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             p.addParameter('thisIsAnUpdate',false,@islogical);
             p.parse(varargin{:});
             
-            
-            % First check if it is already there.
-            h =findprop(o,prop); 
-            if p.Results.thisIsAnUpdate
-                if isempty(h)
-                    error([prop ' is not a property of ' o.name '. (Use addProperty to add new properties) ']);
+            if isempty(prop) && isstruct(value)
+                % Special case to add a whole struct as properties
+                fn = fieldnames(value);
+                for i=1:numel(fn)
+                    addProperty(o,fn{i},value.(fn{i}),varargin{:});
                 end
             else
-                if ~isempty(h)
-                    error([prop ' is already a property of ' o.name '. (Use updateProperty if you want to change postprocessing or validation)']);
+                % First check if it is already there.
+                h =findprop(o,prop);
+                if p.Results.thisIsAnUpdate
+                    if isempty(h)
+                        error([prop ' is not a property of ' o.name '. (Use addProperty to add new properties) ']);
+                    end
+                else
+                    if ~isempty(h)
+                        error([prop ' is already a property of ' o.name '. (Use updateProperty if you want to change postprocessing or validation)']);
+                    end
+                    % Add the property as a dynamicprop (this allows users to write
+                    % things like o.X = 10;
+                    h = o.addprop(prop);
+                    h.SetObservable = true;
                 end
-                % Add the property as a dynamicprop (this allows users to write
-                % things like o.X = 10;
-                h = o.addprop(prop);
-                h.SetObservable = true; 
+                
+                % Setup a listener for logging, validation, and postprocessing
+                o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,p.Results.postprocess,p.Results.validate));
+                o.(prop) = value; % Set it, this will call the logParmSet function now.
+                h.AbortSet = p.Results.AbortSet;
+                h.GetAccess=p.Results.GetAccess;
+                h.SetAccess='public';% TODO: figure out how to limit setAccess p.Results.SetAccess;
             end
-            
-            % Setup a listener for logging, validation, and postprocessing
-            o.addlistener(prop,'PostSet',@(src,evt)logParmSet(o,src,evt,p.Results.postprocess,p.Results.validate));
-            o.(prop) = value; % Set it, this will call the logParmSet function now.
-            h.AbortSet = p.Results.AbortSet;
-            h.GetAccess=p.Results.GetAccess; 
-            h.SetAccess='public';% TODO: figure out how to limit setAccess p.Results.SetAccess;            
         end
-
     end
     
-
+    
     % Only the (derived) class designer should have access to these
     % methods.
     methods (Access = protected, Sealed)
@@ -165,7 +186,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % First a shallow copy of fixed properties
             s = copyElement@matlab.mixin.Copyable(o);
             
-            % Add the  propLsntrMap handle Map class            
+            % Add the  propLsntrMap handle Map class
             addprop(s,'propLstnrMap');
             s.propLstnrMap = containers.Map;
             
@@ -180,13 +201,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             o.cic.add(s);
         end
-
-         % Log the parameter setting and postprocess it if requested in the call
+        
+        % Log the parameter setting and postprocess it if requested in the call
         % to addProperty.
         function logParmSet(o,src,evt,postprocess,validate)
- 
+            
             srcName=src.Name;
-            value = o.(srcName); % The raw value that has just been set        
+            value = o.(srcName); % The raw value that has just been set
             
             %Is this a property defined as a function? If so, we likely got here
             %through evalParmGet, which uses this function to validate and log.
@@ -195,13 +216,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             %listener before assigning a new value below (or a new function).
             if o.propLstnrMap.isKey(srcName)
                 stack = dbstack;
-                % If called from evalParmGet it will be 3-deep in the stack                
+                % If called from evalParmGet it will be 3-deep in the stack
                 if numel(stack)<3 || ~strcmpi(stack(3).name,'plugin.evalParmGet')
                     delete(o.propLstnrMap(srcName));
                     o.propLstnrMap.remove(srcName);
                 end
             end
-  
+            
             %if this is a function, add a listener
             if strncmpi(value,'@',1)
                 setupFunction(o,srcName,value);
@@ -214,7 +235,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                     postprocess = '';
                 end
             end
-                                        
+            
             if  nargin >=5 && ~isempty(validate)
                 success = validate(value);
                 if ~success
@@ -227,7 +248,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % generate another postSet event.
                 o.(srcName) = postprocess(o,value);
             end
-             o.addToLog(srcName,value);
+            o.addToLog(srcName,value);
         end
         
         % For properties that have been added already, you cannot call addProperty again
@@ -238,13 +259,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             addProperty(o,prop,value,varargin{:},'thisIsAnUpdate',true);
         end
         
-       
-     
+        
+        
         % Define a property as a function of some other property.
         % This function is called at the initial logParmSet of a parameter.
         % funcstring is the function definition. It is a string which
-        % references a stimulus/plugin by its assigned name and reuses that 
-        % property name if it uses an object/variable of that property. e.g. 
+        % references a stimulus/plugin by its assigned name and reuses that
+        % property name if it uses an object/variable of that property. e.g.
         % dots.size='@ sin(cic.frame)' or
         % fixation.X='@ dots.X + 1' or
         % fixation.color='@ cic.screen.color.background'
@@ -257,7 +278,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
             h.GetObservable =true;
             % Parse the specified function and make it into an anonymous
-            % function.  
+            % function.
             fun = neurostim.utils.str2fun(funcstring);
             % Assign the  function to be the PreGet function; it will be
             % called everytime a client requests the value of this
@@ -266,43 +287,43 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         end
         
         
-         % Evaluate a function to get a parameter and validate it if requested in the call
+        % Evaluate a function to get a parameter and validate it if requested in the call
         % to addProperty.
         function evalParmGet(o,src,evt,fun)
             
             srcName=src.Name;
-                
-        %    oldValue = o.(srcName);            
-           
+            
+            %    oldValue = o.(srcName);
+            
             if o.cic.stage >o.cic.SETUP
                 value=fun(o);
                 % Check if changed, assign and log if needed.
-          %      if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
-            %            || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))                    
-                    o.(srcName) = value; % This calls PostSet and logs the new value
-              %  end
-           else
+                %      if ~isequal(value,oldValue) || (ischar(value) && ~(strcmp(oldValue,value))) || (ischar(oldValue)) && ~ischar(value)...
+                %            || (~isempty(value) && isnumeric(value) && (isempty(oldValue) || all(oldValue ~= value))) || (isempty(value) && ~isempty(oldValue))
+                o.(srcName) = value; % This calls PostSet and logs the new value
+                %  end
+            else
                 % Not all objects have been setup so function may not work
                 % yet. Evaluate to NaN for now; validation is disabled for
                 % now.
-                %value = NaN; 
-            end   
+                %value = NaN;
+            end
             
-        end                    
+        end
         
         
         
         % Log name/value pairs in a simple growing struct.
-          function addToLog(o,name,value)
+        function addToLog(o,name,value)
             o.log.cntr=o.log.cntr+1;
-            %% Allocate space if needed 
+            %% Allocate space if needed
             if o.log.cntr> o.log.capacity
                 BLOCKSIZE = 1500; % Allocate in chunks to save time. Overallocation is pruned by plugins.output if needed.
-         
+                
                 o.log.parms = cat(2,o.log.parms,cell(1,BLOCKSIZE));
                 o.log.values = cat(2,o.log.values,cell(1,BLOCKSIZE));
-                 o.log.t  = cat(2,o.log.t,nan(1,BLOCKSIZE));
-                 o.log.capacity = numel(o.log.parms);
+                o.log.t  = cat(2,o.log.t,nan(1,BLOCKSIZE));
+                o.log.capacity = numel(o.log.parms);
             end
             %% Fill the log.
             o.log.parms{o.log.cntr}  = name;
@@ -312,7 +333,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             else
                 o.log.t(o.log.cntr)      = o.cic.clockTime;
             end
-        end      
+        end
     end
     
     % Convenience wrapper functions to pass the buck to CIC
@@ -444,10 +465,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 case 'BASEAFTERTRIAL'
                     notify(o,'AFTERTRIAL');
                     if (c.PROFILE); addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
-                    
                 case 'BASEAFTEREXPERIMENT'
                     notify(o,'AFTEREXPERIMENT');
             end
-        end    
+        end
     end
 end

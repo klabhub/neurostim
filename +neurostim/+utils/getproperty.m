@@ -29,17 +29,22 @@ EVENTNAME= 1;
 DATA =2;
 TIME = 3;
 
+% Find the time that each trial started by looking in the cic events log.
 ix = strcmp('trial',output.events.cic(EVENTNAME,:)); % Earliest event in a trial
 trialNr = [output.events.cic{DATA,ix}];
 trialStartTime = [output.events.cic{TIME,ix}];
 nrTrials = max(trialNr);
 
+
+% Find the time and data for the requested event
 ix = strcmp(eventName,output.events.(srcName)(EVENTNAME,:));
 data = output.events.(srcName)(DATA,ix);
 time = [output.events.(srcName){TIME,ix}];
 nrEvents = length(time);
 
-trial = nan(1,nrEvents);
+% Determine the trial in which each event occurred and calculate the 
+% time relative to the start of that trial.
+trial = zeros(1,nrEvents);
 trialTime =nan(1,nrEvents);
 for i=1:nrEvents
     tr = find(time(i)>=trialStartTime ,1,'last');
@@ -67,7 +72,7 @@ if p.Results.onePerTrial
        elseif nrInTrial >1
            error([ eventName '  changes within a trial']);
        elseif nrInTrial==0
-           continue;
+         %  continue;
        end
        dataPerTrial(tr) = current;
        eTimePerTrial(tr) = currentETime;
