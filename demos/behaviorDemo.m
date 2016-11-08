@@ -36,7 +36,6 @@ f.size = 0.25;
 f.color = [1 0 0];
 f.on=0;                         %What time should the stimulus come on? (all times are in ms)
 f.duration = Inf;               %How long should it be displayed?
-jitter(c,'fix','Y',{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
 
 %Random dot pattern
 d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
@@ -84,7 +83,8 @@ c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC r
 
 %Specify experimental conditions
 myFac=factorial('myFactorial',2);           %Using a 3 x 2 factorial design.  Type "help neurostim/factorial" for more options.
-myFac.fac1.fix.X={-10 0 10};                %Three different fixation positions along horizontal meridian
+myFac.fac1.fix.X=   {-10 0 10};                %Three different fixation positions along horizontal meridian
+myFac.fac1.fix.Y =  plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
 myFac.fac2.dots.direction={-90 90};         %Two dot directions
 
 %Specify a block of trials

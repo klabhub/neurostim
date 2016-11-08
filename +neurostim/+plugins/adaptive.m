@@ -40,8 +40,8 @@ classdef (Abstract) adaptive < neurostim.plugin
             o=o@neurostim.plugin(c,nm);
             o.addProperty('result','','validate',@ischar); % The function used to evaluate trial outcome. Specified by the user.
             o.addProperty('condition','','validate',@ischar);% The condition that this adaptive parameter belongs to. Will be set by factorial.m
-            o.addProperty('plugin','','validate',@ischar); % The plugin whose property is modulated by this adaptive object (set automatically in factorial; not used at runtime)
-            o.addProperty('property','','validate',@ischar);% The property that is modualted by this object. (Set automatically in factorial.m, not used at runtime) 
+            o.addProperty('targetPlugin','','validate',@ischar); % The plugin whose property is modulated by this adaptive object (set automatically in factorial; not used at runtime)
+            o.addProperty('targetProperty','','validate',@ischar);% The property that is modualted by this object. (Set automatically in factorial.m, not used at runtime) 
             
             o.uid = u;
             o.result = funStr;

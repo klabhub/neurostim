@@ -16,7 +16,6 @@ import neurostim.*
 c = myRig;         % Create Command and Intelligence Center...
 c.trialDuration = '@fixation.startTime+3000';
 c.screen.color.background = [0.5 0.5 0.5]; 
-% plugins.gui(c);         % Show a gui (dual screens only)
 
 % Create a Gabor stimulus to adadot. 
 g=stimuli.gabor(c,'grating');           

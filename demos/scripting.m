@@ -1,6 +1,6 @@
 function c=scripting
 %% This demo shows how to use control scripts.
-
+import neurostim.*
 %% Setup CIC and the stimuli.
 c = myRig;                            
 
@@ -14,10 +14,12 @@ c.addScript('AfterFrame',@respondMouse); % Tell CIC to call this eScript after d
 c.addScript('BeforeTrial',@beginTrial); % Tell CIC to call this eScript at the start of each trial.
 
 % The definition of the eScript can be anywhere in this file. The code
-% inside the eScript has access to everything in CIC. 
+% inside the eScript has access to everything in CIC.  Please note that
+% this same functionality (jittering parameters across trials) can also be
+% achieved (better) by specifying a plugins.jitter object in the design of
+% the factorial (see adaptiveDemo for an example)
 function beginTrial(c)
-  c.gabor.X = (0.5-rand)*c.screen.width; % Start each at a new random position.
-  c.gabor.Y = (0.5-rand)*c.screen.height; % Start each at a new random position.
+  c.gabor.contrast = rand; % Chose a random contrast
 end
 
 function respondMouse(c)

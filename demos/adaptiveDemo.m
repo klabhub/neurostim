@@ -14,9 +14,8 @@ function c= adaptiveDemo
 
 import neurostim.*
 
-
 method = 'QUEST'; % Set this to QUEST or STAIRCASE 
-pianola = true; % This this to true to simulate responses, false to provide your own responses ('a'=left,'l' = right).
+pianola = true; % Set this to true to simulate responses, false to provide your own responses ('a'=left,'l' = right).
 
 %% Setup the controller
 c= myRig;

@@ -15,9 +15,6 @@ import neurostim.*
 c = myRig;                            % Create Command and Intellige nce Center...
 c.trialDuration  = inf;
 plugins.debug(c); 
-
-et = plugins.eyetracker(c);
-et.useMouse = true;
  
 % Create a grating stimulus. This will be used to map out the psychometric
 % curve (hence 'testGab')

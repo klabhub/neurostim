@@ -176,8 +176,8 @@ classdef factorial < dynamicprops
                         thisSpecs(3)= currSpecs{3*p}(subs{f});
                         if isa(thisSpecs{3},'neurostim.plugins.adaptive')
                             thisSpecs{3}.condition = conditionName; % Restrict listener to this condition only
-                            thisSpecs{3}.plugin = thisSpecs{1}; % Store target stim/prop in adaptive and log it.
-                            thisSpects{3}.property = thisSpecs{2};
+                            thisSpecs{3}.targetPlugin = thisSpecs{1}; % Store target stim/prop in adaptive and log it.
+                            thisSpects{3}.targetProperty = thisSpecs{2};
                         end
                         conditionSpecs = cat(2,conditionSpecs,thisSpecs);
                     end

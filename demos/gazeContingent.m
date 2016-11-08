@@ -1,17 +1,26 @@
 function gazeContingent
-
+% Demonstrate gaze contingent displays
+%
+ % BK - 2015.
 import neurostim.*
 
 c= myRig;
 c.trialDuration = 5000;
 
 % Fake an eye tracker that updates continuously with the mouse.
-e = plugins.eyetracker(c);
-e.useMouse =true;
-e.continuous = true;
+c.eye.useMouse =true;
+c.eye.continuous = true;
 
-% Create a dots stimulus with X/Y properties that are functions of the 
-% eye trackers x/y properties.
+% Red fixation point that follows the eye.
+f = stimuli.fixation(c,'reddot');       
+f.color             = [1 0 0];
+f.shape             = 'CIRC';           % Shape of the fixation point
+f.size              = 0.1;
+f.on                = 0;                % On from the start of the trial
+f.X                 = '@eye.x';  % This is all that is needed for gaze-cotingency.
+f.Y                 = '@eye.y';
+
+% A dots stimulus that follows the red dot (with an offset).
 s = stimuli.shadlendots(c,'dots');
 s.apertureD = 15;
 s.color = [1 1 1];
@@ -20,8 +29,8 @@ s.speed = 5;
 s.maxDotsPerFrame =100;
 s.direction = 0;
 s.dotSize= 5;
-s.Y='@eye.y';
-s.X='@eye.x';
+s.Y='@reddot.Y+5';
+s.X='@reddot.X+5';
 
 % Setup some dummy conditions
 fac =factorial('dummy',1);
