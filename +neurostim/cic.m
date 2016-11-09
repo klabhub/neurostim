@@ -186,7 +186,9 @@ classdef cic < neurostim.plugin
         end
         
         function set.subject(c,value)
-            if ischar(value)
+            if isempty(value)
+                c.subjectNr =0;
+            elseif ischar(value)
                 asDouble = str2double(value);
                 if isnan(asDouble)
                     % Someone using initials
