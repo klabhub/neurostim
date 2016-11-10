@@ -32,6 +32,7 @@ TIME = 3;
 % Find the time that each trial started by looking in the cic events log.
 ix = strcmp('trial',output.events.cic(EVENTNAME,:)); % Earliest event in a trial
 trialNr = [output.events.cic{DATA,ix}];
+ix = strcmp('trialStartTime',output.events.cic(EVENTNAME,:)); % Earliest event in a trial
 trialStartTime = [output.events.cic{TIME,ix}];
 nrTrials = max(trialNr);
 

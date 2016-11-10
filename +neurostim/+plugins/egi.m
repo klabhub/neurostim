@@ -4,8 +4,10 @@ classdef egi < neurostim.plugin
     %
     % USAGE:
     % This will connect to the NetStation at the given IP, starts recording
-    % before the experiment starts sends a STRT event at the start of every
+    % before the experiment starts sends events at the start of every
     % trial, and stops recording at the end of the experiment.
+    % 
+    % Events sent to Netstation are also logged here.
     %
     % BK - Nov 2015
     % JD - Aug 2016: Major overhaul
@@ -13,14 +15,30 @@ classdef egi < neurostim.plugin
     properties
         host@char = '10.10.10.42'; % '10.10.10.42' is NetStation default.
         port@double = 55513; % Default port for connection to NetStation.
-        syncLimit  = 2.5; % Limits for acceptable sync (in ms).
+        syncLimit  = 2.5; % Limits for acceptable sync (in ms).       
     end
     methods (Access=public)
         function o = egi(c)
             o = o@neurostim.plugin(c,'egi');
-            o.addProperty('eventCode',''); % Used to log events here.            
+            o.addProperty('eventCode',''); % Used to log events here.  
+            o.addProperty('clockOffset',NaN);
+            o.addProperty('clockVariability',NaN);
+            o.addProperty('fineTuneClockOffset',0); % User specifiable offset to reduce AV tester offsets to 0
             o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT'});
         end 
+        
+        % Send a timestamped event
+        % See NetStation.m for details.
+        function event(o,code,varargin)
+            %NetStation('Event' [,code] [,starttime] [,duration] [,keycode1] [,keyvalue1] [...])
+            [status,err] = NetStation('Event',code,o.cic.clockTime/1000,1/1000,varargin{:},'TTIM',o.cic.trialTime);
+            o.eventCode = code; % Log the generation of the event here.
+            o.checkStatusOk(status,err);
+%             if ~o.cic.guiOn
+%                 o.cic.writeToFeed(['NetStation: ' code ]);
+%             end
+        end
+        
         function beforeExperiment(o,c,evt)            
             o.connect;            
             o.synchronize; % Check that we can sync, and set the NetStation clock to ours.
@@ -35,6 +53,9 @@ classdef egi < neurostim.plugin
         function beforeTrial(o,c,evt)
             % Should we sync again? Or is once enough beforeExperiment?
             % O.synchronize; .
+            if mod(c.trial,100)==0
+            NetStation('RESETCLOCK',(o.cic.clockTime-o.clockOffset-o.fineTuneClockOffset),0);        
+            end
             o.event('BTRL','DESC','Begin trial','TRIA',c.trial,'BLCK',c.block,'COND',c.conditionName);            
         end
         function afterTrial(o,c,evt)
@@ -70,13 +91,17 @@ classdef egi < neurostim.plugin
             if exist('slimit','var') && ~isempty(slimit)
                 o.syncLimit = slimit;
             end
-            [status,err] = NetStation('Synchronize',o.syncLimit);
+            [status,err,value] = NetStation('Synchronize',o.syncLimit);
+            o.clockOffset = value(1); %ms
+            o.clockVariability = value(2);
+            % Now use that mean offset 
+            NetStation('RESETCLOCK',(o.cic.clockTime-o.clockOffset-o.fineTuneClockOffset),0);
             if o.checkStatusOk(status,err)
-                disp(['Synchronized with EGI-host ' o.host ':' num2str(o.port) ]);
+                disp(['Synchronized with EGI-host  \Delta: ' num2str(o.clockOffset) ', \sigma: ' num2str(o.clockVariability) ]);
             end
         end
 
-        % start recording
+       % start recording
         function startRecording(o)
             [status(1),err{1}]=NetStation('StartRecording');
             [status(2),err{2}]=NetStation('FlushReadbuffer'); % not sure what this does (JD)
@@ -94,17 +119,7 @@ classdef egi < neurostim.plugin
             end
         end
         
-        % Send a timestamped event
-        % See NetStation.m for details.
-        function event(o,code,varargin)
-            %NetStation('Event' [,code] [,starttime] [,duration] [,keycode1] [,keyvalue1] [...])
-            [status,err] = NetStation('Event',code,GetSecs,1/1000,varargin{:},'CTIM',o.cic.clockTime);
-            o.eventCode = code; % Log the generation of the event here.
-            o.checkStatusOk(status,err);
-%             if ~o.cic.guiOn
-%                 o.cic.writeToFeed(['NetStation: ' code ]);
-%             end
-        end
+       
     
         % support function to check 1 or more status reports
         function ok = checkStatusOk(o,status,err)

@@ -68,9 +68,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             % Replace with empty map as this map contains proplisteners that cannot be saved.      
             % If this object is still to be used after saving (i.e. an
             % intermediate save during the experiment?) this will cause havoc. 
-            if isprop(o,'propLstnrMap')
-                rmprops(o,'propLstnrMap'); 
-            end
+            o.propLstnrMap = containers.Map;       
         end
         
         function s= duplicate(o,name)
