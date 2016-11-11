@@ -6,15 +6,15 @@ classdef behavior < neurostim.plugin
     
     
     properties (Access=public)
-        failEndsTrial = true;               %Does violating behaviour end trial?
+        failEndsTrial = true;             %Does violating behaviour end trial?
         sampleEvent = 'AFTERFRAME';       %On which event(s) should the behavioral data be sampled? (string or cell of strings)
         validateEvent = 'AFTERFRAME';     %On which event(s) should the behavioral data be validated? (i.e. is subject doing the right thing?)
     end
     
     properties (SetAccess=protected)
-        startTime;           %The time at which the behaviour was initiated (i.e. in progress).
-        stopTime;            %The time at which a result was achieved (good or bad).
-        inProgress;          %True if the subject is currently satisfying the requirement
+        started             %Set to true when behavior first begins (e.g. onset of fixation)
+        done                %Set to true when the behavior is complete/terminated, for good or bad.
+        inProgress;         %True if the subject is currently satisfying the requirement
     end
     
     
@@ -47,9 +47,9 @@ classdef behavior < neurostim.plugin
             o.addProperty('to',Inf,'validate',@isnumeric);              %The time to which the behaviour *must* continue to be satisfied (for continuous).
             o.addProperty('deadline',Inf,'validate',@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
             
-            %Internal use only
-            o.addProperty('started',false,'SetAccess','protected');     %Set to true when behavior first begins (e.g. onset of fixation)
-            o.addProperty('done',false,'SetAccess','protected');        %Set to true when the behavior is complete/terminated, for good or bad.
+            %Internal use only       
+            o.addProperty('startTime',false,'SetAccess','protected');      %The time at which the behaviour was initiated (i.e. in progress).
+            o.addProperty('stopTime',false,'SetAccess','protected');        %The time at which a result was achieved (good or bad).
             o.addProperty('success',false,'SetAccess','protected');     %Set to true if the behavior was completed correctly
             o.addProperty('outcome',false,'SetAccess','protected');     %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
             
