@@ -20,13 +20,27 @@ classdef egi < neurostim.plugin
     methods (Access=public)
         function o = egi(c)
             o = o@neurostim.plugin(c,'egi');
-            o.addProperty('eventCode',''); % Used to log events here.  
-            o.addProperty('clockOffset',NaN);
-            o.addProperty('clockVariability',NaN);
+            o.addProperty('eventCode',''); % Used to log events
+            o.addProperty('clockOffset',NaN); % Measured clock offset
+            o.addProperty('clockVariability',NaN); % Measured clock variability
             o.addProperty('fineTuneClockOffset',0); % User specifiable offset to reduce AV tester offsets to 0
+            o.addProperty('syncEveryN',Inf); %  Sync the clocks every N trials
             o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT'});
         end 
         
+        function logStimulusStart(o,stimulus)
+            if ~iscell(stimulus);stimulus = {stimulus};end
+            for i=1:numel(stimulus)
+                addProperty(o.cic.(stimulus{i}),'startTime',-Inf,'thisIsAnUpdate',true,'postprocess',@(stim,val) logEvent(o,stim,val));
+            end
+        end
+            
+        function val = logEvent(o,stim,val)
+            if val<0 || isinf(val);return;end % Don't log before trial start or when startTime is reset to -inf
+            code = stim.name(1:4);            
+            o.cic.egi.event(code,'valu',val); % This uses the handle to the egi plugin we know exists in the o.cic handle
+        end
+
         % Send a timestamped event
         % See NetStation.m for details.
         function event(o,code,varargin)
@@ -45,19 +59,23 @@ classdef egi < neurostim.plugin
             o.startRecording;
             o.event('BREC','DESC','Begin recording','FLNM',c.fullFile,'PDGM',c.paradigm,'SUBJ',c.subject);
         end
+        
+        
         function afterExperiment(o,c,evt)
             o.event('EREC','DESC','End recording');
             o.stopRecording;
             o.disconnect;
         end
+        
         function beforeTrial(o,c,evt)
             % Should we sync again? Or is once enough beforeExperiment?
             % O.synchronize; .
-            if mod(c.trial,100)==0
-            NetStation('RESETCLOCK',(o.cic.clockTime-o.clockOffset-o.fineTuneClockOffset),0);        
+            if mod(c.trial,o.syncEveryN)==0
+                NetStation('RESETCLOCK',(o.cic.clockTime-o.clockOffset-o.fineTuneClockOffset),0);        
             end
             o.event('BTRL','DESC','Begin trial','TRIA',c.trial,'BLCK',c.block,'COND',c.conditionName);            
         end
+        
         function afterTrial(o,c,evt)
             o.event('ETRL','DESC','End trial','TRIA',c.trial,'BLCK',c.block,'COND',c.conditionName);            
         end
