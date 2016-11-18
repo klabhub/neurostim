@@ -113,8 +113,27 @@ classdef block < dynamicprops
             o.weights = ones(1,o.nrFactorials);
         end
         
-        function o = nextTrial(o)
+        function o = nextTrial(o,c)
             o.trial = o.trial+1;
+            
+            % we want the block, factorial and condition to be logged for
+            % each trial
+            c.factorial = o.factorialIx; % index into @block.factorials
+            c.condition = o.conditionIx; % index into @factorial.conditions
+                        
+            %Retrieve the plugin/parameter/value specs for the current condition
+            specs = o.condition;
+            nrParms = length(specs)/3;
+            for p =1:nrParms
+                plgName =specs{3*(p-1)+1};
+                varName = specs{3*(p-1)+2};
+                value   = specs{3*(p-1)+3};
+                if isa(value,'neurostim.plugins.adaptive')
+                    value = getValue(value);
+                end
+                c.(plgName).(varName) = value;
+            end
+            
         end
         
         function disp(o)

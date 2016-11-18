@@ -698,29 +698,7 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function beforeTrial(c)
-            
-            
-            % this craziness is for loggin purposes...
-            %
-            % we want the block, factorial and condition to be logged for
-            % each trial
-            c.block = c.block; % index into @cic.blocks
-            c.factorial = c.blocks(c.block).factorialIx; % index into @block.factorials
-            c.condition = c.blocks(c.block).conditionIx; % index into @factorial.conditions
-                        
-            %Retrieve the plugin/parameter/value specs for the current condition
-            specs = c.blocks(c.block).condition;
-            nrParms = length(specs)/3;
-            for p =1:nrParms
-                plgName =specs{3*(p-1)+1};
-                varName = specs{3*(p-1)+2};
-                value   = specs{3*(p-1)+3};
-                if isa(value,'neurostim.plugins.adaptive')
-                    value = getValue(value);
-                end
-                c.(plgName).(varName) = value;
-            end
+        function beforeTrial(c)                                   
             if ~c.guiOn
                 message=collectPropMessage(c);
                 c.writeToFeed(message);
@@ -822,7 +800,7 @@ classdef cic < neurostim.plugin
                 
                 while c.blocks(c.block).trial<c.blocks(c.block).nrTrials
                     c.trial = c.trial+1;
-                    c.blocks(c.block) = nextTrial(c.blocks(c.block));
+                    c.blocks(c.block) = nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
                     c.blockTrial = c.blocks(c.block).trial; % For logging and gui only
                     beforeTrial(c);
                     notify(c,'BASEBEFORETRIAL');
