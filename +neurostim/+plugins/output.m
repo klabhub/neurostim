@@ -111,7 +111,7 @@ classdef output < neurostim.plugin
                 o.data.nrBlocks = c.block;
                 o.data.matlabVers = version;
                 o.data.expScript = c.expScript;
-                o.data.ptbVers = PsychtoolboxVersion;
+                o.data.ptbVers = Screen('version');
                 o.data = orderfields(o.data);
         end
                 
