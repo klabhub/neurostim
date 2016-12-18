@@ -1079,22 +1079,38 @@ classdef cic < neurostim.plugin
             % 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
             % Unrestricted color range
-            PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');
+          %  PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');
+          %  PsychImaging('AddTask', 'General', 'UseGPGPUCompute');
+            PsychImaging('AddTask','General','UseFastOffscreenWindows');
+
+            % This will have to be moved to a user-settable function
+            PsychImaging('AddTask','General','UseDataPixx');                        
+            PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
+               
             
+         % [overlaywin, overlaywinRect] = PsychImaging('GetOverlayWindow', win);
+          
             switch upper(c.screen.colorMode)
+                case 'LUM'
+
                 case 'XYL'
-                    % Use builtin xyYToXYZ() plugin for xyY -> XYZ conversion:
-                    PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'xyYToXYZ');
-                    % Use builtin SensorToPrimary() plugin:
-                    PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'SensorToPrimary');
-                    % Check color validity
-                    PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'CheckOnly');
-                    
-                    cal = LoadCalFile('PTB3TestCal');
-                    load T_xyz1931
-                    T_xyz1931 = 683*T_xyz1931; %#ok<NODEF>
-                    cal = SetSensorColorSpace(cal,T_xyz1931,S_xyz1931);
-                    cal = SetGammaMethod(cal,0);
+                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
+       
+                    oldlevel = PsychColorCorrection('Verbosity',3);
+            %        PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
+
+%                     % Use builtin xyYToXYZ() plugin for xyY -> XYZ conversion:
+%                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'xyYToXYZ');
+%                     % Use builtin SensorToPrimary() plugin:
+%                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'SensorToPrimary');
+%                     % Check color validity
+%                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'CheckOnly');
+%                     
+%                     cal = LoadCalFile('PTB3TestCal');
+%                     load T_xyz1931
+%                     T_xyz1931 = 683*T_xyz1931; %#ok<NODEF>
+%                     cal = SetSensorColorSpace(cal,T_xyz1931,S_xyz1931);
+%                     cal = SetGammaMethod(cal,0);
                     
                 case 'RGB'
                     cal = []; %Placeholder. Nothing implemented.
@@ -1103,56 +1119,72 @@ classdef cic < neurostim.plugin
             
             % if bitspp
             %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
-            PsychImaging('AddTask','General','UseFastOffscreenWindows');
-            
+             
             c.window = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             switch upper(c.screen.colorMode)
+                case 'LUM'
+                    
                 case 'XYL'
-                    PsychColorCorrection('SetSensorToPrimary', c.window, cal);
-                    %                     PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                  
+                    
+% out = bias + gain * ( ((in-minL) / (maxL-minL)) ^ gamma )
+                    gamma = 2.2;%[2.2 2.2 1];
+                    PsychColorCorrection('SetEncodingGamma', c.window, 1./gamma);
+                        Screen('LoadNormalizedGammaTable', c.window, linspace(0, 1, 256)' * [1, 1, 1]);
+
+               %     PsychColorCorrection('SetColorClampingRange', c.window, 0,1);
+                     minL = [ 0.5 0.5 0];
+                     maxL = [100 100 1];
+                     gain = [1 1 1];
+                     bias = [0 0 0];
+                   %  PsychColorCorrection('SetExtendedGammaParameters', c.window, minL, maxL, gain, bias);
+                     % Ensure that the graphics board's gamma table does not transform our pixels
+                  % PsychColorCorrection('SetSensorToPrimary', c.window, cal);
+                    % PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                    Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 case 'RGB'
                     Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             end
             
-            
-            if any(strcmpi(c.plugins,'gui'))%if gui is added
-                
-                guiScreen = setdiff(Screen('screens'),[c.screen.number 0]);
-                if isempty(guiScreen)
-                    %                    error('You need two screens to show a gui...');
-                    guiScreen = 0;
-                    guiRect = [800 0 1600 600];
-                    
-                else
-                    guiRect  = Screen('GlobalRect',guiScreen);
-                    %                 if ~isempty(.screen.xorigin)
-                    %                     guiRect(1) =o.screen.xorigin;
-                    %                 end
-                    %                 if ~isempty(o.screen.yorigin)
-                    %                     guiRect(2) =o.screen.yorigin;
-                    %                 end
-                    %                 if ~isempty(o.screen.xpixels)
-                    %                     guiRect(3) =guiRect(1)+ o.screen.xpixels;
-                    %                 end
-                    %                 if ~isempty(o.screen.ypixels)
-                    %                     guiRect(4) =guiRect(2)+ o.screen.ypixels;
-                    %                 end
-                end
-                if isempty(c.mirrorPixels)
-                    c.mirrorPixels=Screen('Rect',guiScreen);
-                end
-                c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
-                
-                % TODO should this be separate for the mirrorWindow?
-                switch upper(c.screen.colorMode)
-                    case 'XYL'
-                        PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
-                        
-                    case 'RGB'
-                        Screen(c.guiWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                end
-            end
-            
+%             
+%             if any(strcmpi(c.plugins,'gui'))%if gui is added
+%                 
+%                 guiScreen = setdiff(Screen('screens'),[c.screen.number 0]);
+%                 if isempty(guiScreen)
+%                     %                    error('You need two screens to show a gui...');
+%                     guiScreen = 0;
+%                     guiRect = [800 0 1600 600];
+%                     
+%                 else
+%                     guiRect  = Screen('GlobalRect',guiScreen);
+%                     %                 if ~isempty(.screen.xorigin)
+%                     %                     guiRect(1) =o.screen.xorigin;
+%                     %                 end
+%                     %                 if ~isempty(o.screen.yorigin)
+%                     %                     guiRect(2) =o.screen.yorigin;
+%                     %                 end
+%                     %                 if ~isempty(o.screen.xpixels)
+%                     %                     guiRect(3) =guiRect(1)+ o.screen.xpixels;
+%                     %                 end
+%                     %                 if ~isempty(o.screen.ypixels)
+%                     %                     guiRect(4) =guiRect(2)+ o.screen.ypixels;
+%                     %                 end
+%                 end
+%                 if isempty(c.mirrorPixels)
+%                     c.mirrorPixels=Screen('Rect',guiScreen);
+%                 end
+%                 c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
+%                 
+%                 % TODO should this be separate for the mirrorWindow?
+%                 switch upper(c.screen.colorMode)
+%                     case 'XYL'
+%                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
+%                         
+%                     case 'RGB'
+%                         Screen(c.guiWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+%                 end
+%             end
+%             
             
             
             
