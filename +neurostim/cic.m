@@ -57,7 +57,9 @@ classdef cic < neurostim.plugin
             'color',struct('text',[1 1 1],...
             'background',[1/3 1/3 5]),...
             'colorMode','xyL',...
-            'frameRate',60,'number',[],'viewDist',[]);    %screen-related parameters.
+            'type','GENERIC',...   
+            'frameRate',60,'number',[],'viewDist',[],...
+            'calibration',struct('gamma',2.2,'min',nan(1,3),'max',nan(1,3),'bias',nan(1,3),'gain',nan(1,3)));    %screen-related parameters.
            
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to get the frame flip time.
@@ -74,7 +76,7 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =protected)
         %% Program Flow
         window =[]; % The PTB window
-        
+        overlay =[]; % The color overlay for special colormodes (VPIXX-M16)
         stage@double;
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         
@@ -280,6 +282,12 @@ classdef cic < neurostim.plugin
             frInterval = Screen('GetFlipInterval',c.window)*1000;
             percError = abs(frInterval-(1000/c.screen.frameRate))/frInterval*100;
             if percError > 5
+                 
+                
+                
+                
+                clear all
+                close all
                 error('Actual frame rate doesn''t match the requested rate');
             else
                 c.screen.frameRate = 1000/frInterval;
@@ -1075,30 +1083,30 @@ classdef cic < neurostim.plugin
             
             c.setupScreen;
             
-            PsychImaging('PrepareConfiguration');
-            % 32 bit frame buffer values
-            PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
-            % Unrestricted color range
-          %  PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');
+            PsychImaging('PrepareConfiguration');            
+            PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');% 32 bit frame buffer values
+            PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');% Unrestricted color range
           %  PsychImaging('AddTask', 'General', 'UseGPGPUCompute');
-            PsychImaging('AddTask','General','UseFastOffscreenWindows');
-
-            % This will have to be moved to a user-settable function
-            PsychImaging('AddTask','General','UseDataPixx');                        
-            PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
-               
+            PsychImaging('AddTask', 'General', 'UseFastOffscreenWindows');
             
-         % [overlaywin, overlaywinRect] = PsychImaging('GetOverlayWindow', win);
-          
+            %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
+            switch upper(c.screen.type)
+                case 'GENERIC'
+                    % Generic monitor.
+                case 'VPIXX-M16'                    
+                    PsychImaging('AddTask', 'General', 'UseDataPixx');                        
+                    PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
+                    
+                otherwise
+                     error(['Unknown screen type : ' c.screen.type]);
+            end
+            
+            %%  Setup color calibration
             switch upper(c.screen.colorMode)
-                case 'LUM'
-
+                case 'GAMMA'
+                    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
                 case 'XYL'
-                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
-       
-                    oldlevel = PsychColorCorrection('Verbosity',3);
-            %        PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
-
+                    
 %                     % Use builtin xyYToXYZ() plugin for xyY -> XYZ conversion:
 %                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'xyYToXYZ');
 %                     % Use builtin SensorToPrimary() plugin:
@@ -1106,46 +1114,65 @@ classdef cic < neurostim.plugin
 %                     % Check color validity
 %                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'CheckOnly');
 %                     
-%                     cal = LoadCalFile('PTB3TestCal');
+%                    
+                case 'RGB'
+                    %Placeholder. Nothing implemented.
+                otherwise 
+                     error(['Unknown color mode: ' c.screen.colorMode]);
+            end
+                     
+            %% Open the window
+            c.window = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
+ 
+            %% Perform initialization that requires an open window
+            switch upper(c.screen.type)
+                case 'GENERIC'
+                    % nothing to do
+                case 'VPIXX-M16'     
+                    c.overlay = PsychImaging('GetOverlayWindow', c.window);
+                    Screen('LoadNormalizedGammaTable', c.window, linspace(0, 1, 256)' * [1, 1, 1]); % Ensure that the graphics board's gamma table does not transform our pixels                
+                    PsychColorCorrection('CheckOnly');
+                    PsychColorCorrection('SetColorClampingRange',[0 1]);
+                otherwise
+                     error(['Unknown screen type : ' c.screen.type]);
+            end
+            
+            %% Add calibration to the window
+            switch upper(c.screen.colorMode)
+                case 'GAMMA'
+                    % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma 
+                    PsychColorCorrection('SetEncodingGamma', c.window, 1./c.screen.calibration.gamma);
+                    if ~isnan(c.screen.calibration.min)
+                        % If the user set the calibration.min parameters then s/he wants to perform a slightly more advanced calibration
+                        % out = bias + gain * ( ((in-min) / (max-min)) ^gamma )
+                        % where each parameter is specified per gun (i.e.
+                        % c.calibration.bias= [ 0 0 0])                    
+                        PsychColorCorrection('SetExtendedGammaParameters', c.window, c.screen.calibration.min, c.screen.calibration.max, c.screen.calibration.gain,c.screen.calibration.bias);              
+                    end
+                case 'XYL'
+                  
+                  
+                  % PsychColorCorrection('SetSensorToPrimary', c.window, cal);
+                    % PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);       
+
+                     cal = LoadCalFile('PTB3TestCal');
 %                     load T_xyz1931
 %                     T_xyz1931 = 683*T_xyz1931; %#ok<NODEF>
 %                     cal = SetSensorColorSpace(cal,T_xyz1931,S_xyz1931);
 %                     cal = SetGammaMethod(cal,0);
                     
+                    
                 case 'RGB'
-                    cal = []; %Placeholder. Nothing implemented.
+                    % Nothing to do
+                otherwise
+                    error(['Unknown color mode: ' c.screen.colorMode]);
+                    
             end
             
+            %% Perform additional setup routines
+            Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             
-            % if bitspp
-            %                PsychImaging('AddTask', 'General', 'EnableBits++Mono++OutputWithOverlay');
-             
-            c.window = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
-            switch upper(c.screen.colorMode)
-                case 'LUM'
-                    
-                case 'XYL'
-                  
-                    
-% out = bias + gain * ( ((in-minL) / (maxL-minL)) ^ gamma )
-                    gamma = 2.2;%[2.2 2.2 1];
-                    PsychColorCorrection('SetEncodingGamma', c.window, 1./gamma);
-                        Screen('LoadNormalizedGammaTable', c.window, linspace(0, 1, 256)' * [1, 1, 1]);
-
-               %     PsychColorCorrection('SetColorClampingRange', c.window, 0,1);
-                     minL = [ 0.5 0.5 0];
-                     maxL = [100 100 1];
-                     gain = [1 1 1];
-                     bias = [0 0 0];
-                   %  PsychColorCorrection('SetExtendedGammaParameters', c.window, minL, maxL, gain, bias);
-                     % Ensure that the graphics board's gamma table does not transform our pixels
-                  % PsychColorCorrection('SetSensorToPrimary', c.window, cal);
-                    % PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
-                    Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                case 'RGB'
-                    Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            end
-            
+            %% Setup the GUI. 
 %             
 %             if any(strcmpi(c.plugins,'gui'))%if gui is added
 %                 
