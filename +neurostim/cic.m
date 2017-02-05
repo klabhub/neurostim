@@ -302,7 +302,7 @@ classdef cic < neurostim.plugin
             end
             for a = 1:numel(c.pluginOrder)
                 o = c.(c.pluginOrder{a});
-                
+                 
                 for i=1:length(o.evts)
                     if isa(o,'neurostim.plugin')
                         % base events allow housekeeping before events
@@ -762,7 +762,7 @@ classdef cic < neurostim.plugin
                 c.subject = response;
             end
             
-            c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation, and postprocessig  will now be active
+            c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation  will now be active
             
             %% Set up order and event listeners
             c.order;
@@ -780,6 +780,15 @@ classdef cic < neurostim.plugin
             DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.window));
             Screen('Flip', c.window);
             KbWait(c.keyDeviceIndex);
+           
+            
+            % All plugins BEFOREEXPERIMENT functions have been processed,
+            % store the current parameter values as the defaults.
+            for a = 1:numel(c.pluginOrder)
+                o = c.(c.pluginOrder{a});
+                setCurrentParmsToDefault(o); 
+            end
+              
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
             for blockNr=1:nrBlocks
@@ -800,6 +809,12 @@ classdef cic < neurostim.plugin
                 
                 while c.blocks(c.block).trial<c.blocks(c.block).nrTrials
                     c.trial = c.trial+1;
+            
+                    for a = 1:numel(c.pluginOrder)
+                        o = c.(c.pluginOrder{a});
+                        setDefaultParmsToCurrent(o); 
+                    end
+            
                     c.blocks(c.block) = nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
                     c.blockTrial = c.blocks(c.block).trial; % For logging and gui only
                     beforeTrial(c);
@@ -1008,12 +1023,11 @@ classdef cic < neurostim.plugin
         end
         
         function collectFrameDrops(c)
-            framedrop=strcmpi(c.log.parms,'frameDrop');
-            frames=sum(framedrop)-c.lastFrameDrop;
-            if frames>=1
-                percent=round(frames/c.frame*100);
-                c.writeToFeed(['Missed Frames: ' num2str(frames) ', ' num2str(percent) '%%'])
-                c.lastFrameDrop=c.lastFrameDrop+frames;
+            nrFramedrops= c.prms.frameDrop.cntr-1-c.lastFrameDrop;            
+            if nrFramedrops>=1
+                percent=round(nrFramedrops/c.frame*100);
+                c.writeToFeed(['Missed Frames: ' num2str(nrFramedrops) ', ' num2str(percent) '%%'])
+                c.lastFrameDrop=c.lastFrameDrop+nrFramedrops;
             end
         end
         

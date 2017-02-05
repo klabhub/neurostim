@@ -16,7 +16,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     properties (SetAccess=private, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
-        log;             % Log of parameter values set in this plugin
+        prms;          % Structure to store all parameters
     end
     
     properties (SetAccess=private, GetAccess=public)
@@ -37,12 +37,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 error('Stimulus and plugin names must be valid Matlab variable names');
             end
             o.name = n;
-            % Initialize an empty log.
-            o.log(1).parms = {};
-            o.log(1).values = {};
-            o.log(1).t = [];
-            o.log(1).cntr =0;
-            o.log(1).capacity=0;
             if~isempty(c) % Need this to construct cic itself...dcopy
                 c.add(o);
             end
@@ -50,7 +44,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         
         function o= saveobj(o)
             % Called before save.
-            %
+            structfun(@pruneLog,o.prms); % Remove extraneous logs from prms.
         end
         
         function s= duplicate(o,name)
@@ -60,7 +54,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         end
         
         
-        function keyboard(o,key,time)
+        function keyboard(o,key,time) %#ok<INUSD>
             % Generic keyboard handler; when keys are added using keyFun,
             % this evaluates the function attached.
             if any(strcmpi(key,fieldnames(o.keyFunc)))
@@ -85,12 +79,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             success=true;
         end
         
-        function write(o,name,value)
-            % User callable write function.
-            disp(['Write : ' name ]);
-            %            o.addToLog(name,value);
-        end
-        
         % Convenience wrapper; just passed to CIC
         function endTrial(o)
             % Move to the next trial
@@ -112,37 +100,38 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             p.addParameter('AbortSet',true);
             p.parse(varargin{:});
             
-            % First check if it is already there.
-            h =findprop(o,prop);
-            if ~isempty(h)
-                error([prop ' is already a property of ' o.name ]);
+            
+            if isempty(prop) && isstruct(value)
+                % Special case to add a whole struct as properties (see
+                % Jitter for usage example)
+                fn = fieldnames(value);
+                for i=1:numel(fn)
+                    addProperty(o,fn{i},value.(fn{i}),varargin{:});
+                end
+            else
+                % First check if it is already there.
+                h =findprop(o,prop);
+                if ~isempty(h)
+                    error([prop ' is already a property of ' o.name ]);
+                end
+                
+                % Add the property as a dynamicprop (this allows users to write
+                % things like o.X = 10;
+                h = o.addprop(prop);
+                h.SetObservable  = true;
+                h.GetObservable  = true;
+                h.AbortSet       = p.Results.AbortSet; % Avoid calling postset if the value did not change.
+                h.GetAccess = 'public'; % Has to be public so that the parameter class can get/set it.
+                h.SetAccess = 'public';
+                % Create a parameter object to do the work behind the scenes.
+                % It looks as if this is not stored and will go out of scope, but the
+                % parameter constructor adds it to a callback function that is assigned to
+                % the postGet event of the dynamic property created here; that's why it is
+                % not lost...
+                o.prms.(prop) = neurostim.parameter(o,prop,value);
             end
-            
-            % Add the property as a dynamicprop (this allows users to write
-            % things like o.X = 10;
-            h = o.addprop(prop);
-            h.SetObservable  = true;
-            h.GetObservable  = true;
-            h.AbortSet       = p.Results.AbortSet; % Avoid calling postset if the value did not change.
-            h.GetAccess = 'public'; % Has to be public so that the parameter class can get/set it.
-            h.SetAccess = 'public';
-            % Create a parameter object to do the work behind the scenes.
-            % It looks as if this is not stored and will go out of scope, but the
-            % parameter constructor adds it to a callback function that is assigned to
-            % the postGet event of the dynamic property created here; that's why it is
-            % not lost...
-            neurostim.parameter(o,prop,value);
         end
-        
-        function storeDefaultProperties(o)
-            properties(o)
-            
-            
-        end
-        
-        function applyDefaultProperties(o)
-        end
-        
+                
     end
     
     
@@ -162,10 +151,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             % First a shallow copy of fixed properties
             s = copyElement@matlab.mixin.Copyable(o);
-            
-            % Add the  propLsntrMap handle Map class
-            addprop(s,'propLstnrMap');
-            s.propLstnrMap = containers.Map;
             
             % Then setup the dynamic props again. (We assume all remaining
             % dynprops are parameters of the stimulus/plugin)
@@ -267,13 +252,29 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     
     methods (Access = public)
+        % Wrapper to call setCurrentToDefault in the parameters class for
+        % each parameter
+        function setCurrentParmsToDefault(o)
+            if ~isempty(o.prms) 
+                structfun(@setCurrentToDefault,o.prms);
+            end
+        end
+
+                % Wrapper to call setCurrentToDefault in the parameters class for
+        % each parameter
+        function setDefaultParmsToCurrent(o)
+            if ~isempty(o.prms) 
+                structfun(@setDefaultToCurrent,o.prms);
+            end
+        end
+
         
         function baseEvents(o,c,evt)
             if c.PROFILE;ticTime = c.clockTime;end
             
             switch evt.EventName
                 case 'BASEBEFOREEXPERIMENT'
-                    notify(o,'BEFOREEXPERIMENT');
+                     notify(o,'BEFOREEXPERIMENT');
                     
                 case 'BASEBEFORETRIAL'
                     notify(o,'BEFORETRIAL');
