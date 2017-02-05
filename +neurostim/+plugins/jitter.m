@@ -48,7 +48,7 @@ classdef jitter < neurostim.plugins.adaptive
             p.parse(parms,varargin{:});
             
             o=o@neurostim.plugins.adaptive(c,'@0'); % The result fun is not used so just put something that evals to 0 always.
-           o.addProperty('',p.Results);
+            o.addProperty('',p.Results);
 
             o.parms = p.Results.parms;
             o.distribution = p.Results.distribution;

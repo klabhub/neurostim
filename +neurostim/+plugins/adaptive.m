@@ -13,7 +13,6 @@ classdef (Abstract) adaptive < neurostim.plugin
     % BK - 11/2016
     
     properties (SetAccess=protected, GetAccess=public)
-        resultFun@function_handle;  % The function handle used to evaluate trial outcome
         uid@double= [];
     end
     
@@ -38,14 +37,13 @@ classdef (Abstract) adaptive < neurostim.plugin
             nm = [caller{1} '_' num2str(u)]; % Child class
             % Create the object
             o=o@neurostim.plugin(c,nm);
-            o.addProperty('result','','validate',@ischar); % The function used to evaluate trial outcome. Specified by the user.
+            o.addProperty('trialOutcome','','validate',@(x) (ischar(x) && strncmpi(x,'@',1))); % The function used to evaluate trial outcome. Specified by the user.
             o.addProperty('condition','','validate',@ischar);% The condition that this adaptive parameter belongs to. Will be set by factorial.m
             o.addProperty('targetPlugin','','validate',@ischar); % The plugin whose property is modulated by this adaptive object (set automatically in factorial; not used at runtime)
             o.addProperty('targetProperty','','validate',@ischar);% The property that is modualted by this object. (Set automatically in factorial.m, not used at runtime) 
             
             o.uid = u;
-            o.result = funStr;
-            o.resultFun =neurostim.utils.str2fun(o.result); % Store as function_handle too
+            o.trialOutcome = funStr;
             o.listenToEvent('AFTERTRIAL');
         end
         
@@ -79,7 +77,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             if strcmpi(c.conditionName,s.condition)
                 % Only update if this adaptive object is assigned to the
                 % current condition. Call the derived class function to update it
-                correct = s.resultFun(s); % Evaluate the result function that the user provided.
+                correct = s.trialOutcome; % Evaluate the function that the user provided.
                 update(s,correct); % Pass it to the derived class to update
             end
         end
