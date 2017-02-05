@@ -401,16 +401,16 @@ classdef cic < neurostim.plugin
             
             
             
-            c.addProperty('frameDrop',[],'SetAccess','protected');
+            c.addProperty('frameDrop',[]);
             
-            c.addProperty('trialStartTime',[],'SetAccess','protected');
-            c.addProperty('trialStopTime',[],'SetAccess','protected');
-            c.addProperty('condition',[],'SetAccess','protected','AbortSet',false);
-            c.addProperty('factorial',[],'SetAccess','protected','AbortSet',false);
-            c.addProperty('block',0,'SetAccess','protected','AbortSet',false);
-            c.addProperty('blockTrial',0,'SetAccess','protected');
-            c.addProperty('trial',0,'SetAccess','protected');
-            c.addProperty('expScript',[],'SetAccess','protected');
+            c.addProperty('trialStartTime',[]);
+            c.addProperty('trialStopTime',[]);
+            c.addProperty('condition',[],'AbortSet',false);
+            c.addProperty('factorial',[],'AbortSet',false);
+            c.addProperty('block',0,'AbortSet',false);
+            c.addProperty('blockTrial',0);
+            c.addProperty('trial',0);
+            c.addProperty('expScript',[]);
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             
