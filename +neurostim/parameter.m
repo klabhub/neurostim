@@ -75,6 +75,9 @@ classdef parameter < handle
             o.plg.(nm) = v;
         end
         
+        
+      
+        
         function assign(o,v)
             o.value =v;
             t = GetSecs;

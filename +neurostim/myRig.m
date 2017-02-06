@@ -64,7 +64,13 @@ switch computerName
         Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
         smallWindow = true;
-        
+    case 'SURFACE2017'
+        scrNr = max(Screen('screens'));
+        fr = Screen('FrameRate',scrNr);
+        rect = Screen('rect',scrNr);
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        smallWindow = true;
+        c.dirs.output= 'c:/temp';
     case '2014B'
         scrNr = 2;
         rect = Screen('rect',scrNr);

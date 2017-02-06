@@ -42,10 +42,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
         end
         
-        function o= saveobj(o)
-            % Called before save.
-            structfun(@pruneLog,o.prms); % Remove extraneous logs from prms.
-        end
         
         function s= duplicate(o,name)
             % This copies the plugin and gives it a new name. See

@@ -44,8 +44,7 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
         
-        dirs                    = struct('root','',...
-            'output','')  % Output is the directory where files will be written
+        dirs                    = struct('root','','output','')  % Output is the directory where files will be written
         subjectNr@double        = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
@@ -929,7 +928,7 @@ classdef cic < neurostim.plugin
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.window);
+            Screen('Flip', c.window);          
             notify(c,'BASEAFTEREXPERIMENT');
             c.KbQueueStop;
             KbWait(c.keyDeviceIndex);
