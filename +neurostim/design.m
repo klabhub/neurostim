@@ -1,5 +1,5 @@
-classdef design 
-    % Class for establishing an experimental design 
+classdef design <handle
+    % Class for establishing an experimental design
     % Constructor:
     % o=design(name)
     %
@@ -36,8 +36,8 @@ classdef design
     % d.fac2.dots.position=[0 -5 5];
     %
     % To assign different weights to conditions:
-    % d.weights=[1 1 2] 
-    % Note that the weights matrix has to match the design. So you should 
+    % d.weights=[1 1 2]
+    % Note that the weights matrix has to match the design. So you should
     % specify it only after specifying all factors/conditions.
     %
     % Singleton specifications are fine too. For instance to change the
@@ -54,20 +54,31 @@ classdef design
         specs@cell={};                  % A cell array of condition specifications
         list@double;                    % The order in which conditions will be run.
         weights@double=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
+        nextTrialIx =0;                   % The condition that will be run next (index in to .list)
     end
     
     properties (Dependent)
-        nrConditions;
-        nrFactors;
+        nrConditions;                   % The total number of conditions in this design
+        nrFactors;                      % The number fo factors in the design
+        nrTrials;                       % The total number of trials (takes .weights into account)
+        nrLevels;                       % The levels per factor
+        done;                           % True after all conditions have been run
     end
     
     
     methods  %/get/set
         
         function v=size(o)
-            v= nrLevels(o);
+            v= o.nrLevels;
         end
         
+        function v= get.done(o)
+                v = o.nextTrialIx ==0 || o.nextTrialIx >  o.nrTrials;
+        end
+        
+        function v=get.nrTrials(o)
+            v = numel(o.list);
+        end
         function v= get.nrFactors(o)
             v = size(o.specs,1);
         end
@@ -76,14 +87,11 @@ classdef design
             v=prod(o.nrLevels);
         end
         
-        function v=nrLevels(o,factor)
-            if nargin <2
-                factor = 1:o.nrFactors;
-            end
-            if all(factor<o.nrFactors)
-                v = 0;
-            else
-                v = sum(~cellfun(@isempty,o.specs(factor,:)),2)';
+        function v=get.nrLevels(o)
+            factor = 1:o.nrFactors;
+            v = sum(~cellfun(@isempty,o.specs(factor,:)),2)';
+            if isempty(v)
+                v= 0;
             end
         end
     end
@@ -91,26 +99,59 @@ classdef design
     
     methods (Access = public)
         
-        function o=factorial(varargin)
+        function o=design(nm,varargin)
             % o=factorial(varargin)
             % name - name of the Factorial
-            % randomization 
+            % randomization
             p=inputParser;
-            p.addParameter('name','',@ischar);
             p.addParameter('randomization','RANDOMWITHOUTREPLACEMENT',@(x) (ischar(x) && ismember(upper(x),{'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT','RANDOMWITHREPLACEMENT'})));
             p.parse(varargin{:});
-            o.name = p.Results.name;
+            if nargin <2
+                nm = 'noname';
+            end
+            o.name = nm;
             o.randomization = p.Results.randomization;
         end
         
-
-
-
-        function reshuffle(o)
-            % Shuffle the list of conditions 
+        function str = conditionName(o)
+            if  ~o.done
+                condition = o.list(o.nextTrialIx); % Will be logged by block/cic
+                lvls = cell(1,o.nrFactors);
+                [lvls{:}] = ind2sub(o.nrLevels,condition);
+                str = o.name;
+                for i=1:numel(lvls)
+                    str = cat(2,str, '-',num2str(lvls{i}));
+                end
+            else
+                str = [o.name '-*'];
+            end
+        end
+        
+        function [sp,condition] = nextCondition(o)
+            % Return a cell array with the specifcations for the next
+            % condition (as defined by the o.list).
+            % This also moves the pointer to trials to the next
+            % entry in o.list.
+            if o.done
+                warning('All trials in this design have been shown');
+                sp = {};
+            else
+                condition = o.list(o.nextTrialIx); % Will be logged by block/cic
+                lvls = cell(1,o.nrFactors);
+                [lvls{:}] = ind2sub(o.nrLevels,condition);
+                sp={};
+                for f=1:o.nrFactors
+                    sp = cat(1,sp,o.specs{f,lvls{f}});
+                end
+                o.nextTrialIx =o.nextTrialIx +1;
+            end
+        end
+        
+        function shuffle(o)
+            % Shuffle the list of conditions
             conds=ones(1,o.nrConditions);
             conds=cumsum(conds);
-            weighted=neurostim.utils.repeat(conds,o.weights);
+            weighted=repelem(conds(:),o.weights(:));
             switch upper(o.randomization)
                 case 'SEQUENTIAL'
                     o.list=weighted;
@@ -119,22 +160,24 @@ classdef design
                 case 'RANDOMWITHOUTREPLACEMENT'
                     o.list=Shuffle(weighted);
             end
+            o.nextTrialIx =1; % Reset the index to start ath the first entry
         end
         
         function o = subsasgn(o,S,V)
-        % subsasgn to create special handling of .weights .conditions, and
-        % .facN design specifications.        
+            % subsasgn to create special handling of .weights .conditions, and
+            % .facN design specifications.
             handled = false; % If not handled here, we call the builtin below.
             if strcmpi(S(1).type,'.')
                 if strcmpi(S(1).subs,'WEIGHTS')
                     handled =true;
+                    o.weights = V;
                 elseif strcmpi(S(1).subs,'CONDITIONS')
                     handled =true;
                 elseif strncmpi(S(1).subs,'FAC',3)
                     % Specify parameter settings for one of the factors.
                     % For instance, for a 5x3 factorial that varies X and Y
                     % in the fix stimulus:
-                    % d.fac1.fix.X = 1:5 
+                    % d.fac1.fix.X = 1:5
                     % d.fac2.fix.Y = 1:3
                     handled = true;
                     if numel(S)~=3
@@ -174,20 +217,20 @@ classdef design
                     end
                     
                     % Now loop through all the new values and store them in
-                    % the specs cell array [nrFactors, nrLevels] 
+                    % the specs cell array [nrFactors, nrLevels]
                     % factor 1: level1 level2...
                     % factor 2: level 1 level2
                     for i=1:thisNrLevels
                         % Special handling of the adaptive class (e.g.
                         % jitter, staircase)
                         if isa(V{i},'neurostim.plugins.adaptive')
-                            V{i}.condition = conditionName; % Restrict listener to this condition only
+                            %TODO!   V{i}.condition = conditionName; % Restrict listener to this condition only
                             V{i}.targetPlugin = plg; % Store target stim/prop in adaptive and log it.
                             V{i}.targetProperty = prm;
                         end
-
+                        
                         if any([factor i]>size(o.specs)) || isempty(o.specs(factor,i))
-                            % New spec for this factor/level. 
+                            % New spec for this factor/level.
                             o.specs{factor,i} = {plg,prm,V{i}};
                         else
                             %Add new spec to exsting spec

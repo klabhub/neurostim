@@ -405,7 +405,7 @@ classdef cic < neurostim.plugin
             c.addProperty('trialStartTime',[]);
             c.addProperty('trialStopTime',[]);
             c.addProperty('condition',[],'AbortSet',false);
-            c.addProperty('factorial',[],'AbortSet',false);
+            c.addProperty('design',[],'AbortSet',false);
             c.addProperty('block',0,'AbortSet',false);
             c.addProperty('blockTrial',0);
             c.addProperty('trial',0);
@@ -669,9 +669,9 @@ classdef cic < neurostim.plugin
             else
                 % No blocks specified. Create a fake block (single
                 % condition; mainly for testing purposes)
-                fac= neurostim.factorial('dummy',1);
-                fac.fac1.cic.trialDuration = c.trialDuration;
-                c.blocks = neurostim.block('dummy',fac);
+                d = neurostim.design('dummy');
+                d.fac1.cic.trialDuration = c.trialDuration;
+                c.blocks = neurostim.block('dummy',d);
             end
             args = varargin(~isblock);
             parse(p,args{:});
@@ -682,7 +682,7 @@ classdef cic < neurostim.plugin
             end
             c.blockFlow.nrRepeats = p.Results.nrRepeats;
             c.blockFlow.randomization = p.Results.randomization;
-            c.blockFlow.list = neurostim.utils.repeat((1:numel(c.blocks)),c.blockFlow.weights);
+            c.blockFlow.list = repelem((1:numel(c.blocks)),c.blockFlow.weights);
             switch(c.blockFlow.randomization)
                 case 'SEQUENTIAL'
                     %c.blockFlow.list
@@ -805,8 +805,8 @@ classdef cic < neurostim.plugin
                 if waitforkey
                     KbWait(c.keyDeviceIndex,2);
                 end
-                
-                while c.blocks(c.block).trial<c.blocks(c.block).nrTrials
+                c.blockTrial =0;
+                while ~c.blocks(c.block).done 
                     c.trial = c.trial+1;
             
                     for a = 1:numel(c.pluginOrder)
@@ -814,8 +814,8 @@ classdef cic < neurostim.plugin
                         setDefaultParmsToCurrent(o); 
                     end
             
-                    c.blocks(c.block) = nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
-                    c.blockTrial = c.blocks(c.block).trial; % For logging and gui only
+                    nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
+                    c.blockTrial = c.blockTrial+1;  % For logging and gui only
                     beforeTrial(c);
                     notify(c,'BASEBEFORETRIAL');
                     
