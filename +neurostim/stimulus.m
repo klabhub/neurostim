@@ -20,7 +20,7 @@ classdef stimulus < neurostim.plugin
     %
     %
     %TODO: Should we have a small class for storing durations in both
-    %frames and msec in a dependent way? used for "on", 
+    %frames and msec in a dependent way? used for "on",
     
     properties (SetAccess=private,GetAccess=public)
         beforeFrameListenerHandle =[];
@@ -103,7 +103,7 @@ classdef stimulus < neurostim.plugin
             %% internally-set properties
             s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
             s.addProperty('stopTime',Inf);   % first time the stimulus does NOT appear after being run
-      
+            
             s.rsvp.active= false;
             s.rsvp.design =neurostim.design('dummy');
             s.rsvp.duration = 0;
@@ -111,7 +111,7 @@ classdef stimulus < neurostim.plugin
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
-        end             
+        end
     end
     
     methods (Access= public)
@@ -135,7 +135,7 @@ classdef stimulus < neurostim.plugin
             %           addRSVP(s,design,varargin)
             %
             %           Rapid Serial Visual Presentation
-            %           design is a factoral design (See factorial.m) specifying the parameter(s) to be
+            %           design is a factoral design (See design.m) specifying the parameter(s) to be
             %           manipulated in the stream.
             %
             %           optionalArgs = {'param1',value,'param2',value,...}
@@ -144,12 +144,12 @@ classdef stimulus < neurostim.plugin
             %
             %           'duration'  [100]   - duration of each stimulus in the sequence (msec)
             %           'isi'       [0]     - inter-stimulus interval (msec)
-            %           'log'       [false] - Log isi start and stop. For rapid changes this can require a lot of memory. 
+            %           'log'       [false] - Log isi start and stop. For rapid changes this can require a lot of memory.
             
             p=inputParser;
-            p.addRequired('design',@(x) (isa(x,'neurostim.factorial')));
+            p.addRequired('design',@(x) (isa(x,'neurostim.design')));
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
-            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);   
+            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
             p.addParameter('log',false,@islogical);
             p.parse(design,varargin{:});
             flds = fieldnames(p.Results);
@@ -158,54 +158,47 @@ classdef stimulus < neurostim.plugin
             end
             
             %Elaborate the factorial design into (sub)condition lists for RSVP
-            setupExperiment(s.rsvp.design);
+            s.rsvp.design.shuffle;
             s.rsvp.log = p.Results.log;
-            s.rsvp.active = true;    
-        end        
+            s.rsvp.active = true;
+        end
     end
     
-
+    
     methods (Access=private)
         
-        function s = updateRSVP(s,c)
-            
+        function s = updateRSVP(s,c)            
             %How many frames for item + blank (ISI)?
-            nFramesPerItem = c.ms2frames(s.rsvp.duration+s.rsvp.isi);
-            
+            nFramesPerItem = c.ms2frames(s.rsvp.duration+s.rsvp.isi);            
             %How many frames since the RSVP stream started?
-            rsvpFrame = c.frame-s.onFrame;
-            
-            %Which item in the sequence are we up to?
-            itemNum = floor(rsvpFrame./nFramesPerItem);
-            
+            rsvpFrame = c.frame-s.onFrame; 
             %Which item frame are we in?
-            itemFrame = mod(rsvpFrame, nFramesPerItem);
-            
-            %If at the start of a new element, update param values
+            itemFrame = mod(rsvpFrame, nFramesPerItem);            
+            %If at the start of a new element, move the design to the 
+            % next "trial" 
             if itemFrame==0
-                curCondInd = mod(itemNum,s.rsvp.design.nrConditions)+1;
-                specs = s.rsvp.design.conditions(s.rsvp.design.list(curCondInd));
-                for g=1:3:numel(specs)
-                    s.(specs{g+1}) = specs{g+2};
+                ok = nextTrial(s.rsvp.design);
+                if ~ok
+                    % Ran out of "trials"
+                    s.rsvp.design.shuffle; % Reshuffle the list 
+                end                
+                % Get current specs and apply
+                specs = s.rsvp.design.specs;
+                for sp=1:size(specs,1)
+                    s.(specs{sp,2}) = specs{sp,3};
                 end
             end
             
             %Blank now if it's time to do so.
-            nowOn = s.flags.on;
             startIsiFrame = c.ms2frames(s.rsvp.duration);
             s.flags.on = itemFrame < startIsiFrame;  % Blank during rsvp isi
-            if s.rsvp.log 
+            if s.rsvp.log
                 if itemFrame == 0
                     s.rsvpIsi = false;
                 elseif itemFrame==startIsiFrame;
                     s.rsvpIsi = true;
                 end
-            end
-            
-            %If this item is the last condition in the factorial, reshuffle conditions
-            if itemNum==s.rsvp.design.nrConditions-1
-                s.rsvp.design.reshuffle;
-            end
+            end            
         end
         
         function setupDiode(s)
@@ -229,12 +222,12 @@ classdef stimulus < neurostim.plugin
         
     end
     
-     %% Methods that the user cannot change.
+    %% Methods that the user cannot change.
     % These are called by CIC for all stimuli to provide
     % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
     % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
     % the derived class an oppurtunity to respond to changes that this
-    % base functionality makes.   
+    % base functionality makes.
     methods (Access=public)
         
         function baseEvents(s,c,evt)
@@ -252,7 +245,7 @@ classdef stimulus < neurostim.plugin
                     end
                     if  s.angle ~=0
                         Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
-                    end 
+                    end
                     
                     %Should the stimulus be drawn on this frame?
                     s.flags.on = c.frame>=s.onFrame && c.frame <s.offFrame;
@@ -274,7 +267,7 @@ classdef stimulus < neurostim.plugin
                     if c.frame==s.offFrame
                         s.logOffset=true;
                     end
-                   
+                    
                     %If the stimulus should be drawn on this frame:
                     if s.flags.on
                         %If this is the first frame that the stimulus will be drawn, register that it has started.
@@ -309,7 +302,7 @@ classdef stimulus < neurostim.plugin
                     %                         s.addRSVP(s.rsvp{:})
                     %                     end
                     if s.rsvp.active
-                        s.rsvp.design.reshuffle; % Reshuffle each trial
+                        s.rsvp.design.shuffle; % Reshuffle each trial
                     end
                     
                     %Reset variables here?
@@ -349,7 +342,7 @@ classdef stimulus < neurostim.plugin
                     notify(s,'BEFOREEXPERIMENT');
                     
                 case 'BASEAFTEREXPERIMENT'
-                    notify(s,'AFTEREXPERIMENT');     
+                    notify(s,'AFTEREXPERIMENT');
             end
         end
     end

@@ -22,6 +22,7 @@ classdef eScript < neurostim.plugin
         % Empty constructor
         function o = eScript(c)
             o = o@neurostim.plugin(c,'eScript');
+            o.addProperty('mcode','');
         end
         
         function disp(o)
@@ -100,7 +101,7 @@ classdef eScript < neurostim.plugin
             fclose(fid);
             
             % Store the mfile contents in the log.
-            o.addToLog(when,txt);
+            o.mcode = txt;
         end
         
         %% Member functions that simply call the functions that the user

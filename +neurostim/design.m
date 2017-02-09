@@ -169,13 +169,17 @@ classdef design <handle
             v={};
             for f=1:o.nrFactors
                 v = cat(1,v,o.factorSpecs{f,lvls(f)});
-                if ~isempty(o.conditionSpecs) && lvls(f) > size(o.conditionSpecs,f)
-                    error(['The ' o.name ' design is corrupted']);
-                end
-                if ~isempty(o.conditionSpecs{o.condition})
-                    v = cat(1,v,o.conditionSpecs{o.condition});
+                if isempty(o.conditionSpecs) 
+                    % Nothing to add
+                elseif lvls(f) > size(o.conditionSpecs,f)
+                    error(['The ' o.name ' design is corrupted']);                
                 end
             end
+            
+            if  ~isempty(o.conditionSpecs) && ~isempty(o.conditionSpecs{o.condition})
+                    % Add a per-condition spec
+                    v = cat(1,v,o.conditionSpecs{o.condition});
+            end                
         end
     end
     

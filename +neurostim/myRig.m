@@ -63,7 +63,7 @@ switch computerName
         rect = Screen('rect',scrNr);
         Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
-        smallWindow = true;
+        smallWindow = true ;
     case 'SURFACE2017'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);

@@ -412,7 +412,13 @@ classdef cic < neurostim.plugin
             
         end
         
-        
+        function write(c,label,value)
+            if ~isfield(c.prms,label)
+                c.addProperty(label,value);
+            else
+                c.(label) = value;
+            end
+        end
         function versionTracker(c,silent,push) %#ok<INUSD>
             % Git Tracking Interface
             %
