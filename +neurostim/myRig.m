@@ -89,6 +89,13 @@ switch computerName
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',400,'ypixels',300,'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
         c.screen.colorMode = 'RGB';
         smallWindow = false;
+    case 'PC2017A'
+        scrNr = max(Screen('screens'));
+        fr = Screen('FrameRate',scrNr);
+        rect = Screen('rect',scrNr);
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        Screen('Preference', 'SkipSyncTests', 2);
+        smallWindow = true;
     otherwise
         warning('This computer is not recognised. Using default settings.');
         scrNr = max(Screen('screens'));

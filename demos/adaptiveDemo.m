@@ -8,15 +8,21 @@ function c= adaptiveDemo
 % for correct detection, separately for +45 and -45 degree oriented gratings.
 %
 % The demo can use  key presses, or simulate an ideal observer with a
-% fixed threshold. 
-% 
+% fixed threshold by setting pianola to true.
+%
 % BK  - Nov 2016.
 
 import neurostim.*
-
-method = 'QUEST'; % Set this to QUEST or STAIRCASE 
+method = 'QUEST'; % Set this to QUEST or STAIRCASE
 pianola = true; % Set this to true to simulate responses, false to provide your own responses ('a'=left,'l' = right).
 
+
+% Define a simulated observer with different thresholds for the two
+% conditions. This should be visible when you run this demo with pianola=true; one orientation
+% should converge on a low contrast, the other on a high contrast.
+simulatedObserver = '@grating.contrast>(0.1+0.5*(grating.cic.condition-1))';
+% Or use this one for an observer with some zero mean gaussian noise on the threshold
+simulatedObserver = '@grating.contrast> (0.01*randn + (0.1+0.5*(grating.cic.condition-1)))';
 %% Setup the controller
 c= myRig;
 c.trialDuration = Inf;
@@ -41,23 +47,32 @@ g.on                    =  0;
 g.duration          = 500;
 
 %% Setup user responses
-% Take the user response (left/right)
+% Take the user response (Press 'a'  to report detection on the left, press 'l'  for detection on the right)
 k = plugins.nafcResponse(c,'choice');
 k.on = '@grating.on + grating.duration';
 k.deadline = '@choice.on + 2000';         %Maximum allowable RT is 2000ms
 k.keys = {'a' 'l'};                                          %Press 'a' for "left" motion, 'l' for "right"
-k.keyLabels = {'left', 'right'};
-k.correctKey = '@double(grating.X> 0) + 1';   %Function returns the index of the correct response (i.e., key 1 ('a' when X<0 and 2 'l' when X>0)
+k.keyLabels = {'left', 'right'};                    % Label for bookkeeping.
+k.correctKey = '@double(grating.X> 0) + 1';   %Function to define what the correct key is in each trial .It returns the index of the correct response (i.e., key 1 ('a' when X<0 and 2 'l' when X>0)
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
 
 
-%% Setup the conditions in a factorial
-myFac=factorial('orientation',1);
-myFac.fac1.grating.orientation = [-45 45];
-% Here we add adaptive parameters. The simplest adaptive parameter is used to jitter
-% parameters across trials. Use the jitter class for this.
-myFac.fac1.grating.X= plugins.jitter(c,{10},'distribution',@(x)(x*(1-2*(rand>0.5)))); % Jitter the location of the grating on each trial: either 10 or -10 using the function
+%% Setup the conditions in a design object
+d=design('orientation');
+d.fac1.grating.orientation = [-45 45];  % One factor (orientation)
+nrLevels = d.nrLevels;
 
+% We also want to change some parameters
+% in an "adaptive" way. You do this by assigning values
+% to the .conditions field of the design object .
+%
+% The simplest adaptive parameter is used to jitter
+% parameters across trials. Use the jitter class for this. The
+% .conditions(:) means that the jitter is applied to all levels of the
+% first factor. (Using .conditions(:,1) would work too.
+% In this case there is a single jitter object that will be used in all
+% conditions.
+d.conditions(:).grating.X= plugins.jitter(c,{10},'distribution',@(x)(x*(1-2*(rand>0.5)))); % Jitter the location of the grating on each trial: either 10 or -10 using the function
 
 if strcmpi(method,'QUEST')
     % To estimate threshold adaptively, the Quest method can be used. We need
@@ -71,51 +86,63 @@ if strcmpi(method,'QUEST')
     % that guess, and tell the Quest procedure which function to evaluate to
     % determine whether the response was correct or not. To setup Quest to use
     % the subject's responses, use the following:
+    
+    % Note again the .conditions usage that applies the Quest plugin to each level of the first factor.
+    % An important difference with the Jitter parameter above is that we
+    % want to have a separate quest for the two orientations. To achieve
+    % that we could explicitly create two Quest plugins and assign those to the
+    % conditions(:,1).grating.contrast = { quest1,quest2}, but in the current example both Quests have
+    % identical parameters, so it is easier to duplicate them using the duplicate function.
+    %
+    % Please note that you should not use repmat for this purpose as it will repmat the
+    % handles to the Quest object, not the object itself. In other words, if you used repmat you'd still use the
+    % same Quest object for both orientations and could not estimate a
+    % separate threshold per orientation. 
+   
     if ~pianola
-        myFac.fac1.grating.contrast = plugins.quest(c, '@choice.correct','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i);
+        d.conditions(:,1).grating.contrast = duplicate(plugins.quest(c, '@choice.correct','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i),[nrLevels 1]);
     else
-        % Iif you'd like to see Quest in action, without pressing buttons, we
-        % can simulate responses with this trialResult function (note that you also have
+        % If you'd like to see Quest in action, without pressing buttons, we
+        % can simulate responses with this trialResult function (note that we also have
         % to set c.trialDuration < Inf for this to work, otherwise CIC keeps waiting for a button press)
-        myFac.fac1.grating.contrast = plugins.quest(c, '@grating.contrast>(0.1+0.7*(grating.cic.condition-1))','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i);
+        d.conditions(:,1).grating.contrast = duplicate(plugins.quest(c, simulatedObserver,'guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i),[nrLevels 1]);
         c.trialDuration = 150;
-        % Note that the function
-        % '@grating.contrast>(0.1+0.7*(grating.cic.condition-1))' 
-        % return true (=correct ) for contrasts above 0.1 in the first condition and
-        % above 0.8 in the second condition. Hence the expected thresholds
-        % should be 0.1 and 0.7 for the two conditions (=orientations). 
     end
-elseif strcmpi(method,'STAIRCASE')    
+elseif strcmpi(method,'STAIRCASE')
     % As an alternative adaptive threshold estimation procedure, consider the 1-up 1-down staircase with fixed 0.01 stepsize on contrast.
-    % With user responses, youuse:
+    % With user responses, you use:
     if ~pianola
-        myFac.fac1.grating.contrast = plugins.nDown1UpStaircase(c,'@choice.correct',rand,'min',0,'max',1,'weights',[1 1],'delta',0.1);
+        d.conditions(:,1).grating.contrast = duplicate(plugins.nDown1UpStaircase(c,'@choice.correct',rand,'min',0,'max',1,'weights',[1 1],'delta',0.1),[nrLevels 1]);
     else
         %  For a pianola version of the demo, we simulate responses at the end
         %  of the trial
-        myFac.fac1.grating.contrast = plugins.nDown1UpStaircase(c,'@grating.contrast>(0.1+0.7*(grating.cic.condition-1))',rand,'min',0,'max',1,'weights',[1 1],'delta',0.01);
+        d.conditions(:,1).grating.contrast = duplicate(plugins.nDown1UpStaircase(c,simulatedObserver,rand,'min',0,'max',1,'weights',[1 1],'delta',0.05),[nrLevels 1]);
         c.trialDuration = 150;
     end
 end
-myBlock=block('myBlock',myFac);
-myBlock.nrRepeats = 25;
+
+% Create a block for this design and specify the repeats per design
+myBlock=block('myBlock',d);
+myBlock.nrRepeats = 25; % Because the design has 2 conditions, this results in 2*nrRepeats trials.
 c.run(myBlock);
 
-%% Do some analysis
-load ([c.fullFile '.mat'],'data');
+%% Do some analysis on the data
 import neurostim.utils.*;
-conditions=getproperty(data,'condition','cic');
-conditions = [conditions{:}];
-contrast = getproperty(data,'contrast','grating');
-contrast = [contrast{:}];
-uV = unique(conditions);
+% Retrieve orientation and contrast settings for each trial. Trials in
+% which those parameters did not change willl not have an entry in the log,
+% so we have to fill-in the values (e..g if there is no entry in the log
+% for trial N, take the value set in trial N-1.
+orientation = fillin(c.nrTrials,c.grating.prms.orientation.trial,c.grating.prms.orientation.log);
+contrast = fillin(c.nrTrials,c.grating.prms.contrast.trial,c.grating.prms.contrast.log);
+uV = unique(orientation);
 figure;
 hold on
 for u=uV
-    stay = conditions ==u;
+    stay = orientation ==u;
     plot(contrast(stay),'.-');
 end
 xlabel 'Trial'
 ylabel 'Contrast '
 title ([method ' in action...'])
+legend(num2str(uV(:)))
 end

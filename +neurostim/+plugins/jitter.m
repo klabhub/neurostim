@@ -9,7 +9,7 @@ classdef jitter < neurostim.plugins.adaptive
      
     end
     properties (SetAccess = protected, GetAccess = protected)
-        value; % Internal storage
+      %  value; % Internal storage
     end
     methods
         function o=jitter(c,parms,varargin)
@@ -45,6 +45,7 @@ classdef jitter < neurostim.plugins.adaptive
             p.addParameter('distribution','uniform');
             p.addParameter('bounds',[], @(x) isempty(x) || (numel(x)==2 && ~any(isinf(x)) && diff(x) > 0));
             p.addParameter('size',1);
+          
             p.parse(parms,varargin{:});
             
             o=o@neurostim.plugins.adaptive(c,'@0'); % The result fun is not used so just put something that evals to 0 always.
@@ -54,7 +55,7 @@ classdef jitter < neurostim.plugins.adaptive
             o.distribution = p.Results.distribution;
             o.bounds = p.Results.bounds;
             o.size = p.Results.size;
-            
+            o.addProperty('value',NaN,'AbortSet',false);            
             update(o); % Call it once now to initialize.
         end
         

@@ -35,8 +35,7 @@ classdef block < dynamicprops
     %
     %
     
-    properties
-        
+    properties        
         randomization='SEQUENTIAL';
         weights=1;
         nrRepeats=1;
@@ -57,25 +56,29 @@ classdef block < dynamicprops
         nrConditions;
         nrDesigns;
         nrTrials;
-        condition;  % Spec cell for the current condition
-        conditionName; % Name of the current condition
+        condition;  % Linear index, current condition
         done@logical; % Any trials left in this block?
+        design;  % current design
     end
     
     methods
+        function v=get.design(o)
+            % Current design
+            v =o.designs(o.list(o.designIx));
+        end
         
         function v = get.done(o)
-            v = o.designIx == numel(o.list) && o.designs(o.list(o.designIx)).done;
+            % Current design done, an we're at the last design in the list
+            v = o.designIx == numel(o.list) && o.design.done;
         end
         
         function v = get.nrTrials(o)            
             v = sum([o.designs(o.list).nrTrials]);
         end
         
-        function v = get.conditionName(o)
-            v = o.designs(o.list(o.designIx)).conditionName;
+        function v = get.condition(o)
+            v = o.design.condition;
         end
-        
         
         function v = get.nrDesigns(o)
             v = numel(o.designs);
@@ -112,37 +115,36 @@ classdef block < dynamicprops
         
         function nextTrial(o,c)
             %Retrieve the plugin/parameter/value specs for the current condition
-            if o.designIx ==0 || o.designs(o.list(o.designIx)).done
+            % and apply to each of the plugins
+            
+            
+            %% Check whether we need to go to the next design in this block
+            if o.designIx ==0 ||  ~nextTrial(o.design); % Move the design to the next trial            
                 % This design is done, move to the next one
                 o.designIx = o.designIx +1;
                 if o.designIx > numel(o.list)
                     error('Ran out of designs to run???');
                 else
-                    o.designs(o.list(o.designIx)).shuffle; % Randomize as requested to setup list of conditions
-                    c.design = o.list(o.designIx); % Log the change
+                    o.design.shuffle; % Randomize as requested to setup list of conditions
+                    c.design = o.design.name; % Log the change
                 end
             end
             
-            [specs,c.condition] = o.designs(o.list(o.designIx)).nextCondition;
-            
+            c.condition = o.condition; % Log the condition change
+            specs = o.design.specs; % Retrieve the specs from the design            
             %% Now apply the values to the parms in the plugins.
             nrParms = size(specs,1);
             for p =1:nrParms
                 plgName =specs{p,1};
-                varName = specs{p,2};
-                value   = specs{p,3};
-                if isa(value,'neurostim.plugins.adaptive')
-                    value = getValue(value);
+                varName = specs{p,2};                
+                if isa( specs{p,3},'neurostim.plugins.adaptive')
+                    value = getValue(specs{p,3});                   
+                else
+                    value =  specs{p,3};
                 end
                 c.(plgName).(varName) = value;
-            end
-            
+            end            
         end
-        
-        function disp(o)
-            disp([o.name ': block with ' num2str(o.nrDesigns) ' designs']);
-        end
-        
         
         % Parse the designs to setup a single 2xN list of
         % N design/condition pairs, one for each trial
@@ -158,7 +160,6 @@ classdef block < dynamicprops
                 case 'RANDOMWITHREPLACEMENT'
                     o.list= datasample(o.list,numel(o.list));
             end
-            
             o.designIx =0;
         end
         

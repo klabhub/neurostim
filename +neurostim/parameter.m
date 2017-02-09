@@ -36,6 +36,7 @@ classdef parameter < handle
         default; % The default value; set at the beginning of the experiment.
         log;    % Previous values;
         time;   % Time at which previous values were set
+        trial;    % Trial in which previous values were set.
         cntr=0; % Counter to store where in the log we are.
         capacity=0; % Capacity to store in log
         
@@ -79,19 +80,26 @@ classdef parameter < handle
       
         
         function assign(o,v)
+            % Assign  and Log
+            
+            % Assign here
             o.value =v;
-            t = GetSecs;
-            % Log
+            % Assign to dynamic property
+            o.plg.(o.name) = v;
+          t = o.plg.cic.clockTime;
+            
             o.cntr=o.cntr+1;
             % Allocate space if needed
             if o.cntr> o.capacity
                 o.log       = cat(2,o.log,cell(1,o.BLOCKSIZE));
                 o.time      = cat(2,o.time,nan(1,o.BLOCKSIZE));
+                o.trial       = cat(2,o.trial,nan(1,o.BLOCKSIZE));
                 o.capacity = numel(o.log);
             end
             %% Fill the log.
             o.log{o.cntr}  = o.value;
             o.time(o.cntr) = t;
+            o.trial(o.cntr)= o.plg.cic.trial;
         end
         
         % This function can be called after a get to evaluate a function
@@ -158,18 +166,18 @@ classdef parameter < handle
             end
             
             if ok
-                % log
+                % assign in this object, log, and assign to dynamic prop.
                 assign(o,v); % Log and store in this parameter object
-                % Assign to dynamic property
-                o.plg.(o.name) = v;
             end
         end
       
         % Called before saving an object to clean out the empty elements in
         % the log.
         function pruneLog(o)
-            o.log(o.cntr+1:end) =[];
-            o.time(o.cntr+1:end) =[];
+            out  = (o.cntr+1):o.capacity;
+            o.log(out) =[];
+            o.time(out) =[];
+            o.trial(out) =[];
             o.capacity = numel(o.log);
         end
         
@@ -185,9 +193,11 @@ classdef parameter < handle
                 % Put the default back as the current value
                 % but not for functions as that would overwrite the
                 % function definition.
-                o.value = o.default;
+                assign(o,o.default);
             end
         end
+        
+        
     end
     
     

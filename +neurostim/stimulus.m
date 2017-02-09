@@ -105,7 +105,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('stopTime',Inf);   % first time the stimulus does NOT appear after being run
       
             s.rsvp.active= false;
-            s.rsvp.design =neurostim.factorial('dummy',1);
+            s.rsvp.design =neurostim.design('dummy');
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
             

@@ -126,11 +126,11 @@ classdef cic < neurostim.plugin
         subject@char;   % Subject
         startTimeStr@char;  % Start time as a HH:MM:SS string
         cursor;         % Cursor 'none','arrow'; see ShowCursor
-        conditionName;  % The name of the current condition.
         blockName;      % Name of the current block
         defaultPluginOrder;
         trialTime;      % Time elapsed (ms) since the start of the trial
-        fullNrTrials;   % Number of trials total (all blocks)        
+        fullNrTrials;   % Number of trials total (all blocks)   
+        conditionID;    % Unique id for a condition - used by adaptive
     end
     
     %% Public methods
@@ -175,11 +175,7 @@ classdef cic < neurostim.plugin
                 v= num2str(c.subjectNr);
             end
         end
-        
-        function v = get.conditionName(c)
-            v = c.blocks(c.block).conditionName;
-        end
-        
+               
         function v = get.blockName(c)
             v = c.blocks(c.block).name;
         end
@@ -399,16 +395,14 @@ classdef cic < neurostim.plugin
             c.addKey('n',@keyboardResponse,'Next Trial');
             
             
-            
+            c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
             c.addProperty('frameDrop',[]);
-            
             c.addProperty('trialStartTime',[]);
             c.addProperty('trialStopTime',[]);
             c.addProperty('condition',[],'AbortSet',false);
             c.addProperty('design',[],'AbortSet',false);
             c.addProperty('block',0,'AbortSet',false);
             c.addProperty('blockTrial',0);
-            c.addProperty('trial',0);
             c.addProperty('expScript',[]);
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
@@ -807,13 +801,14 @@ classdef cic < neurostim.plugin
                 end
                 c.blockTrial =0;
                 while ~c.blocks(c.block).done 
-                    c.trial = c.trial+1;
-            
+                    c.trial = c.trial+1;            
+                    
+                    % Restore default values
                     for a = 1:numel(c.pluginOrder)
                         o = c.(c.pluginOrder{a});
                         setDefaultParmsToCurrent(o); 
                     end
-            
+                    
                     nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
                     c.blockTrial = c.blockTrial+1;  % For logging and gui only
                     beforeTrial(c);
@@ -823,7 +818,7 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
-                            Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                             Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
                     
