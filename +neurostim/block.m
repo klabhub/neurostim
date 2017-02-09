@@ -131,16 +131,16 @@ classdef block < dynamicprops
             end
             
             c.condition = o.condition; % Log the condition change
-            specs = o.design.specs; % Retrieve the specs from the design            
+            spcs = specs(o.design); % Retrieve the specs from the design            
             %% Now apply the values to the parms in the plugins.
-            nrParms = size(specs,1);
+            nrParms = size(spcs,1);
             for p =1:nrParms
-                plgName =specs{p,1};
-                varName = specs{p,2};                
-                if isa( specs{p,3},'neurostim.plugins.adaptive')
-                    value = getValue(specs{p,3});                   
+                plgName =spcs{p,1};
+                varName = spcs{p,2};                
+                if isa( spcs{p,3},'neurostim.plugins.adaptive')
+                    value = getValue(spcs{p,3});                   
                 else
-                    value =  specs{p,3};
+                    value =  spcs{p,3};
                 end
                 c.(plgName).(varName) = value;
             end            

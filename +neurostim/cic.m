@@ -1,4 +1,4 @@
-% Command and Intelligence Center for Neurostim using PsychToolBox.
+ % Command and Intelligence Center for Neurostim using PsychToolBox.
 % See demos directory for examples
 %  BK, AM, TK, 2015
 classdef cic < neurostim.plugin
@@ -410,6 +410,18 @@ classdef cic < neurostim.plugin
             % Generate default output files
             neurostim.plugins.output(c);
             
+        end
+        
+        function showDesign(c,factors)
+            if nargin<2
+                factors = [];
+            end
+            for b=1:numel(c.blocks)
+                blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
+                for d=1:numel(c.blocks(b).designs)
+                   show(c.blocks(b).designs(d),factors,blockStr);
+                end
+            end
         end
         
         function write(c,label,value)

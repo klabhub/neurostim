@@ -4,7 +4,7 @@ classdef design <handle
     % o=design(name)
     %
     % Inputs:
-    %   name - name of the design 
+    %   name - name of the design
     %
     % Outputs:
     %   o - passes out a design structure with fields that can be modified
@@ -14,7 +14,7 @@ classdef design <handle
     % Object member variables that you can changer are:
     % o.randomization
     % o.fac1..o.facN
-    % o.weights 
+    % o.weights
     % o.conditions
     %
     % Examples :
@@ -51,25 +51,25 @@ classdef design <handle
     %
     % Once a factorial design has been defined, you can modify individual
     % conditions by assigning modifcations to the .conditions field.
-    % Think of .conditions as a matrix where each dimension represents one 
+    % Think of .conditions as a matrix where each dimension represents one
     % of the factors:
     % d.conditions(1,2) = the condition that corresponds to the first
-    % level of fac1 and the second level of fac2. 
+    % level of fac1 and the second level of fac2.
     % d.conditions(:,1) = all levels of the first factorial
     % d.conditions(:,:) = all levels of the first and second factorial/
-    % 
+    %
     % To change one element in the factorial, you write:
-    % d.conditions(2,1).dots.position  = -1; 
+    % d.conditions(2,1).dots.position  = -1;
     % All adaptive parameters (staircases, quest, jitter)
     % must be set through the conditions interface so that you can specify
     % exactly to which conditions the adaptative parameter should be
     % assigned. For instance, to jitter all X and Y positions of the dots stimulus in all
     % conditiosn:
-    % d.conditions(:).dots.X = plugins.jitter(...) 
-    % d.conditions(:).dots.Y = plugins.jitter(...) 
-    % 
+    % d.conditions(:).dots.X = plugins.jitter(...)
+    % d.conditions(:).dots.Y = plugins.jitter(...)
+    %
     % But if you want to jitter X only for te second level of the second factor, use:
-    %  d.conditions(:,2).dots.X = plugins.jitter(...) 
+    %  d.conditions(:,2).dots.X = plugins.jitter(...)
     %
     % Note that in this case, the adaptive plugin Jitter is shared acrosss
     % all levels that use t (i.e. the same underlying jitter object generates the
@@ -80,15 +80,19 @@ classdef design <handle
     % For more examples, see adaptiveDemo in the demos directory
     %
     % TK, BK, 2016
-    % Feb-2017 BK 
-    % Major redesign
-    properties
+    % Feb-2017 BK
+    % Major redesign without backward compatibility
+
+    properties  (SetAccess =public, GetAccess=public)
         randomization='RANDOMWITHOUTREPLACEMENT';
+        weights@double=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
+    end
+    
+    properties         (SetAccess =protected, GetAccess=public)
         name@char;                      % The name of this design; bookkeeping/logging use only.
         factorSpecs@cell={};            % A cell array of condition specifications for factorial designs
         conditionSpecs@cell ={};         % Conditions specifications that deviate from the full factorial
         list@double;                    % The order in which conditions will be run.
-        weights@double=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
         currentTrialIx =0;                   % The condition that will be run in this trial (index in to .list)
     end
     
@@ -100,17 +104,16 @@ classdef design <handle
         done;                           % True after all conditions have been run
         levels;                         % Vector subscript (factors) for the current condition
         condition;                  % Linear index of the current condition
-        specs;                          % Cell array with specs for the current condition
     end
     
     properties (Constant)
         designNames ={};                   % List of all names given to designs. Used to ensure uniqueness.
     end
     
-    
     methods  %/get/set
         
         function v=size(o)
+            % The number of levels.
             v= o.nrLevels;
             if isempty(v)
                 v = [o.nrConditions 1];
@@ -118,40 +121,45 @@ classdef design <handle
         end
         
         function v= get.done(o)
+            % Returns true if the currentTrialIx points to zero or the last
+            % trial.
             v = ismember(o.currentTrialIx ,[0 o.nrTrials]);
         end
         
         function v=get.nrTrials(o)
+            % Total number of trial in this design (this includes the
+            % effect of weighting)
             v = numel(o.list);
         end
+        
         function v= get.nrFactors(o)
+            %Number of factors in the design
             v = size(o.factorSpecs,1);
         end
         
         function v=get.nrConditions(o)
+            % The number of conditions in this design
             v=prod(o.nrLevels);
         end
         
         function v=get.nrLevels(o)
+            % Number of levels in each of the factors. For a non-factorial
+            % design this returns [nrConditions 1]
             factor = 1:o.nrFactors;
             v = sum(~cellfun(@isempty,o.factorSpecs(factor,:)),2)';
             if isempty(v)
                 v= numel(o.conditionSpecs);
             end
+            if numel(v)==1
+                v= [v 1];
+            end
         end
         
         function v = get.levels(o)
             % The currrent condition as a subscript into
-            % the factorial design:
-            % [2 3] = 2nd level first factor, 3rd level 2nd factor.
+            % the factorial design: % [2 3] = 2nd level first factor, 3rd level 2nd factor.
             % For a non-factorial design this is [i 1] with i the condition
-            if o.nrFactors>0
-                lvls = cell(1,o.nrFactors);
-                [lvls{:}] = ind2sub(o.nrLevels,o.condition);
-                v = [lvls{:}];
-            else
-                v = [o.condition 1];
-            end
+            v= cond2lvl(o,o.condition);
         end
         
         function v = get.condition(o)
@@ -159,37 +167,124 @@ classdef design <handle
             v= o.list(o.currentTrialIx);
         end
         
-        function v= get.specs(o)
-            % Return a cell array with the specifcations for the current
-            % condition .
-            
-            % o.levels and o.condition provide the same information, the former is easier for
-            % factorSpecs , the latter for conditionSpecs
-            lvls = o.levels;
-            v={};
-            for f=1:o.nrFactors
-                v = cat(1,v,o.factorSpecs{f,lvls(f)});
-                if isempty(o.conditionSpecs) 
-                    % Nothing to add
-                elseif lvls(f) > size(o.conditionSpecs,f)
-                    error(['The ' o.name ' design is corrupted']);                
-                end
-            end
-            
-            if  ~isempty(o.conditionSpecs) && ~isempty(o.conditionSpecs{o.condition})
-                    % Add a per-condition spec
-                    v = cat(1,v,o.conditionSpecs{o.condition});
-            end                
-        end
     end
     
     
     methods (Access = public)
         
+        function v= specs(o,cond)
+            % Return a cell array with the specifcations for one
+            % condition. If no second argument is provided, it returns the
+            % specs for the current condition.
+            
+            if nargin <2
+                cond = o.condition;
+            end
+            lvls = cond2lvl(o,cond);
+            
+            % lvls and cond provide the same information, the former is easier for
+            % factorSpecs , the latter for conditionSpecs
+            v={};
+            for f=1:o.nrFactors
+                v = cat(1,v,o.factorSpecs{f,lvls(f)});
+                if isempty(o.conditionSpecs)
+                    % Nothing to add
+                elseif lvls(f) > size(o.conditionSpecs,f)
+                    error(['The ' o.name ' design is corrupted']);
+                end
+            end
+            
+            if  ~isempty(o.conditionSpecs) && ~isempty(o.conditionSpecs{cond})
+                % Add a per-condition spec
+                v = cat(1,v,o.conditionSpecs{cond});
+            end
+        end
+        
+        
+        function show(o,f,str)
+            % Function to show the condition specifications in a figure. 
+            % f - the dimensions of the design to show (e.g. [1 2] to
+            % show the first two factors, or [1 3] to show factors 1 and 3
+            % against , or even  [1 2 3] to show all three in a 3D
+            % representation (use rotate3D to inspect the design ).
+            %str - string to add to the title (used by cic.showDesign to
+            %show blocks)
+            if nargin <3
+                str = '';
+            end
+            if nargin <2 || isempty(f)
+                f = 1:o.nrFactors;
+                f(f>3)=[];
+                if isempty(f)
+                    f=1;
+                end
+            end
+            spcs = cell(1,o.nrConditions);
+            for c=1:o.nrConditions
+                spcs{c} = specs(o,c);
+            end
+            spcs = reshape(spcs,o.nrLevels);
+            others = setdiff(1:o.nrFactors,f);
+            
+            if numel(f)>1
+                spcs = permute(spcs,[f others]);
+                wghts = permute(o.weights,[f others]);
+            else 
+                wghts = 1;
+            end        
+            nrY = size(spcs,1);
+            nrX = size(spcs,2);
+            if numel(f)<3
+                nrZ =1;
+            else
+                nrZ  =size(spcs,3);
+            end
+            figure('name',['Design:  ' o.name]);
+            xlim([0.5 nrX+.5]);
+           ylim([0.5 nrY+.5]);
+           zlim([0.5 nrZ+0.5]);    
+           set(gca,'XTick',1:nrX,'YTick',1:nrY,'ZTick',1:nrZ);
+
+           ylabel(['Factor #' num2str(f(1))])
+           if nrX>1
+            xlabel(['Factor #' num2str(f(2))])
+           end
+          if nrZ>1
+              zlabel(['Factor #' num2str(f(3))])
+          end 
+           title([str ': ' o.name ' :' num2str(o.nrFactors) '-way design. Rand: ' o.randomization]);
+           hold on
+            for k=1:nrZ
+            for i=1:nrY
+                for j=1:nrX
+                    this='';
+                    for prm =1:size(spcs{i,j,k},1)
+                        val = spcs{i,j,k}{prm,3};
+                        if isnumeric(val)
+                            val = num2str(val);
+                        elseif isobject(val)
+                            val = val.name;
+                        else
+                            val = '?';
+                        end
+                        this = char(this,strcat(spcs{i,j,k}{prm,1},'.',spcs{i,j,k}{prm,2},'=',val));
+                    end
+                    if numel(wghts)>1
+                        this =char(this,['Weight=' num2str(wghts(i,j,k))]);
+                    else
+                        this =char(this,['Weight=' num2str(wghts)]);                        
+                    end
+                    text(j,i,k,this,'HorizontalAlignment','Left','Interpreter','none','VerticalAlignment','middle')
+                end               
+            end
+            end
+            set(gcf,'Units','Normalized','Position',[0 0 1 1]);
+            if numel(f)==3; view(3);end
+        end
         function o=design(nm)
             % o=design(nm)
             % name - name of this design object
-            if ismember(nm,neurostim.design.designNames)
+            if ismember(nm,neurostim.design.designNames) %#ok<NODEF>
                 error(['The name ' nm  ' is already in use for a design. Please choose a different one']);
             end
             o.name = nm;
@@ -197,6 +292,8 @@ classdef design <handle
         end
         
         function ok = nextTrial(o)
+            % Move the index to the next condition in the trial list.
+            % Returns false if this is not possible (i.e. the design has been run completely).
             if o.currentTrialIx == numel(o.list)
                 ok = false; % No next trial possible. Caller will have to shuffle the design or pick a new one.
             else
@@ -206,7 +303,8 @@ classdef design <handle
         end
         
         function shuffle(o)
-            % Shuffle the list of conditions
+            % Shuffle the list of conditions and set the "currentTrialIx" to
+            % the first one in the list
             conds=ones(1,o.nrConditions);
             conds=cumsum(conds);
             weighted=repelem(conds(:),o.weights(:));
@@ -269,7 +367,7 @@ classdef design <handle
                         %% Factors have previously been defined. Allow only
                         % modifications of the full factorial, not
                         % conditions that are outside the factorial
-                                               
+                        
                         % Allow users to use singleton or vectors to specify
                         % levels (if the parameter value of a single level is a
                         % vector, put it in a cell array).
@@ -289,7 +387,7 @@ classdef design <handle
                                 error(['The number of values on the RHS [' num2str(size(V)) '] does not match the number specified on the LHS [' num2str(lvls) ']']);
                             end
                         end
-                                               
+                        
                         ix = neurostim.utils.allcombinations(ix{:});
                         if size(ix,2) ==1
                             ix = [ix ones(numel(ix),1)]; % NEed this below for comparison with size(conditionSpecs)
@@ -313,12 +411,12 @@ classdef design <handle
                                     linearIx = ix(i,1);
                                 end
                                 thisV.belongsTo(o.name,linearIx); % Tell the adaptive to listen to this design/level combination
-                            end                            
+                            end
                             if ndims(o.conditionSpecs)<numel(trgSub) || any(size(o.conditionSpecs)<[trgSub{:}]) || isempty(o.conditionSpecs(trgSub{:}))
                                 % new spec for this condition
                                 o.conditionSpecs{trgSub{:}} = {plg,prm,thisV};
                             else
-                                % add to previous 
+                                % add to previous
                                 o.conditionSpecs{trgSub{:}} = cat(1,o.conditionSpecs{trgSub{:}},{plg,prm,thisV});
                             end
                         end
@@ -411,7 +509,20 @@ classdef design <handle
             if ~handled
                 % Call builtin
                 o = builtin('subsasgn',o,S,V);
-            end  
+            end
+        end
+    end
+    
+    methods (Access=protected)
+        function v= cond2lvl(o,cond)
+            % Return the factor levels for a specified condition
+            if o.nrFactors>0
+                lvls = cell(1,o.nrFactors);
+                [lvls{:}] = ind2sub(o.nrLevels,cond);
+                v = [lvls{:}];
+            else
+                v = [cond 1];
+            end
         end
     end
 end
