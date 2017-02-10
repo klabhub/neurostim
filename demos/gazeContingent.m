@@ -33,9 +33,9 @@ s.Y='@reddot.Y+5';
 s.X='@reddot.X+5';
 
 % Setup some dummy conditions
-fac =factorial('dummy',1);
-fac.fac1.dots.X=0;
-blk = block('dummy',fac);
+d =design('dummy');
+d.conditions(1).reddot.size = 0.1; % Define a single "condition"
+blk = block('dummy',d);
 blk.nrRepeats = 10;
 c.run(blk);
 end

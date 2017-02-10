@@ -15,7 +15,7 @@ import neurostim.*
 c = myRig;                            % Create Command and Intellige nce Center...
 c.trialDuration  = inf;
 plugins.debug(c); 
- 
+ c.screen.color.background = [0.5 0.5 0.5];
 % Create a grating stimulus. This will be used to map out the psychometric
 % curve (hence 'testGab')
 g=stimuli.gabor(c,'testGab');           
@@ -52,7 +52,7 @@ g4.contrast = 1;
 f = stimuli.fixation(c,'fix');        % Add a fixation point stimulus
 f.color = [1 0 0];
 f.shape = 'CIRC';                  % Shape of the fixation point
-f.size = 1;
+f.size = 0.25;
 f.X = 0;
 f.Y = 0;
 
@@ -66,8 +66,8 @@ fix.tolerance = 3;
  
 %% Define conditions and blocks
 surroundContrast = 0.6;
-% Create a factorial design (a cell array) with three factors (three cell
-% arrays ). In the first factor (first row), we vary the orientation of the
+% Create a factorial design with three factors.
+% In the first factor (first row), we vary the orientation of the
 % surround stimulus, the contrast of the surround stimulus and the contrast
 % of the referenceSurround stimulus (all at the same time in pairwise fashion).
 % The result is that the screen will show 
@@ -80,14 +80,15 @@ surroundContrast = 0.6;
 % curve determining that relates the percept of "which (center) grating has more
 % contrast?" to the actual contrast of the test stimulus.
 %
-myFac=factorial('myFactorial',3); 
-myFac.fac1.surround.orientation={0 0 90 0}; 
-myFac.fac1.surround.contrast={0,surroundContrast,surroundContrast,surroundContrast};
-myFac.fac1.referenceSurround.contrast={0,surroundContrast,0,0};
-myFac.fac2.testGab.contrast={0.10, 0.20 ,0.40 ,0.50};
-myFac.fac3.testGab.X={-2.5, 2.5};
+myDesign=design('myFactorial'); 
+% You can use cells or vectors to specify the levels of a factor.
+myDesign.fac1.surround.orientation={0 0 90 0}; 
+myDesign.fac1.surround.contrast={0,surroundContrast,surroundContrast,surroundContrast};
+myDesign.fac1.referenceSurround.contrast={0,surroundContrast,0,0};
+myDesign.fac2.testGab.contrast=0.1:0.1:0.5;
+myDesign.fac3.testGab.X=[-2.5, 2.5];
 
-myBlock=block('myBlock',myFac);
+myBlock=block('myBlock',myDesign);
 myBlock.nrRepeats=10;
     
 %Subject's 2AFC response
@@ -98,7 +99,7 @@ k.keys = {'a' 'l'};
 k.keyLabels = {'left', 'right'};
 k.correctKey = '@ (sign(testGab.X)>0)*(double(testGab.contrast>reference.contrast)+ 1) + (sign(testGab.X)<0)*(double(testGab.contrast<reference.contrast)+ 1)';  %Function returns 1 or 2
 
-c.trialDuration = '@ choice.stopTime';
+c.trialDuration = '@choice.stopTime'; % Trial ends once the subjects makes a choice (i.e. answers the nAFC)
 plugins.sound(c);
 % 
 %     Add correct/incorrect feedback

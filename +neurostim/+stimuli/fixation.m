@@ -18,16 +18,10 @@ classdef fixation < neurostim.stimulus
             o.addProperty('size2',5,'validate',@isnumeric);
             o.addProperty('color2',[0 0 0],'validate',@isnumeric);
             o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR'}))) ;               
-            o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT'});
+            o.listenToEvent({'BEFOREFRAME'});
             o.on = 0;
         end
         
-        function beforeExperiment(o,c,evt)
-            if (c.screen.width ~= c.screen.xpixels) && sum(strcmp('size',c.(o.name).log.parms))==1
-                o.size = o.size*c.screen.width/c.screen.xpixels;
-            end
-        end
-
         
         function beforeFrame(o,c,evt)
             switch upper(o.shape)                                   

@@ -17,9 +17,9 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('keyLabels',{},'validate',@iscellstr);
             o.addProperty('keys',{},'validate',@iscellstr);
             o.addProperty('correctKey',[],'validate',@isnumeric);
-            o.addProperty('correct',false,'SetAccess','private');
-            o.addProperty('pressedInd',[],'SetAccess','private');
-            o.addProperty('pressedKey',[],'SetAccess','private');
+            o.addProperty('correct',false);
+            o.addProperty('pressedInd',[]);
+            o.addProperty('pressedKey',[]);
             o.listenToEvent('BEFOREEXPERIMENT');
        end
        

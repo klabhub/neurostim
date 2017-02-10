@@ -82,17 +82,19 @@ s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@choice.succes
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
 
 %Specify experimental conditions
-myFac=factorial('myFactorial',2);           %Using a 3 x 2 factorial design.  Type "help neurostim/factorial" for more options.
-myFac.fac1.fix.X=   {-10 0 10};                %Three different fixation positions along horizontal meridian
-myFac.fac1.fix.Y =  plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
-myFac.fac2.dots.direction={-90 90};         %Two dot directions
+myDesign=design('myFac');                       %Type "help neurostim/design" for more options.
+myDesign.fac1.fix.X=   [-10 0 10];                %Three different fixation positions along horizontal meridian
+myDesign.fac2.dots.direction=[-90 90];         %Two dot directions
+% Jitter the Y position in all conditions of the 2-factor design (you have
+% to explicitly specify two ':' to represent the two factors, a single (:) is interpreted as a single factor and will fail.)
+myDesign.conditions(:,:).fix.Y =  plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
 
 %Specify a block of trials
-myBlock=block('myBlock',myFac);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
+myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
 c.order('sound','fix','dots','f1','choice','liquid','soundFeedback','Eyelink','gui');   %Ignore this for now - we hope to remove the need for this.
-c.subject = 'trump';
+c.subject = 'easyD';
 c.run(myBlock);
     

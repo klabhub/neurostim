@@ -24,7 +24,7 @@ classdef rdp < neurostim.stimulus
     %       moves twice as fast.
     
     
-    properties (Access=private)
+    properties (Access=protected)
         x;
         y;
         dx;
@@ -34,14 +34,13 @@ classdef rdp < neurostim.stimulus
         radius;
         phiOffset;
         framesLeft;
-        truncateGauss = -1;
     end
     
     
     
     methods (Access = public)
         function o = rdp(c,name)
-            o = o@neurostim.stimulus(c,name); 
+            o = o@neurostim.stimulus(c,name);
             o.listenToEvent({'BEFOREFRAME','AFTERFRAME'});
             o.addProperty('size',5,'validate',@isnumeric);
             o.addProperty('maxRadius',100,'validate',@isnumeric);
@@ -58,6 +57,7 @@ classdef rdp < neurostim.stimulus
             o.addProperty('noiseMode',0,'validate',@(x)x==0||x==1);       % coherence, distribution
             o.addProperty('noiseDist',0,'validate',@(x)x==0||x==1);       % gaussian, uniform
             o.addProperty('noiseWidth',50,'validate',@isnumeric);
+            o.addProperty('truncateGauss',-1,'validate',@isnumeric);
         end
         
         
@@ -78,7 +78,7 @@ classdef rdp < neurostim.stimulus
             else o.framesLeft = ones(o.nrDots,1).*Inf;
             end
         end
-
+        
         
         function beforeFrame(o,c,evt)
             Screen('DrawDots',c.window, [o.x o.y]', o.size, o.color);
@@ -86,7 +86,7 @@ classdef rdp < neurostim.stimulus
         
         
         function afterFrame(o,c,evt)
-
+            
             % reduce lifetime by 1
             if o.noiseMode ~= 1
                 o.framesLeft = o.framesLeft - 1;
@@ -98,11 +98,11 @@ classdef rdp < neurostim.stimulus
             end
             moveDots(o);
             
-
+            
         end
     end
     
-    methods (Access=private)
+    methods (Access=protected)
         % Methods only for personal use
         
         function [xnew, ynew] = rotateXY(o,xprev,yprev,arg)
@@ -117,10 +117,10 @@ classdef rdp < neurostim.stimulus
                 ynew=xynew(2);
             else
                 for a=1:max(size(xprev))
-                R=[cos(arg(a)) -sin(arg(a));sin(arg(a)) cos(arg(a))];
-                xynew=R*[xprev(a);yprev(a)];
-                xnew(a,1)=xynew(1);
-                ynew(a,1)=xynew(2);
+                    R=[cos(arg(a)) -sin(arg(a));sin(arg(a)) cos(arg(a))];
+                    xynew=R*[xprev(a);yprev(a)];
+                    xnew(a,1)=xynew(1);
+                    ynew(a,1)=xynew(2);
                 end
             end
         end
@@ -206,7 +206,7 @@ classdef rdp < neurostim.stimulus
             x=o.radius(pos).*cosd(randAngle(pos));
             y=o.radius(pos).*sind(randAngle(pos));
         end
-    
+        
         
         function moveDots(o)
             
@@ -237,7 +237,7 @@ classdef rdp < neurostim.stimulus
                         nsMin = min(o.maxRadius, o.maxRadius - o.dR(temp1 | temp2));
                         o.radius(temp1 | temp2) = nsMax + (nsMin - nsMax).*rand(size(nsMax));
                     end
-            
+                    
             end
             
             % move dots
@@ -259,7 +259,7 @@ classdef rdp < neurostim.stimulus
         end
         
         
-    
+        
     end
     
     

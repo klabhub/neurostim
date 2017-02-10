@@ -1,14 +1,14 @@
 classdef block < dynamicprops
     % Class for establishing blocks for experiment setup.
     % Constructor:
-    % myBlock=block(name,fac1[,...facLast]);
+    % myBlock=block(name,design[,...designLast]);
     %
     % Inputs:
     %   name - name of the block.
     %
     % Outputs:
-    %   myBlock - passes out a block structure with editable fields for
-    %       establishing a block of factorials for session design.
+    %   myBlock - passes out a block structure that defines the experimental design
+    %               for one block.
     %
     % Settable fields include:
     %   myBlock.nrRepeats - number of repeats of the current block
@@ -17,7 +17,7 @@ classdef block < dynamicprops
     %       RANDOMWITHREPLACEMENT', case insensitive
     %
     %   myBlock.weights = [a b]
-    %       wherein the weights correspond to the equivalent factorial.
+    %       wherein the weights correspond to the equivalent design (i.e. a factorial or set of conditions).
     %
     %   myBlock.beforeMessage - a string containing a message which will
     %       write to screen before the block begins, and wait for a keypress.
@@ -35,7 +35,7 @@ classdef block < dynamicprops
     %
     %
     
-    properties
+    properties        
         randomization='SEQUENTIAL';
         weights=1;
         nrRepeats=1;
@@ -46,44 +46,44 @@ classdef block < dynamicprops
     end
     
     properties (GetAccess=public, SetAccess = protected)
-        factorials@neurostim.factorial; % The collection of factorial designs that will run in this block
-        list=[];    % Each column corresponds to a trial. First row specifies the factorial, second row the condition in the factorial.  [1 2 3; 2 2 1] means run condition 2 from factorial 1 then condition 2 from factorial 2 and then condition 1 from
+        designs@neurostim.design; % The collection of designs that will run in this block
+        list=[];    % Order of the designs that will be run.
         name='';    % Name of the block
-        trial=0;       
+        designIx;      % Design we are currently running
     end
     
     properties (Dependent)
         nrConditions;
-        nrFactorials;
+        nrDesigns;
         nrTrials;
-        condition;  % Spec cell for the current condition
-        conditionName; % Name of the current condition
-        factorialIx;    
-        conditionIx;
+        condition;  % Linear index, current condition
+        done@logical; % Any trials left in this block?
+        design;  % current design
     end
     
     methods
-        
-        function v = get.nrTrials(o)
-            v = size(o.list,2);
+        function v=get.design(o)
+            % Current design
+            v =o.designs(o.list(o.designIx));
         end
         
-        function v = get.conditionName(o)
-            v = key(o.factorials(o.factorialIx).conditions,o.conditionIx);
+        function v = get.done(o)
+            % Current design done, an we're at the last design in the list
+            v = o.designIx == numel(o.list) && o.design.done;
         end
         
-        
-        function v = get.nrFactorials(o)
-            v = numel(o.factorials);
+        function v = get.nrTrials(o)            
+            v = sum([o.designs(o.list).nrTrials]);
         end
         
-        function v = get.factorialIx(o)
-            v = o.list(1,o.trial);
+        function v = get.condition(o)
+            v = o.design.condition;
         end
         
-        function v = get.conditionIx(o)
-            v = o.list(2,o.trial);
+        function v = get.nrDesigns(o)
+            v = numel(o.designs);
         end
+        
         
         function set.beforeFunction(o,fun)
             o.beforeFunction = neurostim.utils.str2fun(fun);
@@ -94,7 +94,8 @@ classdef block < dynamicprops
         end
         
         function v = get.nrConditions(o)
-            v = sum(o.factorials.nrConditions);
+            nr = {o.designs.nrConditions};
+            v = sum([nr{:}]);
         end
         
     end
@@ -105,84 +106,63 @@ classdef block < dynamicprops
         % Constructor
         function o = block(name,varargin)
             assert(nargin > 1,'NEUROSTIM:block:notEnoughInputs', ...
-              'Not enough input arguments.');
-            
+                'Not enough input arguments.');
             o.name = name;
-            o.factorials = [varargin{:}];
-            
-            o.weights = ones(1,o.nrFactorials);
+            o.designs = [varargin{:}];
+            o.weights = ones(1,o.nrDesigns);
         end
         
-        function o = nextTrial(o,c)
-            o.trial = o.trial+1;
-            
-            % we want the block, factorial and condition to be logged for
-            % each trial
-            c.factorial = o.factorialIx; % index into @block.factorials
-            c.condition = o.conditionIx; % index into @factorial.conditions
-                        
+        
+        function nextTrial(o,c)
             %Retrieve the plugin/parameter/value specs for the current condition
-            specs = o.condition;
-            nrParms = length(specs)/3;
+            % and apply to each of the plugins
+            
+            
+            %% Check whether we need to go to the next design in this block
+            if o.designIx ==0 ||  ~nextTrial(o.design); % Move the design to the next trial            
+                % This design is done, move to the next one
+                o.designIx = o.designIx +1;
+                if o.designIx > numel(o.list)
+                    error('Ran out of designs to run???');
+                else
+                    o.design.shuffle; % Randomize as requested to setup list of conditions
+                    c.design = o.design.name; % Log the change
+                end
+            end
+            
+            c.condition = o.condition; % Log the condition change
+            spcs = specs(o.design); % Retrieve the specs from the design            
+            %% Now apply the values to the parms in the plugins.
+            nrParms = size(spcs,1);
             for p =1:nrParms
-                plgName =specs{3*(p-1)+1};
-                varName = specs{3*(p-1)+2};
-                value   = specs{3*(p-1)+3};
-                if isa(value,'neurostim.plugins.adaptive')
-                    value = getValue(value);
+                plgName =spcs{p,1};
+                varName = spcs{p,2};                
+                if isa( spcs{p,3},'neurostim.plugins.adaptive')
+                    value = getValue(spcs{p,3});                   
+                else
+                    value =  spcs{p,3};
                 end
                 c.(plgName).(varName) = value;
-            end
-            
+            end            
         end
         
-        function disp(o)
-            disp([o.name ': block with ' num2str(o.nrFactorials) ' factorials']); 
-        end
-        
-        % Return the specs (a cell array) of the current condition
-        function v = get.condition(o)
-            v = o.factorials(o.factorialIx).conditions(o.conditionIx);
-        end
-
-        % Parse the factorials to setup a single 2xN list of
-        % N factorial/condition pairs, one for each trial
+        % Parse the designs to setup a single 2xN list of
+        % N design/condition pairs, one for each trial
         function setupExperiment(o)
-            assert(numel(o.weights) == o.nrFactorials, ...
-              'NEUROSTIM:block:sizeMismatch', ...
-              'Length of weight vector must match the number of factorials.');
-
-            % Setup each factorial
-            for f = 1:o.nrFactorials
-                setupExperiment(o.factorials(f));
+            % build the list of designs..
+            o.list = repelem(repmat(1:o.nrDesigns,[1 o.nrRepeats]),repmat(o.weights,[1 o.nrRepeats]));
+            % randomize order of factorials
+            switch upper(o.randomization)
+                case 'SEQUENTIAL'
+                    % do nothing...
+                case 'RANDOMWITHOUTREPLACEMENT'
+                    o.list= Shuffle(o.list);
+                case 'RANDOMWITHREPLACEMENT'
+                    o.list= datasample(o.list,numel(o.list));
             end
-                        
-            for r = 1:o.nrRepeats
-                % build the list of factorials..
-                fNum = cell2mat(arrayfun(@(x,y) repmat(x,1,y),1:o.nrFactorials,o.weights,'UniformOutput',false));
-              
-                % randomize order of factorials
-                switch upper(o.randomization)
-                    case 'SEQUENTIAL'
-                        % do nothing...
-                    case 'RANDOMWITHOUTREPLACEMENT'
-                        fNum = Shuffle(fNum);
-                    case 'RANDOMWITHREPLACEMENT'
-                        fNum = datasample(fNum,size(fNum,2));
-                end
-                
-                for f = fNum
-                    lst  = [f*ones(1,o.factorials(f).nrConditions); ...
-                             o.factorials(f).list];
-                    o.list = cat(2,o.list,lst); 
-                    
-                    % if the factorial specifies randomization, we
-                    % should 'reshuffle' each repeat
-                    o.factorials(f).reshuffle();
-                end
-            end
+            o.designIx =0;
         end
         
-    end % methods 
+    end % methods
     
 end % classdef

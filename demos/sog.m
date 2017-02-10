@@ -4,6 +4,9 @@
 % Shows how a single stimulus ( a grating in this case) can be shown as a 
 % rapid visual stream (RSVP) with one or more of its properties changing within a
 % trial. 
+%
+% The experiment starts with a red dot, click with a mouse to fixate, then
+% the stream of gratings will show.
 % 
 % BK - Feb 2016
 
@@ -32,18 +35,18 @@ g.on                =  '@fixation.startTime +250'; % Start showing 250 ms after 
 
 % We want to show a rapid stream of gratings. Use the factorial class to
 % define these "conditions" in the stream.
-% stream =factorial('fac',1);           % Define a factorial with one factor
-% stream.fac1.grating.orientation = 0:30:359; % Assign orientations
-% stream.randomization = 'RANDOMWITHOUTREPLACEMENT'; % Randomize
-% g.addRSVP(stream,'duration',5*1000/c.screen.frameRate,'isi',2*1000/c.screen.frameRate); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
+stream =design('ori');           % Define a factorial with one factor
+stream.fac1.grating.orientation = 0:30:359; % Assign orientations
+stream.randomization = 'RANDOMWITHOUTREPLACEMENT'; % Randomize
+g.addRSVP(stream,'duration',5*1000/c.screen.frameRate,'isi',2*1000/c.screen.frameRate); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
 
 % Alternatively, you may want to stream gratings with both orientation and
 % contrast varied.
-stream =factorial('fac',2);           % Define a factorial with two fa0ctors
-stream.fac1.grating.orientation = 0:30:359; % Assign orientations
-stream.fac2.grating.contrast = [0 0.25 0.5 1]; % Contrasts including 0
-stream.randomization = 'RANDOMWITHOUTREPLACEMENT'; % Randomize
-g.addRSVP(stream,'log',true,'duration',5*1000/c.screen.frameRate,'isi',15*1000/c.screen.frameRate); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
+% stream =design('ovc');           % Define a factorial with two fa0ctors
+% stream.fac1.grating.orientation = 0:30:359; % Assign orientations
+% stream.fac2.grating.contrast = [0 0.25 0.5 1]; % Contrasts including 0
+% stream.randomization = 'RANDOMWITHOUTREPLACEMENT'; % Randomize
+% g.addRSVP(stream,'log',true,'duration',5*1000/c.screen.frameRate,'isi',15*1000/c.screen.frameRate); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
 
 %% This is all you need for an rsvp stream. The rest is just to make it into a full experiment.
 
@@ -70,16 +73,16 @@ fix.tolerance       = 2;
 %% Define conditions and blocks
 % We will show the stream of gratings with different contrasts in each
 % trial.
-% fac=factorial('fac',1);           % Define a factorial with one factor
-% fac.fac1.grating.contrast = 0.1:0.2:1; % From 10 to 100% contrast
-% fac.randomization = 'RANDOMWITHOUTREPLACEMENT';
+% d=design('contrast');           % Define a factorial with one factor
+% d.fac1.grating.contrast = 0.1:0.2:1; % From 10 to 100% contrast
+% d.randomization = 'RANDOMWITHOUTREPLACEMENT';
 
 % Or (if the stream already varies contrast and orientation, we vary
 % nothing across trials).
-fac=factorial('fac',1);           % Define a factorial with one factor
+d=design('dummy');           % Define a factorial with one factor
 % Nothing to vary here but we need at least one condition
-fac.fac1.grating.X = 0; % Dummy
-blck=block('block',fac);                  % Define a block based on this factorial
+d.conditions(1).grating.X = 0; % Dummy
+blck=block('block',d);                  % Define a block based on this factorial
 blck.nrRepeats  =10;                        % Each condition is repeated this many times 
 
 %% Run the experiment   

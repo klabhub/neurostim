@@ -13,7 +13,6 @@ classdef (Abstract) adaptive < neurostim.plugin
     % BK - 11/2016
     
     properties (SetAccess=protected, GetAccess=public)
-        resultFun@function_handle;  % The function handle used to evaluate trial outcome
         uid@double= [];
     end
     
@@ -26,6 +25,8 @@ classdef (Abstract) adaptive < neurostim.plugin
     end
     
     methods
+        
+       
         function o = adaptive(c,funStr)
             % c= handle to CIC
             % fun = function string that evaluates to the outcome of the
@@ -38,50 +39,52 @@ classdef (Abstract) adaptive < neurostim.plugin
             nm = [caller{1} '_' num2str(u)]; % Child class
             % Create the object
             o=o@neurostim.plugin(c,nm);
-            o.addProperty('result','','validate',@ischar); % The function used to evaluate trial outcome. Specified by the user.
-            o.addProperty('condition','','validate',@ischar);% The condition that this adaptive parameter belongs to. Will be set by factorial.m
-            o.addProperty('targetPlugin','','validate',@ischar); % The plugin whose property is modulated by this adaptive object (set automatically in factorial; not used at runtime)
-            o.addProperty('targetProperty','','validate',@ischar);% The property that is modualted by this object. (Set automatically in factorial.m, not used at runtime) 
+            o.addProperty('trialOutcome','','validate',@(x) (ischar(x) && strncmpi(x,'@',1))); % The function used to evaluate trial outcome. Specified by the user.
+            o.addProperty('conditions',[]);% The condition that this adaptive parameter belongs to. Will be set by design.m
+            o.addProperty('design',''); % This parm belongs to paramters in this design. (Set by design.m)
             
             o.uid = u;
-            o.result = funStr;
-            o.resultFun =neurostim.utils.str2fun(o.result); % Store as function_handle too
+            o.trialOutcome = funStr;
             o.listenToEvent('AFTERTRIAL');
         end
         
-        function o= duplicateAdaptive(o1)
+        function belongsTo(o,dsgn,cond)
+            if ~isempty(o.design) && ~strcmpi(o.design,dsgn)
+                error('Not sure this works... one adaptive parm belongs to two designs?');
+            end
+            o.design = dsgn;
+            o.conditions = cat(1,o.conditions,cond);
+        end
+        
+        function o= duplicate(o1,nm)
             % Duplicate an adaptive parm ; requires setting a new unique
             % id.
-            u = randi(2^53-1);
-            newName = strrep(o1.name,num2str(o1.uid),num2str(u));
-            o =duplicate(o1,newName);
-            o.uid = u;
-        end
-        
-        function S= repmat(s,n,m)
-            % Duplicate the adaptive object. Need to define this because it
-            % is a handle, and we really need copies, not copies of the
-            % handles. (See factorial.m)
-            for i=1:n
-                for j=1:m
-                    if i==1 && j==1
-                        S(i,j)  = s; %#ok<AGROW> This is the original one.
-                    else
-                        S(i,j) = duplicateAdaptive(s) ; %#ok<AGROW> These are copies.
-                    end
+            if nargin<2
+                nm = 1;
+            end
+            if prod(nm)>1
+                for i=1:prod(nm)                
+                    o(i) = duplicate(o1) ; %#ok<AGROW> These are copies.                   
                 end
+                o = reshape(o,nm);
+            else
+                u = randi(2^53-1);
+                newName = strrep(o1.name,num2str(o1.uid),num2str(u));
+                o =duplicate@neurostim.plugin(o1,newName);
+                o.uid = u;
             end
         end
         
-        function afterTrial(s,c,~)
+        
+        function afterTrial(o,c,~)
             % This is called after cic sends the AFTERTRIAL event
-            % (in cic.run)
-            if strcmpi(c.conditionName,s.condition)
+            % (in cic.run)            
+             if strcmpi(c.design,o.design) && ismember(c.condition,o.conditions)% Check that this adaptive belongs to the current condition
                 % Only update if this adaptive object is assigned to the
                 % current condition. Call the derived class function to update it
-                correct = s.resultFun(s); % Evaluate the result function that the user provided.
-                update(s,correct); % Pass it to the derived class to update
+                correct = o.trialOutcome; % Evaluate the function that the user provided.
+                update(o,correct); % Pass it to the derived class to update                
             end
-        end
+        end 
     end
 end % classdef
