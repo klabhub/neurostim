@@ -81,7 +81,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             % (in cic.run)            
              if strcmpi(c.design,o.design) && ismember(c.condition,o.conditions)% Check that this adaptive belongs to the current condition
                 % Only update if this adaptive object is assigned to the
-                % current condition. Call the derived class function to update it
+                % current condition. Call the derived class function to update it                
                 correct = o.trialOutcome; % Evaluate the function that the user provided.
                 update(o,correct); % Pass it to the derived class to update                
             end

@@ -31,7 +31,7 @@ g.duration          = 500;
 d=design('orientation');
 d.fac1.grating.orientation = [-45 45];  % One factor (orientation)
 d.fac1.grating.X                = [-10 10];
-d.conditions(2,1).grating.contrast = 1; % Only the X=10 grating should have high contrast
+d.conditions(2,1).grating.contrast = '@1'; % Only the X=10 grating should have high contrast
 d.randomization = 'sequential';
 % Create a block for this design and specify the repeats per design
 myBlock=block('myBlock',d);

@@ -153,6 +153,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             for p=1:numel(dynProps)
                 pName = dynProps{p};
                 %TODO: postprocess/validate/set/get access
+                % TODO: update handles to plgin in prms
                 s.addProperty(pName,o.(pName));
             end
             o.cic.add(s);

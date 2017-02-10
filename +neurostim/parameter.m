@@ -8,6 +8,17 @@ classdef parameter < handle
     %       are automaritally logged whenever they change
     %
     %
+    % Each parameter installs a preget (getValue) and a postset (setValue) 
+    % callback handler on % the dynamic property in the plugin that this 
+    % parameter belongs to. 
+    % For instance, the grating.X dynamic property is associated with a
+    % parameter (stored as grating.prms.X) and each time a user requests
+    % grating.X, the getValue(gratings.prms.X) function is called. This
+    % function assigns the correct value to the dynamic property (for instance
+    % by evaluating a neurostim function). If the value changed it is logged. 
+    % Each time the  user assigns a value to the property, setValue(gratings.prms.X) is
+    % called, this logs the change in value.
+    %
     % BK - Feb 2017
     
     properties (Constant)
@@ -30,10 +41,8 @@ classdef parameter < handle
         capacity=0; % Capacity to store in log
         
         fun =[];        % Function to allow across parameter dependencies
-        validate =[];    % Validation function
-        
-        plg@neurostim.plugin; % Handle to the plugin that this belongs to.
-        
+        validate =[];    % Validation function        
+        plg@neurostim.plugin; % Handle to the plugin that this belongs to.        
         isFunResult@logical=false; % Used in getValue/setValue
     end
     
@@ -45,34 +54,25 @@ classdef parameter < handle
             
             if nargin>3
                 o.validate = valFun;
-            end
-            
+            end            
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % Parse the specified function and make it into an anonymous
                 % function.
                 o.fun = neurostim.utils.str2fun(v);
-                % Setup get listener so that we can do function call
-                % whenever this parameter is retrieved.
-                o.getListener  = p.addlistener(nm,'PreGet',@(src,evt)getValue(o,src,evt));
-                %o.value = v; % For now.. the function cannot be evaluated yet.
-            else
-                o.value =v;
             end
             
-            % Setup a listener to log and validate changes
+            % Setup listeners to get, log, and validate changes
+            o.getListener  = p.addlistener(nm,'PreGet',@(src,evt)getValue(o,src,evt));             
             o.setListener = p.addlistener(nm,'PostSet',@(src,evt)setValue(o,src,evt));
-            o.plg.(nm) = v;
+            o.value = v; % Store the current value in this paramter object
+            o.plg.(nm) = v; % Assign the current value to the dynamic property. This is done to log the current value.
         end
         
-        function assign(o,v)
-            % Assign  and Log
-            o.value =v; % Assign here
-            o.setListener.Enabled = false; % Don't call set again
-            o.plg.(o.name) = v;% Assign to dynamic property
-            o.setListener.Enabled = true;
-            t = o.plg.cic.clockTime;
-            
+        function storeInLog(o,v)
+            % Store and Log
+            o.value =v; 
+            t = o.plg.cic.clockTime;            
             o.cntr=o.cntr+1;
             % Allocate space if needed
             if o.cntr> o.capacity
@@ -82,15 +82,27 @@ classdef parameter < handle
                 o.capacity = numel(o.log);
             end
             %% Fill the log.
-            o.log{o.cntr}  = o.value;
+            o.log{o.cntr}  = v;
             o.time(o.cntr) = t;
             o.trial(o.cntr)= o.plg.cic.trial;
         end
         
-        % This function can be called after a get to evaluate a function
+        % This function is called before the dynprop is used somewhere in the code.
+        % It allows us to evaluate functions. 
         function [v,ok] = getValue(o,src,evt) %#ok<INUSD>
-            
-            if o.plg.cic.stage >o.plg.cic.SETUP
+            if isempty(o.fun)
+                % Simple value.
+                % In principle this could be stored directly in the
+                % dynprop, but then we'd have to keep track of parameters
+                % with and without listeners. 
+                v= o.value;  
+                o.setListener.Enabled = false; % Avoid a 'postset' call                      
+                o.plg.(o.name) = v; % Assign the current value to the dynprop                
+                o.setListener.Enabled = true; % Avoid a 'postset' call            
+                ok = true;
+            elseif o.plg.cic.stage >o.plg.cic.SETUP 
+                % We've passed SETUP phase, function evaluaton should be
+                % possible.
                 v=o.fun(o.plg); % Evaluate the function
                 o.isFunResult =true; % A flag to allow the setValue function to detect
                 % whether it is being called from here (to log the outcome of
@@ -102,47 +114,34 @@ classdef parameter < handle
                 o.plg.(o.name) = v;
                 o.isFunResult =false;
                 ok = true;
-            else
-                % Not all objects have been setup so function may not work
-                % yet. Evaluate to NaN for now
+            else  % -a  function but not all objects have been setup so 
+                % function evaluation may not work yet. Evaluate to NaN for now
+                % We don't actually assign this to the dynprop.
                 v = NaN;
                 ok = false;
-            end
-            
+            end            
         end
         
-        % This function is called after each parametr set to validate
+        % This function is called after each parametr set       
         function v = setValue(o,src,evt) %#ok<INUSD>
-            % Get the value that the dynprop was just set to.
-            if ~isempty(o.getListener)
-                o.getListener.Enabled = false; % Avoid a 'preget' call
-            end
+            % First, retrieve the value that the dynprop was just set to.            
+            o.getListener.Enabled = false; % Avoid a 'preget' call            
             v= o.plg.(o.name); % The raw value that has just been set
-            if ~isempty(o.getListener)
-                o.getListener.Enabled = true; % Allow preget calls again
-            end
+            o.getListener.Enabled = true; % Allow preget calls again                                    
             ok = true; % Normally ok; only function evals can be not ok.
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % Parse the specified function and make it into an anonymous
                 % function.
                 o.fun = neurostim.utils.str2fun(v);
-                if isempty(o.getListener)
-                    % Parm has only now become a function. Need to add a getListener.
-                    o.getListener  = o.plg.addlistener(o.name,'PreGet',@(src,evt)getValue(o,src,evt));
-                else
-                    %- nothing to do; same listener will work with the new
-                    %o.fun
-                end%
                 % Evaluate the function (without calling set again)
                 o.setListener.Enabled = false;
                 [v,ok]= getValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
                 o.setListener.Enabled = true;
-            elseif ~o.isFunResult && ~isempty(o.getListener)
+            elseif ~o.isFunResult 
                 % This is currently a function, and someone is overriding
-                % the parameter with a non-function value
-                o.fun = [];
-                delete(o.getListener); % No longer needed.
+                % the parameter with a non-function value. Remove the fun.
+                o.fun = [];                
             end
             
             % validate
@@ -152,7 +151,7 @@ classdef parameter < handle
             
             if ok
                 % assign in this object, log, and assign to dynamic prop.
-                assign(o,v); % Log and store in this parameter object
+                storeInLog(o,v); % Log and store in this parameter object
             end
         end
         
@@ -173,13 +172,12 @@ classdef parameter < handle
             o.default = o.value;
         end
         
-        function setDefaultToCurrent(o)
-            if isempty(o.fun)
-                % Put the default back as the current value
-                % but not for functions as that would overwrite the
-                % function definition.
-                assign(o,o.default);
-            end
+        function setDefaultToCurrent(o)          
+            % Put the default back as the current value
+            o.plg.(o.name) = o.default;
+            % We are doing this even for @function defaults, which is
+            % consistent but it takes more time presumably (to parse etc).
+            % Because this is done in the ITI it probably does not matter.            
         end
         
         %% Functions to extract parm values from the log
@@ -253,7 +251,11 @@ classdef parameter < handle
                 %
                 out  =isnan(ix);
                 ix(out)=1;
-                data=data(ix);
+                if iscell(data)
+                    data=data(ix);
+                else
+                    data = data(ix,:);
+                end
                 trial = 1:maxTrial; % The trial where the event set came from is trial(ix);
                 time = time(ix);
                 trialTime = trialTime(ix);
@@ -276,9 +278,9 @@ classdef parameter < handle
             if ~isempty(p.Results.trial)
                 stay = ismember(trial,p.Results.trial);
                 data=data(stay);
-                trial = trial(stay); 
+                trial = trial(stay);
                 time = time(stay);
-                trialTime = trialTime(stay);                
+                trialTime = trialTime(stay);
             end
             
             

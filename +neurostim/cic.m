@@ -131,6 +131,7 @@ classdef cic < neurostim.plugin
         trialTime;      % Time elapsed (ms) since the start of the trial
         fullNrTrials;   % Number of trials total (all blocks)   
         conditionID;    % Unique id for a condition - used by adaptive
+        date;           % Date of the experiment.
     end
     
     %% Public methods
@@ -165,6 +166,9 @@ classdef cic < neurostim.plugin
         end
         function v = get.fullFile(c)
             v = fullfile(c.dirs.output,datestr(c.startTime,'YYYY/mm/DD'),c.file);
+        end
+        function v=get.date(c)
+            v=datestr(c.startTime,'DD mmm YYYY');
         end
         function v=get.subject(c)
             if length(c.subjectNr)>1

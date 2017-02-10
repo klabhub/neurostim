@@ -392,7 +392,7 @@ classdef design <handle
                         if size(ix,2) ==1
                             ix = [ix ones(numel(ix),1)]; % NEed this below for comparison with size(conditionSpecs)
                         end
-                        if any(max(ix)>lvls)
+                        if any(max(ix,[],1)>lvls)
                             error(['Some conditions do not fit in the [' num2str(lvls) '] factorial. Use a separate design for these conditions']);
                         end
                         %% Everything should match, lets assign
