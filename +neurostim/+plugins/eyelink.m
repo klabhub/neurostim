@@ -98,7 +98,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                result = Eyelink('Command', o.commands{i}); %TODO: handle results
             end
             
-            % open file to record data to
+            % open file to record data to (will be renamed on copy)
             [~,tmpFile] = fileparts(tempname);
             o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
             Eyelink('Openfile', o.edfFile);
@@ -114,8 +114,14 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('CloseFile');
             try
                 writeToFeed(o,'Attempting to receive Eyelink edf file');
-                status=Eyelink('ReceiveFile',o.edfFile,[c.fullFile '.edf']); %change to OUTPUT dir
-                writeToFeed(o,'Success.');
+                newFileName = [c.fullFile '.edf'];
+                status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir               
+                if status>0
+                    o.edfFile = newFileName; 
+                    writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
+                else
+                    writeToFeed(o,['Fail: EDF file did not transfer ' num2str(status)]);
+                end
             catch
                 error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
             end

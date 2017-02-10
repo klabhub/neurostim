@@ -20,11 +20,8 @@ classdef stimulus < neurostim.plugin
     %
     %
     %TODO: Should we have a small class for storing durations in both
-    %frames and msec in a dependent way? used for "on", 
+    %frames and msec in a dependent way? used for "on",
     
-    properties (SetAccess = public,GetAccess=public)
-        quest@struct;
-    end
     properties (SetAccess=private,GetAccess=public)
         beforeFrameListenerHandle =[];
         afterFrameListenerHandle =[];
@@ -104,103 +101,17 @@ classdef stimulus < neurostim.plugin
             s.addProperty('userData',[]);
             
             %% internally-set properties
-            s.addProperty('startTime',Inf,'SetAccess','protected');   % first time the stimulus appears on screen
-            s.addProperty('stopTime',Inf,'SetAccess','protected');   % first time the stimulus does NOT appear after being run
-      
+            s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
+            s.addProperty('stopTime',Inf);   % first time the stimulus does NOT appear after being run
+            
             s.rsvp.active= false;
-            s.rsvp.design =neurostim.factorial('dummy',1);
+            s.rsvp.design =neurostim.design('dummy');
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
         end
-        
-        % Setup threshold estimation for one of the parameters. The user
-        % has to call answer(s,true/false) to update the adaptive estimation
-        % procedure. One estimator will be created for each condition so
-        % this function should only be called after calls to addFactorial
-        % and addCondition.
-        function setupThresholdEstimation(s,prop,method,varargin)
-            
-            % Measure threshold for a certain parm.
-            % Interpret the input. Defaults are set as recommended for
-            % QUEST. See Quest and Quest Create
-            p = inputParser;
-            p.addParameter('guess',-1);   % Initial guess for the parameter
-            p.addParameter('guessSD',2);  %SD of the initial guess (i.e. prior)
-            p.addParameter('threshold',0.82); %Target threshold
-            p.addParameter('beta',3.5); % Steepness of assumed Weibull
-            p.addParameter('delta',0.01); % Fraction of blind presses
-            p.addParameter('gamma',0.5); % Fraction of trials that will generate response yes for intensity = -inf. (chance level)
-            p.addParameter('grain',0.01); % Discretization of the range
-            p.addParameter('range',5); % Range centered on guess.
-            p.addParameter('plotIt',false);
-            p.addParameter('normalizePdf',1);
-            p.addParameter('i2p',@(x)(x)); % Postprocess the 'intensity' returned by Quest with this function 
-            p.addParameter('p2i',@(x)(x));
-            p.parse(varargin{:});
-            switch upper(method)
-                case 'QUEST'
-                    s.quest       = struct('prop',prop,'q',QuestCreate(p.Results.guess,p.Results.guessSD,p.Results.threshold,p.Results.beta,p.Results.delta,p.Results.gamma,p.Results.grain,p.Results.range,p.Results.plotIt));                         
-                otherwise
-                    error('NIY');
-            end
-            
-            s.quest.i2p = p.Results.i2p;
-            s.quest.p2i = p.Results.p2i;
-            
-            % Install a PreGet event listener to update the dynamic
-            % property for this parameter just before it is returned to the
-            % caller.
-            h= findprop(s,prop);
-            if isempty(h)
-                error(['There is no  ' prop ' parameter in ' s.name '. Please add it before defining a threshold estimation procedure']);
-            end
-            h.GetObservable = true;
-            h.SetObservable = false;
-            s.addlistener(prop,'PreGet',@(src,evt)updateAdaptive(s,src,evt));
-        end
-        
-        % Clients should call this to inform the adaptive method whether
-        % the answer (in response to the current intensity) was correct or
-        % not.
-        function answer(s,correct)
-            parmValue = s.(s.quest.prop);
-            intensity = s.quest.p2i(parmValue);
-            s.quest.q(s.cic.condition) =QuestUpdate(s.quest.q(s.cic.condition),intensity,correct); % Add the new datum .
-        end
-        
-        % This is called before returning the current value for the
-        % adaptive method. Basically the function retrieves teh current
-        % proposed intensity from the adaptive method and places it in the
-        % dynamic property.
-        function updateAdaptive(s,src,~)
-            cond = s.cic.condition;
-            if ~isnan(cond)
-                s.(src.Name) = s.quest.i2p(QuestQuantile(s.quest.q(cond)));                
-            end
-        end
-        
-        function [m,sd,values]= threshold(s)
-            % Return the estimated thresholds for all conditions
-            % m = threshold estimate  (QuestMean)
-            % sd = standard deviation estimate (QuestStd)
-            % values = Cell array with one vector per condition containing
-            %               all  parameter values used in the experiment
-            if isempty(s.quest)
-                m= [] ;
-            else
-                m =QuestMean(s.quest.q);
-                sd = QuestSd(s.quest.q);
-                m= s.quest.i2p(m);
-                sd = s.quest.i2p(sd);% Not sure this is correct,...
-                values=cell(1,numel(s.quest.q));
-                for i=1:numel(s.quest.q)
-                    values{i}= s.quest.i2p(s.quest.q(i).intensity(1:s.quest.q(i).trialCount)'); 
-                end
-            end
-        end      
     end
     
     methods (Access= public)
@@ -224,7 +135,7 @@ classdef stimulus < neurostim.plugin
             %           addRSVP(s,design,varargin)
             %
             %           Rapid Serial Visual Presentation
-            %           design is a factoral design (See factorial.m) specifying the parameter(s) to be
+            %           design is a factoral design (See design.m) specifying the parameter(s) to be
             %           manipulated in the stream.
             %
             %           optionalArgs = {'param1',value,'param2',value,...}
@@ -233,12 +144,12 @@ classdef stimulus < neurostim.plugin
             %
             %           'duration'  [100]   - duration of each stimulus in the sequence (msec)
             %           'isi'       [0]     - inter-stimulus interval (msec)
-            %           'log'       [false] - Log isi start and stop. For rapid changes this can require a lot of memory. 
+            %           'log'       [false] - Log isi start and stop. For rapid changes this can require a lot of memory.
             
             p=inputParser;
-            p.addRequired('design',@(x) (isa(x,'neurostim.factorial')));
+            p.addRequired('design',@(x) (isa(x,'neurostim.design')));
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
-            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);   
+            p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
             p.addParameter('log',false,@islogical);
             p.parse(design,varargin{:});
             flds = fieldnames(p.Results);
@@ -247,54 +158,47 @@ classdef stimulus < neurostim.plugin
             end
             
             %Elaborate the factorial design into (sub)condition lists for RSVP
-            setupExperiment(s.rsvp.design);
+            s.rsvp.design.shuffle;
             s.rsvp.log = p.Results.log;
-            s.rsvp.active = true;    
-        end        
+            s.rsvp.active = true;
+        end
     end
     
-
+    
     methods (Access=private)
         
-        function s = updateRSVP(s,c)
-            
+        function s = updateRSVP(s,c)            
             %How many frames for item + blank (ISI)?
-            nFramesPerItem = c.ms2frames(s.rsvp.duration+s.rsvp.isi);
-            
+            nFramesPerItem = c.ms2frames(s.rsvp.duration+s.rsvp.isi);            
             %How many frames since the RSVP stream started?
-            rsvpFrame = c.frame-s.onFrame;
-            
-            %Which item in the sequence are we up to?
-            itemNum = floor(rsvpFrame./nFramesPerItem);
-            
+            rsvpFrame = c.frame-s.onFrame; 
             %Which item frame are we in?
-            itemFrame = mod(rsvpFrame, nFramesPerItem);
-            
-            %If at the start of a new element, update param values
+            itemFrame = mod(rsvpFrame, nFramesPerItem);            
+            %If at the start of a new element, move the design to the 
+            % next "trial" 
             if itemFrame==0
-                curCondInd = mod(itemNum,s.rsvp.design.nrConditions)+1;
-                specs = s.rsvp.design.conditions(s.rsvp.design.list(curCondInd));
-                for g=1:3:numel(specs)
-                    s.(specs{g+1}) = specs{g+2};
+                ok = nextTrial(s.rsvp.design);
+                if ~ok
+                    % Ran out of "trials"
+                    s.rsvp.design.shuffle; % Reshuffle the list 
+                end                
+                % Get current specs and apply
+                specs = s.rsvp.design.specs;
+                for sp=1:size(specs,1)
+                    s.(specs{sp,2}) = specs{sp,3};
                 end
             end
             
             %Blank now if it's time to do so.
-            nowOn = s.flags.on;
             startIsiFrame = c.ms2frames(s.rsvp.duration);
             s.flags.on = itemFrame < startIsiFrame;  % Blank during rsvp isi
-            if s.rsvp.log 
+            if s.rsvp.log
                 if itemFrame == 0
                     s.rsvpIsi = false;
                 elseif itemFrame==startIsiFrame;
                     s.rsvpIsi = true;
                 end
-            end
-            
-            %If this item is the last condition in the factorial, reshuffle conditions
-            if itemNum==s.rsvp.design.nrConditions-1
-                s.rsvp.design.reshuffle;
-            end
+            end            
         end
         
         function setupDiode(s)
@@ -318,12 +222,12 @@ classdef stimulus < neurostim.plugin
         
     end
     
-     %% Methods that the user cannot change.
+    %% Methods that the user cannot change.
     % These are called by CIC for all stimuli to provide
     % consistent functionality. Note that @stimulus.baseBeforeXXX is always called
     % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
     % the derived class an oppurtunity to respond to changes that this
-    % base functionality makes.   
+    % base functionality makes.
     methods (Access=public)
         
         function baseEvents(s,c,evt)
@@ -341,7 +245,7 @@ classdef stimulus < neurostim.plugin
                     end
                     if  s.angle ~=0
                         Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
-                    end 
+                    end
                     
                     %Should the stimulus be drawn on this frame?
                     s.flags.on = c.frame>=s.onFrame && c.frame <s.offFrame;
@@ -363,7 +267,7 @@ classdef stimulus < neurostim.plugin
                     if c.frame==s.offFrame
                         s.logOffset=true;
                     end
-                   
+                    
                     %If the stimulus should be drawn on this frame:
                     if s.flags.on
                         %If this is the first frame that the stimulus will be drawn, register that it has started.
@@ -398,7 +302,7 @@ classdef stimulus < neurostim.plugin
                     %                         s.addRSVP(s.rsvp{:})
                     %                     end
                     if s.rsvp.active
-                        s.rsvp.design.reshuffle; % Reshuffle each trial
+                        s.rsvp.design.shuffle; % Reshuffle each trial
                     end
                     
                     %Reset variables here?
@@ -429,9 +333,6 @@ classdef stimulus < neurostim.plugin
                         end
                     end
                     
-                    if ~isempty(s.quest)
-                        s.quest.q =repmat(s.quest.q,[1 s.cic.nrConditions]);
-                    end
                     if s.diode.on
                         setupDiode(s);
                     end
@@ -441,7 +342,7 @@ classdef stimulus < neurostim.plugin
                     notify(s,'BEFOREEXPERIMENT');
                     
                 case 'BASEAFTEREXPERIMENT'
-                    notify(s,'AFTEREXPERIMENT');     
+                    notify(s,'AFTEREXPERIMENT');
             end
         end
     end

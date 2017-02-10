@@ -1,24 +1,26 @@
 %% 
 % Tilt AfterEffect Example
 % 
-% Data recorded with this experiment can be analyzed with the anaTae script
+% Data recorded with this experiment can be analyzed with the anaTae
+% script.
+%  The experiment starts once the subject fixates the red dot (use the
+%  mouse), and the task is to determine whether the second grating
+%  presented in a trial is clockwise (press 'l') or counterclockwise (press
+%  'a') from vertical.
+% 
+% The first trial has a long adapter, successive trials have short top-up
+% adapter. The first block has CCW adaptation, the second block CW.
 %
 % BK - Feb 2016
 
-%TODO 
-% Dimming task (generic?)
-% Add stimulation
 
-
-%% Prerequisites. 
 import neurostim.*
-
 
 %% Setup CIC and the stimuli.
 c = myRig;                            % Create Command and Intelligence Center...
   
 
-% Create a Gabor stimulus to adadot. 
+% Create a Gabor stimulus to adapt. 
 g=stimuli.gabor(c,'adapt');           
 g.color             = [0.5 0.5 0.5];
 g.contrast          = 0.5;
@@ -32,44 +34,17 @@ g.frequency         = 3;
 g.duration          = 1500;
 g.on                = '@fixation.startTime +250'; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
 
-% g2=stimuli.gabor(c,'testGabor');           
-% g2.color             = [0.5 0.5 0.5];
-% g2.contrast          = 0.5;
-% g2.Y                 = 0; 
-% g2.X                 = 0;
-% g2.sigma             = 3;                       
-% g2.phaseSpeed        = 0;
-% g2.orientation       = 15;
-% g2.mask              ='CIRCLE';
-% g2.frequency         = 3;
-% g2.duration          = 500;
-% g2.on                = '@adapt.off +1000';; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
-
-
 % Duplicate the Gabor serve as a test stimulus 
  g2= duplicate(g,'testGabor');
  g2.contrast         = 0.25;  
  g2.on               = '@adapt.off +250';    % Leave a 250 ms blank between adapt and test
  g2.duration         = 500;                  % Show test for 500 ms
 
-% Convpoly to create a dimming task
-% circle = stimuli.convPoly(c,'dimmer');
-% circle.radius       = '@testGabor.sigma';
-% circle.X            = 0;
-% circle.Y            = 0;
-% circle.nSides       = 100;
-% circle.filled       = true;
-% circle.color        = 0;'@[0.5 0.5 0.5 0.8*randi(60)>35]';
-% circle.on           = Inf;'@adapt.on';
-
-
-
-
 % Red fixation point
 f = stimuli.fixation(c,'reddot');       % Add a fixation point stimulus
 f.color             = [1 0 0];
 f.shape             = 'CIRC';           % Shape of the fixation point
-f.size              = 0.1;
+f.size              = 0.25;
 f.X                 = 0;
 f.Y                 = 0;
 f.on                = 0;                % On from the start of the trial
@@ -92,47 +67,92 @@ k.deadline          = Inf;                      % There is no time pressure to g
 k.keys              = {'a' 'l'};
 k.keyLabels         = {'ccw', 'cw'};
 % Trial ends when the choice has been made.
-c.trialDuration = '@ choice.stopTime';           % The trial duration ( a cic property) is linked to the end of the choice; once a choice is made, the trial ends. 
+c.trialDuration = '@choice.stopTime';           % The trial duration ( a cic property) is linked to the end of the choice; once a choice is made, the trial ends. 
 
 %% Define conditions and blocks
 % We want to show a 70 degree adapter for 30 seconds, then run a block of
 % top-up trials with the same adapter, then 110 degree adpater and a block
 % of top-up trials. 
-
-
+longAdapt  =1000;
+shortAdapt = 300;
+nrRepeats   = 5;
 % Lets' first define the standard top-up blocks
 
-cw=factorial('cw',1);           % Define a factorial with one factor
+cw=design('cw');           % Define a factorial with one factor
 cw.fac1.testGabor.orientation  = 90+(-3:1:3); % Test Orientation. This defines the levels of factor 1 (7, with different orientations for the test)
-cw.fac1.adapt.orientation      = 0;          % We make sure that the adapt stimulus has the correct orientation. Using a single level for a property means it will be used for all levels of the factor.  
-cw.fac1.adapt.duration          = 3000;       % Make sure the adapter duration is 3s.
+cw.conditions(:).adapt.orientation      = 70;          % We make sure that the adapt stimulus has the correct orientation. Using a single level for a property means it will be used for all levels of the factor.  
+cw.conditions(:).adapt.duration          = shortAdapt;       % Make sure the adapter duration is 3s.
 cwBlock=block('cwBlock',cw);                  % Define a block based on this factorial
-cwBlock.nrRepeats  =5;                        % Each condition is repeated this many times 
+cwBlock.nrRepeats  =nrRepeats;                        % Each condition is repeated this many times in the block 
 
 % Now the block with the 110 degree adapter.
-ccw=factorial('ccw',1); 
+ccw=design('ccw'); 
 ccw.fac1.testGabor.orientation    = 90+(-3:1:3); % Test Orietation
-ccw.fac1.adapt.duration           = 3000;
-ccw.fac1.adapt.orientation        = 90;
+ccw.conditions(:).adapt.duration           = shortAdapt;
+ccw.conditions(:).adapt.orientation        = 110;
 ccwBlock=block('ccwBlock',ccw);
-ccwBlock.nrRepeats = 10;
+ccwBlock.nrRepeats = nrRepeats;
 
 % Now we define a "block" consisting of a single condition: the long
 % adapter. 
-longCwFac=factorial('longAdaptCw',1);  % Define a factorial with a single factor 
-longCwFac.fac1.adapt.duration =         10000;  % Adapter duration  - single condition
-longCwFac.fac1.adapt.orientation =      0;  % Adapter orientation 
+longCwFac=design('longAdaptCw');  % Define a factorial with a single factor 
+longCwFac.conditions(1).testGabor.orientation    = 90; % Test Orietation
+longCwFac.conditions(1).adapt.duration =         longAdapt;  % Adapter duration  - single condition
+longCwFac.conditions(1).adapt.orientation =      70;  % Adapter orientation 
 longCwBlock = block('longAdaptCw',longCwFac);
 longCwBlock.nrRepeats = 1;              % We'll only show this condition once. 
+longCwBlock.beforeMessage = 'Press any key to start block 1';
 
-longCcwFac=factorial('longAdaptCcw',1); 
-longCcwFac.fac1.adapt.duration= 10000;  % Adapter duration
-longCcwFac.fac1.adapt.orientation = 110;  % Adapter orientation
+longCcwFac=design('longAdaptCcw'); 
+longCcwFac.conditions(1).testGabor.orientation  = 90; % Test Orietation
+longCcwFac.conditions(1).adapt.duration= longAdapt;  % Adapter duration
+longCcwFac.conditions(1).adapt.orientation = 110;  % Adapter orientation
 longCcwBlock = block('longAdaptCCw',longCcwFac);
 longCcwBlock.nrRepeats = 1;
+longCcwBlock.beforeMessage= 'Press any key to start block 2';
 
 %% Run the experiment   
-% Now tell CIC how we want to run these blocks (blocks are sequential,
+% Now tell CIC how we want to run these blocks (blocks are sequential
 % conditions within a block are randomized by default)
-%c.run(longCwBlock,cwBlock,longCcwBlock,ccwBlock);
- c.run(cwBlock);
+c.run(longCwBlock,cwBlock,longCcwBlock,ccwBlock);
+
+%% Analyze the data
+if c.nrTrials <10
+    return;
+end
+
+%% Retrieve parameters and responses from the CIC object.
+[cw,tr]  = get(c.choice.prms.pressedInd,'atTrialTime',inf); % Last value in the trial is the answer
+stayTr = find(~cellfun(@isempty,cw)); % Some could be empty
+cw = [cw{:}]==2; % 2 means CW.
+% Get values from the trials where we have key presses. (And values after
+% the start of the stimulus to make sure we get the values that were
+% actually used. 'atTrialTime', inf would work too.
+testOrientation =get(c.testGabor.prms.orientation,'after','startTime','trial',stayTr); 
+adaptOrientation = get(c.adapt.prms.orientation,'after','startTime','trial',stayTr);
+
+%% Pull adapt and test apart,
+uA = unique(adaptOrientation);
+uT = unique(testOrientation);
+figure;
+hold on
+cCntr=0;
+for a=uA(:)'
+    stayA= adaptOrientation ==a;
+    cCntr=cCntr+1;
+    rCntr= 0;
+    for t =uT(:)'
+        rCntr= rCntr+1;
+    stayT = testOrientation ==t;
+        fracCw(rCntr,cCntr) = mean(cw(stayA& stayT));
+    end
+end
+
+%% Graph
+% Plot the percentage of trials with the CW response
+% for each test orienation, separately for the CW and CCW adapter
+plot(uT,100*fracCw,'.-');
+xlabel 'Test Ori (\circ)'
+ylabel '%CW'
+title ('Tilt After Effect')
+legend(num2str(uA(:)))

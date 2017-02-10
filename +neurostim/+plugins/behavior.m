@@ -48,10 +48,10 @@ classdef behavior < neurostim.plugin
             o.addProperty('deadline',Inf,'validate',@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
             
             %Internal use only       
-            o.addProperty('startTime',false,'SetAccess','protected');      %The time at which the behaviour was initiated (i.e. in progress).
-            o.addProperty('stopTime',false,'SetAccess','protected');        %The time at which a result was achieved (good or bad).
-            o.addProperty('success',false,'SetAccess','protected');     %Set to true if the behavior was completed correctly
-            o.addProperty('outcome',false,'SetAccess','protected');     %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
+            o.addProperty('startTime',false);      %The time at which the behaviour was initiated (i.e. in progress).
+            o.addProperty('stopTime',false);        %The time at which a result was achieved (good or bad).
+            o.addProperty('success',false);     %Set to true if the behavior was completed correctly
+            o.addProperty('outcome',false);     %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
             
             o.listenToEvent({'BEFORETRIAL','AFTERTRIAL','AFTERFRAME'});
         end

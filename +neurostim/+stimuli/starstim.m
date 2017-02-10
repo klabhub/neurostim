@@ -36,20 +36,22 @@ classdef starstim < neurostim.stimulus
         % stimulation template and (optional) the fake
         % boolean to simulate a StarStim device).
         function [o] = starstim(c,h,tmplate,fake)
-           if nargin<2
+           if nargin<4
                 fake= false;
            end            
-           o=o@neurostim.stimulus(c,'starstim');           
+           o=o@neurostim.stimulus(c,'starstim');   
+           
+           if isempty(h)
+               h = 'localhost';
+           end
            o.addProperty('host',h,'validate',@ischar,'SetAccess','protected');
            o.addProperty('template',tmplate,'validate',@ischar,'SetAccess','protected');
            o.addProperty('fake',fake,'validate',@islogical,'SetAccess','protected');
            o.addProperty('z',NaN,'validate',@isnumeric,'SetAccess','protected');
-           o.addProperty('channel','validate',@isnumeric);
-           o.addProperty('startTime','validate',@isnumeric);
-           o.addProperty('duration','validate',@isnumeric);
-           o.addProperty('amplitude','validate',@isnumeric);
-           o.addProperty('transition','validate',@isnumeric);
-           o.addProperty('frequency','validate',@isnumeric);
+           o.addProperty('channel',[],'validate',@isnumeric);
+           o.addProperty('amplitude',[],'validate',@isnumeric);
+           o.addProperty('transition',[],'validate',@isnumeric);
+           o.addProperty('frequency',[],'validate',@isnumeric);
            
            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME'});
 
@@ -60,7 +62,7 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 o.writeToFeed(['Starstim fake conect to ' h]);
             else
-                [ret, sttus, o.sock] = MatNICConnect(o.host);
+                [ret, ~, o.sock] = MatNICConnect(o.host);
                 o.checkRet(ret,'Host');
                 ret = MatNICLoadTemplate(o.template, o.sock);
                 o.checkRet(ret,'Template');
@@ -95,8 +97,10 @@ classdef starstim < neurostim.stimulus
         end
 
         function beforeFrame(o,c,evt)
-            startNow = o.startTime >= 
-            
+          if o.canStimulate
+            o.tacs(o.amplitude,o.channel,o.transition,o.duration,o.frequency);
+          end
+          
         end
     end
     

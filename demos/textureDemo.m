@@ -42,7 +42,7 @@ p.parse(varargin{:});
 %
 % rig configuration
 %
-c = myRig();
+c = myRig;
 c.screen.color.background = [0.5 0.5 0.5];
 
 %
@@ -65,7 +65,7 @@ switch p.Results.demo,
     f.add(1,round(255*img));
         
     % optional rsvp...
-    rsvp = factorial('rsvp',1);
+    rsvp = design('rsvp');
     rsvp.randomization = 'SEQUENTIAL';
     rsvp.fac1.texture.angle = linspace(0,360,N);
   case 2,
@@ -79,7 +79,7 @@ switch p.Results.demo,
     end
     
     % optional rsvp...
-    rsvp = factorial('rsvp',1);
+    rsvp = design('rsvp');
     rsvp.randomization = 'SEQUENTIAL';
     rsvp.fac1.texture.id = f.texIds; %1:N;
   otherwise,
@@ -97,19 +97,19 @@ f.on = 0;
 if p.Results.rsvp,
   f.addRSVP(rsvp,'duration',50,'isi',0); % 50ms presentations...
   c.trialDuration = N*50;
-else,
+else
   c.trialDuration = 1000;
 end
 
 c.iti = 1000;
 
 % factorial design
-fac = factorial('factorial',1);
-fac.randomization = 'SEQUENTIAL';
-fac.fac1.texture.id = f.texIds;
+d = design('factorial');
+d.randomization = 'SEQUENTIAL';
+d.fac1.texture.id = f.texIds;
 
 % specify a block of trials
-blk = block('block',fac);
+blk = block('block',d);
 blk.nrRepeats = 10;
 
 % now run the experiment...

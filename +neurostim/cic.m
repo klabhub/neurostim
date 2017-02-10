@@ -1,4 +1,4 @@
-% Command and Intelligence Center for Neurostim using PsychToolBox.
+ % Command and Intelligence Center for Neurostim using PsychToolBox.
 % See demos directory for examples
 %  BK, AM, TK, 2015
 classdef cic < neurostim.plugin
@@ -35,7 +35,7 @@ classdef cic < neurostim.plugin
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
-        FRAMESLACK = 0.05; % Allow x% jitter in screen flip time.
+        FRAMESLACK = 0.05; % Allow x% slack in screen flip time.
     end
     
     %% Public properties
@@ -44,8 +44,7 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
         
-        dirs                    = struct('root','',...
-            'output','')  % Output is the directory where files will be written
+        dirs                    = struct('root','','output','')  % Output is the directory where files will be written
         subjectNr@double        = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
@@ -67,8 +66,7 @@ classdef cic < neurostim.plugin
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
-        jitterList              = struct('plugin',[],'prop',[],'prms',[],'dist',[],'bounds',[],'size',[]);
-    end
+  end
     
     %% Protected properties.
     % These are set internally
@@ -121,20 +119,18 @@ classdef cic < neurostim.plugin
     properties (Dependent)
         nrStimuli;      % The number of stimuli currently in CIC
         nrConditions;   % The number of conditions in this experiment
-        nrTrials;       % The number of trials in this experiment (TODO: currently, this is actually the number of trials for the current BLOCK)
+        nrTrials;       % The number of trials in the current block
         center;         % Where is the center of the display window.
         file;           % Target file name
         fullFile;       % Target file name including path
         subject@char;   % Subject
         startTimeStr@char;  % Start time as a HH:MM:SS string
         cursor;         % Cursor 'none','arrow'; see ShowCursor
-        conditionName;  % The name of the current condition.
         blockName;      % Name of the current block
         defaultPluginOrder;
         trialTime;      % Time elapsed (ms) since the start of the trial
-        fullNrTrials;   % Number of trials total (all blocks)
-        nrJittered;     % Number of jittered parameters
-        
+        fullNrTrials;   % Number of trials total (all blocks)   
+        conditionID;    % Unique id for a condition - used by adaptive
     end
     
     %% Public methods
@@ -156,13 +152,6 @@ classdef cic < neurostim.plugin
         end
         function v= get.nrConditions(c)
             v = sum([c.blocks.nrConditions]);
-        end
-        function v= get.nrJittered(c)
-            if isempty(c.jitterList(1).plugin)
-                v = 0;
-            else
-                v = numel(c.jitterList);
-            end
         end
         function v = get.center(c)
             [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
@@ -186,17 +175,15 @@ classdef cic < neurostim.plugin
                 v= num2str(c.subjectNr);
             end
         end
-        
-        function v = get.conditionName(c)
-            v = c.blocks(c.block).conditionName;
-        end
-        
+               
         function v = get.blockName(c)
             v = c.blocks(c.block).name;
         end
         
         function set.subject(c,value)
-            if ischar(value)
+            if isempty(value)
+                c.subjectNr =0;
+            elseif ischar(value)
                 asDouble = str2double(value);
                 if isnan(asDouble)
                     % Someone using initials
@@ -310,7 +297,7 @@ classdef cic < neurostim.plugin
             end
             for a = 1:numel(c.pluginOrder)
                 o = c.(c.pluginOrder{a});
-                
+                 
                 for i=1:length(o.evts)
                     if isa(o,'neurostim.plugin')
                         % base events allow housekeeping before events
@@ -408,17 +395,15 @@ classdef cic < neurostim.plugin
             c.addKey('n',@keyboardResponse,'Next Trial');
             
             
-            
-            c.addProperty('frameDrop',[],'SetAccess','protected');
-            
-            c.addProperty('trialStartTime',[],'SetAccess','protected');
-            c.addProperty('trialStopTime',[],'SetAccess','protected');
-            c.addProperty('condition',[],'SetAccess','protected','AbortSet',false);
-            c.addProperty('factorial',[],'SetAccess','protected','AbortSet',false);
-            c.addProperty('block',0,'SetAccess','protected','AbortSet',false);
-            c.addProperty('blockTrial',0,'SetAccess','protected');
-            c.addProperty('trial',0,'SetAccess','protected');
-            c.addProperty('expScript',[],'SetAccess','protected');
+            c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
+            c.addProperty('frameDrop',[]);
+            c.addProperty('trialStartTime',[]);
+            c.addProperty('trialStopTime',[]);
+            c.addProperty('condition',[],'AbortSet',false);
+            c.addProperty('design',[],'AbortSet',false);
+            c.addProperty('block',0,'AbortSet',false);
+            c.addProperty('blockTrial',0);
+            c.addProperty('expScript',[]);
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             
@@ -427,7 +412,25 @@ classdef cic < neurostim.plugin
             
         end
         
+        function showDesign(c,factors)
+            if nargin<2
+                factors = [];
+            end
+            for b=1:numel(c.blocks)
+                blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
+                for d=1:numel(c.blocks(b).designs)
+                   show(c.blocks(b).designs(d),factors,blockStr);
+                end
+            end
+        end
         
+        function write(c,label,value)
+            if ~isfield(c.prms,label)
+                c.addProperty(label,value);
+            else
+                c.(label) = value;
+            end
+        end
         function versionTracker(c,silent,push) %#ok<INUSD>
             % Git Tracking Interface
             %
@@ -656,78 +659,6 @@ classdef cic < neurostim.plugin
             
         end
         
-        function jitter(c,plugin,prop,prms,varargin)
-            %jitter(c,plgin,prop,prms,varargin)
-            %
-            %Randomize a plugin's property value from trial-to-trial.
-            %A value is drawn from a specified probability distribution at
-            %the start of each trial. Default: uniform distribution with
-            %lower and upper bounds as prms(1) and prms(2).
-            %
-            %The work is done by Matlab's random/cdf/icdf functions and all
-            %distributions supported therein are available.
-            %
-            %Required arguments:
-            %'plugin'           - the name of the plugin instance that owns the property
-            %'prop'             - the name of the property to be randomized
-            %'prms'             - parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)
-            %
-            %Optional param/value pairs:
-            %'distribution'     - the name of a built-in pdf [default = 'uniform'], or a handle to a custom function, f(prms) (all parameters except 'prms' are ignored for custom functions)
-            %'bounds'           - 2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
-            %'size'             - 2-element vector, [m,n], specifying the size of the output (i.e. number of samples). Behaves as for "sz" in Matlab's ones() and zeros()
-            %'cancel'           - [false] Turn off a previously applied jitter. The property will retain its most recent value.
-            %
-            %Examples:
-            %               1) Randomize the Y-coordinate of the 'fix' stimulus between -5 and 5.
-            %                  jitter(c,'fix','Y',{-5,5});
-            %
-            %               2) Draw from Gaussian with [mean,sd] = [0,4], but accept only values within +/- 5 (i.e., truncated Gaussian)
-            %                  jitter(c,'fix','Y',{0,4},'distribution','normal','bounds',[-5 5]);
-            %
-            %   See also RANDOM.
-            
-            p = inputParser;
-            p.addRequired('plugin');
-            p.addRequired('prop');
-            p.addRequired('prms',@(x) iscell(x));
-            p.addParameter('distribution','uniform');
-            p.addParameter('bounds',[], @(x) isempty(x) || (numel(x)==2 && ~any(isinf(x)) && diff(x) > 0));
-            p.addParameter('size',1);
-            p.addParameter('cancel',false);
-            p.parse(plugin,prop,prms,varargin{:});
-            p=p.Results;
-            
-            %Check whether this property is already in the list
-            ind = find(arrayfun(@(x) strcmpi(x.plugin,p.plugin) & strcmpi(x.prop,p.prop),c.jitterList));
-            
-            if ~p.cancel
-                %Add/modify the item
-                if isempty(ind)
-                    %New jittered prop, so add it
-                    ind = c.nrJittered + 1;
-                end
-                c.jitterList(ind).plugin = p.plugin;
-                c.jitterList(ind).prop = p.prop;
-                c.jitterList(ind).prms = p.prms;
-                c.jitterList(ind).dist = p.distribution;
-                c.jitterList(ind).bounds = p.bounds;
-                c.jitterList(ind).size = p.size;
-            else
-                %Request to cancel an existing jitter. Oblige.
-                if isempty(ind)
-                    error(hozcat('The property ', p.prop,' of plugin ',p.plugin, 'cannot be cancelled. No previous instance.'));
-                end
-                if c.nrJittered ~= 1
-                    %Remove the item
-                    c.jitterList(ind) = [];
-                else
-                    %None left. Re-initialize empty structure
-                    c.jitterList = struct('plugin',[],'prop',[],'prms',[],'dist',[],'bounds',[],'size',[]);
-                end
-            end
-        end
-        
         %% -- Specify conditions -- %%
         function setupExperiment(c,varargin)
             % setupExperiment(c,block1,...blockEnd,'input',...)
@@ -750,9 +681,9 @@ classdef cic < neurostim.plugin
             else
                 % No blocks specified. Create a fake block (single
                 % condition; mainly for testing purposes)
-                fac= neurostim.factorial('dummy',1);
-                fac.fac1.cic.trialDuration = c.trialDuration;
-                c.blocks = neurostim.block('dummy',fac);
+                d = neurostim.design('dummy');
+                d.fac1.cic.trialDuration = c.trialDuration;
+                c.blocks = neurostim.block('dummy',d);
             end
             args = varargin(~isblock);
             parse(p,args{:});
@@ -763,7 +694,7 @@ classdef cic < neurostim.plugin
             end
             c.blockFlow.nrRepeats = p.Results.nrRepeats;
             c.blockFlow.randomization = p.Results.randomization;
-            c.blockFlow.list = neurostim.utils.repeat((1:numel(c.blocks)),c.blockFlow.weights);
+            c.blockFlow.list = repelem((1:numel(c.blocks)),c.blockFlow.weights);
             switch(c.blockFlow.randomization)
                 case 'SEQUENTIAL'
                     %c.blockFlow.list
@@ -778,29 +709,7 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function beforeTrial(c)
-            
-            %Apply any jitter/randomization of property values (done before
-            %factorial in case design contains functions/dynamic properties that depend on the jittered prop)
-            jitterProps(c);
-            
-            % this craziness is for loggin purposes...
-            %
-            % we want the block, factorial and condition to be logged for
-            % each trial
-            c.block = c.block; % index into @cic.blocks
-            c.factorial = c.blocks(c.block).factorialIx; % index into @block.factorials
-            c.condition = c.blocks(c.block).conditionIx; % index into @factorial.conditions
-                        
-            %Retrieve the plugin/parameter/value specs for the current condition
-            specs = c.blocks(c.block).condition;
-            nrParms = length(specs)/3;
-            for p =1:nrParms
-                plgName =specs{3*(p-1)+1};
-                varName = specs{3*(p-1)+2};
-                value   = specs{3*(p-1)+3};
-                c.(plgName).(varName) = value;
-            end
+        function beforeTrial(c)                                   
             if ~c.guiOn
                 message=collectPropMessage(c);
                 c.writeToFeed(message);
@@ -812,40 +721,7 @@ classdef cic < neurostim.plugin
             c.collectFrameDrops;
         end
         
-        function jitterProps(c)
-            
-            %Draw a random sample for each of the jittered properties
-            for i=1:c.nrJittered
-                plg = c.jitterList(i).plugin;
-                prop = c.jitterList(i).prop;
-                prms = c.jitterList(i).prms;
-                dist = c.jitterList(i).dist;
-                bounds = c.jitterList(i).bounds;
-                sz = c.jitterList(i).size;
-                
-                if isa(dist,'function_handle')
-                    %User-defined function. Call it.
-                    c.(plg).(prop) = dist(prms{:});
-                else
-                    %Name of a standard distribution (i.e. known to Matlab's random,cdf,etc.)
-                    if isempty(bounds)
-                        %Sample from specified distribution (unbounded)
-                        if ~iscell(sz)
-                            sz = num2cell(sz);
-                        end
-                        
-                        c.(plg).(prop) = random(dist,prms{:},sz{:});
-                    else
-                        %Sample within the bounds via the (inverse) cumulative distribution
-                        %Find range on Y
-                        ybounds = cdf(dist,bounds,prms{:});
-                        
-                        %Return the samples
-                        c.(plg).(prop) = icdf(dist,ybounds(1)+diff(ybounds)*rand(sz),prms{:});
-                    end
-                end
-            end
-        end
+       
         
         function error(c,command,msg)
             switch (command)
@@ -897,7 +773,7 @@ classdef cic < neurostim.plugin
                 c.subject = response;
             end
             
-            c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation, and postprocessig  will now be active
+            c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation  will now be active
             
             %% Set up order and event listeners
             c.order;
@@ -915,6 +791,15 @@ classdef cic < neurostim.plugin
             DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.window));
             Screen('Flip', c.window);
             KbWait(c.keyDeviceIndex);
+           
+            
+            % All plugins BEFOREEXPERIMENT functions have been processed,
+            % store the current parameter values as the defaults.
+            for a = 1:numel(c.pluginOrder)
+                o = c.(c.pluginOrder{a});
+                setCurrentParmsToDefault(o); 
+            end
+              
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
             for blockNr=1:nrBlocks
@@ -932,11 +817,18 @@ classdef cic < neurostim.plugin
                 if waitforkey
                     KbWait(c.keyDeviceIndex,2);
                 end
-                
-                while c.blocks(c.block).trial<c.blocks(c.block).nrTrials
-                    c.trial = c.trial+1;
-                    c.blocks(c.block) = nextTrial(c.blocks(c.block));
-                    c.blockTrial = c.blocks(c.block).trial; % For logging and gui only
+                c.blockTrial =0;
+                while ~c.blocks(c.block).done 
+                    c.trial = c.trial+1;            
+                    
+                    % Restore default values
+                    for a = 1:numel(c.pluginOrder)
+                        o = c.(c.pluginOrder{a});
+                        setDefaultParmsToCurrent(o); 
+                    end
+                    
+                    nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
+                    c.blockTrial = c.blockTrial+1;  % For logging and gui only
                     beforeTrial(c);
                     notify(c,'BASEBEFORETRIAL');
                     
@@ -944,7 +836,7 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
-                            Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                             Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
                     
@@ -1049,7 +941,7 @@ classdef cic < neurostim.plugin
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.window);
+            Screen('Flip', c.window);          
             notify(c,'BASEAFTEREXPERIMENT');
             c.KbQueueStop;
             KbWait(c.keyDeviceIndex);
@@ -1143,12 +1035,11 @@ classdef cic < neurostim.plugin
         end
         
         function collectFrameDrops(c)
-            framedrop=strcmpi(c.log.parms,'frameDrop');
-            frames=sum(framedrop)-c.lastFrameDrop;
-            if frames>=1
-                percent=round(frames/c.frame*100);
-                c.writeToFeed(['Missed Frames: ' num2str(frames) ', ' num2str(percent) '%%'])
-                c.lastFrameDrop=c.lastFrameDrop+frames;
+            nrFramedrops= c.prms.frameDrop.cntr-1-c.lastFrameDrop;            
+            if nrFramedrops>=1
+                percent=round(nrFramedrops/c.frame*100);
+                c.writeToFeed(['Missed Frames: ' num2str(nrFramedrops) ', ' num2str(percent) '%%'])
+                c.lastFrameDrop=c.lastFrameDrop+nrFramedrops;
             end
         end
         

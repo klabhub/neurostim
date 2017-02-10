@@ -17,10 +17,9 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('keyLabels',{},'validate',@iscellstr);
             o.addProperty('keys',{},'validate',@iscellstr);
             o.addProperty('correctKey',[],'validate',@isnumeric);
-            o.addProperty('correct',false,'SetAccess','private');
-            o.addProperty('pressedInd',[],'SetAccess','private');
-            o.addProperty('pressedKey',[],'SetAccess','private');
-            o.addProperty('adapt','');  % if set, calls answer on this stimulus parameter. See nsQuestDemo
+            o.addProperty('correct',false);
+            o.addProperty('pressedInd',[]);
+            o.addProperty('pressedKey',[]);
             o.listenToEvent('BEFOREEXPERIMENT');
        end
        
@@ -65,11 +64,7 @@ classdef nafcResponse < neurostim.plugins.behavior
                end
 
                %Set flag so that behaviour class detects completion next frame
-               o.inProgress = true;
-               
-               if ~isempty(o.adapt)
-                   answer(o.cic.(o.adapt),o.correct);
-               end
+               o.inProgress = true;               
            end
        end
           
