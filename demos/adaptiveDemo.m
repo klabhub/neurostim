@@ -132,12 +132,19 @@ import neurostim.utils.*;
 % which those parameters did not change willl not have an entry in the log,
 % so we have to fill-in the values (e..g if there is no entry in the log
 % for trial N, take the value set in trial N-1.
-orientation = fillin(c.nrTrials,c.grating.prms.orientation.trial,c.grating.prms.orientation.log);
-contrast = fillin(c.nrTrials,c.grating.prms.contrast.trial,c.grating.prms.contrast.log);
+
+% 
+% Because the parameter can be assigned different values (e.g. the default
+% value) at some earlier point in the trial; we only want to retrieve the
+% value immediately after the stimulus appeared on the screen. Because this is logged
+% by the startTime event, we use the 'after' option of the parameters.get
+% member function
+orientation = get(c.grating.prms.orientation,'after','startTime');
+contrast = get(c.grating.prms.contrast,'after','startTime');
 uV = unique(orientation);
 figure;
 hold on
-for u=uV
+for u=uV(:)'
     stay = orientation ==u;
     plot(contrast(stay),'.-');
 end

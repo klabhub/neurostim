@@ -10,17 +10,6 @@ classdef parameter < handle
     %
     % BK - Feb 2017
     
-    % Define a property as a function of some other property.
-    % This function is called at the initial logParmSet of a parameter.
-    % funcstring is the function definition. It is a string which
-    % references a stimulus/plugin by its assigned name and reuses that
-    % property name if it uses an object/variable of that property. e.g.
-    % dots.size='@ sin(cic.frame)' or
-    % fixation.X='@ dots.X + 1' or
-    % fixation.color='@ cic.screen.color.background'
-    % % The @ sign should be the first character in the string.
-    
-    
     properties (Constant)
         BLOCKSIZE = 500; % Logs are incremented with this number of values.
     end
@@ -76,17 +65,13 @@ classdef parameter < handle
             o.plg.(nm) = v;
         end
         
-        
-      
-        
         function assign(o,v)
             % Assign  and Log
-            
-            % Assign here
-            o.value =v;
-            % Assign to dynamic property
-            o.plg.(o.name) = v;
-          t = o.plg.cic.clockTime;
+            o.value =v; % Assign here
+            o.setListener.Enabled = false; % Don't call set again
+            o.plg.(o.name) = v;% Assign to dynamic property
+            o.setListener.Enabled = true;
+            t = o.plg.cic.clockTime;
             
             o.cntr=o.cntr+1;
             % Allocate space if needed
@@ -161,7 +146,7 @@ classdef parameter < handle
             end
             
             % validate
-            if ~isempty(o.validate) && ok 
+            if ~isempty(o.validate) && ok
                 o.validate(v);
             end
             
@@ -170,7 +155,7 @@ classdef parameter < handle
                 assign(o,v); % Log and store in this parameter object
             end
         end
-      
+        
         % Called before saving an object to clean out the empty elements in
         % the log.
         function pruneLog(o)
@@ -196,6 +181,124 @@ classdef parameter < handle
                 assign(o,o.default);
             end
         end
+        
+        %% Functions to extract parm values from the log
+        function [data,trial,trialTime,time] = get(o,varargin)
+            % For any parameter, returns up to four vectors specifying
+            % the values of the parameter during the experiment
+            % data = values
+            % trial = trial in whcih that value occurred
+            % trialTime = Time relative to start of the trial
+            % time  = time relative to start of the experiment
+            %
+            %
+            % Because parameters are logged only when they change,there are
+            % additional input arguments that can be provided to put the
+            % parameter valus in a more useful format. The raw values should
+            % be inspected carefully and require parsing the trial and time
+            % values for their correct interpretation.
+            %
+            % 'atTrialTime'   - returns exactly one value for each trial
+            % that corresponds to the value of the parameter at that time in
+            % the trial. By setting this to Inf, you get the last value in
+            % the trial.
+            %
+            p =inputParser;
+            p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial
+            p.addParameter('after','',@ischar); % Return the first value after this event in the trial
+            p.addParameter('trial',[],@isnumeric); % Return only values in these trials
+            p.parse(varargin{:});
+            
+            % Try to make a matrix
+            if all(cellfun(@isnumeric,o.log(1:o.cntr))) && all(cellfun(@(x) (size(x,1)==1),o.log(1:o.cntr)))
+                try
+                    data = cat(1,o.log{1:o.cntr});
+                catch me
+                    % Failed. keep the cell array
+                    data = o.log(1:o.cntr);
+                end
+            else
+                data = o.log(1:o.cntr);
+            end
+            trial =o.trial(1:o.cntr);
+            time = o.time(1:o.cntr);
+            trialTime = t2t(o,time,trial,true);
+            
+            % Now that we have the raw values, we can remove some of the less
+            % usefel ones and fill-in some that were never set (only changes
+            % are logged to save space).
+            
+            maxTrial = max(o.plg.cic.prms.trial.trial);%
+            
+            if ~isempty(p.Results.atTrialTime) || ~isempty(p.Results.after)
+                % Return values in each trial as they were defined at a
+                % certain time in that trial. By specifying atTrialTime inf,
+                % you get the last value in the trial.
+                if ~isempty(p.Results.after)
+                    % Find the last time this event occurred in each trial
+                    [~,aTr,aTi,atETime] = get(o.plg.prms.(p.Results.after) ,'atTrialTime',inf);
+                else
+                    atETime = o.t2t(p.Results.atTrialTime,1:maxTrial,false); % Conver to eTime
+                end
+                % For each trial, find the value at the given experiment time
+                ix = nan(1,maxTrial);
+                for tr=1:maxTrial
+                    % Find the last before the set time, but only those that
+                    % happend in the current tr or earlier.
+                    thisIx = find(time<=atETime(tr) & trial<=tr,1,'last');
+                    if ~isempty(thisIx)
+                        ix(tr) = thisIx;
+                    end
+                end
+                %
+                out  =isnan(ix);
+                ix(out)=1;
+                data=data(ix);
+                trial = 1:maxTrial; % The trial where the event set came from is trial(ix);
+                time = time(ix);
+                trialTime = trialTime(ix);
+                if any(out)
+                    data(out)=NaN;
+                    trial(out) = NaN;
+                    time(out) = NaN;
+                    trialTime(out) = NaN;
+                end
+                
+                if iscell(data) && all(cellfun(@isnumeric,data)) && all(cellfun(@(x) (size(x,1)==1),data))
+                    try
+                        data = cat(1,data{:});
+                    catch me
+                        % Failed. keep the cell array
+                    end
+                end
+            end
+            
+            if ~isempty(p.Results.trial)
+                stay = ismember(trial,p.Results.trial);
+                data=data(stay);
+                trial = trial(stay); 
+                time = time(stay);
+                trialTime = trialTime(stay);                
+            end
+            
+            
+        end
+        
+        
+        function v= t2t(o,t,tr,ET2TRT)
+            % Find the time that each trial started by looking in the cic events log.
+            beforeFirstTrial = tr==0;
+            tr(beforeFirstTrial) =1;
+            trialStartTime = o.plg.cic.prms.trial.time;
+            if ET2TRT
+                v= t-trialStartTime(tr);
+                v(beforeFirstTrial) = -Inf;
+            else
+                v= t+trialStartTime(tr);
+            end
+        end
+        
+        
         
         
     end

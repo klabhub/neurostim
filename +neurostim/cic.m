@@ -119,7 +119,7 @@ classdef cic < neurostim.plugin
     properties (Dependent)
         nrStimuli;      % The number of stimuli currently in CIC
         nrConditions;   % The number of conditions in this experiment
-        nrTrials;       % The number of trials in this experiment (TODO: currently, this is actually the number of trials for the current BLOCK)
+        nrTrials;       % The number of trials in the current block
         center;         % Where is the center of the display window.
         file;           % Target file name
         fullFile;       % Target file name including path

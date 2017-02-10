@@ -120,10 +120,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 h.GetAccess = 'public'; % Has to be public so that the parameter class can get/set it.
                 h.SetAccess = 'public';
                 % Create a parameter object to do the work behind the scenes.
-                % It looks as if this is not stored and will go out of scope, but the
-                % parameter constructor adds it to a callback function that is assigned to
-                % the postGet event of the dynamic property created here; that's why it is
-                % not lost...
+                % The parameter constructor adds it to a callback function that is assigned to
+                % the postGet event of the dynamic property created here
                 o.prms.(prop) = neurostim.parameter(o,prop,value);
             end
         end

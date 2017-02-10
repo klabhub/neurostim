@@ -120,27 +120,35 @@ c.run(longCwBlock,cwBlock,longCcwBlock,ccwBlock);
 if c.nrTrials <10
     return;
 end
-% Retrieve parameters and responses from the CIC object.
-testOrientation = neurostim.utils.fillin(c.nrTrials,c.testGabor.prms.orientation.trial,c.testGabor.prms.orientation.log);
-adaptOrientation = neurostim.utils.fillin(c.nrTrials,c.adapt.prms.orientation.trial,c.adapt.prms.orientation.log);
-cw  = neurostim.utils.fillin(c.nrTrials,c.choice.prms.pressedInd.trial,c.choice.prms.pressedInd.log)==2;
-% Pull adapt and test apart,
+
+%% Retrieve parameters and responses from the CIC object.
+[cw,tr]  = get(c.choice.prms.pressedInd,'atTrialTime',inf); % Last value in the trial is the answer
+stayTr = find(~cellfun(@isempty,cw)); % Some could be empty
+cw = [cw{:}]==2; % 2 means CW.
+% Get values from the trials where we have key presses. (And values after
+% the start of the stimulus to make sure we get the values that were
+% actually used. 'atTrialTime', inf would work too.
+testOrientation =get(c.testGabor.prms.orientation,'after','startTime','trial',stayTr); 
+adaptOrientation = get(c.adapt.prms.orientation,'after','startTime','trial',stayTr);
+
+%% Pull adapt and test apart,
 uA = unique(adaptOrientation);
 uT = unique(testOrientation);
 figure;
 hold on
 cCntr=0;
-for a=uA
+for a=uA(:)'
     stayA= adaptOrientation ==a;
     cCntr=cCntr+1;
     rCntr= 0;
-    for t =uT
+    for t =uT(:)'
         rCntr= rCntr+1;
     stayT = testOrientation ==t;
         fracCw(rCntr,cCntr) = mean(cw(stayA& stayT));
     end
 end
 
+%% Graph
 % Plot the percentage of trials with the CW response
 % for each test orienation, separately for the CW and CCW adapter
 plot(uT,100*fracCw,'.-');
