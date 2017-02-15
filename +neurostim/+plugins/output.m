@@ -85,8 +85,9 @@ classdef output < neurostim.plugin
                 o = c.(c.pluginOrder{a});
                 if ~isempty(o.prms)
                     structfun(@pruneLog,o.prms); 
-                end
-            end         
+                end             
+            end    
+            structfun(@pruneLog,c.prms); 
             save(o,c);
         end
         

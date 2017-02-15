@@ -143,7 +143,8 @@ classdef block < dynamicprops
                     value =  spcs{p,3};
                 end
                 c.(plgName).(varName) = value;
-            end            
+            end 
+            
         end
         
         % Parse the designs to setup a single 2xN list of

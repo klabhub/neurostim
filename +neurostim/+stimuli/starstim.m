@@ -44,10 +44,10 @@ classdef starstim < neurostim.stimulus
            if isempty(h)
                h = 'localhost';
            end
-           o.addProperty('host',h,'validate',@ischar,'SetAccess','protected');
-           o.addProperty('template',tmplate,'validate',@ischar,'SetAccess','protected');
-           o.addProperty('fake',fake,'validate',@islogical,'SetAccess','protected');
-           o.addProperty('z',NaN,'validate',@isnumeric,'SetAccess','protected');
+           o.addProperty('host',h,'validate',@ischar);
+           o.addProperty('template',tmplate,'validate',@ischar);
+           o.addProperty('fake',fake,'validate',@islogical);
+           o.addProperty('z',NaN,'validate',@isnumeric);
            o.addProperty('channel',[],'validate',@isnumeric);
            o.addProperty('amplitude',[],'validate',@isnumeric);
            o.addProperty('transition',[],'validate',@isnumeric);

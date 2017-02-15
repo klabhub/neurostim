@@ -22,7 +22,7 @@ pianola = true; % Set this to true to simulate responses, false to provide your 
 % should converge on a low contrast, the other on a high contrast.
 simulatedObserver = '@grating.contrast>(0.1+0.5*(grating.cic.condition-1))';
 % Or use this one for an observer with some zero mean gaussian noise on the threshold
-simulatedObserver = '@grating.contrast> (0.01*randn + (0.1+0.5*(grating.cic.condition-1)))';
+simulatedObserver = '@grating.contrast> (0.05*randn + (0.1+0.5*(grating.cic.condition-1)))';
 %% Setup the controller
 c= myRig;
 c.trialDuration = Inf;

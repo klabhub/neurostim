@@ -6,11 +6,15 @@ classdef jitter < neurostim.plugins.adaptive
     %
     % BK - Nov 2016 - derived from TK cic.jitter function
     properties (SetAccess=protected, GetAccess=public)
-     
+     value;
+      % BK: I used to have this as a dynprop:      
+      % o.addProperty('value',NaN);%,'AbortSet',false);        
+      % but even though that dynprop is updated correctly (and its values
+      % are logged in the associated parameter object, those values never
+      % made it into the object that called getValue(o). Changing value to
+      % a member variable fixed this, but I do not understand why. 
     end
-    properties (SetAccess = protected, GetAccess = protected)
-      %  value; % Internal storage
-    end
+    
     methods
         function o=jitter(c,parms,varargin)
            %jitter(c,parms,varargin)
@@ -49,13 +53,7 @@ classdef jitter < neurostim.plugins.adaptive
             p.parse(parms,varargin{:});
             
             o=o@neurostim.plugins.adaptive(c,'@0'); % The result fun is not used so just put something that evals to 0 always.
-            o.addProperty('',p.Results);
-
-            o.parms = p.Results.parms;
-            o.distribution = p.Results.distribution;
-            o.bounds = p.Results.bounds;
-            o.size = p.Results.size;
-            o.addProperty('value',NaN,'AbortSet',false);            
+            o.addProperty('',p.Results); % Add all input as dynprop                  
             update(o); % Call it once now to initialize.
         end
         
