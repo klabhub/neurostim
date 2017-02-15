@@ -1,4 +1,4 @@
- % Command and Intelligence Center for Neurostim using PsychToolBox.
+% Command and Intelligence Center for Neurostim using PsychToolBox.
 % See demos directory for examples
 %  BK, AM, TK, 2015
 classdef cic < neurostim.plugin
@@ -44,22 +44,22 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
         
-        dirs                    = struct('root','','output','')  % Output is the directory where files will be written
+        dirs                    = struct('root','','output','','calibration','.')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
         subjectNr@double        = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         
         keyDeviceIndex          = []; % Use the first device by default
-                
+        
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
             'width',[],'height',[],...
             'color',struct('text',[1 1 1],...
             'background',[1/3 1/3 5]),...
             'colorMode','xyL',...
-            'type','GENERIC',...   
+            'type','GENERIC',...
             'frameRate',60,'number',[],'viewDist',[],...
             'calibration',struct('gamma',2.2,'min',nan(1,3),'max',nan(1,3),'bias',nan(1,3),'gain',nan(1,3)));    %screen-related parameters.
-           
+        
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to get the frame flip time.
         requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
@@ -68,7 +68,7 @@ classdef cic < neurostim.plugin
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
-  end
+    end
     
     %% Protected properties.
     % These are set internally
@@ -101,7 +101,7 @@ classdef cic < neurostim.plugin
         %% Keyboard interaction
         allKeyStrokes          = []; % PTB numbers for each key that is handled.
         allKeyHelp             = {}; % Help info for key
-%         keyDeviceIndex          = []; % Use the first device by default
+        %         keyDeviceIndex          = []; % Use the first device by default
         keyHandlers             = {}; % Handles for the plugins that handle the keys.
         
         
@@ -131,7 +131,7 @@ classdef cic < neurostim.plugin
         blockName;      % Name of the current block
         defaultPluginOrder;
         trialTime;      % Time elapsed (ms) since the start of the trial
-        fullNrTrials;   % Number of trials total (all blocks)   
+        fullNrTrials;   % Number of trials total (all blocks)
         conditionID;    % Unique id for a condition - used by adaptive
         date;           % Date of the experiment.
     end
@@ -181,7 +181,7 @@ classdef cic < neurostim.plugin
                 v= num2str(c.subjectNr);
             end
         end
-               
+        
         function v = get.blockName(c)
             v = c.blocks(c.block).name;
         end
@@ -281,7 +281,7 @@ classdef cic < neurostim.plugin
             frInterval = Screen('GetFlipInterval',c.window)*1000;
             percError = abs(frInterval-(1000/c.screen.frameRate))/frInterval*100;
             if percError > 5
-                 
+                
                 
                 
                 
@@ -309,7 +309,7 @@ classdef cic < neurostim.plugin
             end
             for a = 1:numel(c.pluginOrder)
                 o = c.(c.pluginOrder{a});
-                 
+                
                 for i=1:length(o.evts)
                     if isa(o,'neurostim.plugin')
                         % base events allow housekeeping before events
@@ -423,6 +423,8 @@ classdef cic < neurostim.plugin
             neurostim.plugins.output(c);
             
         end
+      
+        
         
         function showDesign(c,factors)
             if nargin<2
@@ -431,7 +433,7 @@ classdef cic < neurostim.plugin
             for b=1:numel(c.blocks)
                 blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
                 for d=1:numel(c.blocks(b).designs)
-                   show(c.blocks(b).designs(d),factors,blockStr);
+                    show(c.blocks(b).designs(d),factors,blockStr);
                 end
             end
         end
@@ -721,7 +723,7 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function beforeTrial(c)                                   
+        function beforeTrial(c)
             if ~c.guiOn
                 message=collectPropMessage(c);
                 c.writeToFeed(message);
@@ -733,7 +735,7 @@ classdef cic < neurostim.plugin
             c.collectFrameDrops;
         end
         
-       
+        
         
         function error(c,command,msg)
             switch (command)
@@ -765,7 +767,7 @@ classdef cic < neurostim.plugin
             % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
-
+            
             %Check input
             if ~(exist('block1','var') && isa(block1,'neurostim.block'))
                 help('neurostim/cic/run');
@@ -779,7 +781,7 @@ classdef cic < neurostim.plugin
             catch
                 warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
             end
-
+            
             if isempty(c.subject)
                 response = input('Subject code?','s');
                 c.subject = response;
@@ -803,15 +805,15 @@ classdef cic < neurostim.plugin
             DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.window));
             Screen('Flip', c.window);
             KbWait(c.keyDeviceIndex);
-           
+            
             
             % All plugins BEFOREEXPERIMENT functions have been processed,
             % store the current parameter values as the defaults.
             for a = 1:numel(c.pluginOrder)
                 o = c.(c.pluginOrder{a});
-                setCurrentParmsToDefault(o); 
+                setCurrentParmsToDefault(o);
             end
-              
+            
             c.flags.experiment = true;
             nrBlocks = numel(c.blocks);
             for blockNr=1:nrBlocks
@@ -830,13 +832,13 @@ classdef cic < neurostim.plugin
                     KbWait(c.keyDeviceIndex,2);
                 end
                 c.blockTrial =0;
-                while ~c.blocks(c.block).done 
-                    c.trial = c.trial+1;            
+                while ~c.blocks(c.block).done
+                    c.trial = c.trial+1;
                     
                     % Restore default values
                     for a = 1:numel(c.pluginOrder)
                         o = c.(c.pluginOrder{a});
-                        setDefaultParmsToCurrent(o); 
+                        setDefaultParmsToCurrent(o);
                     end
                     
                     nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
@@ -848,7 +850,7 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
-                             Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
                     
@@ -870,17 +872,17 @@ classdef cic < neurostim.plugin
                         c.KbQueueCheck;
                         
                         
-                        startFlipTime = c.clockTime;                         
-
-                        % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened 
-                        % stimOn: An estimate of Stimulus-onset time 
+                        startFlipTime = c.clockTime;
+                        
+                        % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
+                        % stimOn: An estimate of Stimulus-onset time
                         % flip: timestamp taken at the end of Flip's execution
                         % missed: indicates if the requested presentation deadline for your stimulus has
                         %           been missed. A negative value means that dead- lines have been satisfied.
                         %            Positive values indicate a
                         %            deadline-miss. (BK: we use timing
-                        %            info instead)                        
-                        % beampos: position of the monitor scanning beam when the time measurement was taken 
+                        %            info instead)
+                        % beampos: position of the monitor scanning beam when the time measurement was taken
                         [vbl,stimOn,flip] = Screen('Flip', c.window,0,1-c.clear); %#ok<ASGLU>
                         vbl =vbl*1000; %ms.
                         if c.frame > 1 && c.PROFILE
@@ -895,7 +897,7 @@ classdef cic < neurostim.plugin
                             c.flipTime=0;
                         end
                         
-                                                
+                        
                         if c.guiOn
                             if mod(c.frame,c.guiFlipEvery)==0
                                 Screen('Flip',c.guiWindow,0,[],2);
@@ -909,7 +911,7 @@ classdef cic < neurostim.plugin
                         missed          = c.frame>1 && abs(deltaFlip) > c.FRAMESLACK*FRAMEDURATION;
                         c.frameStart    = vbl; % Not logged, but used to check drops/jumps
                         c.frameDeadline = vbl+FRAMEDURATION;
-                                                                        
+                        
                         if missed
                             c.frameDrop = [c.frame deltaFlip];
                             if c.guiOn
@@ -917,15 +919,15 @@ classdef cic < neurostim.plugin
                             end
                         end
                         
-                        if c.getFlipTime 
+                        if c.getFlipTime
                             c.flipTime = stimOn*1000-c.trialStartTime;% Used by stimuli to log their onset
                             c.getFlipTime=false;
                         end
                         
-                        %% Check for end of trial                        
+                        %% Check for end of trial
                         if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false;
-                        end                        
+                        end
                     end % Trial running
                     
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
@@ -953,7 +955,7 @@ classdef cic < neurostim.plugin
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.window);          
+            Screen('Flip', c.window);
             notify(c,'BASEAFTEREXPERIMENT');
             c.KbQueueStop;
             KbWait(c.keyDeviceIndex);
@@ -1047,7 +1049,7 @@ classdef cic < neurostim.plugin
         end
         
         function collectFrameDrops(c)
-            nrFramedrops= c.prms.frameDrop.cntr-1-c.lastFrameDrop;            
+            nrFramedrops= c.prms.frameDrop.cntr-1-c.lastFrameDrop;
             if nrFramedrops>=1
                 percent=round(nrFramedrops/c.frame*100);
                 c.writeToFeed(['Missed Frames: ' num2str(nrFramedrops) ', ' num2str(percent) '%%'])
@@ -1113,22 +1115,22 @@ classdef cic < neurostim.plugin
             
             c.setupScreen;
             
-            PsychImaging('PrepareConfiguration');            
+            PsychImaging('PrepareConfiguration');
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');% 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');% Unrestricted color range
-          %  PsychImaging('AddTask', 'General', 'UseGPGPUCompute');
+            %  PsychImaging('AddTask', 'General', 'UseGPGPUCompute');
             PsychImaging('AddTask', 'General', 'UseFastOffscreenWindows');
             
             %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
             switch upper(c.screen.type)
                 case 'GENERIC'
                     % Generic monitor.
-                case 'VPIXX-M16'                    
-                    PsychImaging('AddTask', 'General', 'UseDataPixx');                        
+                case 'VPIXX-M16'
+                    PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
                     
                 otherwise
-                     error(['Unknown screen type : ' c.screen.type]);
+                    error(['Unknown screen type : ' c.screen.type]);
             end
             
             %%  Setup color calibration
@@ -1137,59 +1139,59 @@ classdef cic < neurostim.plugin
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
                 case 'XYL'
                     
-%                     % Use builtin xyYToXYZ() plugin for xyY -> XYZ conversion:
-%                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'xyYToXYZ');
-%                     % Use builtin SensorToPrimary() plugin:
-%                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'SensorToPrimary');
-%                     % Check color validity
-%                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'CheckOnly');
-%                     
-%                    
+                    %                     % Use builtin xyYToXYZ() plugin for xyY -> XYZ conversion:
+                    %                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'xyYToXYZ');
+                    %                     % Use builtin SensorToPrimary() plugin:
+                    %                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'SensorToPrimary');
+                    %                     % Check color validity
+                    %                     PsychImaging('AddTask', 'AllViews', 'DisplayColorCorrection', 'CheckOnly');
+                    %
+                    %
                 case 'RGB'
                     %Placeholder. Nothing implemented.
-                otherwise 
-                     error(['Unknown color mode: ' c.screen.colorMode]);
+                otherwise
+                    error(['Unknown color mode: ' c.screen.colorMode]);
             end
-                     
+            
             %% Open the window
             c.window = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
- 
+            
             %% Perform initialization that requires an open window
             switch upper(c.screen.type)
                 case 'GENERIC'
                     % nothing to do
-                case 'VPIXX-M16'     
+                case 'VPIXX-M16'
                     c.overlay = PsychImaging('GetOverlayWindow', c.window);
-                    Screen('LoadNormalizedGammaTable', c.window, linspace(0, 1, 256)' * [1, 1, 1]); % Ensure that the graphics board's gamma table does not transform our pixels                
+                    Screen('LoadNormalizedGammaTable', c.window, linspace(0, 1, 256)' * [1, 1, 1]); % Ensure that the graphics board's gamma table does not transform our pixels
                     PsychColorCorrection('CheckOnly');
                     PsychColorCorrection('SetColorClampingRange',[0 1]);
                 otherwise
-                     error(['Unknown screen type : ' c.screen.type]);
+                    error(['Unknown screen type : ' c.screen.type]);
             end
             
             %% Add calibration to the window
             switch upper(c.screen.colorMode)
                 case 'GAMMA'
-                    % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma 
+                    % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
                     PsychColorCorrection('SetEncodingGamma', c.window, 1./c.screen.calibration.gamma);
                     if ~isnan(c.screen.calibration.min)
                         % If the user set the calibration.min parameters then s/he wants to perform a slightly more advanced calibration
                         % out = bias + gain * ( ((in-min) / (max-min)) ^gamma )
                         % where each parameter is specified per gun (i.e.
-                        % c.calibration.bias= [ 0 0 0])                    
-                        PsychColorCorrection('SetExtendedGammaParameters', c.window, c.screen.calibration.min, c.screen.calibration.max, c.screen.calibration.gain,c.screen.calibration.bias);              
+                        % c.calibration.bias= [ 0 0 0])
+                        PsychColorCorrection('SetExtendedGammaParameters', c.window, c.screen.calibration.min, c.screen.calibration.max, c.screen.calibration.gain,c.screen.calibration.bias);
                     end
                 case 'XYL'
-                  
-                  
-                  % PsychColorCorrection('SetSensorToPrimary', c.window, cal);
-                    % PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);       
-
-                     cal = LoadCalFile('PTB3TestCal');
-%                     load T_xyz1931
-%                     T_xyz1931 = 683*T_xyz1931; %#ok<NODEF>
-%                     cal = SetSensorColorSpace(cal,T_xyz1931,S_xyz1931);
-%                     cal = SetGammaMethod(cal,0);
+                    
+                    
+                    % PsychColorCorrection('SetSensorToPrimary', c.window, cal);
+                    % PsychColorCorrection('SetSensorToPrimary',c.mirror,cal);
+                    
+                    cal = LoadCalFile('PTB3TestCal');
+                    %                     load T_xyz1931
+                    %                     T_xyz1931 = 683*T_xyz1931; %#ok<NODEF>
+                    %                     cal = SetSensorColorSpace(cal,T_xyz1931,S_xyz1931);
+                    %                     cal = SetGammaMethod(cal,0);
                     
                     
                 case 'RGB'
@@ -1202,46 +1204,46 @@ classdef cic < neurostim.plugin
             %% Perform additional setup routines
             Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             
-            %% Setup the GUI. 
-%             
-%             if any(strcmpi(c.plugins,'gui'))%if gui is added
-%                 
-%                 guiScreen = setdiff(Screen('screens'),[c.screen.number 0]);
-%                 if isempty(guiScreen)
-%                     %                    error('You need two screens to show a gui...');
-%                     guiScreen = 0;
-%                     guiRect = [800 0 1600 600];
-%                     
-%                 else
-%                     guiRect  = Screen('GlobalRect',guiScreen);
-%                     %                 if ~isempty(.screen.xorigin)
-%                     %                     guiRect(1) =o.screen.xorigin;
-%                     %                 end
-%                     %                 if ~isempty(o.screen.yorigin)
-%                     %                     guiRect(2) =o.screen.yorigin;
-%                     %                 end
-%                     %                 if ~isempty(o.screen.xpixels)
-%                     %                     guiRect(3) =guiRect(1)+ o.screen.xpixels;
-%                     %                 end
-%                     %                 if ~isempty(o.screen.ypixels)
-%                     %                     guiRect(4) =guiRect(2)+ o.screen.ypixels;
-%                     %                 end
-%                 end
-%                 if isempty(c.mirrorPixels)
-%                     c.mirrorPixels=Screen('Rect',guiScreen);
-%                 end
-%                 c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
-%                 
-%                 % TODO should this be separate for the mirrorWindow?
-%                 switch upper(c.screen.colorMode)
-%                     case 'XYL'
-%                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
-%                         
-%                     case 'RGB'
-%                         Screen(c.guiWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-%                 end
-%             end
-%             
+            %% Setup the GUI.
+            %
+            %             if any(strcmpi(c.plugins,'gui'))%if gui is added
+            %
+            %                 guiScreen = setdiff(Screen('screens'),[c.screen.number 0]);
+            %                 if isempty(guiScreen)
+            %                     %                    error('You need two screens to show a gui...');
+            %                     guiScreen = 0;
+            %                     guiRect = [800 0 1600 600];
+            %
+            %                 else
+            %                     guiRect  = Screen('GlobalRect',guiScreen);
+            %                     %                 if ~isempty(.screen.xorigin)
+            %                     %                     guiRect(1) =o.screen.xorigin;
+            %                     %                 end
+            %                     %                 if ~isempty(o.screen.yorigin)
+            %                     %                     guiRect(2) =o.screen.yorigin;
+            %                     %                 end
+            %                     %                 if ~isempty(o.screen.xpixels)
+            %                     %                     guiRect(3) =guiRect(1)+ o.screen.xpixels;
+            %                     %                 end
+            %                     %                 if ~isempty(o.screen.ypixels)
+            %                     %                     guiRect(4) =guiRect(2)+ o.screen.ypixels;
+            %                     %                 end
+            %                 end
+            %                 if isempty(c.mirrorPixels)
+            %                     c.mirrorPixels=Screen('Rect',guiScreen);
+            %                 end
+            %                 c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
+            %
+            %                 % TODO should this be separate for the mirrorWindow?
+            %                 switch upper(c.screen.colorMode)
+            %                     case 'XYL'
+            %                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
+            %
+            %                     case 'RGB'
+            %                         Screen(c.guiWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            %                 end
+            %             end
+            %
             
             
             
