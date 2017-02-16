@@ -44,7 +44,7 @@ classdef cic < neurostim.plugin
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
         
-        dirs                    = struct('root','','output','','calibration','.')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
+        dirs                    = struct('root','','output','','calibration','')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
         subjectNr@double        = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
@@ -356,6 +356,10 @@ classdef cic < neurostim.plugin
                     elseif islogical(tmp)
                         if (tmp);tmp = 'true';else tmp='false';end
                     end
+                    if isa(tmp,'function_handle')
+                        tmp = func2str(tmp);
+                    end
+                    tmp = tmp(:)';
                     if numel(str)>1
                         if j==1
                             out=[out c.propsToInform{i} ': ' tmp]; %#ok<AGROW>
@@ -803,7 +807,7 @@ classdef cic < neurostim.plugin
             
             %% Start preparation in all plugins.
             notify(c,'BASEBEFOREEXPERIMENT');
-            DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', WhiteIndex(c.window));
+            DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', c.screen.color.text);
             Screen('Flip', c.window);
             KbWait(c.keyDeviceIndex);
             

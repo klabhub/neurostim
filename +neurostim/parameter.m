@@ -123,21 +123,24 @@ classdef parameter < handle
         end
         
         % This function is called after each parametr set       
-        function v = setValue(o,src,evt) %#ok<INUSD>
+        function setValue(o,src,evt) %#ok<INUSD>
             % First, retrieve the value that the dynprop was just set to.            
             o.getListener.Enabled = false; % Avoid a 'preget' call            
             v= o.plg.(o.name); % The raw value that has just been set
             o.getListener.Enabled = true; % Allow preget calls again                                    
             ok = true; % Normally ok; only function evals can be not ok.
             %Check for a function definition
-            if strncmpi(v,'@',1)
-                % Parse the specified function and make it into an anonymous
-                % function.
-                o.fun = neurostim.utils.str2fun(v);
+            if strncmpi(v,'@',1) 
+               % Parse the specified function and make it into an anonymous
+                % function.                
+                v = neurostim.utils.str2fun(v);
+            end
+            if isa(v,'function_handle')
+                o.fun = v;
                 % Evaluate the function (without calling set again)
                 o.setListener.Enabled = false;
                 [v,ok]= getValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
-                o.setListener.Enabled = true;
+                o.setListener.Enabled = true;                
             elseif ~o.isFunResult 
                 % This is currently a function, and someone is overriding
                 % the parameter with a non-function value. Remove the fun.
@@ -169,7 +172,11 @@ classdef parameter < handle
         % allows us to reset the parms to their default at the start of a
         % trial (before applying condition specific modifications).
         function setCurrentToDefault(o)
-            o.default = o.value;
+            if isempty(o.fun)
+                o.default = o.value;
+            else
+                o.default = o.fun;
+            end
         end
         
         function setDefaultToCurrent(o)          
