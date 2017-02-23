@@ -273,11 +273,19 @@ classdef parameter < handle
                     trialTime(out) = NaN;
                 end
                 
-                if iscell(data) && all(cellfun(@isnumeric,data)) && all(cellfun(@(x) (size(x,1)==1),data))
+                if iscell(data) && all(cellfun(@isnumeric,data)) 
+                    if all(cellfun(@(x) (size(x,1)==1),data))
                     try
                         data = cat(1,data{:});
                     catch me
                         % Failed. keep the cell array
+                    end
+                    elseif all(cellfun(@(x) (size(x,2)==1),data))
+                    try
+                        data = cat(2,data{:});
+                    catch me
+                        % Failed. keep the cell array
+                    end
                     end
                 end
             end

@@ -6,13 +6,27 @@ function c=i1calibrate(skipWhiteTile,fakeItAll)
 % Set the skipWhiteTile input argument to true if you;ve already calibrated
 % the I1Pro with the white tile.
 %
+% Set fakeItAll to true to run this without a photometer.
+%
 % BK - Dec 2016
 
-if nargin<1
-    skipWhiteTile = false;
+if nargin < 2
+    fakeItAll = false;
+    if nargin<1
+        skipWhiteTile = false;
+    end
 end
+T_xyz1931=[];
+S_xyz1931 = [];
+cals = {};
 
-if ~fakeItAll && exist('I1') ~=3 %#ok<EXIST>
+if fakeItAll 
+    load 'PTB3TestCal.mat'
+    load T_xyz1931
+    T_xyz = 683*T_xyz1931;
+    fakeCal= SetSensorColorSpace(cals{end},T_xyz,S_xyz1931);
+    fakeCal = SetGammaMethod(fakeCal,0);
+elseif exist('I1') ~=3 %#ok<EXIST>
     error('Could not find the I1 mex-file that is required to run this calibration tool');
 end
 
@@ -21,10 +35,10 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = klabRig('debug',true,'eyelink',false);    % Create Command and Intelligence Center with specific KLab settings
+c = myRig;
 c.screen.colorMode = 'RGB';
 c.screen.type = 'GENERIC';
-c.trialDuration = 1000;
+c.trialDuration = 250;
 c.iti           = 250;
 c.paradigm      = 'calibrate';
 c.subject      =  getenv('COMPUTERNAME');
@@ -40,7 +54,7 @@ if ~fakeItAll && ~skipWhiteTile
     I1('Calibrate');
 end
 if fakeItAll
-    disp('Place your fake I1 on the fake center of the fake screen, then press any key to continue');
+    disp('Place your fake I1 on the center of the fake screen, then press any key to continue');
 else
     disp('Place I1 on the center of the screen, then press any key to continue');
 end
@@ -50,24 +64,29 @@ pause;
 c.addScript('AfterFrame',@measure); % Tell CIC to call this eScript after drawing each frame.
     function measure(c)
         if c.frame ==10
+            % In frame 10 we'll measure                
             if fakeItAll
-                % In frame 10 we'll measure
-                I1('TriggerMeasurement');
-                Lxy = I1('GetTriStimulus');
-                spc = I1('GetSpectrum');
-            else
                 % Generate fake Lxy and spectral data
                 currentColor = c.target.color;
                 switch c.screen.colorMode
-                    case 'GAMMA'
-                    case 'RGB'
+                    case 'LUM'
                         
+                    case 'RGB'
+                        XYZ = PrimaryToSensor(fakeCal,currentColor'); xyL = XYZToxyY(XYZ);
+                        Lxy = xyL([3 1 2])';
+                        spc = (fakeCal.P_device * PrimaryToSettings(fakeCal,currentColor'))'; % 
+                    case 'XYL'
                 end
+            else
+                I1('TriggerMeasurement');
+                Lxy = I1('GetTriStimulus');
+                spc = I1('GetSpectrum');
+            
+               
             end
             write(c,'lxy',Lxy);
             write(c,'spectrum',spc);
-            c.nextTrial; % And move to the next trial
-            
+            c.nextTrial; % And move to the next trial            
         end
     end
 
@@ -97,15 +116,20 @@ xy =design('color');
 nrProbes = 50;
 xy.fac1.target.color = num2cell(rand([nrProbes 3]),2);
 
-blck=block('tfBlock',xy,eachGun);
-blck.nrRepeats  = 5;
+blck=block('tfBlock',eachGun);
+blck.nrRepeats  = 1;
 %% Run the calibration
 c.run(blck);
 
 %% From the data extract cal structure
-cal= neurostim.utils.ptbcal(c,'save',false,'plot',false); % Create a cal object in PTB format. 
+if fakeItAll
+     wavelengths = linspace(fakeCal.describe.S(1),fakeCal.describe.S(1)+fakeCal.describe.S(2)*fakeCal.describe.S(3),fakeCal.describe.S(3));
+else
+    wavelengths  = 380:10:730;
+end
+cal= neurostim.utils.ptbcal(c,'save',false,'plot',false,'wavelengths',wavelengths); % Create a cal object in PTB format. 
 
-
+return;
 
 %% Test the calibration
 % Generate some test luminance value per gun
@@ -124,7 +148,7 @@ c.screen.calibration.max = 1;
 c.screen.calibration.bias  = gParms.gamma(1,:);
 c.screen.calibration.gain = gParms.gamma(2,:);
 c.screen.calibration.gamma = gParms.gamma(3,:);
-c.screen.colorMode = 'GAMMA';
+c.screen.colorMode = 'LUM';
 
 checkLum=neurostim.design('checkLum');
 checkLum.fac1.target.color  = num2cell(lums,2);
@@ -134,7 +158,6 @@ blck.nrRepeats  = 5;
 c.run(blck);
 % One block to measure various colors (testing purpose)
 end
-
 
 
 

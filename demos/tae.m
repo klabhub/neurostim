@@ -17,8 +17,8 @@
 import neurostim.*
 
 %% Setup CIC and the stimuli.
-c = myRig;                            % Create Command and Intelligence Center...
-  
+c = myRig;                   % Create Command and Intelligence Center...
+c.screen.colorMode = 'RGB';  % Using raw RGB values.   
 
 % Create a Gabor stimulus to adapt. 
 g=stimuli.gabor(c,'adapt');           

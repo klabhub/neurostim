@@ -12,6 +12,7 @@ function [cal] = ptbcal(c,varargin)
 p=inputParser;
 p.addParameter('plot',true,@islogical);
 p.addParameter('save',false,@islogical);
+p.addParameter('wavelengths',380:10:730,@isnumeric);
 p.parse(varargin{:});
 
 
@@ -21,8 +22,9 @@ cal.describe.leaveRoomTime = NaN;
 cal.describe.boxSize = NaN;
 cal.nDevices = 3; % guns
 cal.nPrimaryBases = 1;
+
 % I1Pro
-cal.describe.S = [380 10 36];
+cal.describe.S = [min(p.Results.wavelengths) unique(round(diff(p.Results.wavelengths))) numel(p.Results.wavelengths)];
 cal.manual.use = 0;
 cal.describe.whichScreen =  c.screen.number; % SCreen number that is calibrated
 cal.describe.whichBlankScreen = NaN;
@@ -47,6 +49,7 @@ cal.describe.gamma.fitBreakThresh = 0.02;
 [rgb] = get(c.target.prms.color,'AtTrialTime',inf);
 [spectrum] = get(c.prms.spectrum,'AtTrialTime',inf); %Irradiance in mW/(m2 sr nm)
 spectrum  =spectrum/1000; % SI units compatible with luminance cd/m2
+
 for g=1:3
     stay = find(all(rgb(:,setdiff(1:3,g))==0,2) & rgb(:,g)>0);
     [gunValue,sorted] = sort(rgb(stay,g));

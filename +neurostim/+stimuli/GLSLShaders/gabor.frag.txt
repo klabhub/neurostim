@@ -15,7 +15,7 @@ varying float meanLuminance;
 varying float sigma1;
 varying float sigma2;
 
-uniform int rgbColor;
+uniform int colorMode;
 uniform int mask;
 
 void main()
@@ -57,12 +57,14 @@ void main()
   
     float factor;
     factor =  1.0 +contrast * ev * sv;
-    if (rgbColor==1){
+    if (colorMode==0 || colorMode==2){
+        /*  RGB or LUM */
         gl_FragColor[0] = color[0] * factor;
         gl_FragColor[1] = color[1] * factor;
         gl_FragColor[2] = color[2] * factor;
         gl_FragColor[3] = alpha*color[3];
-    }else{
+    }else if (colorMode ==1) {
+            /* xyL */
         gl_FragColor[0] = color[0];
         gl_FragColor[1] = color[1];
         gl_FragColor[2] = color[2] *factor;

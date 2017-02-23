@@ -98,7 +98,12 @@ classdef gabor < neurostim.stimulus
             % experiment.
             glUseProgram(o.shader);
             glUniform2f(glGetUniformLocation(o.shader , 'size'), o.width, o.height);
-            glUniform1i(glGetUniformLocation(o.shader , 'rgbColor'), strcmpi(o.cic.screen.colorMode,'RGB'));
+            colorModes = {'RGB','XYL','LUM'};
+            colorMode = find(ismember(o.cic.screen.colorMode,colorModes));
+            if isempty(colorMode)
+                error(['Gabor does not know how to deal with colormode ' o.cic.screen.colorMode]);
+            end
+            glUniform1i(glGetUniformLocation(o.shader , 'colorMode'), colorMode);
             glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
             % Setup done:
             glUseProgram(0);
