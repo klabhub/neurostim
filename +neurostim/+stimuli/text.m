@@ -30,7 +30,7 @@ classdef text < neurostim.stimulus
     methods (Access = public)
         function o = text(c,name)
             o = o@neurostim.stimulus(c,name);
-            o.listenToEvent({'BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT'});
+            o.listenToEvent('BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT');
             
             % add text properties
             o.addProperty('message','Hello World','validate',@ischar);

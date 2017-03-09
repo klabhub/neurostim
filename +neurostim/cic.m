@@ -1098,16 +1098,7 @@ classdef cic < neurostim.plugin
             KbQueueStart(c.keyDeviceIndex);
         end
         
-        
-        
-    end
-    
-    methods (Access=private)
-        
-        function KbQueueStop(c)
-            KbQueueStop(c.keyDeviceIndex);
-        end
-        
+        % Public access to allow plugins to call this...
         function KbQueueCheck(c)
             [pressed, firstPress, firstRelease, lastPress, lastRelease]= KbQueueCheck(c.keyDeviceIndex);%#ok<ASGLU>
             if pressed
@@ -1126,6 +1117,17 @@ classdef cic < neurostim.plugin
                 end
             end
         end
+        
+        
+        
+    end
+    
+    methods (Access=private)
+        
+        function KbQueueStop(c)
+            KbQueueStop(c.keyDeviceIndex);
+        end
+        
         
         
         %% PTB Imaging Pipeline Setup

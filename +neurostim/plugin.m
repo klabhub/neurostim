@@ -225,7 +225,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         end
         
         
-        function listenToEvent(o,evts)
+        function listenToEvent(o,varargin)
             % Add  an event that this plugin will respond to. Note that the
             % user must implement the events function to do the work
             % Checks to make sure function is called in constructor.
@@ -234,11 +234,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             if ~strcmp(tmp{1},tmp{2}) && ~strcmpi(tmp{2},'addScript')
                 error('Cannot create event listener outside constructor.')
             else
-                if ischar(evts);evts= {evts};end
-                if isempty(evts)
+                if numel(varargin)==0 || (numel(varargin)==1 && isempty(varargin{1}))
                     o.evts = {};
                 else
-                    o.evts = union(o.evts,evts)';    %Only adds if not already listed.
+                    o.evts = union(o.evts,varargin)';    %Only adds if not already listed.
                 end
             end
         end

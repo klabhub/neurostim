@@ -55,7 +55,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o = o@neurostim.plugins.eyetracker(c);
             o.addKey('F9',@keyboard,'DriftCorrect');
             o.addKey('F8',@keyboard,'EyelinkSetup');
-            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'}); %The parent class is also listening to the AFTERFRAME event. Intended?
+            o.listenToEvent('BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'); %The parent class is also listening to the AFTERFRAME event. Intended?
             o.addProperty('eyeEvts',struct);
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
         end

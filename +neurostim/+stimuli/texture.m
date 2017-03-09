@@ -46,7 +46,7 @@ classdef texture < neurostim.stimulus
   methods (Access = public)
     function o = texture(c,name)
       o = o@neurostim.stimulus(c,name);
-      o.listenToEvent({'BEFOREFRAME','BEFOREEXPERIMENT','AFTEREXPERIMENT'});
+      o.listenToEvent('BEFOREFRAME','BEFOREEXPERIMENT','AFTEREXPERIMENT');
             
       % add texture properties
       o.addProperty('id',[]); % id(s) of the texture(s) to show on the next frame

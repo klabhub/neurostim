@@ -24,7 +24,7 @@ classdef output < neurostim.plugin
     methods (Access = public)
         function o = output(c)
             o = o@neurostim.plugin(c,'output');
-            o.listenToEvent({'AFTERTRIAL','AFTEREXPERIMENT','BEFOREEXPERIMENT'});            
+            o.listenToEvent('AFTERTRIAL','AFTEREXPERIMENT','BEFOREEXPERIMENT');            
         end
     end
     

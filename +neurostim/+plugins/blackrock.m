@@ -19,7 +19,7 @@ classdef blackrock < neurostim.plugin
            o.addProperty('bufferResetTime',[]);
            o.addProperty('mccChannel',[],'validate',@isnumeric);
            o.addProperty('comments','Neurostim experiment','validate',@ischar);  %String sent to Central at start of experiment, saved with data file and displayed
-           o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT'});
+           o.listenToEvent('BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT');
        end
        
        

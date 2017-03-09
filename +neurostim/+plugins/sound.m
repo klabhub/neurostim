@@ -8,7 +8,7 @@ classdef sound < neurostim.plugin
     methods (Access=public)
         function o=sound(c)
             o=o@neurostim.plugin(c,'sound');
-            o.listenToEvent({'BEFOREEXPERIMENT', 'AFTEREXPERIMENT'});
+            o.listenToEvent('BEFOREEXPERIMENT', 'AFTEREXPERIMENT');
         end
         
         function beforeExperiment(o,c,evt)

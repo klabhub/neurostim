@@ -138,7 +138,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('transition',NaN);
             o.addProperty('frequency',NaN);
             
-            o.listenToEvent({'BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME','BEFORETRIAL'});
+            o.listenToEvent('BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME','BEFORETRIAL');
             
             % Define  marker events to store in the NIC data file
             o.code('trialStart') = 0;

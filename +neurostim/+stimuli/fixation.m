@@ -18,7 +18,7 @@ classdef fixation < neurostim.stimulus
             o.addProperty('size2',5,'validate',@isnumeric);
             o.addProperty('color2',[0 0 0],'validate',@isnumeric);
             o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR'}))) ;               
-            o.listenToEvent({'BEFOREFRAME'});
+            o.listenToEvent('BEFOREFRAME');
             o.on = 0;
         end
         

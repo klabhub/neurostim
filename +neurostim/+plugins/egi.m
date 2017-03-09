@@ -25,7 +25,7 @@ classdef egi < neurostim.plugin
             o.addProperty('clockVariability',NaN); % Measured clock variability
             o.addProperty('fineTuneClockOffset',0); % User specifiable offset to reduce AV tester offsets to 0
             o.addProperty('syncEveryN',Inf); %  Sync the clocks every N trials
-            o.listenToEvent({'BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT'});
+            o.listenToEvent('BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT');
         end 
         
         function logStimulusStart(o,stimulus)

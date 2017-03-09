@@ -30,7 +30,7 @@ classdef mouse < neurostim.stimulus
         function o = mouse(c,name)
             o = o@neurostim.stimulus(c,name);
             
-            o.listenToEvent({'BEFOREEXPERIMENT','BEFOREFRAME','AFTERFRAME','AFTERTRIAL'})
+            o.listenToEvent('BEFOREEXPERIMENT','BEFOREFRAME','AFTERFRAME','AFTERTRIAL')
             
             %% internally set parameters.
             o.addProperty('clickx',[]);

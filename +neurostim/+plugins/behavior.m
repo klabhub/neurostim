@@ -53,7 +53,7 @@ classdef behavior < neurostim.plugin
             o.addProperty('success',false);     %Set to true if the behavior was completed correctly
             o.addProperty('outcome',false);     %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
             
-            o.listenToEvent({'BEFORETRIAL','AFTERTRIAL','AFTERFRAME'});
+            o.listenToEvent('BEFORETRIAL','AFTERTRIAL','AFTERFRAME');
         end
         
         function beforeTrial(o,c,evt)

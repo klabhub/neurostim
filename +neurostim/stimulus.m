@@ -95,7 +95,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             
             s.addProperty('rngSeed',[],'validate',@isnumeric);
-            s.listenToEvent({'BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT'});
+            s.listenToEvent('BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT');
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
