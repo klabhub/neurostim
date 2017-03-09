@@ -149,7 +149,7 @@ classdef block < dynamicprops
         
         % Parse the designs to setup a single 2xN list of
         % N design/condition pairs, one for each trial
-        function setupExperiment(o)
+        function beforeBlock(o)
             % build the list of designs..
             o.list = repelem(repmat(1:o.nrDesigns,[1 o.nrRepeats]),repmat(o.weights,[1 o.nrRepeats]));
             % randomize order of factorials

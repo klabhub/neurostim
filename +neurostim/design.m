@@ -1,4 +1,4 @@
-classdef design <handle
+classdef design <handle & matlab.mixin.Copyable
     % Class for establishing an experimental design
     % Constructor:
     % o=design(name)
@@ -291,6 +291,11 @@ classdef design <handle
             neurostim.design.designNames= cat(2,neurostim.design.designNames,nm);
         end
         
+        function o2=duplicate(o1,nm)
+            o2 =copyElement(o1);
+            o2.name = nm;            
+        end     
+                 
         function ok = nextTrial(o)
             % Move the index to the next condition in the trial list.
             % Returns false if this is not possible (i.e. the design has been run completely).
@@ -514,6 +519,10 @@ classdef design <handle
     end
     
     methods (Access=protected)
+        function o1= copyElement(o2)
+                o1 = copyElement@matlab.mixin.Copyable(o2);
+        end
+        
         function v= cond2lvl(o,cond)
             % Return the factor levels for a specified condition
             if o.nrFactors>0

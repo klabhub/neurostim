@@ -48,7 +48,7 @@ classdef cic < neurostim.plugin
         subjectNr@double        = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
-        
+        itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         keyDeviceIndex          = []; % Use the first device by default
         
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
@@ -419,6 +419,7 @@ classdef cic < neurostim.plugin
             c.addProperty('condition',[],'AbortSet',false);
             c.addProperty('design',[],'AbortSet',false);
             c.addProperty('block',0,'AbortSet',false);
+            c.addProperty('blockCntr',0,'AbortSet',false);
             c.addProperty('blockTrial',0);
             c.addProperty('expScript',[]);
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
@@ -692,8 +693,10 @@ classdef cic < neurostim.plugin
             % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
+            % 'blockOrder' - the ordering of blocks
             p=inputParser;
-            p.addParameter('randomization','SEQUENTIAL',@(x)any(strcmpi(x,{'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT'})));
+            p.addParameter('randomization','SEQUENTIAL',@(x)any(strcmpi(x,{'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT','ORDERED'})));
+            p.addParameter('blockOrder',[],@isnumeric); %  A specific order of blocks
             p.addParameter('nrRepeats',1,@isnumeric);
             p.addParameter('weights',[],@isnumeric);
             
@@ -720,16 +723,15 @@ classdef cic < neurostim.plugin
             c.blockFlow.randomization = p.Results.randomization;
             c.blockFlow.list = repelem((1:numel(c.blocks)),c.blockFlow.weights);
             switch(c.blockFlow.randomization)
+                case 'ORDERED'
+                    c.blockFlow.list = p.Results.blockOrder;
+                    c.blockFlow.randomization = 'SEQUENTIAL';
                 case 'SEQUENTIAL'
                     %c.blockFlow.list
                 case 'RANDOMWITHREPLACEMENT'
                     c.blockFlow.list =Shuffle(c.blockFlow.list);
                 case 'RANDOMWITHOUTREPLACEMENT'
                     c.blockFlow.list=datasample(c.blockFlow.list,numel(c.blockFlow.list));
-            end
-            %% Then let each block set itself up
-            for blk = c.blocks
-                setupExperiment(blk);
             end
         end
         
@@ -825,10 +827,14 @@ classdef cic < neurostim.plugin
             end
             
             c.flags.experiment = true;
-            nrBlocks = numel(c.blocks);
-            for blockNr=1:nrBlocks
+            nrBlocks = numel(c.blockFlow.list);
+             for blockCntr=1:nrBlocks
                 c.flags.block = true;
-                c.block = c.blockFlow.list(blockNr); % Logged.
+                c.block = c.blockFlow.list(blockCntr); % Logged.
+                c.blockCntr= blockCntr;
+                %% Then let each block set itself up
+                beforeBlock(c.blocks(c.block));
+
                 
                 waitforkey=false;
                 if ~isempty(c.blocks(c.block).beforeMessage)
@@ -860,7 +866,7 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
-                            Screen('Flip',c.window,0,1);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            Screen('Flip',c.window,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
                     
@@ -872,6 +878,15 @@ classdef cic < neurostim.plugin
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
+                        
+                        %% Check for end of trial
+                        if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
+                            c.flags.trial=false; % This will be the last frame.
+                            clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
+                        else
+                            clr = c.clear;
+                        end
+
                         
                         notify(c,'BASEBEFOREFRAME');
                         
@@ -893,7 +908,7 @@ classdef cic < neurostim.plugin
                         %            deadline-miss. (BK: we use timing
                         %            info instead)
                         % beampos: position of the monitor scanning beam when the time measurement was taken
-                        [vbl,stimOn,flip] = Screen('Flip', c.window,0,1-c.clear); %#ok<ASGLU>
+                        [vbl,stimOn,flip] = Screen('Flip', c.window,0,1-clr); %#ok<ASGLU>
                         vbl =vbl*1000; %ms.
                         if c.frame > 1 && c.PROFILE
                             c.addProfile('FRAMELOOP',c.name,c.toc);
@@ -934,15 +949,11 @@ classdef cic < neurostim.plugin
                             c.getFlipTime=false;
                         end
                         
-                        %% Check for end of trial
-                        if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
-                            c.flags.trial=false;
-                        end
                     end % Trial running
                     
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
-                    [~,stimOn]=Screen('Flip', c.window,0,1-c.clear);
+                    [~,stimOn]=Screen('Flip', c.window,0,1-c.itiClear);
                     c.trialStopTime = stimOn*1000;
                     c.frame = c.frame+1;
                     notify(c,'BASEAFTERTRIAL');
@@ -951,11 +962,11 @@ classdef cic < neurostim.plugin
                 
                 if ~c.flags.experiment;break;end
                 waitforkey=false;
-                if ~isempty(c.blocks(blockNr).afterMessage)
+                if ~isempty(c.blocks(c.block).afterMessage)
                     waitforkey=true;
-                    DrawFormattedText(c.window,c.blocks(blockNr).afterMessage,'center','center',c.screen.color.text);
-                elseif ~isempty(c.blocks(blockNr).afterFunction)
-                    waitforkey=c.blocks(blockNr).afterFunction(c);
+                    DrawFormattedText(c.window,c.blocks(c.block).afterMessage,'center','center',c.screen.color.text);
+                elseif ~isempty(c.blocks(c.block).afterFunction)
+                    waitforkey=c.blocks(c.block).afterFunction(c);
                 end
                 Screen('Flip',c.window);
                 if waitforkey
@@ -1027,8 +1038,8 @@ classdef cic < neurostim.plugin
         end
         
         function [a,b] = physical2Pixel(c,x,y)
-            a = c.screen.xpixels.*(0.5+x./c.screen.width);
-            b = c.screen.ypixels.*(0.5-y./c.screen.height);
+            a = c.screen.xpixels.*(0.5+x./(c.screen.width));
+            b = c.screen.ypixels.*(0.5-y./(c.screen.height));
         end
         
         function [fr,rem] = ms2frames(c,ms,rounded)

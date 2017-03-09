@@ -103,7 +103,9 @@ classdef starstim < neurostim.stimulus
     end
     
     methods % Public
-        
+        function abort(o)
+            stop(o);
+        end
         function disp(o)
             disp(['Starstim Host: ' o.host  ' Status: ' o.status]);
         end
@@ -147,7 +149,7 @@ classdef starstim < neurostim.stimulus
         function beforeExperiment(o,c,evt) %#ok<INUSD>
             % Connect to the device, load the protocol.
             if o.fake
-                o.writeToFeed(['Starstim fake conect to ' h]);
+                o.writeToFeed(['Starstim fake conect to ' o.host]);
             else
                 [ret, stts, o.sock] = MatNICConnect(o.host);
                 o.checkRet(ret,['Host:' stts]);
@@ -204,7 +206,10 @@ classdef starstim < neurostim.stimulus
         
         
         function afterExperiment(o,c,evt) %#ok<INUSD>
-            
+           if o.fake
+               return;               
+           end
+         
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
@@ -238,6 +243,10 @@ classdef starstim < neurostim.stimulus
         end
         
         function beforeTrial(o,c,evt) %#ok<INUSD>
+            if o.fake
+                return;%o.writeToFeed('Starstim fake start stim');
+            else
+         
             if c.trial ==1
                 % Start protocol just before the first trial
                 start(o);
@@ -258,9 +267,13 @@ classdef starstim < neurostim.stimulus
             if ret<0
                 o.checkRet(ret,'Trialstart marker not delivered');
             end
+            end
         end
         
         function beforeFrame(o,c,evt) %#ok<INUSD>
+            if o.fake
+                return;
+            end
             switch (o.mode)
                 case 'PROTOCOL'
                     % nothing to do

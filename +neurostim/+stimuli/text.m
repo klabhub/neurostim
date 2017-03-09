@@ -6,7 +6,7 @@ classdef text < neurostim.stimulus
     %   textsize: size of text (pt)
     %   textstyle: style of text (supported: normal, bold, italic,
     %       underline)
-    %   textalign: horizontal alignment of text given x,y position (supported: 
+    %   textalign: horizontal alignment of text given x,y position (supported:
     %       center, left, right)
     %       - vertical alignment is default centered around y.
     %
@@ -45,77 +45,79 @@ classdef text < neurostim.stimulus
         
         
         function beforeFrame(o,c,evt)
-                    % Draw text with the assigned parameters
-                     % determine text style variable for 'TextStyle'
-                     if isempty(o.message); return;end
+            % Draw text with the assigned parameters
+            % determine text style variable for 'TextStyle'
+            if isempty(o.message); return;end
+            
+            
+            if o.antialiasing
+                Screen('glLoadIdentity', c.window);
+                Screen('glRotate',c.window,o.angle,o.rx,o.ry,o.rz);
+                % fix X and Y to be in pixels (clipping occurs at
+                % negative numbers under high quality text rendering)
+                [X,Y] = c.physical2Pixel(o.X,o.Y);
+                textsize = o.textsize;
+            else
+                Screen('glScale',c.window,1,-1);
+                X = o.X;
+                Y = o.Y;
+                textsize = round(o.textsize*c.screen.width/c.screen.xpixels);
+            end
+            
+            switch lower(o.textstyle)
+                case {'normal',0}
+                    style = 0;
+                case {'bold','b'}
+                    style = 1;
+                case {'italic','i'}
+                    style = 2;
+                case {'underline','u'}
+                    style = 4;
+                otherwise
+                    style = 0;
+            end
+            
+            %                     change font/size/style
+            Screen('TextFont', c.window, o.font);
+            Screen('TextSize', c.window, textsize);
+            Screen('TextStyle', c.window, style);
+            
+            
+            
+            [textRect] = Screen('TextBounds',c.window,o.message);
+            % aligning text in window
+            switch lower(o.textalign)
+                case {'center','centre','c'}
                     if o.antialiasing
-                       Screen('glLoadIdentity', c.window); 
-                       Screen('glRotate',c.window,o.angle,o.rx,o.ry,o.rz);
-                       % fix X and Y to be in pixels (clipping occurs at
-                       % negative numbers under high quality text rendering)
-                       [X,Y] = c.physical2Pixel(o.X,o.Y);
-                       textsize = o.textsize;
+                        xpos = X - textRect(3)/2;
+                        ypos = Y - textRect(4)/2;
                     else
-                        Screen('glScale',c.window,1,-1);
-                        X = o.X;
-                        Y = o.Y;
-                        textsize = round(o.textsize*c.screen.width/c.screen.xpixels);
+                        xpos = -textRect(3)/2;
+                        ypos = -textRect(4)/2;
                     end
-
-                    switch lower(o.textstyle)
-                        case {'normal',0}
-                            style = 0;
-                        case {'bold','b'}
-                            style = 1;
-                        case {'italic','i'}
-                            style = 2;
-                        case {'underline','u'}
-                            style = 4;
-                        otherwise
-                            style = 0;
+                case {'left','l'}
+                    if o.antialiasing
+                        xpos = X;
+                        ypos = X - textRect(4)/2;
+                    else
+                        xpos = X;
+                        ypos = - textRect(4)/2;
                     end
-                    
-%                     change font/size/style
-                    Screen('TextFont', c.window, o.font);
-                    Screen('TextSize', c.window, textsize);
-                    Screen('TextStyle', c.window, style);
-                    
-                    
-                    
-                    [textRect] = Screen('TextBounds',c.window,o.message);
-                    % aligning text in window
-                    switch lower(o.textalign)
-                        case {'center','centre','c'}
-                            if o.antialiasing
-                                xpos = X - textRect(3)/2;
-                                ypos = Y - textRect(4)/2;
-                            else
-                                xpos = -textRect(3)/2;
-                                ypos = -textRect(4)/2;
-                            end
-                        case {'left','l'}
-                            if o.antialiasing
-                                xpos = X;
-                                ypos = X - textRect(4)/2;
-                            else
-                                xpos = X;
-                                ypos = - textRect(4)/2;
-                            end
-                        case {'right','r'}
-                            if o.antialiasing
-                                xpos = X - textRect(3);
-                                ypos = -textRect(4)/2;
-                            else
-                                xpos = -textRect(3);
-                                ypos = -textRect(4)/2;
-                            end
-                        otherwise
-                            xpos = X;
-                            ypos = Y;
+                case {'right','r'}
+                    if o.antialiasing
+                        xpos = X - textRect(3);
+                        ypos = -textRect(4)/2;
+                    else
+                        xpos = -textRect(3);
+                        ypos = -textRect(4)/2;
                     end
-                   
-                    % draw text to Screen
-                    DrawFormattedText(c.window,o.message,xpos,ypos,o.color);
+                otherwise
+                    xpos = X;
+                    ypos = Y;
+            end
+            
+            % draw text to Screen
+            [~,~,bbox]= DrawFormattedText(c.window,o.message,xpos,ypos,o.color);
         end
         
         function afterTrial(o,c,evt)
