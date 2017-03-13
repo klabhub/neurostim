@@ -34,7 +34,7 @@ c.iti           = 0;
 c.paradigm      = 'xylDemo';
 c.subjectNr     = 0;
 c.clear         = 0;        % Tell CIC to never clear the screen. Everything that is draw stays on the screen.
-
+c.itiClear      = 0;
 % Convpoly to create a colored patch.
 % The color is defined as a function of the postion of the patch. Basically
 % when the patch moves from the left to the right of the creen, its CIE x coordinate 

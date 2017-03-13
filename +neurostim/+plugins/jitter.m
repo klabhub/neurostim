@@ -65,7 +65,13 @@ classdef jitter < neurostim.plugins.adaptive
                     o.value = o.distribution(o.parms{:});
                 else
                     %Name of a standard distribution (i.e. known to Matlab's random,cdf,etc.)
-                    if isempty(o.bounds)
+                    if strcmpi(o.distribution,'1ofN')
+                        % Convenience function to pick from a set of values
+                        % with equal probability.
+                        N = numel(o.parms);
+                        i = random('unid',N);
+                        o.value = o.parms{i};
+                    elseif isempty(o.bounds)
                         %Sample from specified distribution (unbounded)
                         if ~iscell(o.size)
                             sz = num2cell(o.size);

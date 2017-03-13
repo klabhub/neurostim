@@ -8,6 +8,10 @@ classdef nafcResponse < neurostim.plugins.behavior
     %               pressed.
     % correctKey -  function that returns the index (into 'keys') of the correct key. Usually a function of some stimulus parameter(s).
     % 
+    
+    properties
+        responded@logical=false;
+    end
 
    methods (Access = public)
        function o = nafcResponse(c,name)
@@ -20,9 +24,14 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('correct',false);
             o.addProperty('pressedInd',[]);
             o.addProperty('pressedKey',[]);
-            o.listenToEvent('BEFOREEXPERIMENT');
+            o.addProperty('oncePerTrial',false);
+            o.listenToEvent('BEFOREEXPERIMENT','BEFORETRIAL');
        end
        
+       function beforeTrial(o,c,evt)            
+           beforeTrial@neurostim.plugins.behavior(o,c,evt); % Call parent
+           o.responded = false;   % Update responded for this trial
+       end
 
        function beforeExperiment(o,c,evt)
            
@@ -50,7 +59,7 @@ classdef nafcResponse < neurostim.plugins.behavior
        
        function responseHandler(o,key)
            
-           if o.enabled
+           if o.enabled && (~o.responded || ~o.oncePerTrial)
                %Which key was pressed (index, and label)
                o.pressedInd = find(strcmpi(key,o.keys));
                o.pressedKey = o.keyLabels{o.pressedInd};
@@ -64,7 +73,8 @@ classdef nafcResponse < neurostim.plugins.behavior
                end
 
                %Set flag so that behaviour class detects completion next frame
-               o.inProgress = true;               
+               o.inProgress = true;   
+               o.responded = true;
            end
        end
           

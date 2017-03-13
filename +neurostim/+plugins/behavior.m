@@ -12,9 +12,9 @@ classdef behavior < neurostim.plugin
     end
     
     properties (SetAccess=protected)
-        started             %Set to true when behavior first begins (e.g. onset of fixation)
-        done                %Set to true when the behavior is complete/terminated, for good or bad.
-        inProgress;         %True if the subject is currently satisfying the requirement
+        started@logical=false;             %Set to true when behavior first begins (e.g. onset of fixation)
+        done@logical=false;                %Set to true when the behavior is complete/terminated, for good or bad.
+        inProgress@logical=false;          %True if the subject is currently satisfying the requirement
     end
     
     
@@ -48,8 +48,8 @@ classdef behavior < neurostim.plugin
             o.addProperty('deadline',Inf,'validate',@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
             
             %Internal use only       
-            o.addProperty('startTime',false);      %The time at which the behaviour was initiated (i.e. in progress).
-            o.addProperty('stopTime',false);        %The time at which a result was achieved (good or bad).
+            o.addProperty('startTime',Inf);      %The time at which the behaviour was initiated (i.e. in progress).
+            o.addProperty('stopTime',Inf);        %The time at which a result was achieved (good or bad).
             o.addProperty('success',false);     %Set to true if the behavior was completed correctly
             o.addProperty('outcome',false);     %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
             
