@@ -109,7 +109,7 @@ classdef cic < neurostim.plugin
         pluginOrder = {};
         EscPressedTime;
         lastFrameDrop=1;
-        propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/fullNrTrials'};
+        propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/nrTrialsTotal'};
         
         profile=struct('cic',struct('FRAMELOOP',[],'FLIPTIME',[],'cntr',0));
         
@@ -132,7 +132,7 @@ classdef cic < neurostim.plugin
         blockName;      % Name of the current block
         defaultPluginOrder;
         trialTime;      % Time elapsed (ms) since the start of the trial
-        fullNrTrials;   % Number of trials total (all blocks)
+        nrTrialsTotal;   % Number of trials total (all blocks)
         conditionID;    % Unique id for a condition - used by adaptive
         date;           % Date of the experiment.
     end
@@ -140,8 +140,8 @@ classdef cic < neurostim.plugin
     %% Public methods
     % set and get methods for dependent properties
     methods
-        function v=get.fullNrTrials(c)
-            v= sum([c.blocks.nrTrials]);
+        function v=get.nrTrialsTotal(c)
+            v= sum([c.blocks(c.blockFlow.list).nrTrials]);
         end
         
         function v= get.nrStimuli(c)

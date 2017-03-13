@@ -8,14 +8,14 @@ classdef parameter < handle
     %       are automaritally logged whenever they change
     %
     %
-    % Each parameter installs a preget (getValue) and a postset (setValue) 
-    % callback handler on % the dynamic property in the plugin that this 
-    % parameter belongs to. 
+    % Each parameter installs a preget (getValue) and a postset (setValue)
+    % callback handler on % the dynamic property in the plugin that this
+    % parameter belongs to.
     % For instance, the grating.X dynamic property is associated with a
     % parameter (stored as grating.prms.X) and each time a user requests
     % grating.X, the getValue(gratings.prms.X) function is called. This
     % function assigns the correct value to the dynamic property (for instance
-    % by evaluating a neurostim function). If the value changed it is logged. 
+    % by evaluating a neurostim function). If the value changed it is logged.
     % Each time the  user assigns a value to the property, setValue(gratings.prms.X) is
     % called, this logs the change in value.
     %
@@ -41,8 +41,8 @@ classdef parameter < handle
         capacity=0; % Capacity to store in log
         
         fun =[];        % Function to allow across parameter dependencies
-        validate =[];    % Validation function        
-        plg@neurostim.plugin; % Handle to the plugin that this belongs to.        
+        validate =[];    % Validation function
+        plg@neurostim.plugin; % Handle to the plugin that this belongs to.
         isFunResult@logical=false; % Used in getValue/setValue
     end
     
@@ -54,7 +54,7 @@ classdef parameter < handle
             
             if nargin>3
                 o.validate = valFun;
-            end            
+            end
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % Parse the specified function and make it into an anonymous
@@ -63,7 +63,7 @@ classdef parameter < handle
             end
             
             % Setup listeners to get, log, and validate changes
-            o.getListener  = p.addlistener(nm,'PreGet',@(src,evt)getValue(o,src,evt));             
+            o.getListener  = p.addlistener(nm,'PreGet',@(src,evt)getValue(o,src,evt));
             o.setListener = p.addlistener(nm,'PostSet',@(src,evt)setValue(o,src,evt));
             o.value = v; % Store the current value in this paramter object
             o.plg.(nm) = v; % Assign the current value to the dynamic property. This is done to log the current value.
@@ -71,8 +71,8 @@ classdef parameter < handle
         
         function storeInLog(o,v)
             % Store and Log
-            o.value =v; 
-            t = o.plg.cic.clockTime;            
+            o.value =v;
+            t = o.plg.cic.clockTime;
             o.cntr=o.cntr+1;
             % Allocate space if needed
             if o.cntr> o.capacity
@@ -88,19 +88,19 @@ classdef parameter < handle
         end
         
         % This function is called before the dynprop is used somewhere in the code.
-        % It allows us to evaluate functions. 
+        % It allows us to evaluate functions.
         function [v,ok] = getValue(o,src,evt) %#ok<INUSD>
             if isempty(o.fun)
                 % Simple value.
                 % In principle this could be stored directly in the
                 % dynprop, but then we'd have to keep track of parameters
-                % with and without listeners. 
-                v= o.value;  
-                o.setListener.Enabled = false; % Avoid a 'postset' call                      
-                o.plg.(o.name) = v; % Assign the current value to the dynprop                
-                o.setListener.Enabled = true; % Avoid a 'postset' call            
+                % with and without listeners.
+                v= o.value;
+                o.setListener.Enabled = false; % Avoid a 'postset' call
+                o.plg.(o.name) = v; % Assign the current value to the dynprop
+                o.setListener.Enabled = true; % Avoid a 'postset' call
                 ok = true;
-            elseif o.plg.cic.stage >o.plg.cic.SETUP 
+            elseif o.plg.cic.stage >o.plg.cic.SETUP
                 % We've passed SETUP phase, function evaluaton should be
                 % possible.
                 v=o.fun(o.plg); % Evaluate the function
@@ -114,25 +114,25 @@ classdef parameter < handle
                 o.plg.(o.name) = v;
                 o.isFunResult =false;
                 ok = true;
-            else  % -a  function but not all objects have been setup so 
+            else  % -a  function but not all objects have been setup so
                 % function evaluation may not work yet. Evaluate to NaN for now
                 % We don't actually assign this to the dynprop.
                 v = NaN;
                 ok = false;
-            end            
+            end
         end
         
-        % This function is called after each parametr set       
+        % This function is called after each parametr set
         function setValue(o,src,evt) %#ok<INUSD>
-            % First, retrieve the value that the dynprop was just set to.            
-            o.getListener.Enabled = false; % Avoid a 'preget' call            
+            % First, retrieve the value that the dynprop was just set to.
+            o.getListener.Enabled = false; % Avoid a 'preget' call
             v= o.plg.(o.name); % The raw value that has just been set
-            o.getListener.Enabled = true; % Allow preget calls again                                    
+            o.getListener.Enabled = true; % Allow preget calls again
             ok = true; % Normally ok; only function evals can be not ok.
             %Check for a function definition
-            if strncmpi(v,'@',1) 
-               % Parse the specified function and make it into an anonymous
-                % function.                
+            if strncmpi(v,'@',1)
+                % Parse the specified function and make it into an anonymous
+                % function.
                 v = neurostim.utils.str2fun(v);
             end
             if isa(v,'function_handle')
@@ -140,11 +140,11 @@ classdef parameter < handle
                 % Evaluate the function (without calling set again)
                 o.setListener.Enabled = false;
                 [v,ok]= getValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
-                o.setListener.Enabled = true;                
-            elseif ~o.isFunResult 
+                o.setListener.Enabled = true;
+            elseif ~o.isFunResult
                 % This is currently a function, and someone is overriding
                 % the parameter with a non-function value. Remove the fun.
-                o.fun = [];                
+                o.fun = [];
             end
             
             % validate
@@ -179,16 +179,16 @@ classdef parameter < handle
             end
         end
         
-        function setDefaultToCurrent(o)          
+        function setDefaultToCurrent(o)
             % Put the default back as the current value
             o.plg.(o.name) = o.default;
             % We are doing this even for @function defaults, which is
             % consistent but it takes more time presumably (to parse etc).
-            % Because this is done in the ITI it probably does not matter.            
+            % Because this is done in the ITI it probably does not matter.
         end
         
         %% Functions to extract parm values from the log
-        function [data,trial,trialTime,time] = get(o,varargin)
+        function [data,trial,trialTime,time,block] = get(o,varargin)
             % For any parameter, returns up to four vectors specifying
             % the values of the parameter during the experiment
             % data = values
@@ -215,7 +215,7 @@ classdef parameter < handle
             p.parse(varargin{:});
             
             % Try to make a matrix
-            if all(cellfun(@isnumeric,o.log(1:o.cntr))) && all(cellfun(@(x) (size(x,1)==1),o.log(1:o.cntr)))
+            if all(cellfun(@(x) (isnumeric(x) || islogical(x)),o.log(1:o.cntr))) && all(cellfun(@(x) (size(x,1)==1),o.log(1:o.cntr)))
                 try
                     data = cat(1,o.log{1:o.cntr});
                 catch me
@@ -228,7 +228,8 @@ classdef parameter < handle
             trial =o.trial(1:o.cntr);
             time = o.time(1:o.cntr);
             trialTime = t2t(o,time,trial,true);
-            
+            block =NaN; % Will be computed if requested 
+                
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set (only changes
             % are logged to save space).
@@ -267,25 +268,40 @@ classdef parameter < handle
                 time = time(ix);
                 trialTime = trialTime(ix);
                 if any(out)
-                    data(out)=NaN;
+                    if iscell(data)
+                        data{out} = NaN;
+                    else
+                        data(out)=NaN;
+                    end
                     trial(out) = NaN;
                     time(out) = NaN;
                     trialTime(out) = NaN;
                 end
                 
-                if iscell(data) && all(cellfun(@isnumeric,data)) 
+                if nargout >4
+                    % User asked for block information
+                    [block,blockTrial]= get(o.plg.cic.prms.block,'atTrialTime',Inf); % Blck at end of trial
+                    [yesno,ix] = ismember(trial,blockTrial);
+                    if all(yesno)
+                        block = block(ix)';
+                    else
+                        block = NaN; % Should never happen...
+                    end
+                end
+                
+                if iscell(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data))
                     if all(cellfun(@(x) (size(x,1)==1),data))
-                    try
-                        data = cat(1,data{:});
-                    catch me
-                        % Failed. keep the cell array
-                    end
+                        try
+                            data = cat(1,data{:});
+                        catch me %#ok<NASGU>
+                            % Failed. keep the cell array
+                        end
                     elseif all(cellfun(@(x) (size(x,2)==1),data))
-                    try
-                        data = cat(2,data{:});
-                    catch me
-                        % Failed. keep the cell array
-                    end
+                        try
+                            data = cat(2,data{:});
+                        catch me %#ok<NASGU>
+                            % Failed. keep the cell array
+                        end
                     end
                 end
             end
@@ -296,7 +312,16 @@ classdef parameter < handle
                 trial = trial(stay);
                 time = time(stay);
                 trialTime = trialTime(stay);
+                block = block(stay);
             end
+            
+            if isvector(data)
+                data=data(:);
+            end
+            trialTime = trialTime(:);
+            time = time(:);
+            block = block(:);
+            trial = trial(:);
             
             
         end
@@ -306,7 +331,7 @@ classdef parameter < handle
             % Find the time that each trial started by looking in the cic events log.
             beforeFirstTrial = tr==0;
             tr(beforeFirstTrial) =1;
-            trialStartTime = o.plg.cic.prms.trial.time;
+            trialStartTime = o.plg.cic.prms.trialStartTime.time;
             if ET2TRT
                 v= t-trialStartTime(tr);
                 v(beforeFirstTrial) = -Inf;

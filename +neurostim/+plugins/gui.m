@@ -19,7 +19,7 @@ classdef gui <neurostim.plugin
         fontSize@double = 15;           % Font size
         toleranceColor=[1 1 50];
         
-        props ={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial','blockTrial/nrTrials','trial/fullNrTrials'}; % List of properties to monitor
+        props ={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial','blockTrial/nrTrials','trial/nrTrialsTotal'}; % List of properties to monitor
         header@char  = '';              % Header to add.
         footer@char  = '';              % Footer to add.
         showKeys@logical = true;        % Show defined keystrokes
