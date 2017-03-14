@@ -3,6 +3,12 @@ classdef starstim < neurostim.stimulus
     % Neurelectrics.
     %
     %
+    % Setup in NIC: (Once)
+    %  Define a protocol with some non-zero stimulation duration
+    %  Go to Settings (under Protocol) and Activate TCP Server Markers and
+    %  TimeStamp, provide the name 'Neurostim' for the Markers Lab
+    %  Streaming layer 1 and activate it,
+    %
     %
     % A protocol (defined in the NIC) specifies which electrodes are
     % connected, which record, and which stimulate. You select a protocol
@@ -17,20 +23,22 @@ classdef starstim < neurostim.stimulus
     properties (SetAccess =public, GetAccess=public)
         stim@logical =false;
         impedanceType@char = 'DC'; % Set to DC or AC to measure impedance at DC or xx Hz AC.
+        
+        mode@char = 'TRIGGER';
         % The different modes provide for different levels of flexibility.
-        % PROTOCOL:
-        %   Start the ramp up phase of the protocol before trial 1, start
-        %   the first trial once the rampup is completee.
-        %   The protocol runs its course or it is terminated after the last
-        %   trial.
-        % TRIAL:
-        %   Start the rampup of the protocol before the first trial, then
-        %   pause it, and only run the protocol beteen the .on and .off
-        %   time of each trial. Because pausing/starting is a slow process,
-        %   in the NIC, this only works for long trials.
-        % ONLINE
+        % TRIGGER:
+        %  Simplest mode: trigger the start of a named protocol. Then do
+        %  nothing except sending trialStart markers and (if needed) turn
+        %  off the protocol at the end of the experiment.
         %
-        mode@char = 'PROTOCOL';
+        % TRIAL:
+        %   Start the rampup of the protocol before each .stim=truetrial, then
+        %   and ramp it down after each such trial.
+        %   Because pausing/starting takes 1-2 s this only works for long trials.
+        % 
+        % ONLINE:
+        %
+        
         NRCHANNELS = 8;  % nrChannels in your device.
     end
     % Public Get, but set through functions or internally
@@ -60,7 +68,7 @@ classdef starstim < neurostim.stimulus
         nowFrequency@double;
         nowPhase@double;
         nowTransition@double;
-       
+        
     end
     
     methods % get/set dependent functions
@@ -81,23 +89,23 @@ classdef starstim < neurostim.stimulus
         end
         
         function v = get.nowType(o)
-            v = o.stimType;            
+            v = o.stimType;
         end
         
         function v = get.nowAmplitude(o)
-            v = expand(o,o.amplitude);            
+            v = expand(o,o.amplitude);
         end
         
         function v = get.nowFrequency(o)
-            v = expand(o,o.frequency);            
+            v = expand(o,o.frequency);
         end
         
         function v = get.nowPhase(o)
-            v = expand(o,o.phase);            
+            v = expand(o,o.phase);
         end
         
         function v = get.nowTransition(o)
-            v = o.transition;            
+            v = o.transition;
         end
         
     end
@@ -137,13 +145,16 @@ classdef starstim < neurostim.stimulus
             o.addProperty('stimType','');
             o.addProperty('transition',NaN);
             o.addProperty('frequency',NaN);
+            o.addProperty('startTrial',1);
+            o.addProperty('stopTrial',Inf);
             
             o.listenToEvent('BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME','BEFORETRIAL');
             
             % Define  marker events to store in the NIC data file
-            o.code('trialStart') = 0;
-            o.code('stimStart') = 1;
-            o.code('stimStop') = 2;
+            o.code('trialStart') = 1;            
+            o.code('stimStart') = 2;
+            o.code('stimStop') = 3;
+            o.code('trialStop') = 4;
         end
         
         function beforeExperiment(o,c,evt) %#ok<INUSD>
@@ -170,21 +181,17 @@ classdef starstim < neurostim.stimulus
                     [ret] = MatNICConfigureMarkers (key{i}, vals{i}, o.sock);
                     o.checkRet(ret,['Define marker: ' key{i}]);
                 end
+                
+                
                 protocolSet = MatNICProtocolSet();
                 o.matNICVersion = protocolSet('MATNIC_VERSION');
+             
+                loadProtocol(o);
                 
-                
-                % Load the protocol
-                if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
-                    o.checkRet(-1,'A protocol is currently running on the NIC. Please stop it first')
-                end
-                ret = MatNICLoadProtocol(o.protocol,o.sock);
-                o.checkRet(ret,['Protocol ' o.protocol ' is not defined in NIC']);
-                
-                if o.impedanceCheck
-                    impedance(o);
-                end
-                
+                %                 if o.impedanceCheck
+                %                     impedance(o);
+                %                 end
+                %
                 
                 
             end
@@ -204,20 +211,125 @@ classdef starstim < neurostim.stimulus
             
         end
         
+        function loadProtocol(o,prtcl)
+            if nargin >1
+                % new protocol defined
+                unloadProtocol(o); % Unload current                
+                o.protocol= prtcl;
+            end
+            % Load the protocol
+            if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
+                o.checkRet(-1,'A protocol is currently running on the NIC. Please stop it first')                            
+            end
+            ret = MatNICLoadProtocol(o.protocol,o.sock);
+            o.checkRet(ret,['Protocol ' o.protocol ' is not defined in NIC']);            
+        end
+        
+        function unloadProtocol(o)
+            if strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')                    
+                return; % No protocol loaded.
+            end               
+             ret = MatNICUnloadProtocol(o.sock);
+             o.checkRet(ret,'Could not unload the current protocol.')                                 
+        end
+        
+        function beforeTrial(o,c,evt) %#ok<INUSD>
+            if o.fake
+                return;%o.writeToFeed('Starstim fake start stim');
+            else                
+                switch upper(o.mode)                        
+                    case 'TRIGGER'
+                        if o.stim && ~o.isProtocolOn                            
+                            start(o);
+                            waitFor(o,'CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_STIMULATION_FULL');                             
+                        elseif ~o.stim && o.isProtocolOn
+                            pause(o);
+                            % Dont wait, pause returns once it is done.
+                        end                                                       
+                    case 'TRIAL'
+                        % If this is a stim trial, rampup stimulation and
+                        % continue only after the plateau has been reached
+                        if o.stim && ~o.isProtocolOn
+                            start(o);
+                            % This waitFor is slow, and adds at least 1s to
+                            % the startup, but at least we're in a defined
+                            % state after the wait. (Without this wait,
+                            % trialStart events happen at unpredicatble
+                            % times relative to the ramp)
+                            waitFor(o,'CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_STIMULATION_FULL');     
+                        end                                      
+                    case 'SINGLE'
+                        o.isSingleStarted = false;
+                    otherwise
+                        c.error(['Unknown starstim mode :' o.mode]);
+                end
+                
+                % Send a trial start marker to the NIC
+                ret = MatNICMarkerSendLSL(o.code('trialStart'),o.markerStream);
+                if ret<0
+                    o.checkRet(ret,'Trialstart marker not delivered');
+                end
+            end
+        end
+        
+        function beforeFrame(o,c,evt) %#ok<INUSD>
+            if o.fake
+                return;
+            end
+            switch upper(o.mode)
+                case {'TRIGGER','TRIAL'}
+                    % nothing to do
+                case 'SINGLE'
+                    if o.flags.on && ~o.isSingleStarted
+                        switch (o.nowType)
+                            case 'DC'
+                                %   [ret] = MatNICOnlineAtdcsChange(o.dcAmplitude, o.NRCHANNELS, o.transition, o.sock);
+                            case 'AC'
+                                [ret] = MatNICOnlinetACSChange(o.nowAmplitude, o.nowFrequency, o.nowPhase,o.NRCHANNELS, o.nowTransition, o.sock);
+                            case 'RNS'
+                        end
+                        o.isSingleStarted = true;
+                    end
+                otherwise
+                    c.error(['Unknown starstim mode :' o.mode]);
+            end
+            
+        end
+        function afterTrial(o,c,evt)
+            switch upper(o.mode)
+                case 'TRIGGER'
+                    % Nothing to do (trigger mode keeps running across ITI/trials)                    
+                case 'TRIAL'
+                    if o.isProtocolOn 
+                        pause(o); 
+                       % Dont have to wait here; pause does a busy wait until completed.
+                    end                
+                case 'SINGLE'
+                otherwise
+                    c.error(['Unknown starstim mode :' o.mode]);
+            end
+            
+            % Send a trial start marker to the NIC
+            ret = MatNICMarkerSendLSL(o.code('trialStop'),o.markerStream);
+            if ret<0
+                o.checkRet(ret,'trialStop marker not delivered');
+            end
+            
+        end
         
         function afterExperiment(o,c,evt) %#ok<INUSD>
-           if o.fake
-               return;               
-           end
-         
+            if o.fake
+                return;
+            end
+            
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
             end
             
             % Mode specific clean up?
-            switch (o.mode)
-                case 'PROTOCOL'
+            switch upper(o.mode)
+                case 'TRIGGER'
                 case 'TRIAL'
                 case 'SINGLE'
                 otherwise
@@ -236,73 +348,9 @@ classdef starstim < neurostim.stimulus
                 impedance(o);
             end
             
-            MatNICUnloadProtocol(o.sock);
+            unloadProtocol(o);
             MatNICMarkerCloseLSL(o.markerStream);
             close(o.sock);
-            
-        end
-        
-        function beforeTrial(o,c,evt) %#ok<INUSD>
-            if o.fake
-                return;%o.writeToFeed('Starstim fake start stim');
-            else
-         
-            if c.trial ==1
-                % Start protocol just before the first trial
-                start(o);
-                waitFor(o,'CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_STIMULATION_FULL');
-            end
-            
-            switch (o.mode)
-                case  {'TRIAL'}
-                    pause(o);
-                case 'SINGLE'
-                    o.isSingleStarted = false;
-                otherwise
-                    c.error(['Unknown starstim mode :' o.mode]);
-            end
-            
-            % Send a trial start marker to the NIC
-            ret = MatNICMarkerSendLSL(o.code('trialStart'),o.markerStream);
-            if ret<0
-                o.checkRet(ret,'Trialstart marker not delivered');
-            end
-            end
-        end
-        
-        function beforeFrame(o,c,evt) %#ok<INUSD>
-            if o.fake
-                return;
-            end
-            switch (o.mode)
-                case 'PROTOCOL'
-                    % nothing to do
-                case 'TRIAL'
-                    if o.flags.on % It should be on
-                        if ~o.isProtocolOn % it is off, start it
-                            start(o);
-                        else
-                            % Already on. nothing to do.
-                        end
-                    else % It should e off
-                        if o.isProtocolOn % it is on, pause it.
-                            pause(o);
-                        end
-                    end
-                case 'SINGLE'
-                    if o.flags.on && ~o.isSingleStarted
-                        switch (o.nowType)
-                            case 'DC'
-                         %   [ret] = MatNICOnlineAtdcsChange(o.dcAmplitude, o.NRCHANNELS, o.transition, o.sock);
-                            case 'AC'
-                            [ret] = MatNICOnlinetACSChange(o.nowAmplitude, o.nowFrequency, o.nowPhase,o.NRCHANNELS, o.nowTransition, o.sock);
-                            case 'RNS'
-                        end                        
-                        o.isSingleStarted = true;
-                    end
-                otherwise
-                    c.error(['Unknown starstim mode :' o.mode]);
-            end
             
         end
     end
@@ -430,12 +478,11 @@ classdef starstim < neurostim.stimulus
             % busy-wait for a sequence of status events.
             cntr =1;
             nrInSequence = numel(varargin);
-            while (cntr<=nrInSequence)
-                
+            while (cntr<=nrInSequence)                
                 if strcmpi(o.protocolStatus,varargin{cntr})
                     cntr= cntr+1;
                 end
-                pause(0.25); % Check status every 250 ms.
+                pause(0.1); % Check status every 100 ms.
             end
         end
         
