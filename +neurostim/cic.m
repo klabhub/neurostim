@@ -430,11 +430,8 @@ classdef cic < neurostim.plugin
             
         end
         
-        function addPropsToInform(c,props)
-            if ischar(props)
-                props = {props};
-            end
-            c.propsToInform = cat(2,c.propsToInform,props);
+        function addPropsToInform(c,varargin)
+            c.propsToInform = cat(2,c.propsToInform,varargin{:});
         end
         
         function showDesign(c,factors)
@@ -702,16 +699,9 @@ classdef cic < neurostim.plugin
             
             %% First create the blocks and blockFlow
             isblock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
-            if any(isblock)
-                % Store the blocks
-                c.blocks = [varargin{isblock}];
-            else
-                % No blocks specified. Create a fake block (single
-                % condition; mainly for testing purposes)
-                d = neurostim.design('dummy');
-                d.fac1.cic.trialDuration = c.trialDuration;
-                c.blocks = neurostim.block('dummy',d);
-            end
+            % Store the blocks
+            c.blocks = [varargin{isblock}];
+            
             args = varargin(~isblock);
             parse(p,args{:});
             if isempty(p.Results.weights)
@@ -789,7 +779,9 @@ classdef cic < neurostim.plugin
             %Log the experimental script as a string
             try
                 stack = dbstack('-completenames',1);
+                if ~isempty(stack) % Can happen with ctrl-retun execution of code
                 c.expScript = fileread(stack(1).file);
+                end
             catch
                 warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
             end
