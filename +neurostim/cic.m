@@ -780,7 +780,7 @@ classdef cic < neurostim.plugin
             try
                 stack = dbstack('-completenames',1);
                 if ~isempty(stack) % Can happen with ctrl-retun execution of code
-                c.expScript = fileread(stack(1).file);
+                    c.expScript = fileread(stack(1).file);
                 end
             catch
                 warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
@@ -820,13 +820,13 @@ classdef cic < neurostim.plugin
             
             c.flags.experiment = true;
             nrBlocks = numel(c.blockFlow.list);
-             for blockCntr=1:nrBlocks
+            for blockCntr=1:nrBlocks
                 c.flags.block = true;
                 c.block = c.blockFlow.list(blockCntr); % Logged.
                 c.blockCntr= blockCntr;
                 %% Then let each block set itself up
                 beforeBlock(c.blocks(c.block));
-
+                
                 
                 waitforkey=false;
                 if ~isempty(c.blocks(c.block).beforeMessage)
@@ -878,7 +878,7 @@ classdef cic < neurostim.plugin
                         else
                             clr = c.clear;
                         end
-
+                        
                         
                         notify(c,'BASEBEFOREFRAME');
                         
@@ -1070,6 +1070,76 @@ classdef cic < neurostim.plugin
             end
         end
         
+        
+        function c = rig(c,varargin)
+            % Basic screen etc. setup function, called from myRig for
+            % instnace.
+            pin = inputParser;
+            pin.addParameter('xpixels',[]);
+            pin.addParameter('ypixels',[]);
+            pin.addParameter('xorigin',[]);
+            pin.addParameter('yorigin',[]);
+            pin.addParameter('screenWidth',[]);
+            pin.addParameter('screenHeight',[]);
+            pin.addParameter('screenDist',[]);
+            pin.addParameter('frameRate',[]);
+            pin.addParameter('screenNumber',[]);
+            pin.addParameter('keyboardNumber',[]);
+            pin.addParameter('eyelink',false);
+            pin.addParameter('eyelinkCommands',[]);
+            pin.addParameter('outputDir',[]);
+            pin.addParameter('mcc',false);
+            pin.addParameter('colorMode','RGB');
+            pin.parse(varargin{:});
+            
+            if ~isempty(pin.Results.xpixels)
+                c.screen.xpixels  = pin.Results.xpixels;
+            end
+            if ~isempty(pin.Results.ypixels)
+                c.screen.ypixels  = pin.Results.ypixels;
+            end
+            if ~isempty(pin.Results.frameRate)
+                c.screen.frameRate  = pin.Results.frameRate;
+            end
+            if ~isempty(pin.Results.screenWidth)
+                c.screen.width  = pin.Results.screenWidth;
+            end
+            if ~isempty(pin.Results.screenHeight)
+                c.screen.height = pin.Results.screenHeight;
+            else
+                c.screen.height = c.screen.width*c.screen.ypixels/c.screen.xpixels;
+            end
+            if ~isempty(pin.Results.screenDist)
+                c.screen.viewDist  = pin.Results.screenDist;
+            end
+            if ~isempty(pin.Results.screenNumber)
+                c.screen.number  = pin.Results.screenNumber;
+            end
+            if ~isempty(pin.Results.keyboardNumber)
+                c.keyDeviceIndex  = pin.Results.keyboardNumber;
+            end
+            if ~isempty(pin.Results.outputDir)
+                c.dirs.output  = pin.Results.outputDir;
+            end
+            if pin.Results.eyelink
+                neurostim.plugins.eyelink(c);
+                if ~isempty(pin.Results.eyelinkCommands)
+                    for i=1:numel(pin.Results.eyelinkCommands)
+                        c.eye.command(pin.Results.eyelinkCommands{i});
+                    end
+                end
+            else
+                e = neurostim.plugins.eyetracker(c);      %If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
+                e.useMouse = true;
+            end
+            if pin.Results.mcc
+                neurostim.plugins.mcc(c);
+            end
+            
+            c.screen.xorigin = pin.Results.xorigin;
+            c.screen.yorigin = pin.Results.yorigin;
+            c.screen.colorMode = pin.Results.colorMode;
+        end
     end
     
     
@@ -1223,15 +1293,15 @@ classdef cic < neurostim.plugin
                         T = tmpCmf.(fn{Tix}); % CMF
                         S = tmpCmf.(fn{Six}); % Wavelength info
                         T = 683*T;
-                        cal = SetSensorColorSpace(cal,T,S);                        
-                        PsychColorCorrection('SetSensorToPrimary', c.window, cal);                        
+                        cal = SetSensorColorSpace(cal,T,S);
+                        PsychColorCorrection('SetSensorToPrimary', c.window, cal);
                     catch
                         error(['Could not load the Color Matching Function file: ' c.screen.calibration.cmf]);
                     end
                 case 'RGB'
                     % Nothing to do
                 otherwise
-                    error(['Unknown color mode: ' c.screen.colorMode]);                    
+                    error(['Unknown color mode: ' c.screen.colorMode]);
             end
             PsychColorCorrection('SetColorClampingRange',c.window,0,1); % Final pixel value is between [0 1]
             
