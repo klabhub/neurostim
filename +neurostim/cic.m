@@ -709,19 +709,21 @@ classdef cic < neurostim.plugin
             else
                 c.blockFlow.weights = p.Results.weights;
             end
-            c.blockFlow.nrRepeats = p.Results.nrRepeats;
             c.blockFlow.randomization = p.Results.randomization;
-            c.blockFlow.list = repelem((1:numel(c.blocks)),c.blockFlow.weights);
-            switch(c.blockFlow.randomization)
-                case 'ORDERED'
-                    c.blockFlow.list = p.Results.blockOrder;
-                    c.blockFlow.randomization = 'SEQUENTIAL';
-                case 'SEQUENTIAL'
-                    %c.blockFlow.list
-                case 'RANDOMWITHREPLACEMENT'
-                    c.blockFlow.list =Shuffle(c.blockFlow.list);
-                case 'RANDOMWITHOUTREPLACEMENT'
-                    c.blockFlow.list=datasample(c.blockFlow.list,numel(c.blockFlow.list));
+            singleRepeatList = repelem((1:numel(c.blocks)),c.blockFlow.weights);
+            c.blockFlow.list =[];
+            for i=1:p.Results.nrRepeats
+                switch(c.blockFlow.randomization)
+                    case 'ORDERED'
+                        c.blockFlow.list = cat(2,c.blockFlow.list,p.Results.blockOrder);
+                        c.blockFlow.randomization = 'SEQUENTIAL';
+                    case 'SEQUENTIAL'
+                        c.blockFlow.list = cat(2,c.blockFlow.list,singleRepeatList);
+                    case 'RANDOMWITHREPLACEMENT'
+                        c.blockFlow.list =cat(2,c.blockFlow.list,Shuffle(singleRepeatList));
+                    case 'RANDOMWITHOUTREPLACEMENT'
+                        c.blockFlow.list= cat(2,c.blockFlow.list,datasample(singleRepeatList,numel(singleRepeatList)));
+                end
             end
         end
         

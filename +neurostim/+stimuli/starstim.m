@@ -35,7 +35,7 @@ classdef starstim < neurostim.stimulus
         %   Start the rampup of the protocol before each .enabled=true trial, then
         %   and ramp it down after each such trial.
         %   Because pausing/starting takes 1-2 s this only works for long trials.
-        % 
+        %
         % ONLINE:
         %
         
@@ -54,9 +54,10 @@ classdef starstim < neurostim.stimulus
         sock;               % Socket for communication with the host.
         markerStream;       % LSL stream to write markers in NIC
         impedanceCheck@logical = false; % Set to false to skip the Z-check at the start of the experiment (debug only)
-      
-        isSingleStarted = false;
-        activeProtocol='';
+        
+        isSingleStarted@logical = false;
+        isShamOn@logical = false;
+        activeProtocol@char='';
     end
     
     
@@ -70,6 +71,7 @@ classdef starstim < neurostim.stimulus
         nowPhase@double;
         nowTransition@double;
         isProtocolOn@logical;
+        isProtocolPaused@logical;
     end
     
     methods % get/set dependent functions
@@ -94,13 +96,27 @@ classdef starstim < neurostim.stimulus
                 v =true;
             else
                 stts = o.protocolStatus;
-                if isempty(stts)
+                if isempty(stts) || ~ischar(stts)
                     v =false;
                 else
-                    v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL'});                
+                    v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL',});
                 end
             end
         end
+        
+        function v= get.isProtocolPaused(o)
+            if o.fake
+                v =true;
+            else
+                stts = o.protocolStatus;
+                if isempty(stts) || ~ischar(stts)
+                    v =true; % No protcol status means it is not running...??
+                else
+                    v = ismember(stts,{'CODE_STATUS_PROTOCOL_PAUSED', 'CODE_STATUS_IDLE'});
+                end
+            end
+        end
+        
         
         function v = get.nowType(o)
             v = o.stimType;
@@ -148,9 +164,9 @@ classdef starstim < neurostim.stimulus
                 error('The MatNIC library is not on your Matlab path');
             end
             
-            o=o@neurostim.stimulus(c,'starstim');
+             o=o@neurostim.stimulus(c,'starstim');
             fake = strcmpi(hst,'fake');
-            if nargin <2 
+            if nargin <2
                 hst = 'localhost';
             end
             
@@ -164,12 +180,14 @@ classdef starstim < neurostim.stimulus
             o.addProperty('stimType','');
             o.addProperty('transition',NaN);
             o.addProperty('frequency',NaN);
-          
+            o.addProperty('sham',false);
+            o.addProperty('enabled',true);
+            
             
             o.listenToEvent('BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME','BEFORETRIAL');
             
             % Define  marker events to store in the NIC data file
-            o.code('trialStart') = 1;            
+            o.code('trialStart') = 1;
             o.code('stimStart') = 2;
             o.code('stimStop') = 3;
             o.code('trialStop') = 4;
@@ -198,9 +216,9 @@ classdef starstim < neurostim.stimulus
                 for i=1:length(o.code)
                     [ret] = MatNICConfigureMarkers (key{i}, vals{i}, o.sock);
                     o.checkRet(ret,['Define marker: ' key{i}]);
-                end                                
+                end
                 protocolSet = MatNICProtocolSet();
-                o.matNICVersion = protocolSet('MATNIC_VERSION');                                           
+                o.matNICVersion = protocolSet('MATNIC_VERSION');
             end
             
             %%
@@ -221,52 +239,60 @@ classdef starstim < neurostim.stimulus
         function loadProtocol(o,prtcl)
             if nargin >1
                 % new protocol defined
-                unloadProtocol(o); % Unload current                
+                unloadProtocol(o); % Unload current
                 o.protocol= prtcl;
             end
             % Load the protocol
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
-                o.checkRet(-1,'A protocol is currently running on the NIC. Please stop it first')                            
+                o.checkRet(-1,'A protocol is currently running on the NIC. Please stop it first')
             end
             ret = MatNICLoadProtocol(o.protocol,o.sock);
             if ret ~=0
-                o.checkRet(ret,['Protocol ' o.protocol ' is not defined in NIC']); 
+                o.checkRet(ret,['Protocol ' o.protocol ' is not defined in NIC']);
             else
                 o.activeProtocol = o.protocol;
             end
         end
         
         function unloadProtocol(o)
-            if strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')                    
+            if ~ischar(o.protocolStatus) || strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 return; % No protocol loaded.
-            end               
-             ret = MatNICUnloadProtocol(o.sock);
-             if ret<0
-                o.checkRet(ret,'Could not unload the current protocol.')                                 
-             else
-                 o.activeProtocol ='';
-             end
+            end
+            ret = MatNICUnloadProtocol(o.sock);
+            if ret<0                
+                o.checkRet(ret,'Could not unload the current protocol.')
+            else
+                o.activeProtocol ='';
+            end
         end
         
         function beforeTrial(o,c,evt) %#ok<INUSD>
             if o.fake
                 return;%o.writeToFeed('Starstim fake start stim');
-            else             
+            else
                 %% Load the protocol if it has changed
-                if ~strcmpi(o.protocol,o.activeProtocol)                    
-                   stop(o);
-                   unloadProtocol(o);
-                   loadProtocol(o);
+                if ~strcmpi(o.protocol,o.activeProtocol)
+                    stop(o);
+                    unloadProtocol(o);
+                    loadProtocol(o);
                 end
-                switch upper(o.mode)                        
+                switch upper(o.mode)
                     case 'TRIGGER'
-                        if o.enabled && ~o.isProtocolOn                            
-                            start(o);
-                            waitFor(o,'CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_STIMULATION_FULL');                             
-                        elseif ~o.enabled && o.isProtocolOn
-                            pause(o);
-                            % Dont wait, pause returns once it is done.
-                        end                                                       
+                        if o.enabled                            
+                            if ~o.isShamOn 
+                                start(o);  % If it is already on, it won't start again                            
+                            end                            
+                            if o.sham                                 
+                                pause(o);
+                                o.isShamOn = true;
+                            elseif o.isShamOn
+                                start(o);
+                                o.isShamOn = false;
+                            end                            
+                        else
+                             pause(o);
+                             o.isShamOn = false; 
+                        end                                                                        
                     case 'TRIAL'
                         % If this is a stim trial, rampup stimulation and
                         % continue only after the plateau has been reached
@@ -277,8 +303,8 @@ classdef starstim < neurostim.stimulus
                             % state after the wait. (Without this wait,
                             % trialStart events happen at unpredicatble
                             % times relative to the ramp)
-                            waitFor(o,'CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_STIMULATION_FULL');     
-                        end                                      
+                            waitFor(o,'CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_STIMULATION_FULL');
+                        end
                     case 'SINGLE'
                         o.isSingleStarted = false;
                     otherwise
@@ -319,12 +345,12 @@ classdef starstim < neurostim.stimulus
         function afterTrial(o,c,evt)
             switch upper(o.mode)
                 case 'TRIGGER'
-                    % Nothing to do (trigger mode keeps running across ITI/trials)                    
+                    % Nothing to do (trigger mode keeps running across ITI/trials)
                 case 'TRIAL'
-                    if o.isProtocolOn 
-                        pause(o); 
-                       % Dont have to wait here; pause does a busy wait until completed.
-                    end                
+                    if o.isProtocolOn
+                        pause(o);
+                        % Dont have to wait here; pause does a busy wait until completed.
+                    end
                 case 'SINGLE'
                 otherwise
                     c.error(['Unknown starstim mode :' o.mode]);
@@ -433,38 +459,33 @@ classdef starstim < neurostim.stimulus
             elseif ~o.isProtocolOn
                 ret = MatNICStartProtocol(o.sock);
                 o.checkRet(ret,['Protocol ' o.protocol ' could not be started']);
-            else
-                disp ('problem in start(o)')
-                o.protocolStatus 
-            end           
+                waitFor(o,'CODE_STATUS_STIMULATION_FULL');
+            %else already started
+            end
         end
         
         function stop(o)
             % Stop the current protocol
-            if o.fake
-                o.writeToFeed('Stimulation stopped');                
-            elseif o.isProtocolOn                           
-                    ret = MatNICAbortProtocol(o.sock);
-                    o.checkRet(ret,['Protocol ' o.protocol ' could not be stopped']);
-            %else -  already stopped
-            else
-                disp ('problem in stop(o)')
-                o.protocolStatus 
+            if o.fake 
+                o.writeToFeed('Stimulation stopped');
+            elseif o.isProtocolOn
+                ret = MatNICAbortProtocol(o.sock);
+                o.checkRet(ret,['Protocol ' o.protocol ' could not be stopped']);
+                %else -  already stopped            
             end
-       
+            
         end
         
         function pause(o)
             % Pause the current protocol
             if o.fake
                 o.writeToFeed('Stimulation stopped');
-            elseif o.isProtocolOn       
+            elseif ~o.isProtocolPaused
                 ret = MatNICPauseProtocol(o.sock);
                 o.checkRet(ret,['Protocol ' o.protocol ' could not be paused']);
-            else
-                disp ('problem in pause(o)')
-                o.protocolStatus
-            end            
+                waitFor(o,'CODE_STATUS_IDLE');
+          %  else already paused
+            end
         end
         
         
@@ -498,7 +519,7 @@ classdef starstim < neurostim.stimulus
                 ok = true;
             else
                 ok = strcmpi(o.status,'CODE_STATUS_STIMULATION_READY');
-            end 
+            end
         end
         
         
@@ -509,7 +530,7 @@ classdef starstim < neurostim.stimulus
             nrInSequence = numel(varargin);
             TIMEOUT = 5;
             tic;
-            while (cntr<=nrInSequence && toc <TIMEOUT)                
+            while (cntr<=nrInSequence && toc <TIMEOUT)
                 if strcmpi(o.protocolStatus,varargin{cntr})
                     cntr= cntr+1;
                 end

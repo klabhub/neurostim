@@ -228,7 +228,7 @@ classdef parameter < handle
             trial =o.trial(1:o.cntr);
             time = o.time(1:o.cntr);
             trialTime = t2t(o,time,trial,true);
-            block =NaN; % Will be computed if requested 
+            block =nans(1,o.cntr); % Will be computed if requested 
                 
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set (only changes
