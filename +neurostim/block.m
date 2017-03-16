@@ -107,6 +107,7 @@ classdef block < dynamicprops
         function o = block(name,varargin)
             assert(nargin > 1,'NEUROSTIM:block:notEnoughInputs', ...
                 'Not enough input arguments.');
+            assert(all(cellfun(@(x) isa(x,'neurostim.design'),varargin)),'Block construction requires designs only')
             o.name = name;
             o.designs = [varargin{:}];
             o.weights = ones(1,o.nrDesigns);
@@ -119,7 +120,7 @@ classdef block < dynamicprops
             
             
             %% Check whether we need to go to the next design in this block
-            if o.designIx ==0 ||  ~nextTrial(o.design); % Move the design to the next trial            
+            if o.designIx ==0 ||  ~nextTrial(o.design) % Move the design to the next trial            
                 % This design is done, move to the next one
                 o.designIx = o.designIx +1;
                 if o.designIx > numel(o.list)

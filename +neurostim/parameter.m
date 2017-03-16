@@ -19,6 +19,12 @@ classdef parameter < handle
     % Each time the  user assigns a value to the property, setValue(gratings.prms.X) is
     % called, this logs the change in value.
     %
+    % Note: some parameters store Matlab functions. These are simply stored
+    % as values, not in o.fun. Only neurostim functions (specified as
+    % strings starting with '@') have entries in o.fun and these functions
+    % are evaluated before returning a value to the caller (who uses the
+    % dynamic property that this parameter is associated with).
+    %
     % BK - Feb 2017
     
     properties (Constant)
@@ -39,8 +45,9 @@ classdef parameter < handle
         trial;    % Trial in which previous values were set.
         cntr=0; % Counter to store where in the log we are.
         capacity=0; % Capacity to store in log
-        
+                
         fun =[];        % Function to allow across parameter dependencies
+        funStr = '';    % The neurostim function string
         validate =[];    % Validation function
         plg@neurostim.plugin; % Handle to the plugin that this belongs to.
         isFunResult@logical=false; % Used in getValue/setValue
@@ -55,30 +62,26 @@ classdef parameter < handle
             if nargin>3
                 o.validate = valFun;
             end
-            %Check for a function definition
-            if strncmpi(v,'@',1)
-                % Parse the specified function and make it into an anonymous
-                % function.
-                o.fun = neurostim.utils.str2fun(v);
-            end
             
             % Setup listeners to get, log, and validate changes
             o.getListener  = p.addlistener(nm,'PreGet',@(src,evt)getValue(o,src,evt));
             o.setListener = p.addlistener(nm,'PostSet',@(src,evt)setValue(o,src,evt));
-            o.value = v; % Store the current value in this paramter object
-            o.plg.(nm) = v; % Assign the current value to the dynamic property. This is done to log the current value.
+            % Assign the current value to the dynamic property. This calls
+            % the setValue listener, which logs the value (and parses the
+            % v if it is a neurostim function string)
+            o.plg.(nm) = v; 
         end
         
         function storeInLog(o,v)
             % Store and Log
-            o.value =v;
+            o.value = v;
             t = o.plg.cic.clockTime;
             o.cntr=o.cntr+1;
             % Allocate space if needed
             if o.cntr> o.capacity
                 o.log       = cat(2,o.log,cell(1,o.BLOCKSIZE));
                 o.time      = cat(2,o.time,nan(1,o.BLOCKSIZE));
-                o.trial       = cat(2,o.trial,nan(1,o.BLOCKSIZE));
+                o.trial      = cat(2,o.trial,nan(1,o.BLOCKSIZE));
                 o.capacity = numel(o.log);
             end
             %% Fill the log.
@@ -91,19 +94,20 @@ classdef parameter < handle
         % It allows us to evaluate functions.
         function [v,ok] = getValue(o,src,evt) %#ok<INUSD>
             if isempty(o.fun)
-                % Simple value.
+                % Simple value. (Which could be a matlab function, but not
+                % a neurostim function)
                 % In principle this could be stored directly in the
                 % dynprop, but then we'd have to keep track of parameters
                 % with and without listeners.
-                v= o.value;
+                v= o.value; 
                 o.setListener.Enabled = false; % Avoid a 'postset' call
                 o.plg.(o.name) = v; % Assign the current value to the dynprop
-                o.setListener.Enabled = true; % Avoid a 'postset' call
+                o.setListener.Enabled = true; % Reenable 'postset' calls
                 ok = true;
             elseif o.plg.cic.stage >o.plg.cic.SETUP
                 % We've passed SETUP phase, function evaluaton should be
                 % possible.
-                v=o.fun(o.plg); % Evaluate the function
+                v=o.fun(o.plg); % Evaluate the neurostim function
                 o.isFunResult =true; % A flag to allow the setValue function to detect
                 % whether it is being called from here (to log the outcome of
                 % the function) or somewhere else (to change the function to something else).
@@ -114,7 +118,7 @@ classdef parameter < handle
                 o.plg.(o.name) = v;
                 o.isFunResult =false;
                 ok = true;
-            else  % -a  function but not all objects have been setup so
+            else  % -a neurostim function but not all objects have been setup so
                 % function evaluation may not work yet. Evaluate to NaN for now
                 % We don't actually assign this to the dynprop.
                 v = NaN;
@@ -130,21 +134,23 @@ classdef parameter < handle
             o.getListener.Enabled = true; % Allow preget calls again
             ok = true; % Normally ok; only function evals can be not ok.
             %Check for a function definition
+            
             if strncmpi(v,'@',1)
+                % The dynprop was set to a neurostim function
                 % Parse the specified function and make it into an anonymous
                 % function.
+                o.funStr = v; % store this to be able to restore it later.
                 v = neurostim.utils.str2fun(v);
-            end
-            if isa(v,'function_handle')
                 o.fun = v;
                 % Evaluate the function (without calling set again)
                 o.setListener.Enabled = false;
                 [v,ok]= getValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
                 o.setListener.Enabled = true;
-            elseif ~o.isFunResult
+            elseif ~o.isFunResult && ~isempty(o.fun)
                 % This is currently a function, and someone is overriding
                 % the parameter with a non-function value. Remove the fun.
                 o.fun = [];
+                o.funStr = '';
             end
             
             % validate
@@ -175,27 +181,31 @@ classdef parameter < handle
             if isempty(o.fun)
                 o.default = o.value;
             else
-                o.default = o.fun;
+                o.default = o.funStr;
             end
         end
         
         function setDefaultToCurrent(o)
             % Put the default back as the current value
             o.plg.(o.name) = o.default;
-            % We are doing this even for @function defaults, which is
-            % consistent but it takes more time presumably (to parse etc).
-            % Because this is done in the ITI it probably does not matter.
+            
+            % Note that for Neurostim functions ('@' strings) the string
+            % value is restored, and then re-parsed in setValue. This is a
+            % bit slower but this function is only called in the ITI so
+            % this should not be a problem. The advantage is that
+            % parameters can be constants in some conditions and functions
+            % in others.
         end
         
-        %% Functions to extract parm values from the log
+        %% Functions to extract parm values from the log. use this to analyze the data
         function [data,trial,trialTime,time,block] = get(o,varargin)
-            % For any parameter, returns up to four vectors specifying
+            % For any parameter, returns up to five  vectors specifying
             % the values of the parameter during the experiment
             % data = values
             % trial = trial in whcih that value occurred
             % trialTime = Time relative to start of the trial
             % time  = time relative to start of the experiment
-            %
+            % block = the block in which this trial occurred.
             %
             % Because parameters are logged only when they change,there are
             % additional input arguments that can be provided to put the
@@ -207,6 +217,10 @@ classdef parameter < handle
             % that corresponds to the value of the parameter at that time in
             % the trial. By setting this to Inf, you get the last value in
             % the trial.
+            % 'after' - specify an event and you'll get the first value
+            % after this event. 
+            % 'trial'  - request only entries occuring in this set of
+            % trials.
             %
             p =inputParser;
             p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial

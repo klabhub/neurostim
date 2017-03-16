@@ -20,10 +20,10 @@ pianola = true; % Set this to true to simulate responses, false to provide your 
 % Define a simulated observer with different thresholds for the two
 % conditions. This should be visible when you run this demo with pianola=true; one orientation
 % should converge on a low contrast, the other on a high contrast.
-simulatedObserver = '@grating.contrast>(0.1+0.5*(grating.cic.condition-1))';
+%simulatedObserver = '@grating.contrast>(0.1+0.5*(grating.cic.condition-1))';
 % Or use this one for an observer with some zero mean gaussian noise on the threshold
 simulatedObserver = '@grating.contrast> (0.05*randn + (0.1+0.5*(grating.cic.condition-1)))';
-%% Setup the controller
+%% Setup the controller 
 c= myRig;
 c.trialDuration = Inf;
 c.screen.color.background = [ 0.5 0.5 0.5];
@@ -34,25 +34,25 @@ c.subjectNr= 0;
 % the grating's location (left or right) is to be detected
 % and use this to estimate the contrast threshold
 g=stimuli.gabor(c,'grating');
-g.color             = [0.5 0.5 0.5];
+g.color            = [0.5 0.5 0.5];
 g.contrast         = 0.25;
-g.Y                     = 0;
-g.X                     = 0;
-g.sigma             = 3;
-g.phaseSpeed   = 0;
-g.orientation     = 0;
-g.mask               = 'CIRCLE';
+g.Y                = 0;
+g.X                = 0;
+g.sigma            = 3;
+g.phaseSpeed       = 0;
+g.orientation      = 0;
+g.mask             = 'CIRCLE';
 g.frequency        = 3;
-g.on                    =  0;
-g.duration          = 500;
-
+g.on               =  0;
+g.duration         = 500;
+  
 %% Setup user responses
 % Take the user response (Press 'a'  to report detection on the left, press 'l'  for detection on the right)
 k = plugins.nafcResponse(c,'choice');
 k.on = '@grating.on + grating.duration';
 k.deadline = '@choice.on + 2000';         %Maximum allowable RT is 2000ms
-k.keys = {'a' 'l'};                                          %Press 'a' for "left" motion, 'l' for "right"
-k.keyLabels = {'left', 'right'};                    % Label for bookkeeping.
+k.keys = {'a' 'l'};                       %Press 'a' for "left" motion, 'l' for "right"
+k.keyLabels = {'left', 'right'};          % Label for bookkeeping.
 k.correctKey = '@double(grating.X> 0) + 1';   %Function to define what the correct key is in each trial .It returns the index of the correct response (i.e., key 1 ('a' when X<0 and 2 'l' when X>0)
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
 
@@ -72,7 +72,7 @@ nrLevels = d.nrLevels;
 % first factor. (Using .conditions(:,1) would work too.
 % In this case there is a single jitter object that will be used in all
 % conditions.
-d.conditions(:).grating.X= plugins.jitter(c,{10},'distribution',@(x)(x*(1-2*(rand>0.5)))); % Jitter the location of the grating on each trial: either 10 or -10 using the function
+d.conditions(:).grating.X= plugins.jitter(c,{10,-10},'distribution','1ofN'); % Jitter the location of the grating on each trial: either 10 or -10 
 
 if strcmpi(method,'QUEST')
     % To estimate threshold adaptively, the Quest method can be used. We need
@@ -123,7 +123,7 @@ end
 
 % Create a block for this design and specify the repeats per design
 myBlock=block('myBlock',d);
-myBlock.nrRepeats = 25; % Because the design has 2 conditions, this results in 2*nrRepeats trials.
+myBlock.nrRepeats = 20; % Because the design has 2 conditions, this results in 2*nrRepeats trials.
 c.run(myBlock);
 
 %% Do some analysis on the data

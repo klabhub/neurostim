@@ -25,7 +25,7 @@ ptch.on           = 0;
 
 stm = stimuli.starstim(c,'localhost');
 
-%% Example TRIGGER Mode
+%% Example BLOCKED Mode
 % Load a protocol, start the ramp up phase in the first trial for which .enabeled=true
 % and start that trial as soon as ramp-up is complete. The protocol keeps
 % running as programmed in NIC software. Neurostim sends trialStart markers
@@ -47,7 +47,7 @@ stm = stimuli.starstim(c,'localhost');
 %
 % d =design('d1');
 % d.conditions(1).starstim.protocol = 'Neurostim.StimTest.Trigger';
-% d.conditions(1).starstim.mode= 'trigger';
+% d.conditions(1).starstim.mode= 'BLOCKED';
 % d.conditions(1).starstim.enabled = true; 
 % blck=block('dummyBlock',d); 
 % blck.nrRepeats  = 2;

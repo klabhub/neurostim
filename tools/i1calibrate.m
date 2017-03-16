@@ -10,7 +10,7 @@ function c=i1calibrate(skipWhiteTile,fakeItAll)
 %
 % BK - Dec 2016
 
-if nargin < 2
+if nargin < 2 
     fakeItAll = false;
     if nargin<1
         skipWhiteTile = false;
@@ -24,7 +24,7 @@ if fakeItAll
     load 'PTB3TestCal.mat'
     load T_xyz1931
     T_xyz = 683*T_xyz1931;
-    fakeCal= SetSensorColorSpace(cals{end},T_xyz,S_xyz1931);
+    fakeCal= SetSensorColorSpace(cals{end},T_xyz,S_xyz1931); 
     fakeCal = SetGammaMethod(fakeCal,0);
 elseif exist('I1') ~=3 %#ok<EXIST>
     error('Could not find the I1 mex-file that is required to run this calibration tool');
@@ -35,7 +35,7 @@ import neurostim.*
 
 
 %% Setup CIC and the stimuli.
-c = myRig;
+c = myRig; 
 c.screen.colorMode = 'RGB';
 c.screen.type = 'GENERIC';
 c.trialDuration = 250;
@@ -80,9 +80,7 @@ c.addScript('AfterFrame',@measure); % Tell CIC to call this eScript after drawin
             else
                 I1('TriggerMeasurement');
                 Lxy = I1('GetTriStimulus');
-                spc = I1('GetSpectrum');
-            
-               
+                spc = I1('GetSpectrum');                           
             end
             write(c,'lxy',Lxy);
             write(c,'spectrum',spc);
@@ -96,7 +94,7 @@ target.radius       = 5;
 target.X            = 0;
 target.Y            = 0;
 target.nSides       = 4;
-target.filled       = true;
+target.filled       = true; 
 target.color        = 0;
 target.on           = 0;
 target.duration     = 1000;
@@ -111,23 +109,18 @@ red = [gv' zeros(nrGv,2)];
 colors = [[0 0 0];red; red(:,[2 1 3]); red(:,[2 3 1]);[ 1 1 1]];
 eachGun=design('rgb');
 eachGun.fac1.target.color  = num2cell(colors,2);
-% One block to measure various colors (testing purpose)
-xy =design('color');
-nrProbes = 50;
-xy.fac1.target.color = num2cell(rand([nrProbes 3]),2);
-
 blck=block('tfBlock',eachGun);
-blck.nrRepeats  = 1;
+blck.nrRepeats  = 1; 
 %% Run the calibration
 c.run(blck);
 
 %% From the data extract cal structure
-if fakeItAll
+if fakeItAll 
      wavelengths = linspace(fakeCal.describe.S(1),fakeCal.describe.S(1)+fakeCal.describe.S(2)*fakeCal.describe.S(3),fakeCal.describe.S(3));
 else
     wavelengths  = 380:10:730;
 end
-cal= neurostim.utils.ptbcal(c,'save',false,'plot',false,'wavelengths',wavelengths); % Create a cal object in PTB format. 
+cal= neurostim.utils.ptbcal(c,'save',false,'plot',true,'wavelengths',wavelengths); % Create a cal object in PTB format. 
 
 return;
 

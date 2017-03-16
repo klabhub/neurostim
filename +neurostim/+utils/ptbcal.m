@@ -2,8 +2,8 @@ function [cal] = ptbcal(c,varargin)
 %function [ cal ] = ptbcal( c)
 % Extract PTB cal structure from a neurostim CIC object that contains the
 % results of a calibration experiment (see i1calibrate in demos)
-% The main requirement of the experiment is that it stores 
-%  Lxy : the Luminance anc CIE xy values 
+% The main requirement of the experiment is that it stores
+%  Lxy : the Luminance anc CIE xy values
 %  rgb :  The rgb values corresponding to the measurements
 % spectrum: the full spectrum for each of the values
 %
@@ -62,9 +62,9 @@ for g=1:3
     for i=unique(ix)'
         iCntr= iCntr+1;
         stay = ix ==i;
-        nrRepeats(iCntr,g) = sum(stay);
-        meanLxy(iCntr,:,g) = mean(thisLxy(stay,:)); %#ok<AGROW>
-        meanSpectrum(iCntr,:,g) =  mean(thisSpectrum(stay,:)); %#ok<AGROW>
+        nrRepeats(iCntr,g) = sum(stay); %#ok<AGROW>
+        meanLxy(iCntr,:,g) = mean(thisLxy(stay,:),1); %#ok<AGROW>
+        meanSpectrum(iCntr,:,g) =  mean(thisSpectrum(stay,:),1); %#ok<AGROW>
     end
 end
 
@@ -92,7 +92,7 @@ cal = CalibrateFitLinMod(cal);
 % Define input settings for the measurements
 mGammaInputRaw = linspace(0, 1, cal.describe.nMeas+1)';
 mGammaInputRaw = mGammaInputRaw(2:end);
-cal.rawdata.rawGammaInput = mGammaInputRaw;  
+cal.rawdata.rawGammaInput = mGammaInputRaw;
 cal = CalibrateFitGamma(cal, 2^cal.describe.dacsize);
 Smon = cal.describe.S;
 Tmon = WlsToT(Smon);
@@ -107,8 +107,8 @@ Six = strncmpi('S_',fn,2); % Variable startgin with S_ specifies the wavelengths
 T = tmpCmf.(fn{Tix}); % CMF
 S = tmpCmf.(fn{Six}); % Wavelength info
 T = 683*T;
-cal = SetSensorColorSpace(cal,T,S);                         
-cal = SetGammaMethod(cal,0);                    
+cal = SetSensorColorSpace(cal,T,S);
+cal = SetGammaMethod(cal,0);
 
 
 
@@ -117,12 +117,12 @@ cal = SetGammaMethod(cal,0);
 lum = [ambientLum*ones(1,3) ;squeeze(meanLxy(:,1,:))];
 lum = lum-ambientLum;
 gv = [0 ;gv];
-gammaFunction = @(prms,lum) (prms(3)+ (lum./prms(1)).^prms(2)); % 
+gammaFunction = @(prms,lum) (prms(3)+ (lum./prms(1)).^prms(2)); %
 
 for i=1:3
     maxLum = max(lum(:,i));
     parameterGuess = [maxLum 1/2.2 0]; % bias gain gamma
-    [prms(i,:),residuals,jacobian] = nlinfit(lum(:,i),gv,gammaFunction,parameterGuess);
+    [prms(i,:),residuals,jacobian] = nlinfit(lum(:,i),gv,gammaFunction,parameterGuess); %#ok<AGROW>
     cal.extendedGamma.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
 end
 cal.extendedGamma.bias = prms(:,3)';
@@ -139,35 +139,35 @@ if p.Results.save
 end
 
 if p.Results.plot
-% Put up a plot of the essential data
-figure(1); clf;
-plot(SToWls(cal.S_device), cal.P_device);
-xlabel('Wavelength (nm)', 'Fontweight', 'bold');
-ylabel('Irradiance (W/m^2 sr nm)', 'Fontweight', 'bold');
-title('Phosphor spectra', 'Fontsize', 13, 'Fontname', 'helvetica', 'Fontweight', 'bold');
-axis([380, 780, -Inf, Inf]);
-
-figure(2); clf;
-plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable, '+');
-xlabel('gun value [0 1]', 'Fontweight', 'bold');
-ylabel('Normalized output [0 1]', 'Fontweight', 'bold');
-title('Gamma functions', 'Fontsize', 13, 'Fontname', 'helvetica', 'Fontweight', 'bold');
-hold on
-plot(cal.gammaInput, cal.gammaTable);
-hold off
-
-figure(3);clf;
-color = 'rgb';
-for i=1:3
-plot(lum(:,i),gv,color(i));
-hold on
-x = lum(:,i) + ambientLum;
-plot(x,gammaFunction([cal.extendedGamma.max(i) 1./cal.extendedGamma.gamma(i) cal.extendedGamma.bias(i)],x),['*' color(i)])
-
-end
-xlabel 'Luminance (cd/m^2)'
-ylabel 'GunValue [0 1]')
-title 'Inverse Gamma'
+    % Put up a plot of the essential data
+    figure(1); clf;
+    plot(SToWls(cal.S_device), cal.P_device);
+    xlabel('Wavelength (nm)', 'Fontweight', 'bold');
+    ylabel('Irradiance (W/m^2 sr nm)', 'Fontweight', 'bold');
+    title('Phosphor spectra', 'Fontsize', 13, 'Fontname', 'helvetica', 'Fontweight', 'bold');
+    axis([380, 780, -Inf, Inf]);
+    
+    figure(2); clf;
+    plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable, '+');
+    xlabel('gun value [0 1]', 'Fontweight', 'bold');
+    ylabel('Normalized output [0 1]', 'Fontweight', 'bold');
+    title('Gamma functions', 'Fontsize', 13, 'Fontname', 'helvetica', 'Fontweight', 'bold');
+    hold on
+    plot(cal.gammaInput, cal.gammaTable);
+    hold off
+    
+    figure(3);clf;
+    color = 'rgb';
+    for i=1:3
+        plot(lum(:,i),gv,color(i));
+        hold on
+        x = lum(:,i) + ambientLum;
+        plot(x,gammaFunction([cal.extendedGamma.max(i) 1./cal.extendedGamma.gamma(i) cal.extendedGamma.bias(i)],x),['*' color(i)])
+        
+    end
+    xlabel 'Luminance (cd/m^2)'
+    ylabel 'GunValue [0 1]')
+    title 'Inverse Gamma'
 end
 
 

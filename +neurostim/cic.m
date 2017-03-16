@@ -281,11 +281,7 @@ classdef cic < neurostim.plugin
             
             frInterval = Screen('GetFlipInterval',c.window)*1000;
             percError = abs(frInterval-(1000/c.screen.frameRate))/frInterval*100;
-            if percError > 5
-                
-                
-                
-                
+            if percError > 5              
                 clear all
                 close all
                 error('Actual frame rate doesn''t match the requested rate');
@@ -430,6 +426,10 @@ classdef cic < neurostim.plugin
             
         end
         
+        function nextTrial(c)
+            c.flags.trial = false;
+       end
+
         function addPropsToInform(c,varargin)
             c.propsToInform = cat(2,c.propsToInform,varargin{:});
         end
@@ -912,7 +912,7 @@ classdef cic < neurostim.plugin
                         
                         if c.frame == 1
                             notify(c,'FIRSTFRAME');
-                            c.trialStartTime = stimOn*1000; % for trialDuration check
+                            c.trialStartTime = stimOn*1000; % for trialDuration check                           
                             c.flipTime=0;
                         end
                         
@@ -978,9 +978,7 @@ classdef cic < neurostim.plugin
             if c.PROFILE; report(c);end
         end
         
-        function c = nextTrial(c)
-            c.trial = c.trial+1;
-        end
+       
         
         function delete(c)%#ok<INUSD>
             %Destructor. Release all resources. Maybe more to add here?
