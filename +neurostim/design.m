@@ -357,7 +357,7 @@ classdef design <handle & matlab.mixin.Copyable
                         end
                     else
                         targetFactors = S(2).subs;
-                        if o.nrFactors >0 && (targetFactors{end}~=1 && numel(targetFactors) ~= o.nrFactors) % allow (:,1) for a one-factor
+                        if o.nrFactors >0 && (targetFactors{end}~=1 && numel(targetFactors) ~= o.nrFactors && ~(numel(targetFactors)==1 && strcmpi(targetFactors{1},':'))) % allow (:,1) for a one-factor
                             error(['Specify an entry for each of the ' num2str(o.nrFactors) ' dimensions of .conditions'])
                         end
                     end
@@ -368,6 +368,11 @@ classdef design <handle & matlab.mixin.Copyable
                         error('Please specify both a plugin/stimulus and a parameter: .conditions(i,j).plugin.parm = ...');
                     end
                     ix = S(2).subs; % The ix into the condition matrix
+                    if numel(ix)==1 && strcmpi(ix{1},':') && o.nrFactors>1
+                        % Singleton expansion of (:) to  (:,:)
+                        ix = cell(1,o.nrFactors);
+                        [ix{:}] = deal(':');
+                    end
                     if o.nrFactors>0
                         %% Factors have previously been defined. Allow only
                         % modifications of the full factorial, not
@@ -376,7 +381,7 @@ classdef design <handle & matlab.mixin.Copyable
                         % Allow users to use singleton or vectors to specify
                         % levels (if the parameter value of a single level is a
                         % vector, put it in a cell array).
-                        if ischar(V) || isscalar(V)
+                        if ischar(V) || (~iscell(V) && isscalar(V))
                             V = {V};
                         elseif ~iscell(V)
                             V = neurostim.utils.vec2cell(V);

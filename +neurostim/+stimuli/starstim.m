@@ -4,41 +4,74 @@ classdef starstim < neurostim.stimulus
     %
     %
     % Setup in NIC: (Once)
-    %  Define a protocol with some non-zero stimulation duration
+    %
     %  Go to Settings (under Protocol) and Activate TCP Server Markers and
     %  TimeStamp, provide the name 'Neurostim' for the Markers Lab
-    %  Streaming layer 1 and activate it,
+    %  Streaming layer 1.
     %
     %
     % A protocol (defined in the NIC) specifies which electrodes are
-    % connected, which record, and which stimulate. You select a protocol
-    % by providing its name (case-sensitive) to the starstim constructor.
+    % connected, which record EEG, and which stimulate. You select a protocol
+    % by providing its name (case-sensitive) to the starstim plugin constructor.
+    % In the 'BLOCKED' and 'TRIAL' mode, the protocol as defined in the NIC
+    % interface is run "as is" (i.e. except for starting/pausing/stopping
+    % the protocol, there are no changes to its parameters).
     %
     % Filenaming convention for NIC output uses the name of the step in the
     % protocol. Leaving the step name blank creates cleaner file names
-    % (YYYMMDDHHMMSS.subject.edf)
+    % (YYYMMDDHHMMSS.subject.edf). This plugin creates a subdirectory with
+    % the name of the Neurostim file to store the NIC output files (this
+    % assumes Neurostim runs on the same machine as the NIC).
     %
+    % There are different modes to operate this plugin, with increasing levels of
+    % temporal and parameter control.  (.mode)
+    % BLOCKED:
+    %    Simplest mode: trigger the start of a named protocol in the first
+    %   trial in which .enabled =true and keep running until a trial is about
+    %   to start that has .enabled =false (or the end of the trial, whichever
+    %   is earlier).
+    %
+    % TRIAL:
+    %   Start the rampup of the protocol before each .enabled=true trial, then
+    %   and ramp it down after each such trial. Because pausing/starting takes
+    %    1-2 s this only works for long trials.
+    %
+    % TIMED:
+    %  Here stimulation starts in each .enabled=true trial at starstim.on
+    %  The parameters of stimulation are set here in Neurostim by defining
+    %  .amplitude, .frequency, .phase and a fixed duration. (note that if
+    %  you use a Neurostim function for the duration, it will be evaluated
+    %  before the start of the trial, and not updated during the trial). To
+    %  use this mode, you should define a protocol that identifies all
+    %  electrodes, but has zero current for each. Those values are then
+    %  overruled by Neurostim.
+    %  Ramping up/down is controlled by the .transition parameter which has
+    %  to be at least 100 ms. Ramp up starst at starstim.on time in each
+    %  trial.
+    %  This mode ignores .sham  (as you can implement your own by setting
+    %  .duration to, say, 1 ms)
+    %
+    % In each mode, you can switch NIC protocols by assinging a new value to
+    % .protocol. This switch is done before the trial in which .protocol
+    % gets its new value. The time needed to do this is incorporated into
+    % the ITI.
+    %
+    % In each mode , you can use sham stimulation (.sham =
+    % true); this means that the protcol will ramp up and immediately down
+    % again. In BLOCKED and TRIAL mode, the minimum transition time defined in
+    % NIC is 1s, this takes ~2s, so setting the iti in CIC to 2s is
+    % recommended (to ensure that every ITI is 2 s). In TIMED mode, the
+    % sham stimulation will last 2*starstim.transition plus 1 frame.
+    %  
+    % See startstimDemo for more details and examples
+    % 
     % BK - Feb 2016, 2017
     
     properties (SetAccess =public, GetAccess=public)
         stim@logical =false;
         impedanceType@char = 'DC'; % Set to DC or AC to measure impedance at DC or xx Hz AC.
         
-        mode@char = 'TRIGGER';
-        % The different modes provide for different levels of flexibility.
-        % TRIGGER:
-        %  Simplest mode: trigger the start of a named protocol. Then do
-        %  nothing except sending trialStart markers and (if needed) turn
-        %  off the protocol at the end of the experiment.
-        %
-        % TRIAL:
-        %   Start the rampup of the protocol before each .enabled=true trial, then
-        %   and ramp it down after each such trial.
-        %   Because pausing/starting takes 1-2 s this only works for long trials.
-        %
-        % ONLINE:
-        %
-        
+        mode@char = 'BLOCKED'; % 'BLOCKED','TRIAL','TIMED'
         NRCHANNELS = 8;  % nrChannels in your device.
     end
     % Public Get, but set through functions or internally
@@ -55,8 +88,9 @@ classdef starstim < neurostim.stimulus
         markerStream;       % LSL stream to write markers in NIC
         impedanceCheck@logical = false; % Set to false to skip the Z-check at the start of the experiment (debug only)
         
-        isSingleStarted@logical = false;
+        isOnlineStarted@logical = false;
         isShamOn@logical = false;
+        
         activeProtocol@char='';
     end
     
@@ -70,6 +104,7 @@ classdef starstim < neurostim.stimulus
         nowFrequency@double;
         nowPhase@double;
         nowTransition@double;
+        nowMean@double;
         isProtocolOn@logical;
         isProtocolPaused@logical;
     end
@@ -138,6 +173,10 @@ classdef starstim < neurostim.stimulus
             v = o.transition;
         end
         
+        function v=get.nowMean(o)
+            v = expand(o,o.mean);
+        end
+        
     end
     
     methods % Public
@@ -164,7 +203,7 @@ classdef starstim < neurostim.stimulus
                 error('The MatNIC library is not on your Matlab path');
             end
             
-             o=o@neurostim.stimulus(c,'starstim');
+            o=o@neurostim.stimulus(c,'starstim');
             fake = strcmpi(hst,'fake');
             if nargin <2
                 hst = 'localhost';
@@ -174,12 +213,15 @@ classdef starstim < neurostim.stimulus
             o.addProperty('protocol',''); % Case Sensitive
             o.addProperty('fake',fake);
             o.addProperty('z',NaN);
-            o.addProperty('channel',NaN);
-            o.addProperty('amplitude',NaN);
-            o.addProperty('phase',0);
             o.addProperty('stimType','');
+            o.addProperty('itiOff',true);
+            
+            o.addProperty('amplitude',NaN);
+            o.addProperty('mean',NaN);
+            o.addProperty('phase',0);
             o.addProperty('transition',NaN);
             o.addProperty('frequency',NaN);
+            
             o.addProperty('sham',false);
             o.addProperty('enabled',true);
             
@@ -200,7 +242,11 @@ classdef starstim < neurostim.stimulus
             else
                 [ret, stts, o.sock] = MatNICConnect(o.host);
                 o.checkRet(ret,['Host:' stts]);
-                pth = fileparts(c.fullFile);
+                [pth,file] = fileparts(c.fullFile);
+                pth = fullfile(pth,file);
+                if ~exist(pth,'dir')
+                    mkdir(pth);
+                end
                 ret  = MatNICConfigurePathFile (pth, o.sock); % Specify target directory
                 o.checkRet(ret,'PathFile');
                 % File format : % YYYYMMDD_[subject].edf
@@ -259,7 +305,7 @@ classdef starstim < neurostim.stimulus
                 return; % No protocol loaded.
             end
             ret = MatNICUnloadProtocol(o.sock);
-            if ret<0                
+            if ret<0
                 o.checkRet(ret,'Could not unload the current protocol.')
             else
                 o.activeProtocol ='';
@@ -277,36 +323,38 @@ classdef starstim < neurostim.stimulus
                     loadProtocol(o);
                 end
                 switch upper(o.mode)
-                    case 'TRIGGER'
-                        if o.enabled                            
-                            if ~o.isShamOn 
-                                start(o);  % If it is already on, it won't start again                            
-                            end                            
-                            if o.sham                                 
+                    case {'BLOCKED','TRIAL'}
+                        if o.enabled
+                            if ~o.isShamOn
+                                start(o);  % If it is already on, it won't start again
+                            end
+                            if o.sham
                                 pause(o);
                                 o.isShamOn = true;
                             elseif o.isShamOn
                                 start(o);
                                 o.isShamOn = false;
-                            end                            
+                            end
                         else
-                             pause(o);
-                             o.isShamOn = false; 
-                        end                                                                        
-                    case 'TRIAL'
-                        % If this is a stim trial, rampup stimulation and
-                        % continue only after the plateau has been reached
-                        if o.enabled && ~o.isProtocolOn
-                            start(o);
-                            % This waitFor is slow, and adds at least 1s to
-                            % the startup, but at least we're in a defined
-                            % state after the wait. (Without this wait,
-                            % trialStart events happen at unpredicatble
-                            % times relative to the ramp)
-                            waitFor(o,'CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_STIMULATION_FULL');
+                            pause(o);
+                            o.isShamOn = false;
                         end
-                    case 'SINGLE'
-                        o.isSingleStarted = false;
+                    case 'TIMED'
+                        if o.enabled
+                            start(o);
+                        end
+                        switch (o.nowType)
+                            case 'DC'
+                                % nothing to do here.
+                            case 'AC'
+                                ret = MatNICOnlineFtacsChange(o.nowFrequency, o.NRCHANNELS,o.sock);
+                                o.checkRet(ret,'TIMED tACS frequency change failed');
+                                ret = MatNICOnlinePtacsChange(o.nowPhase, o.NRCHANNELS, o.sock);
+                                o.checkRet(ret,'TIMED tACS phase change failed');
+                            case 'RNS'
+                                disp('RNS Not implemented yet');
+                                ret = -1;
+                        end
                     otherwise
                         c.error(['Unknown starstim mode :' o.mode]);
                 end
@@ -324,34 +372,69 @@ classdef starstim < neurostim.stimulus
                 return;
             end
             switch upper(o.mode)
-                case {'TRIGGER','TRIAL'}
+                case {'BLOCKED','TRIAL'}
                     % nothing to do
-                case 'SINGLE'
-                    if o.flags.on && ~o.isSingleStarted
+                    ret =0;
+                case 'TIMED'
+                    if ~o.isOnlineStarted
                         switch (o.nowType)
                             case 'DC'
-                                %   [ret] = MatNICOnlineAtdcsChange(o.dcAmplitude, o.NRCHANNELS, o.transition, o.sock);
+                                ret = MatNICOnlineAtdcsChange(o.nowMean, o.NRCHANNELS, o.transition, o.sock);
                             case 'AC'
-                                [ret] = MatNICOnlinetACSChange(o.nowAmplitude, o.nowFrequency, o.nowPhase,o.NRCHANNELS, o.nowTransition, o.sock);
+                                ret = MatNICOnlineAtacsPeak(o.nowAmplitude,o.NRCHANNELS,o.transition,o.duration,o.transition,o.sock);
                             case 'RNS'
+                                disp('RNS Not implemented yet');
+                                ret = -1;
                         end
-                        o.isSingleStarted = true;
+                        o.isOnlineStarted = true;
+                    elseif o.sham && ~o.isShamOn
+                        % Ramp back down
+                        switch (o.nowType)
+                            case 'DC'
+                                ret = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
+                            case 'AC'
+                                ret = MatNICOnlineAtacsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
+                            case 'RNS'
+                                disp('RNS Not implemented yet');
+                                ret = -1;
+                        end
+                        o.isShamOn = true;
                     end
                 otherwise
                     c.error(['Unknown starstim mode :' o.mode]);
             end
+            if ret<0
+                o.checkRet(ret,[ o.nowType  ' parameter change failed']);
+            end
             
         end
-        function afterTrial(o,c,evt)
+        
+        function afterTrial(o,c,evt) %#ok<INUSD>
             switch upper(o.mode)
-                case 'TRIGGER'
+                case 'BLOCKED'
                     % Nothing to do (trigger mode keeps running across ITI/trials)
                 case 'TRIAL'
-                    if o.isProtocolOn
-                        pause(o);
-                        % Dont have to wait here; pause does a busy wait until completed.
+                    pause(o);
+                    % Indicate that the current pause is not the sham. (Otherwise a sham trial
+                    % following a sham trial would not ramp up; see beforeTrial)
+                    o.isShamOn = false;
+                case 'TIMED'
+                    if o.itiOff && o.isOnlineStarted
+                        switch (o.nowType)
+                            case 'DC'
+                                ret = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
+                            case 'AC'
+                                ret = MatNICOnlineAtacsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
+                            case 'RNS'
+                                disp('RNS Not implemented yet');
+                                ret = -1;
+                        end
+                        if ret<0
+                            o.checkRet(ret,['Turning off ' o.nowType  ' stim after trial failed']);
+                        end
+                        o.isOnlineStarted = false;
                     end
-                case 'SINGLE'
+                    o.isShamOn = false;
                 otherwise
                     c.error(['Unknown starstim mode :' o.mode]);
             end
@@ -376,9 +459,9 @@ classdef starstim < neurostim.stimulus
             
             % Mode specific clean up?
             switch upper(o.mode)
-                case 'TRIGGER'
+                case 'BLOCKED'
                 case 'TRIAL'
-                case 'SINGLE'
+                case 'TIMED'
                 otherwise
                     c.error(['Unknown starstim mode :' o.mode]);
             end
@@ -460,18 +543,21 @@ classdef starstim < neurostim.stimulus
                 ret = MatNICStartProtocol(o.sock);
                 o.checkRet(ret,['Protocol ' o.protocol ' could not be started']);
                 waitFor(o,'CODE_STATUS_STIMULATION_FULL');
-            %else already started
+                % This waitFor is slow, and adds at least 1s to
+                % the startup, but at least we're in a defined
+                % state after the wait.
+                %else already started
             end
         end
         
         function stop(o)
             % Stop the current protocol
-            if o.fake 
+            if o.fake
                 o.writeToFeed('Stimulation stopped');
             elseif o.isProtocolOn
                 ret = MatNICAbortProtocol(o.sock);
                 o.checkRet(ret,['Protocol ' o.protocol ' could not be stopped']);
-                %else -  already stopped            
+                %else -  already stopped
             end
             
         end
@@ -484,7 +570,7 @@ classdef starstim < neurostim.stimulus
                 ret = MatNICPauseProtocol(o.sock);
                 o.checkRet(ret,['Protocol ' o.protocol ' could not be paused']);
                 waitFor(o,'CODE_STATUS_IDLE');
-          %  else already paused
+                %  else already paused
             end
         end
         
