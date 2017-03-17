@@ -94,7 +94,7 @@ target.radius       = 5;
 target.X            = 0;
 target.Y            = 0;
 target.nSides       = 4;
-target.filled       = true; 
+target.filled       = true;  
 target.color        = 0;
 target.on           = 0;
 target.duration     = 1000;
@@ -122,16 +122,16 @@ else
 end
 cal= neurostim.utils.ptbcal(c,'save',false,'plot',true,'wavelengths',wavelengths); % Create a cal object in PTB format. 
 
-return;
+
 
 %% Test the calibration
 % Generate some test luminance value per gun
 nrTestLums = 10;
-lums = nan(nrTestLums,3);
 gunValues= nan(nrTestLums,3);
-lums = repmat(gParms.gamma(1,:),[nrTestLums 1]) + repmat((gParms.gamma(2,:)-gParms.gamma(1,:)),[nrTestLums 1]).*rand(nrTestLums,3); % Lum between 0 and maxLum per gun
+gParms = cal.extendedGamma;
+lums = repmat(gParms.bias,[nrTestLums 1]) + repmat(gParms.max,[nrTestLums 1]).*rand(nrTestLums,3); % Lum between 0 and maxLum per gun
 for g=1:3
-    gunValues(:,g) = gParms.inverseGammaFunction(gParms.gamma(:,g),lums(:,g));
+    gunValues(:,g) = gParms.lum2gun([gParms.gain(g) gParms.gamma(g) gParms.bias(g)],lums(:,g));
 end
 
 %%

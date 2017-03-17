@@ -122,14 +122,16 @@ gammaFunction = @(prms,lum) (prms(3)+ (lum./prms(1)).^prms(2)); %
 for i=1:3
     maxLum = max(lum(:,i));
     parameterGuess = [maxLum 1/2.2 0]; % bias gain gamma
-    [prms(i,:),residuals,jacobian] = nlinfit(lum(:,i),gv,gammaFunction,parameterGuess); %#ok<AGROW>
+    [prms(i,:),residuals,~] = nlinfit(lum(:,i),gv,gammaFunction,parameterGuess); %#ok<AGROW>
     cal.extendedGamma.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
 end
 cal.extendedGamma.bias = prms(:,3)';
-cal.extendedGamma.min  = 0;
-cal.extendedGamma.gain  = 1;
+cal.extendedGamma.min  = zeros(1,nrGuns);
+cal.extendedGamma.gain  = ones(1,nrGuns);
 cal.extendedGamma.max  = prms(:,1)';
 cal.extendedGamma.gamma  = (1./prms(:,2))';
+cal.extendedGamma.lum2gun  = gammaFunction;
+cal.extendedGamma.gun2lum  = @(prms,gv) (prms(1).*((gv-prms(3)).^prms(2)));
 
 % Save the result
 if p.Results.save

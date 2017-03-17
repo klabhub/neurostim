@@ -228,17 +228,7 @@ classdef parameter < handle
             p.addParameter('trial',[],@isnumeric); % Return only values in these trials
             p.parse(varargin{:});
             
-            % Try to make a matrix
-            if all(cellfun(@(x) (isnumeric(x) || islogical(x)),o.log(1:o.cntr))) && all(cellfun(@(x) (size(x,1)==1),o.log(1:o.cntr)))
-                try
-                    data = cat(1,o.log{1:o.cntr});
-                catch me
-                    % Failed. keep the cell array
-                    data = o.log(1:o.cntr);
-                end
-            else
-                data = o.log(1:o.cntr);
-            end
+            data = o.log(1:o.cntr);
             trial =o.trial(1:o.cntr);
             time = o.time(1:o.cntr);
             trialTime = t2t(o,time,trial,true);
@@ -273,23 +263,16 @@ classdef parameter < handle
                 %
                 out  =isnan(ix);
                 ix(out)=1;
-                if iscell(data)
-                    data=data(ix);
-                else
-                    data = data(ix,:);
-                end
+                data=data(ix);
                 trial = 1:maxTrial; % The trial where the event set came from is trial(ix);
                 time = time(ix);
                 trialTime = trialTime(ix);
+                
                 if any(out)
-                    if iscell(data)
-                        data{out} = NaN;
-                    else
-                        data(out)=NaN;
-                    end
-                    trial(out) = NaN;
-                    time(out) = NaN;
-                    trialTime(out) = NaN;
+                    data(out)=[];                    
+                    trial(out) = [];
+                    time(out) = [];
+                    trialTime(out) =[];
                 end
                 
                 if nargout >4
