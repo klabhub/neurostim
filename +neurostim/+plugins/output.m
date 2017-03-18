@@ -110,7 +110,7 @@ classdef output < neurostim.plugin
             root=fileparts(o.cic.fullFile);
             o.createDir(root,'');
             f = [o.cic.fullFile o.ext];
-            if exist(f,'file')
+            if exist(f,'file') && ~o.cic.fileOverwrite
                 error(['This file ' f ' already exists?']);
             else
                 o.filename =f;

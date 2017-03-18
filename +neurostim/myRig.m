@@ -83,11 +83,9 @@ switch computerName
        c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',133,'screenHeight',75, 'frameRate',60,'screenNumber',1);
         Screen('Preference', 'SkipSyncTests', 2);
     case 'PTB-P'
-        scrNr=0;
-        rect = Screen('rect',scrNr);
-        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
-        c = rig(c,'eyelink',false,'mcc',false,'xpixels',400,'ypixels',300,'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
-        c.screen.colorMode = 'RGB';
+        Screen('Preference', 'SkipSyncTests', 2);
+        c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
+        c.screen.colorMode = 'RGB';            
         smallWindow = false;
     case 'PC2017A'
         scrNr = max(Screen('screens'));

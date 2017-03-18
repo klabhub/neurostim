@@ -50,7 +50,9 @@ classdef cic < neurostim.plugin
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         keyDeviceIndex          = []; % Use the first device by default
-        
+        fileOverwrite           = false; % Allow output file overwrite.
+        keyBeforeExperiment     = true;
+        keyAfterExperiment      =true;
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
             'width',[],'height',[],...
             'color',struct('text',[1 1 1],...
@@ -810,7 +812,7 @@ classdef cic < neurostim.plugin
             notify(c,'BASEBEFOREEXPERIMENT');
             DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', c.screen.color.text);
             Screen('Flip', c.window);
-            KbWait(c.keyDeviceIndex);
+            if c.keyBeforeExperiment; KbWait(c.keyDeviceIndex);end
             
             
             % All plugins BEFOREEXPERIMENT functions have been processed,
@@ -973,7 +975,7 @@ classdef cic < neurostim.plugin
             Screen('Flip', c.window);
             notify(c,'BASEAFTEREXPERIMENT');
             c.KbQueueStop;
-            KbWait(c.keyDeviceIndex);
+            if c.keyAfterExperiment; KbWait(c.keyDeviceIndex);end
             Screen('CloseAll');
             if c.PROFILE; report(c);end
         end
@@ -1265,7 +1267,7 @@ classdef cic < neurostim.plugin
             switch upper(c.screen.colorMode)
                 case 'LUM'
                     % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
-                    PsychColorCorrection('SetEncodingGamma', c.window, 1./c.screen.calibration.gamma);
+                    PsychColorCorrection('SetEncodingGamma', c.window,1./c.screen.calibration.gamma);
                     if isnan(c.screen.calibration.bias)
                         % Only gamma defined
                         PsychColorCorrection('SetColorClampingRange',c.window,0,1); % In non-extended mode, luminance is between [0 1]
@@ -1276,7 +1278,7 @@ classdef cic < neurostim.plugin
                         % (i.e. c.calibration.bias= [ 0 0.1 0])
                         PsychColorCorrection('SetExtendedGammaParameters', c.window, c.screen.calibration.min, c.screen.calibration.max, c.screen.calibration.gain,c.screen.calibration.bias);
                         % This mode accepts luminances between min and max
-                        PsychColorCorrection('SetColorClampingRange',c.window,c.screen.calibration.min,c.screen.calibration.max); %
+                       % PsychColorCorrection('SetColorClampingRange',c.window,c.screen.calibration.min,c.screen.calibration.max); %
                     end
                 case {'XYZ','XYL'}
                     % Provide calibration structure
