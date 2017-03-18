@@ -1302,7 +1302,6 @@ classdef cic < neurostim.plugin
                         % (i.e. c.calibration.bias= [ 0 0.1 0])
                         PsychColorCorrection('SetExtendedGammaParameters', c.window, c.screen.calibration.min, c.screen.calibration.max, c.screen.calibration.gain,c.screen.calibration.bias);
                         % This mode accepts luminances between min and max
-                       % PsychColorCorrection('SetColorClampingRange',c.window,c.screen.calibration.min,c.screen.calibration.max); %
                     end
                 case {'XYZ','XYL'}
                     % Provide calibration structure

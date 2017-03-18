@@ -101,7 +101,7 @@ if p.Results.fakeItAll
 else
     wavelengths  = 380:10:730;
 end
-return
+
 cal= neurostim.utils.ptbcal(c,'save',p.Results.saveFile,'plot',p.Results.show,'wavelengths',wavelengths); % Create a cal object in PTB format.
 
 %% Test the calibration
@@ -120,10 +120,11 @@ if p.Results.lumTest
     cTest.screen.calibration.maxLum   =  cal.neurostim.maxLum;
     cTest.screen.calibration.ambientLum = cal.neurostim.ambientLum;
     
-    cTest.screen.colorMode = 'LUM'; % Uses a linearized gamma table together with extendedGamma 
+    cTest.screen.colorMode = 'XGAMMA'; % Uses a linearized gamma table together with extendedGamma 
    
     %% Test across the gamut
-    targetLum = rand([p.Results.nrTestLum 3]).*repmat(cal.neurostim.maxLum,[p.Results.nrTestLum 1]);
+    nrGuns = size(cTest.screen.calibration.ambientLum,2); % VPIXX-M16 has 1 "gun"
+    targetLum = rand([p.Results.nrTestLum nrGuns]).*repmat(cal.neurostim.maxLum,[p.Results.nrTestLum 1]);
     checkLum=neurostim.design('checkLum');
     checkLum.fac1.target.color  = num2cell(targetLum,2);
     checkLum.randomization  = 'sequential';    
@@ -150,9 +151,8 @@ if p.Results.lumTest
     hist(delta)
     xlabel 'Error (%)'
     ylabel '#Measurements'
-    titel 'Mismatch'
-    
-    
+    title 'Mismatch'
+        
 end
 
 %% Test the color calibration
@@ -234,9 +234,9 @@ end
     function c = createCic(fake)
         c = neurostim.myRig;
         c.screen.colorMode = 'RGB';
-        c.screen.type = 'VPIXX-M16';
+        c.screen.type = 'GENERIC';%'VPIXX-M16';
         c.trialDuration = 250;
-        c.iti           = 250;
+        c.iti           = 50;
         c.paradigm      = 'calibrate';
         c.subject      =  getenv('COMPUTERNAME');
         
