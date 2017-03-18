@@ -17,7 +17,7 @@ p.addParameter('skipWhiteTile',false);
 p.addParameter('fakeItAll',false);
 p.addParameter('measure',true);
 p.addParameter('show',true);
-p.addParameter('save',false);
+p.addParameter('saveFile','');
 p.addParameter('lumTest',false);
 p.addParameter('xylTest',false);
 p.addParameter('nrRepeats',3); % How many times to measure each lum value
@@ -29,14 +29,14 @@ T_xyz1931=[];
 S_xyz1931 = [];
 cals = {};
 cal = [];
-
+cTest=[];
 if p.Results.fakeItAll
     load 'PTB3TestCal.mat'
     load T_xyz1931
     T_xyz = 683*T_xyz1931;
     fakeCal= SetSensorColorSpace(cals{end},T_xyz,S_xyz1931);
     fakeCal = SetGammaMethod(fakeCal,0);
-elseif exist('I1') ~=3 %#ok<EXIST>
+elseif exist('I1') ~=3 && isempty(p.Results.c)%#ok<EXIST>
     error('Could not find the I1 mex-file that is required to run this calibration tool');
 end
 
@@ -92,7 +92,7 @@ if p.Results.fakeItAll
 else
     wavelengths  = 380:10:730;
 end
-cal= neurostim.utils.ptbcal(c,'save',p.Results.save,'plot',p.Results.show,'wavelengths',wavelengths); % Create a cal object in PTB format.
+cal= neurostim.utils.ptbcal(c,'save',[c.subject p.Results.saveFile],'plot',p.Results.show,'wavelengths',wavelengths); % Create a cal object in PTB format.
 
 %% Test the calibration
 if p.Results.lumTest

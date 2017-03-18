@@ -11,7 +11,7 @@ function [cal] = ptbcal(c,varargin)
 
 p=inputParser;
 p.addParameter('plot',true,@islogical);
-p.addParameter('save','',@char); % File name where to save. Dir is c.dirs.calibration
+p.addParameter('save','',@ischar); % File name where to save. Dir is c.dirs.calibration
 p.addParameter('wavelengths',380:10:730,@isnumeric);
 p.parse(varargin{:});
 
@@ -28,7 +28,7 @@ cal.describe.S = [min(p.Results.wavelengths) unique(round(diff(p.Results.wavelen
 cal.manual.use = 0;
 cal.describe.whichScreen =  c.screen.number; % SCreen number that is calibrated
 cal.describe.whichBlankScreen = NaN;
-cal.describe.dacsize = ScreenDacBits(c.screen.number);
+cal.describe.dacsize = 10; % This determines the interpolation steps for the normalized gamma
 cal.bgColor = c.screen.color.background;
 cal.describe.meterDistance = c.screen.viewDist;
 cal.describe.caltype = 'monitor';
@@ -40,18 +40,20 @@ cal.describe.who = getenv('USERNAME');
 cal.describe.date = c.date;
 cal.describe.program = 'i1calibrate';
 cal.describe.comment = 'no comment';
+% These parameters determine how the normalized Gamma function will be interpolated
+%  in CalibrateFitLinMod below
 cal.describe.gamma.fitType = 'crtPolyLinear';
-cal.describe.gamma.contrastThresh = 0.001;
-cal.describe.gamma.fitBreakThresh = 0.02;
+% in crtPolyLinear mode (heuristic), a cubic spline is used to fit the
+% gamma function, then it is modified with these parameters
+cal.describe.gamma.contrastThresh = 0.001; % Normalized gamma values [0 1] below this are set to zero
+cal.describe.gamma.fitBreakThresh = 0.02;  % Normalized gamma values below this are linearly interpolated
 
 %% Now extract the measurements and average over repeats.
 [lxy] = get(c.prms.lxy,'AtTrialTime',inf);
 [rgb] = get(c.target.prms.color,'AtTrialTime',inf);
 [spectrum] = get(c.prms.spectrum,'AtTrialTime',inf); %Irradiance in mW/(m2 sr nm)
+spectrum  =1000*spectrum; % [W/(m2 sr nm)]: SI units compatible with luminance cd/m2
 
-
-
-spectrum  =spectrum/1000; % SI units compatible with luminance cd/m2
 cmfType = 'SB2';
 for g=1:3
     stay = find(all(rgb(:,setdiff(1:3,g))==0,2) & rgb(:,g)>0);
@@ -87,20 +89,25 @@ rectify = meanSpectrum<0;
 disp(['Recitifed: ' num2str(100*sum(rectify(:))./numel(meanSpectrum)) '% ( = ' num2str(100*mean(meanSpectrum(rectify))/mean(meanSpectrum(~rectify))) ' % rad'])
 meanSpectrum(rectify) =0;
 meanSpectrum = permute(meanSpectrum,[2 1 3]);
-% Shape it in the [nrWavelenghts*nrLevels
+% Shape it in the [nrWavelenghts*nrLevels nrGuns]
 meanSpectrum =reshape(meanSpectrum,[cal.describe.S(3)*cal.describe.nMeas nrGuns]);
-cal.rawdata.mon = meanSpectrum;
-cal.rawdata.rawGammaTable = spectrumLum;
-
+cal.rawdata.mon = meanSpectrum; % Ambient corrected mean spectrum for each gun at each of the levels
 
 % Now we've done all the preprocessing. Pass to PTB functions to extract
 % its derived measures (compute gamma functions etc).
-
+% This PTB function will take the measured spectra, for each gun, and find
+% a linear model that describes them best (using SVD). I.e. it finds a
+% basis function (or more .nPrimaryBases) and the projections onto that
+% basis for each gun. The projection values are stored as
+% cal.rawdata.rawGammaTable, these are between 0 and 1. The basis functions
+% (essentially spectrum per gun) are stored as cal.P_device. 
 cal = CalibrateFitLinMod(cal);
-% Define input settings for the measurements
-mGammaInputRaw = linspace(0, 1, cal.describe.nMeas+1)';
-mGammaInputRaw = mGammaInputRaw(2:end);
-cal.rawdata.rawGammaInput = mGammaInputRaw;
+% The measurements of the spectrum for each of the guns was done at these
+% gunvalues:
+cal.rawdata.rawGammaInput = gv; 
+% Create a gamma table by interpolation. This is stored as cal.gammaTable
+% and cal.gammaInput are the corresponding gunvalues. This table is used to
+% do lookups
 cal = CalibrateFitGamma(cal, 2^cal.describe.dacsize);
 Smon = cal.describe.S;
 Tmon = WlsToT(Smon);
@@ -115,19 +122,29 @@ Six = strncmpi('S_',fn,2); % Variable startgin with S_ specifies the wavelengths
 T = tmpCmf.(fn{Tix}); % CMF
 S = tmpCmf.(fn{Six}); % Wavelength info
 T = 683*T;
+
+% The "sensor" is the human observer and we can pick different ones by
+% chosing a different CMF (in c.screen.calibration.cmf). Sensor coordinates
+% are XYZ. 
 cal = SetSensorColorSpace(cal,T,S);
 cal = SetGammaMethod(cal,0);
+% After setting this we can for instance get the correct settings for the
+% gunvalues for a desired color/luminance:
+% 
+desired_xyL= [1/3 1/3 40]';
+desired_XYZ = xyYToXYZ(desired_xyL);
+desired_rgb = SensorToSettings(cal,desired_XYZ);
 
 
 
 %%
 % ALso extract extended gamma parameters to use simple Gamma calibration
-
- lum = [ambientLum*ones(1,3) ;squeeze(meanLxy(:,1,:))];
- lum = lum-ambientLum;
- gv = [0 ;gv];
+ambientRatio = ambient*cal.P_device;
+ambientRatio = ambientRatio./sum(ambientRatio);
+lum = [ambientLum*ambientRatio ; squeeze(meanLxy(:,1,:))];
+gv = [0 ;gv];
 % lum = squeeze(meanLxy(:,1,:));
- lumSe = [ambientLumSe*ones(1,3);squeeze(steLxy(:,1,:))];
+ lumSe = [ambientLumSe*ambientRatio;squeeze(steLxy(:,1,:))];
 
 lum2gun = @(prms,lum) (prms(3)+ (lum./prms(1)).^(1./prms(2))); %
 gun2lum = @(prms,gv) (prms(1).*((gv-prms(3)).^prms(2)));
@@ -146,9 +163,9 @@ cal.extendedGamma.lum2gun  = lum2gun;
 cal.extendedGamma.gun2lum  = gun2lum;
 
 % Save the result
-if ~isempty(p.Results.save)    
+if ~isempty(p.Results.save)        
     disp(['Saving calibration result to ' fullfile(c.dirs.calibration,p.Results.save)]);
-    SaveCalFile(cal, filename,c.dirs.calibration);
+    SaveCalFile(cal, p.Results.save,c.dirs.calibration);
 end
 
 if p.Results.plot
@@ -163,7 +180,7 @@ if p.Results.plot
     figure(2); clf;
     colors = 'rgb';
     for i=1:3
-         plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable(:,i), '+');
+        plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable(:,i), '+');
         hold on
         plot(cal.gammaInput, cal.gammaTable,colors(i));
     end
