@@ -6,12 +6,12 @@ function [cal] = ptbcal(c,varargin)
 %  Lxy : the Luminance anc CIE xy values
 %  rgb :  The rgb values corresponding to the measurements
 % spectrum: the full spectrum for each of the values
-%
+% 
 % BK  - Feb 2017
 
 p=inputParser;
 p.addParameter('plot',true,@islogical);
-p.addParameter('save',false,@islogical);
+p.addParameter('save','',@char); % File name where to save. Dir is c.dirs.calibration
 p.addParameter('wavelengths',380:10:730,@isnumeric);
 p.parse(varargin{:});
 
@@ -146,9 +146,8 @@ cal.extendedGamma.lum2gun  = lum2gun;
 cal.extendedGamma.gun2lum  = gun2lum;
 
 % Save the result
-if p.Results.save
-    filename = [c.file '_ptb_cal'];
-    disp(['Saving calibration result to ' fullfile(c.dirs.calibration,filename)]);
+if ~isempty(p.Results.save)    
+    disp(['Saving calibration result to ' fullfile(c.dirs.calibration,p.Results.save)]);
     SaveCalFile(cal, filename,c.dirs.calibration);
 end
 
