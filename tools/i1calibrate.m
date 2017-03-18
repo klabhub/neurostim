@@ -120,7 +120,7 @@ if fakeItAll
 else
     wavelengths  = 380:10:730;
 end
-cal= neurostim.utils.ptbcal(c,'save',false,'plot',true,'wavelengths',wavelengths); % Create a cal object in PTB format. 
+cal= neurostim.utils.ptbcal(c,'save',[c.subject '_calibration'],'plot',true,'wavelengths',wavelengths); % Create a cal object in PTB format. 
 
 
 
