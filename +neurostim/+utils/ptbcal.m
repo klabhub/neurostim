@@ -48,8 +48,11 @@ cal.describe.gamma.fitBreakThresh = 0.02;
 [lxy] = get(c.prms.lxy,'AtTrialTime',inf);
 [rgb] = get(c.target.prms.color,'AtTrialTime',inf);
 [spectrum] = get(c.prms.spectrum,'AtTrialTime',inf); %Irradiance in mW/(m2 sr nm)
-spectrum  =spectrum/1000; % SI units compatible with luminance cd/m2
 
+
+
+spectrum  =spectrum/1000; % SI units compatible with luminance cd/m2
+cmfType = 'SB2';
 for g=1:3
     stay = find(all(rgb(:,setdiff(1:3,g))==0,2) & rgb(:,g)>0);
     [gunValue,sorted] = sort(rgb(stay,g));
@@ -64,7 +67,10 @@ for g=1:3
         stay = ix ==i;
         nrRepeats(iCntr,g) = sum(stay); %#ok<AGROW>
         meanLxy(iCntr,:,g) = mean(thisLxy(stay,:),1); %#ok<AGROW>
+        steLxy(iCntr,:,g) = std(thisLxy(stay,:),0,1)./sqrt(sum(stay)); %#ok<AGROW>
         meanSpectrum(iCntr,:,g) =  mean(thisSpectrum(stay,:),1); %#ok<AGROW>
+        XYZ = spdtotristim(squeeze(meanSpectrum(iCntr,:,g)),p.Results.wavelengths,cmfType);
+        spectrumLum(iCntr,g) = XYZ(2);
     end
 end
 
@@ -74,16 +80,18 @@ cal.describe.nMeas = size(meanSpectrum,1); % This is the number of levels that w
 isAmbient = all(rgb==0,2);
 ambient = mean(spectrum(isAmbient,:),1);
 ambientLum = mean(lxy(isAmbient,1));
+ambientLumSe = std(lxy(isAmbient,1),0,1)/sqrt(sum(isAmbient));
 nrGuns =size(meanSpectrum,3);
 meanSpectrum = meanSpectrum-repmat(ambient,[size(meanSpectrum,1) 1 nrGuns]);
 rectify = meanSpectrum<0;
-disp(['Recitifed: ' num2str(100*sum(rectify(:))./numel(meanSpectrum)) '%'])
+disp(['Recitifed: ' num2str(100*sum(rectify(:))./numel(meanSpectrum)) '% ( = ' num2str(100*mean(meanSpectrum(rectify))/mean(meanSpectrum(~rectify))) ' % rad'])
 meanSpectrum(rectify) =0;
 meanSpectrum = permute(meanSpectrum,[2 1 3]);
 % Shape it in the [nrWavelenghts*nrLevels
 meanSpectrum =reshape(meanSpectrum,[cal.describe.S(3)*cal.describe.nMeas nrGuns]);
 cal.rawdata.mon = meanSpectrum;
-cal.rawdata.rawGammaTable = squeeze(meanLxy(:,1,:));
+cal.rawdata.rawGammaTable = spectrumLum;
+
 
 % Now we've done all the preprocessing. Pass to PTB functions to extract
 % its derived measures (compute gamma functions etc).
@@ -114,24 +122,28 @@ cal = SetGammaMethod(cal,0);
 
 %%
 % ALso extract extended gamma parameters to use simple Gamma calibration
-lum = [ambientLum*ones(1,3) ;squeeze(meanLxy(:,1,:))];
-lum = lum-ambientLum;
-gv = [0 ;gv];
-gammaFunction = @(prms,lum) (prms(3)+ (lum./prms(1)).^prms(2)); %
 
+ lum = [ambientLum*ones(1,3) ;squeeze(meanLxy(:,1,:))];
+ lum = lum-ambientLum;
+ gv = [0 ;gv];
+% lum = squeeze(meanLxy(:,1,:));
+ lumSe = [ambientLumSe*ones(1,3);squeeze(steLxy(:,1,:))];
+
+lum2gun = @(prms,lum) (prms(3)+ (lum./prms(1)).^(1./prms(2))); %
+gun2lum = @(prms,gv) (prms(1).*((gv-prms(3)).^prms(2)));
 for i=1:3
     maxLum = max(lum(:,i));
-    parameterGuess = [maxLum 1/2.2 0]; % bias gain gamma
-    [prms(i,:),residuals,~] = nlinfit(lum(:,i),gv,gammaFunction,parameterGuess); %#ok<AGROW>
+    parameterGuess = [maxLum 1/2.2 0]; % gain gamma bias
+    [prms(i,:),residuals,~] = nlinfit(lum(:,i),gv,lum2gun,parameterGuess); %#ok<AGROW>
     cal.extendedGamma.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
 end
 cal.extendedGamma.bias = prms(:,3)';
 cal.extendedGamma.min  = zeros(1,nrGuns);
 cal.extendedGamma.gain  = ones(1,nrGuns);
 cal.extendedGamma.max  = prms(:,1)';
-cal.extendedGamma.gamma  = (1./prms(:,2))';
-cal.extendedGamma.lum2gun  = gammaFunction;
-cal.extendedGamma.gun2lum  = @(prms,gv) (prms(1).*((gv-prms(3)).^prms(2)));
+cal.extendedGamma.gamma  = prms(:,2)';
+cal.extendedGamma.lum2gun  = lum2gun;
+cal.extendedGamma.gun2lum  = gun2lum;
 
 % Save the result
 if p.Results.save
@@ -150,21 +162,26 @@ if p.Results.plot
     axis([380, 780, -Inf, Inf]);
     
     figure(2); clf;
-    plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable, '+');
+    colors = 'rgb';
+    for i=1:3
+         plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable(:,i), '+');
+        hold on
+        plot(cal.gammaInput, cal.gammaTable,colors(i));
+    end
     xlabel('gun value [0 1]', 'Fontweight', 'bold');
     ylabel('Normalized output [0 1]', 'Fontweight', 'bold');
     title('Gamma functions', 'Fontsize', 13, 'Fontname', 'helvetica', 'Fontweight', 'bold');
-    hold on
-    plot(cal.gammaInput, cal.gammaTable);
+   
     hold off
     
     figure(3);clf;
     color = 'rgb';
     for i=1:3
-        plot(lum(:,i),gv,color(i));
+        errorbar(gv,lum(:,i),lumSe(:,i),color(i));
+        
         hold on
-        x = lum(:,i) + ambientLum;
-        plot(x,gammaFunction([cal.extendedGamma.max(i) 1./cal.extendedGamma.gamma(i) cal.extendedGamma.bias(i)],x),['*' color(i)])
+        %x = lum(:,i) + ambientLum;
+        plot(gv,cal.extendedGamma.gun2lum([cal.extendedGamma.max(i) cal.extendedGamma.gamma(i) cal.extendedGamma.bias(i)],gv),['*' color(i)])
         
     end
     xlabel 'Luminance (cd/m^2)'

@@ -53,13 +53,14 @@ classdef eScript < neurostim.plugin
             % Add a script to a particular phase
             % when = event (BeforeFrame, AfterFrame, BeforeTrial, AfterTrial)
             % fun = function that takes a single input argument (cic)
-            funcName = func2str(fun);
-            
-            [f] = strsplit(funcName,'/'); % For subfunctions, need to get the parent file (f{1}).      
-            mfile =which(f{1});            
-            if ~exist(mfile,'file')
-                error(['The mfile of your eScript ' mfile ' could not be found .']);
-            end
+           
+%             funcName = func2str(fun);
+%             
+%             [f] = strsplit(funcName,'/'); % For subfunctions, need to get the parent file (f{1}).      
+%             mfile =which(f{1});            
+%             if ~exist(mfile,'file')
+%                 error(['The mfile of your eScript ' mfile ' could not be found .']);
+%             end
             
             switch upper(when)
                 case 'BEFOREFRAME'
@@ -88,20 +89,20 @@ classdef eScript < neurostim.plugin
             
             % Read the contents of the mfile. 'type' does not work for this
             % (no output arguments);
-            fid = fopen(mfile);
-            txt = [when ' : ' funcName ' : ' mfile ]; % Start the log with the relevant event and name of the mfile.
-            while (fid~=-1)
-                tmp = fgets(fid);
-                if tmp==-1;
-                    break;
-                else
-                    txt =char(txt,tmp);
-                end
-            end
-            fclose(fid);
-            
-            % Store the mfile contents in the log.
-            o.mcode = txt;
+%             fid = fopen(mfile);
+%             txt = [when ' : ' funcName ' : ' mfile ]; % Start the log with the relevant event and name of the mfile.
+%             while (fid~=-1)
+%                 tmp = fgets(fid);
+%                 if tmp==-1;
+%                     break;
+%                 else
+%                     txt =char(txt,tmp);
+%                 end
+%             end
+%             fclose(fid);
+%             
+%             % Store the mfile contents in the log.
+%             o.mcode = txt;
         end
         
         %% Member functions that simply call the functions that the user
