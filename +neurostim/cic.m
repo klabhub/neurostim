@@ -1225,7 +1225,19 @@ classdef cic < neurostim.plugin
             %
             switch upper(c.screen.colorMode)
                 case 'LUM'
+                    if strcmpi(c.screen.type,'GENERIC')
+                        % Load a gamma table that linearizes each gun 
+                        % Dont do this for VPIXX etc. monitor types.
+                        dac = ScreenDacBits(c.screen.number);
+                        iGamma = InvertGammaTable(c.screen.calibration.gammaInput,c.screen.calibration.gammaTable,2.^dac);
+                        Screen('LoadNormalizedGammaTable',c.screen.number,iGamma); % Reset gamma
+                    end
+                    % Then do gamma correction(we'll set the gamma appropriately below)
+                    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
+                case 'XGAMMA'
                     % The user specifies luminance values per gun as color.
+                    % Calibrateed responses are based on the extended gamma
+                    % function fits. (although this should work, LUM works better; not recommended).
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
                 case 'XYZ'
                     % The user specifies tristimulus values as color.
@@ -1236,6 +1248,8 @@ classdef cic < neurostim.plugin
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SensorToPrimary');
                 case 'RGB'
                     % The user specifies "raw" RGB values as color
+                    dac = 8;
+                    Screen('LoadNormalizedGammaTable',c.screen.number,repmat(linspace(0,1,2^dac)',[1 3])); % Reset gamma
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'None');
                 otherwise
                     error(['Unknown color mode: ' c.screen.colorMode]);
@@ -1251,7 +1265,7 @@ classdef cic < neurostim.plugin
             %% Perform initialization that requires an open window
             switch upper(c.screen.type)
                 case 'GENERIC'
-                    % nothing to do
+                    % nothing to do                     
                 case 'VPIXX-M16'
                     c.overlay = PsychImaging('GetOverlayWindow', c.window);
                     % Screen('LoadNormalizedGammaTable', - dont do this.
@@ -1266,6 +1280,16 @@ classdef cic < neurostim.plugin
             %% Add calibration to the window
             switch upper(c.screen.colorMode)
                 case 'LUM'
+                    if strcmpi(c.screen.type,'GENERIC')
+                        gamma =1;
+                    else
+                        gamma = c.screen.calibration.gamma;
+                    end
+                    PsychColorCorrection('SetEncodingGamma', c.window,1./gamma);
+                    % To allow users to specify the true luminance of each gun (instead of the normalized 
+                    % luminance in [0 1], we scale by  maxLum                    
+                    PsychColorCorrection('SetExtendedGammaParameters', c.window, -c.screen.calibration.ambientLum, c.screen.calibration.maxLum, 1,0);                   
+                case 'XGAMMA'
                     % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
                     PsychColorCorrection('SetEncodingGamma', c.window,1./c.screen.calibration.gamma);
                     if isnan(c.screen.calibration.bias)

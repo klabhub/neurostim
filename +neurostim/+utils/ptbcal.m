@@ -16,11 +16,17 @@ p.addParameter('wavelengths',380:10:730,@isnumeric);
 p.parse(varargin{:});
 
 
-%%
+%% Extract the measurements .
+[lxy] = get(c.prms.lxy,'AtTrialTime',inf);
+[rgb] = get(c.target.prms.color,'AtTrialTime',inf);
+[spectrum] = get(c.prms.spectrum,'AtTrialTime',inf); %Irradiance in mW/(m2 sr nm)
+spectrum  =1000*spectrum; % [W/(m2 sr nm)]: SI units compatible with luminance cd/m2
+nrGuns = size(rgb,2);
 
+%% Basic cal definition
 cal.describe.leaveRoomTime = NaN;
 cal.describe.boxSize = NaN;
-cal.nDevices = 3; % guns
+cal.nDevices = nrGuns; % guns
 cal.nPrimaryBases = 1;
 
 % I1Pro
@@ -28,7 +34,7 @@ cal.describe.S = [min(p.Results.wavelengths) unique(round(diff(p.Results.wavelen
 cal.manual.use = 0;
 cal.describe.whichScreen =  c.screen.number; % SCreen number that is calibrated
 cal.describe.whichBlankScreen = NaN;
-cal.describe.dacsize = 10; % This determines the interpolation steps for the normalized gamma
+cal.describe.dacsize = ScreenDacBits(c.screen.number); % This determines the interpolation steps for the normalized gamma
 cal.bgColor = c.screen.color.background;
 cal.describe.meterDistance = c.screen.viewDist;
 cal.describe.caltype = 'monitor';
@@ -48,15 +54,10 @@ cal.describe.gamma.fitType = 'crtPolyLinear';
 cal.describe.gamma.contrastThresh = 0.001; % Normalized gamma values [0 1] below this are set to zero
 cal.describe.gamma.fitBreakThresh = 0.02;  % Normalized gamma values below this are linearly interpolated
 
-%% Now extract the measurements and average over repeats.
-[lxy] = get(c.prms.lxy,'AtTrialTime',inf);
-[rgb] = get(c.target.prms.color,'AtTrialTime',inf);
-[spectrum] = get(c.prms.spectrum,'AtTrialTime',inf); %Irradiance in mW/(m2 sr nm)
-spectrum  =1000*spectrum; % [W/(m2 sr nm)]: SI units compatible with luminance cd/m2
 
 cmfType = 'SB2';
-for g=1:3
-    stay = find(all(rgb(:,setdiff(1:3,g))==0,2) & rgb(:,g)>0);
+for g=1:nrGuns
+    stay = find(all(rgb(:,setdiff(1:nrGuns,g))==0,2) & rgb(:,g)>0);
     [gunValue,sorted] = sort(rgb(stay,g));
     thisLxy  = lxy(stay,:);
     thisLxy = thisLxy(sorted,:);
@@ -83,7 +84,9 @@ isAmbient = all(rgb==0,2);
 ambient = mean(spectrum(isAmbient,:),1);
 ambientLum = mean(lxy(isAmbient,1));
 ambientLumSe = std(lxy(isAmbient,1),0,1)/sqrt(sum(isAmbient));
-nrGuns =size(meanSpectrum,3);
+
+
+
 meanSpectrum = meanSpectrum-repmat(ambient,[size(meanSpectrum,1) 1 nrGuns]);
 rectify = meanSpectrum<0;
 disp(['Recitifed: ' num2str(100*sum(rectify(:))./numel(meanSpectrum)) '% ( = ' num2str(100*mean(meanSpectrum(rectify))/mean(meanSpectrum(~rectify))) ' % rad'])
@@ -128,40 +131,46 @@ T = 683*T;
 % are XYZ. 
 cal = SetSensorColorSpace(cal,T,S);
 cal = SetGammaMethod(cal,0);
-% After setting this we can for instance get the correct settings for the
-% gunvalues for a desired color/luminance:
+% % After setting this we can for instance get the correct settings for the
+% % gunvalues for a desired color/luminance:
+% % 
+% desired_xyL= [1/3 1/3 40]';
+% desired_XYZ = xyYToXYZ(desired_xyL);
+% desired_rgb = SensorToSettings(cal,desired_XYZ);
+
+
+
+%% Neurostim specific additions to cal
 % 
-desired_xyL= [1/3 1/3 40]';
-desired_XYZ = xyYToXYZ(desired_xyL);
-desired_rgb = SensorToSettings(cal,desired_XYZ);
-
-
-
-%%
-% ALso extract extended gamma parameters to use simple Gamma calibration
+%% Extended gamma
+% Extract extended gamma parameters to use Gamma calibration
+% using a power function fit. Althought the fits are reasonable,
+% using this with c.screen.colorMode = 'LUM' does not reproduce
+% particularly well. Use LUMLIN (below) instead.
 ambientRatio = ambient*cal.P_device;
 ambientRatio = ambientRatio./sum(ambientRatio);
 lum = [ambientLum*ambientRatio ; squeeze(meanLxy(:,1,:))];
 gv = [0 ;gv];
-% lum = squeeze(meanLxy(:,1,:));
- lumSe = [ambientLumSe*ambientRatio;squeeze(steLxy(:,1,:))];
-
-lum2gun = @(prms,lum) (prms(3)+ (lum./prms(1)).^(1./prms(2))); %
+lumSe = [ambientLumSe*ambientRatio;squeeze(steLxy(:,1,:))];
+%prms  = max gamma bias
+lum2gun = @(prms,lum) (prms(3)+ (lum./prms(1)).^(1./prms(2))); 
 gun2lum = @(prms,gv) (prms(1).*((gv-prms(3)).^prms(2)));
-for i=1:3
-    maxLum = max(lum(:,i));
-    parameterGuess = [maxLum 1/2.2 0]; % gain gamma bias
+maxLum = max(lum);
+for i=1:nrGuns
+    parameterGuess = [maxLum(i) 1/2.2 0]; % max gamma bias
     [prms(i,:),residuals,~] = nlinfit(lum(:,i),gv,lum2gun,parameterGuess); %#ok<AGROW>
-    cal.extendedGamma.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
+    cal.neurostim.extendedGamma.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
 end
-cal.extendedGamma.bias = prms(:,3)';
-cal.extendedGamma.min  = zeros(1,nrGuns);
-cal.extendedGamma.gain  = ones(1,nrGuns);
-cal.extendedGamma.max  = prms(:,1)';
-cal.extendedGamma.gamma  = prms(:,2)';
-cal.extendedGamma.lum2gun  = lum2gun;
-cal.extendedGamma.gun2lum  = gun2lum;
-
+% Add to cal struct to use later.
+cal.neurostim.extendedGamma.bias = prms(:,3)';
+cal.neurostim.extendedGamma.min  = zeros(1,nrGuns);
+cal.neurostim.extendedGamma.gain  = ones(1,nrGuns);
+cal.neurostim.extendedGamma.max   = prms(:,1)';
+cal.neurostim.extendedGamma.gamma  = prms(:,2)';
+cal.neurostim.extendedGamma.lum2gun  = lum2gun;
+cal.neurostim.extendedGamma.gun2lum  = gun2lum;
+cal.neurostim.maxLum = squeeze(meanLxy(end,1,:))'; % not corrected for ambient
+cal.neurostim.ambientLum = ambientLum*ambientRatio;
 % Save the result
 if ~isempty(p.Results.save)        
     disp(['Saving calibration result to ' fullfile(c.dirs.calibration,p.Results.save)]);
@@ -179,30 +188,30 @@ if p.Results.plot
     
     figure(2); clf;
     colors = 'rgb';
-    for i=1:3
-        plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable(:,i), '+');
+    for i=1:nrGuns
+        plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable(:,i), [colors(i) '*']);
         hold on
         plot(cal.gammaInput, cal.gammaTable,colors(i));
     end
-    xlabel('gun value [0 1]', 'Fontweight', 'bold');
-    ylabel('Normalized output [0 1]', 'Fontweight', 'bold');
-    title('Gamma functions', 'Fontsize', 13, 'Fontname', 'helvetica', 'Fontweight', 'bold');
-   
+    xlabel('gun value [0 1]');
+    ylabel('Normalized output [0 1]')
+    title('Normalized Gamma functions');
     hold off
     
     figure(3);clf;
     color = 'rgb';
-    for i=1:3
-        errorbar(gv,lum(:,i),lumSe(:,i),color(i));
-        
-        hold on
-        %x = lum(:,i) + ambientLum;
-        plot(gv,cal.extendedGamma.gun2lum([cal.extendedGamma.max(i) cal.extendedGamma.gamma(i) cal.extendedGamma.bias(i)],gv),['*' color(i)])
-        
+    gvI = linspace(0,1,100);
+    for i=1:nrGuns
+        errorbar(gv,lum(:,i),lumSe(:,i),lumSe(:,i),['o' color(i)]);        
+        hold on    
+        prms = [cal.neurostim.extendedGamma.max(i) cal.neurostim.extendedGamma.gamma(i) cal.neurostim.extendedGamma.bias(i) ];
+        plot(gvI,cal.neurostim.extendedGamma.gun2lum(prms,gvI),['-' color(i)])        
     end
-    xlabel 'Luminance (cd/m^2)'
-    ylabel 'GunValue [0 1]')
-    title 'Inverse Gamma'
+    ylabel 'Luminance (cd/m^2)'
+    xlabel 'GunValue [0 1]')
+    xlim([0 1]);
+    
+    title (['Inverse Gamma. R^2 = ' num2str(cal.neurostim.extendedGamma.R2,4)]);
 end
 
 
