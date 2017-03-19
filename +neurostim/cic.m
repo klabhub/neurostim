@@ -62,7 +62,8 @@ classdef cic < neurostim.plugin
             'type','GENERIC',...
             'frameRate',60,'number',[],'viewDist',[],...
             'calFile','','colorMatchingFunctions','',...
-            'calibration',struct('gamma',2.2,'bias',nan(1,3),'min',nan(1,3),'max',nan(1,3),'gain',nan(1,3)));    %screen-related parameters.
+            'calibration',struct('gamma',2.2,'bias',nan(1,3),'min',nan(1,3),'max',nan(1,3),'gain',nan(1,3)),...
+            'overlayClut',[]);    %screen-related parameters.
         
         flipTime;   % storing the frame flip time.
         getFlipTime@logical = false; %flag to notify whether to get the frame flip time.
@@ -1247,9 +1248,13 @@ classdef cic < neurostim.plugin
                 case 'GENERIC'
                     % Generic monitor.
                 case 'VPIXX-M16'
+                    % The VPIXX monitor in Monochrome 16 bit mode.
+                    % Set up your vpixx once, using
+                    % BitsPlusImagingPipelineTest(screenID);
+                    % BitsPlusIdentityClutTest(screenID,1); this will
+                    % create correct identity cluts.
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
-                    
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1299,11 +1304,17 @@ classdef cic < neurostim.plugin
                     % nothing to do
                 case 'VPIXX-M16'
                     c.overlay = PsychImaging('GetOverlayWindow', c.window);
-                    % Screen('LoadNormalizedGammaTable', - dont do this.
-                    % Instead set up your vpixx once, using
-                    % BitsPlusImagingPipelineTest(screenID);
-                    % BitsPlusIdentityClutTest(screenID,1); this will
-                    % create correct identity cluts.
+                    [nrRows,nrCols] = size(c.screen.overlayClut);
+                    if nrCols>0 && nrCols~=3  
+                        error('The overlay clut should have 3 columns...');
+                    end
+                    if nrRows>255
+                        error('The overlay clut can have only 255 entries (index 0 is transparent)');
+                    end
+                    % Add white for missing clut entries to show error
+                    % indices (assuming the bg is not max white)
+                    c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
+                    Screen('LoadNormalizedGammaTable',c.window,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT                  
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end

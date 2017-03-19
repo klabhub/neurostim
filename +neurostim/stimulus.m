@@ -26,15 +26,21 @@ classdef stimulus < neurostim.plugin
         beforeFrameListenerHandle =[];
         afterFrameListenerHandle =[];
     end
+    
     properties
         flags = struct('on',true);
+        overlay@logical=false; % Flag to indicate that this stimulus is drawn on the overlay in M16 mode.
+        window;
     end
+    
+    
     properties (Dependent)
         off;
         onFrame;
         offFrame;
         time; % Time since start of stimulus.
         frame; % frame since start of stimulus
+        
     end
     
     properties (Access=protected)
@@ -46,6 +52,7 @@ classdef stimulus < neurostim.plugin
     end
     
     methods
+               
         function v = get.time(o)
             v = o.cic.frames2ms(o.frame);
         end
@@ -320,6 +327,14 @@ classdef stimulus < neurostim.plugin
                     notify(s,'AFTERTRIAL');
                     
                 case 'BASEBEFOREEXPERIMENT'
+                    % Check whether this stimulus should be displayed on
+                    % the color overlay in VPIXX-M16 mode.  Done here to
+                    % avoid the overhead of calling this every draw. 
+                    if strcmpi(s.cic.screen.type,'VPIXX-M16') && s.overlay
+                        s.window = s.cic.overlay;
+                    else
+                        s.window = s.cic.window;
+                    end
                     if s.rsvp.active
                         %Check that stimulus durations and ISIs are multiples of the frame interval (defined as within 5% of a frame)
                         [dur,rem1] = c.ms2frames(s.rsvp.duration,true);

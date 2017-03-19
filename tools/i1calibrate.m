@@ -116,7 +116,7 @@ end
 % the calibration directory. This uses PTB routines to save, which add
 % calibration structures to the file, and hte load routines can be
 % instructed to pick the last one (see cic/loadCalibration). 
-calFile = [getenv('COMPUTERNAME') '_' p.Results.type];
+calFile = [getenv('COMPUTERNAME') '-' p.Results.type];
 if p.Results.compute
     cal= neurostim.utils.ptbcal(c,'save',calFile,'plot',true,'wavelengths',wavelengths); % Create a cal object in PTB format.
 else
