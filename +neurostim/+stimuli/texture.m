@@ -83,7 +83,7 @@ classdef texture < neurostim.stimulus
     function beforeExperiment(o,~,~)
       % create the ptb textures
       for ii = 1:o.numTex,
-        o.tex{ii}.ptr = Screen('MakeTexture',o.cic.window,o.tex{ii}.img);
+        o.tex{ii}.ptr = Screen('MakeTexture',o.window,o.tex{ii}.img);
       end
     end
         
@@ -136,7 +136,7 @@ classdef texture < neurostim.stimulus
 
       % draw the texture
       filterMode = 1; % bilinear interpolation
-      Screen('DrawTextures',o.cic.window,ptr,[],rect',[],filterMode,o.alpha);
+      Screen('DrawTextures',o.window,ptr,[],rect',[],filterMode,o.alpha);
     end    
   end % public methods
     

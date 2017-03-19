@@ -211,7 +211,7 @@ classdef stimulus < neurostim.plugin
         function setupDiode(s)
             pixelsize=s.diode.size*s.cic.screen.xpixels;
             if isempty(s.diode.color)
-                s.diode.color=WhiteIndex(s.cic.window);
+                s.diode.color=WhiteIndex(s.window);
             end
             switch lower(s.diode.location)
                 case 'ne'
@@ -241,17 +241,17 @@ classdef stimulus < neurostim.plugin
             switch evt.EventName
                 case 'BASEBEFOREFRAME'
                     
-                    glScreenSetup(c,c.window);
+                    glScreenSetup(c,s.window);
                     
                     %Apply stimulus transform
                     if  any([s.X s.Y s.Z]~=0)
-                        Screen('glTranslate',c.window,s.X,s.Y,s.Z);
+                        Screen('glTranslate',s.window,s.X,s.Y,s.Z);
                     end
                     if any([s.scale.x s.scale.y] ~=1)
-                        Screen('glScale',c.window,s.scale.x,s.scale.y);
+                        Screen('glScale',s.window,s.scale.x,s.scale.y);
                     end
                     if  s.angle ~=0
-                        Screen('glRotate',c.window,s.angle,s.rx,s.ry,s.rz);
+                        Screen('glRotate',s.window,s.angle,s.rx,s.ry,s.rz);
                     end
                     
                     %Should the stimulus be drawn on this frame?
@@ -295,9 +295,9 @@ classdef stimulus < neurostim.plugin
                         % get the next screen flip for stopTime
                         c.getFlipTime=true;
                     end
-                    Screen('glLoadIdentity', c.window);
+                    Screen('glLoadIdentity', s.window);
                     if s.diode.on && s.flags.on
-                        Screen('FillRect',c.window,s.diode.color,s.diodePosition);
+                        Screen('FillRect',s.window,s.diode.color,s.diodePosition);
                     end
                 case 'BASEAFTERFRAME'
                     if s.flags.on

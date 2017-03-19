@@ -51,14 +51,14 @@ classdef text < neurostim.stimulus
             
             
             if o.antialiasing
-                Screen('glLoadIdentity', c.window);
-                Screen('glRotate',c.window,o.angle,o.rx,o.ry,o.rz);
+                Screen('glLoadIdentity', o.window);
+                Screen('glRotate',o.window,o.angle,o.rx,o.ry,o.rz);
                 % fix X and Y to be in pixels (clipping occurs at
                 % negative numbers under high quality text rendering)
                 [X,Y] = c.physical2Pixel(o.X,o.Y);
                 textsize = o.textsize;
             else
-                Screen('glScale',c.window,1,-1);
+                Screen('glScale',o.window,1,-1);
                 X = o.X;
                 Y = o.Y;
                 textsize = round(o.textsize*c.screen.width/c.screen.xpixels);
@@ -78,13 +78,13 @@ classdef text < neurostim.stimulus
             end
             
             %                     change font/size/style
-            Screen('TextFont', c.window, o.font);
-            Screen('TextSize', c.window, textsize);
-            Screen('TextStyle', c.window, style);
+            Screen('TextFont', o.window, o.font);
+            Screen('TextSize',o.window, textsize);
+            Screen('TextStyle', o.window, style);
             
             
             
-            [textRect] = Screen('TextBounds',c.window,o.message);
+            [textRect] = Screen('TextBounds',o.window,o.message);
             % aligning text in window
             switch lower(o.textalign)
                 case {'center','centre','c'}
@@ -117,7 +117,7 @@ classdef text < neurostim.stimulus
             end
             
             % draw text to Screen
-            [~,~,bbox]= DrawFormattedText(c.window,o.message,xpos,ypos,o.color);
+            [~,~,bbox]= DrawFormattedText(o.window,o.message,xpos,ypos,o.color);
         end
         
         function afterTrial(o,c,evt)

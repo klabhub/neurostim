@@ -81,7 +81,7 @@ classdef rdp < neurostim.stimulus
         
         
         function beforeFrame(o,c,evt)
-            Screen('DrawDots',c.window, [o.x o.y]', o.size, o.color);
+            Screen('DrawDots',o.window, [o.x o.y]', o.size, o.color);
         end
         
         
