@@ -13,20 +13,20 @@ function [c,cal,cTest]=i1calibrate(varargin)
 import neurostim.*
 
 p =inputParser;
-p.addParameter('skipWhiteTile',false);
-p.addParameter('fakeItAll',false);
-p.addParameter('measure',true);
-p.addParameter('show',true);
-p.addParameter('lumTest',false);
-p.addParameter('xylTest',false);
-p.addParameter('xyzTest',false);
+p.addParameter('skipWhiteTile',false); % After calibrating I1 once, you can skip the whitetile
+p.addParameter('fakeItAll',false);     % Debug mode to fake results
+p.addParameter('measure',true);        % Do the actual calibration measurements
+p.addParameter('compute',true);         % Compute and save a calibration structure.
+p.addParameter('lumTest',false);       % Test calibrated luminance 'LUM' mode 
+p.addParameter('xylTest',false);       % Test calibrated color xyL mode
+p.addParameter('xyzTest',false);        % test calibrated color XYZ mode
 p.addParameter('nrRepeats',3); % How many times to measure each lum value
 p.addParameter('nrGunSteps',10);  % Steps with which to measure gunvalues
 p.addParameter('c',[]);
 p.addParameter('type','GENERIC',@(x) (ismember(upper(x),{'GENERIC','VPIXX-M16'})));
-p.addParameter('measurementMode','VPixx'); % Run I1('SetMeasurementMode?') to see a list of options.
-                                           
+p.addParameter('measurementMode','VPixx'); % Run I1('SetMeasurementMode?') to see a list of options.s                                           
 p.addParameter('nrTestLum',40);
+p.addParameter('calibrationDir','');
 parse(p,varargin{:});
 
 T_xyz1931=[];
@@ -54,6 +54,7 @@ if isempty(p.Results.c)
    
     %% Setup CIC and the stimuli.
     c = createCic(p.Results.fakeItAll,p.Results.type);
+    c.dirs.calibration  = p.Results.calibrationDir;
     %% Define conditions and blocks
     % One block of gamma calibration
     gv  = linspace(0,1,p.Results.nrGunSteps);
@@ -115,14 +116,18 @@ end
 % the calibration directory. This uses PTB routines to save, which add
 % calibration structures to the file, and hte load routines can be
 % instructed to pick the last one (see cic/loadCalibration). 
-calFile = [c.subject '_' p.Results.type];
-cal= neurostim.utils.ptbcal(c,'save',calFile,'plot',p.Results.show,'wavelengths',wavelengths); % Create a cal object in PTB format.
-
+calFile = [getenv('COMPUTERNAME') '_' p.Results.type];
+if p.Results.compute
+    cal= neurostim.utils.ptbcal(c,'save',calFile,'plot',true,'wavelengths',wavelengths); % Create a cal object in PTB format.
+else
+    cal = LoadCalFile(calFile,Inf,p.Results.calibrationDir);
+end
 %% Test the calibration
 if p.Results.lumTest
     % Generate some test luminance value per gun
     % Create a new cic
     cTest = createCic(p.Results.fakeItAll,p.Results.type);
+    cTest.dirs.calibration = p.Results.calibrationDir;
     cTest.screen.calFile =calFile;    
     cTest.screen.colorMode = 'LUM'; 
    
@@ -156,6 +161,8 @@ if p.Results.lumTest
     xlabel 'Error (%)'
     ylabel '#Measurements'
     title 'Mismatch'
+    
+    suptitle( [calFile ':' datestr(cal.describe.date)])
         
 end
 
@@ -164,6 +171,7 @@ if p.Results.xylTest
      % Create a new cic
     cxyL = createCic(p.Results.fakeItAll,p.Results.type);
     cxyL.screen.colorMode = 'xyL';
+    cxyL.dirs.calibration = p.Results.calibrationDir;
     cxyL.screen.calFile = calFile;
     cxyL.screen.colorMatchingFunctions = 'T_xyz1931';
     cxyL.screen.color.background = [0.2 0.4 10];
@@ -203,6 +211,7 @@ if p.Results.xyzTest
     cxyz = createCic(p.Results.fakeItAll,p.Results.type);
     cxyz.screen.colorMode = 'xyz';
     cxyz.screen.calFile = calFile;
+    cxyz.dirs.calibration = p.Results.calibrationDir;
     cxyz.screen.colorMatchingFunctions = 'T_xyz1931';
     cxyz.screen.color.background = [10 20 10];
     
