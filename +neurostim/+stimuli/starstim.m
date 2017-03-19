@@ -376,6 +376,7 @@ classdef starstim < neurostim.stimulus
                     % nothing to do
                     ret =0;
                 case 'TIMED'
+                    ret =0;
                     if ~o.isOnlineStarted
                         switch (o.nowType)
                             case 'DC'
@@ -400,6 +401,7 @@ classdef starstim < neurostim.stimulus
                         end
                         o.isShamOn = true;
                     end
+                    
                 otherwise
                     c.error(['Unknown starstim mode :' o.mode]);
             end

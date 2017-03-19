@@ -717,7 +717,7 @@ classdef cic < neurostim.plugin
             singleRepeatList = repelem((1:numel(c.blocks)),c.blockFlow.weights);
             c.blockFlow.list =[];
             for i=1:p.Results.nrRepeats
-                switch(c.blockFlow.randomization)
+                switch upper(c.blockFlow.randomization)
                     case 'ORDERED'
                         c.blockFlow.list = cat(2,c.blockFlow.list,p.Results.blockOrder);
                         c.blockFlow.randomization = 'SEQUENTIAL';
