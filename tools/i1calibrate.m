@@ -17,12 +17,15 @@ p.addParameter('skipWhiteTile',false);
 p.addParameter('fakeItAll',false);
 p.addParameter('measure',true);
 p.addParameter('show',true);
-p.addParameter('saveFile','');
 p.addParameter('lumTest',false);
 p.addParameter('xylTest',false);
+p.addParameter('xyzTest',false);
 p.addParameter('nrRepeats',3); % How many times to measure each lum value
 p.addParameter('nrGunSteps',10);  % Steps with which to measure gunvalues
 p.addParameter('c',[]);
+p.addParameter('type','GENERIC',@(x) (ismember(upper(x),{'GENERIC','VPIXX-M16'})));
+p.addParameter('measurementMode','VPixx'); % Run I1('SetMeasurementMode?') to see a list of options.
+                                           
 p.addParameter('nrTestLum',40);
 parse(p,varargin{:});
 
@@ -44,8 +47,13 @@ end
 
 %% Setup CIC
 if isempty(p.Results.c)
+    
+    if ~I1('IsConnected')
+        error('The I1 is not connected? (unplug and replug the USB cable)');
+    end
+   
     %% Setup CIC and the stimuli.
-    c = createCic(p.Results.fakeItAll);
+    c = createCic(p.Results.fakeItAll,p.Results.type);
     %% Define conditions and blocks
     % One block of gamma calibration
     gv  = linspace(0,1,p.Results.nrGunSteps);
@@ -82,7 +90,7 @@ end
 if p.Results.measure
     %% Run the calibration
     
-    
+   % I1('SetMeasurementMode',p.Results.measurementMode);
     if p.Results.fakeItAll
         disp('Place your fake I1 on the center of the fake screen, then press any key to continue');
     else
@@ -102,29 +110,25 @@ else
     wavelengths  = 380:10:730;
 end
 
-cal= neurostim.utils.ptbcal(c,'save',p.Results.saveFile,'plot',p.Results.show,'wavelengths',wavelengths); % Create a cal object in PTB format.
+% Use this information to setup a cal structure that PTB uses to store
+% calibration information. the file is stored as machinename_monitortype in
+% the calibration directory. This uses PTB routines to save, which add
+% calibration structures to the file, and hte load routines can be
+% instructed to pick the last one (see cic/loadCalibration). 
+calFile = [c.subject '_' p.Results.type];
+cal= neurostim.utils.ptbcal(c,'save',calFile,'plot',p.Results.show,'wavelengths',wavelengths); % Create a cal object in PTB format.
 
 %% Test the calibration
 if p.Results.lumTest
     % Generate some test luminance value per gun
     % Create a new cic
-    cTest = createCic(p.Results.fakeItAll);
-    % Apply the calibration to the CIC object
-    cTest.screen.calibration.min = cal.neurostim.extendedGamma.min;
-    cTest.screen.calibration.max = cal.neurostim.extendedGamma.max;
-    cTest.screen.calibration.bias  = cal.neurostim.extendedGamma.bias;
-    cTest.screen.calibration.gain = cal.neurostim.extendedGamma.gain;
-    cTest.screen.calibration.gamma = cal.neurostim.extendedGamma.gamma;
-    cTest.screen.calibration.gammaTable = cal.gammaTable;
-    cTest.screen.calibration.gammaInput = cal.gammaInput;
-    cTest.screen.calibration.maxLum   =  cal.neurostim.maxLum;
-    cTest.screen.calibration.ambientLum = cal.neurostim.ambientLum;
-    
-    cTest.screen.colorMode = 'XGAMMA'; % Uses a linearized gamma table together with extendedGamma 
+    cTest = createCic(p.Results.fakeItAll,p.Results.type);
+    cTest.screen.calFile =calFile;    
+    cTest.screen.colorMode = 'LUM'; 
    
     %% Test across the gamut
-    nrGuns = size(cTest.screen.calibration.ambientLum,2); % VPIXX-M16 has 1 "gun"
-    targetLum = rand([p.Results.nrTestLum nrGuns]).*repmat(cal.neurostim.maxLum,[p.Results.nrTestLum 1]);
+    nrGuns = size(cal.ambientLum,2); % VPIXX-M16 has 1 "gun"
+    targetLum = rand([p.Results.nrTestLum nrGuns]).*repmat(cal.maxLum,[p.Results.nrTestLum 1]);
     checkLum=neurostim.design('checkLum');
     checkLum.fac1.target.color  = num2cell(targetLum,2);
     checkLum.randomization  = 'sequential';    
@@ -158,22 +162,17 @@ end
 %% Test the color calibration
 if p.Results.xylTest
      % Create a new cic
-    cxyL = createCic(p.Results.fakeItAll);
-    
+    cxyL = createCic(p.Results.fakeItAll,p.Results.type);
+    cxyL.screen.colorMode = 'xyL';
+    cxyL.screen.calFile = calFile;
+    cxyL.screen.colorMatchingFunctions = 'T_xyz1931';
+    cxyL.screen.color.background = [0.2 0.4 10];
     
     
     xyLtarget = [0.2 0.4 5; 0.4 0.2 10; 0.33 0.33 25];
-    %%
-    % Apply the calibration to the CIC object
-    cxyL.screen.calibration.min = 0;
-    cxyL.screen.calibration.max = cal.neurostim.extendedGamma.max;
-    cxyL.screen.calibration.bias  = cal.neurostim.extendedGamma.bias;
-    cxyL.screen.calibration.gain = 1;
-    cxyL.screen.calibration.gamma = cal.neurostim.extendedGamma.gamma;
-    cxyL.screen.colorMode = 'xyL';
-    cxyL.screen.calibration.calFile = [c.file '_ptb_cal.mat'];
+   
     
-    checkxyL=neurostim.design('checkLum');
+    checkxyL=neurostim.design('checkxyL');
     checkxyL.fac1.target.color  = num2cell(xyLtarget,2);
     checkxyL.randomization  = 'sequential';
     
@@ -187,6 +186,44 @@ if p.Results.xylTest
     %% Test predicted lums etc.
     
     [testLxy] = get(cxyL.prms.lxy,'AtTrialTime',inf);
+    
+    figure;
+    plot(sum(targetLumNorm,2),testLxy(:,1), '.');
+    xlabel 'Target (cd/m^2)'
+    ylabel 'Measured (cd/m^2)'
+    axis equal;axis square;
+    
+    hold on
+    plot(xlim,ylim,'k')
+    
+end
+
+if p.Results.xyzTest
+     % Create a new cic
+    cxyz = createCic(p.Results.fakeItAll,p.Results.type);
+    cxyz.screen.colorMode = 'xyz';
+    cxyz.screen.calFile = calFile;
+    cxyz.screen.colorMatchingFunctions = 'T_xyz1931';
+    cxyz.screen.color.background = [10 20 10];
+    
+    
+    xyzTarget = [5 5 5; 10 20 4; 3 8 10];
+   
+    
+    checkxyZ=neurostim.design('checkXYZ');
+    checkxyZ.fac1.target.color  = num2cell(xyzTarget,2);
+    checkxyZ.randomization  = 'sequential';
+    
+    blck=block('checkxyLBlock',checkxyZ);
+    blck.nrRepeats  = 1;
+    cxyz.run(blck);
+    % One block to measure various colors (testing purpose)
+    
+    
+    
+    %% Test predicted lums etc.
+    
+    [testLxy] = get(cxyz.prms.lxy,'AtTrialTime',inf);
     
     figure;
     plot(sum(targetLumNorm,2),testLxy(:,1), '.');
@@ -231,10 +268,10 @@ end
 
 
 
-    function c = createCic(fake)
+    function c = createCic(fake,type)
         c = neurostim.myRig;
         c.screen.colorMode = 'RGB';
-        c.screen.type = 'GENERIC';%'VPIXX-M16';
+        c.screen.type = type;
         c.trialDuration = 250;
         c.iti           = 50;
         c.paradigm      = 'calibrate';

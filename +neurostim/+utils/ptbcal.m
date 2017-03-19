@@ -19,8 +19,8 @@ p.parse(varargin{:});
 %% Extract the measurements .
 [lxy] = get(c.prms.lxy,'AtTrialTime',inf);
 [rgb] = get(c.target.prms.color,'AtTrialTime',inf);
-[spectrum] = get(c.prms.spectrum,'AtTrialTime',inf); %Irradiance in mW/(m2 sr nm)
-spectrum  =1000*spectrum; % [W/(m2 sr nm)]: SI units compatible with luminance cd/m2
+[spectrum] = get(c.prms.spectrum,'AtTrialTime',inf); %Radiance in mW/(m2 sr nm)
+
 nrGuns = size(rgb,2);
 
 %% Basic cal definition
@@ -79,7 +79,10 @@ end
 
 cal.describe.nAverage = unique(nrRepeats(:)); % Not used, just bookkeeping
 cal.describe.nMeas = size(meanSpectrum,1); % This is the number of levels that were measured.
-
+% The spectral measures are incorrect... these seem to be the factors.. but
+% I dont knwo why. Waiting for VPIXX support to help ..This does not affect
+% LUM colorMode calibration (which uses lxy measurements)
+%meanSpectrum = meanSpectrum./permute(repmat([222 123 130],[cal.describe.nMeas,1,numel(p.Results.wavelengths)]),[1 3 2]);
 isAmbient = all(rgb==0,2);
 ambient = mean(spectrum(isAmbient,:),1);
 ambientLum = mean(lxy(isAmbient,1));
@@ -118,25 +121,7 @@ cal.P_ambient = ambient';
 cal.T_ambient = Tmon;
 cal.S_ambient = Smon;
 
-tmpCmf = load(c.screen.calibration.cmf);
-fn = fieldnames(tmpCmf);
-Tix = strncmpi('T_',fn,2); % Assuming the convention that the variable starting with T_ contains the CMF
-Six = strncmpi('S_',fn,2); % Variable startgin with S_ specifies the wavelengths
-T = tmpCmf.(fn{Tix}); % CMF
-S = tmpCmf.(fn{Six}); % Wavelength info
-T = 683*T;
 
-% The "sensor" is the human observer and we can pick different ones by
-% chosing a different CMF (in c.screen.calibration.cmf). Sensor coordinates
-% are XYZ. 
-cal = SetSensorColorSpace(cal,T,S);
-cal = SetGammaMethod(cal,0);
-% % After setting this we can for instance get the correct settings for the
-% % gunvalues for a desired color/luminance:
-% % 
-% desired_xyL= [1/3 1/3 40]';
-% desired_XYZ = xyYToXYZ(desired_xyL);
-% desired_rgb = SensorToSettings(cal,desired_XYZ);
 
 
 
@@ -159,18 +144,18 @@ maxLum = max(lum);
 for i=1:nrGuns
     parameterGuess = [maxLum(i) 1/2.2 0]; % max gamma bias
     [prms(i,:),residuals,~] = nlinfit(lum(:,i),gv,lum2gun,parameterGuess); %#ok<AGROW>
-    cal.neurostim.extendedGamma.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
+    cal.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
 end
 % Add to cal struct to use later.
-cal.neurostim.extendedGamma.bias = prms(:,3)';
-cal.neurostim.extendedGamma.min  = zeros(1,nrGuns);
-cal.neurostim.extendedGamma.gain  = ones(1,nrGuns);
-cal.neurostim.extendedGamma.max   = prms(:,1)';
-cal.neurostim.extendedGamma.gamma  = prms(:,2)';
-cal.neurostim.extendedGamma.lum2gun  = lum2gun;
-cal.neurostim.extendedGamma.gun2lum  = gun2lum;
-cal.neurostim.maxLum = squeeze(meanLxy(end,1,:))'; % not corrected for ambient
-cal.neurostim.ambientLum = ambientLum*ambientRatio;
+cal.bias = prms(:,3)';
+cal.min  = zeros(1,nrGuns);
+cal.gain  = ones(1,nrGuns);
+cal.max   = prms(:,1)';
+cal.gamma  = prms(:,2)';
+cal.lum2gun  = lum2gun;
+cal.gun2lum  = gun2lum;
+cal.maxLum = squeeze(meanLxy(end,1,:))'; % not corrected for ambient
+cal.ambientLum = ambientLum*ambientRatio;
 % Save the result
 if ~isempty(p.Results.save)        
     disp(['Saving calibration result to ' fullfile(c.dirs.calibration,p.Results.save)]);
@@ -204,14 +189,14 @@ if p.Results.plot
     for i=1:nrGuns
         errorbar(gv,lum(:,i),lumSe(:,i),lumSe(:,i),['o' color(i)]);        
         hold on    
-        prms = [cal.neurostim.extendedGamma.max(i) cal.neurostim.extendedGamma.gamma(i) cal.neurostim.extendedGamma.bias(i) ];
-        plot(gvI,cal.neurostim.extendedGamma.gun2lum(prms,gvI),['-' color(i)])        
+        prms = [cal.max(i) cal.gamma(i) cal.bias(i) ];
+        plot(gvI,cal.gun2lum(prms,gvI),['-' color(i)])        
     end
     ylabel 'Luminance (cd/m^2)'
     xlabel 'GunValue [0 1]')
     xlim([0 1]);
     
-    title (['Inverse Gamma. R^2 = ' num2str(cal.neurostim.extendedGamma.R2,4)]);
+    title (['Inverse Gamma. R^2 = ' num2str(cal.R2,4)]);
 end
 
 
