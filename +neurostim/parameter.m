@@ -329,12 +329,15 @@ classdef parameter < handle
             beforeFirstTrial = tr==0;
             tr(beforeFirstTrial) =1;
             trialStartTime = o.plg.cic.prms.trialStartTime.time;
+            afterLastTrial = tr > numel(trialStartTime);
+            tr(afterLastTrial) = 1;
             if ET2TRT
-                v= t-trialStartTime(tr);
-                v(beforeFirstTrial) = -Inf;
+                v= t-trialStartTime(tr);                
             else
                 v= t+trialStartTime(tr);
-            end
+            end            
+            v(beforeFirstTrial) = -Inf;
+            v(afterLastTrial) = +Inf;
         end
         
         

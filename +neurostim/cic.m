@@ -723,9 +723,9 @@ classdef cic < neurostim.plugin
                     case 'SEQUENTIAL'
                         c.blockFlow.list = cat(2,c.blockFlow.list,singleRepeatList);
                     case 'RANDOMWITHREPLACEMENT'
-                        c.blockFlow.list =cat(2,c.blockFlow.list,Shuffle(singleRepeatList));
+                        c.blockFlow.list =cat(2,c.blockFlow.list,datasample(singleRepeatList,numel(singleRepeatList)));
                     case 'RANDOMWITHOUTREPLACEMENT'
-                        c.blockFlow.list= cat(2,c.blockFlow.list,datasample(singleRepeatList,numel(singleRepeatList)));
+                        c.blockFlow.list= cat(2,c.blockFlow.list,Shuffle(singleRepeatList));
                 end
             end
         end
