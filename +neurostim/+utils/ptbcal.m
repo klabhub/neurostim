@@ -164,26 +164,27 @@ end
 
 if p.Results.plot
     % Put up a plot of the essential data
-    figure(1); clf;
+    figure; clf;
+    subplot(2,2,1);
     plot(SToWls(cal.S_device), cal.P_device);
-    xlabel('Wavelength (nm)', 'Fontweight', 'bold');
-    ylabel('Irradiance (W/m^2 sr nm)', 'Fontweight', 'bold');
-    title('Phosphor spectra', 'Fontsize', 13, 'Fontname', 'helvetica', 'Fontweight', 'bold');
+    xlabel('Wavelength (nm)');
+    ylabel('Irradiance (W/m^2 sr nm)');
+    title('Phosphor spectra');
     axis([380, 780, -Inf, Inf]);
     
-    figure(2); clf;
+    subplot(2,2,2);
     colors = 'rgb';
     for i=1:nrGuns
         plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable(:,i), [colors(i) '*']);
         hold on
         plot(cal.gammaInput, cal.gammaTable,colors(i));
     end
-    xlabel('gun value [0 1]');
+    xlabel('Gun value [0 1]');
     ylabel('Normalized output [0 1]')
     title('Normalized Gamma functions');
     hold off
     
-    figure(3);clf;
+    subplot(2,2,3);
     color = 'rgb';
     gvI = linspace(0,1,100);
     for i=1:nrGuns
@@ -197,6 +198,8 @@ if p.Results.plot
     xlim([0 1]);
     
     title (['Inverse Gamma. R^2 = ' num2str(cal.R2,4)]);
+    
+    suptitle([cal.describe.computer ':' datestr(cal.describe.date)])
 end
 
 
