@@ -393,7 +393,7 @@ classdef design <handle & matlab.mixin.Copyable
                                 % Replace : with  1:end
                                 ix{f} = 1:lvls(f);
                             end
-                            if ~(numel(V)==1 || numel(V) == lvls(f))
+                            if ~(numel(V)==1 || size(V,f) == lvls(f))
                                 error(['The number of values on the RHS [' num2str(size(V)) '] does not match the number specified on the LHS [' num2str(lvls) ']']);
                             end
                         end

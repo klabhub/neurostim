@@ -62,9 +62,9 @@ classdef starstim < neurostim.stimulus
     % NIC is 1s, this takes ~2s, so setting the iti in CIC to 2s is
     % recommended (to ensure that every ITI is 2 s). In TIMED mode, the
     % sham stimulation will last 2*starstim.transition plus 1 frame.
-    %  
+    %
     % See startstimDemo for more details and examples
-    % 
+    %
     % BK - Feb 2016, 2017
     
     properties (SetAccess =public, GetAccess=public)
@@ -158,7 +158,11 @@ classdef starstim < neurostim.stimulus
         end
         
         function v = get.nowAmplitude(o)
-            v = expand(o,o.amplitude);
+            if ~isempty(o.montage) && isscalar(o.amplitude)
+                v = o.amplitude*o.montage;
+            else
+                v = expand(o,o.amplitude);
+            end
         end
         
         function v = get.nowFrequency(o)
@@ -189,6 +193,9 @@ classdef starstim < neurostim.stimulus
         
         % Destructor
         function delete(o)
+            if o.fake;
+                return;
+            end
             stop(o);
             unloadProtocol(o);
             close(o.sock);
@@ -217,6 +224,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('itiOff',true);
             
             o.addProperty('amplitude',NaN);
+            o.addProperty('montage',[]);
             o.addProperty('mean',NaN);
             o.addProperty('phase',0);
             o.addProperty('transition',NaN);
@@ -271,11 +279,11 @@ classdef starstim < neurostim.stimulus
             % Delete any remaning timers (if the previous run was ok, there
             % should be none)
             % FUTURE WORK to get more fine grained control
-%             timrs = timerfind('name','starstim.tacs');
-%             if ~isempty(timrs)
-%                 o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
-%                 delete(timrs)
-%             end
+            %             timrs = timerfind('name','starstim.tacs');
+            %             if ~isempty(timrs)
+            %                 o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
+            %                 delete(timrs)
+            %             end
             
             
             
@@ -315,56 +323,59 @@ classdef starstim < neurostim.stimulus
         
         function beforeTrial(o,c,evt) %#ok<INUSD>
             if o.fake
-                return;%o.writeToFeed('Starstim fake start stim');
-            else
-                %% Load the protocol if it has changed
-                if ~strcmpi(o.protocol,o.activeProtocol)
-                    stop(o);
-                    unloadProtocol(o);
-                    loadProtocol(o);
-                end
-                switch upper(o.mode)
-                    case {'BLOCKED','TRIAL'}
-                        if o.enabled
-                            if ~o.isShamOn
-                                start(o);  % If it is already on, it won't start again
-                            end
-                            if o.sham
-                                pause(o);
-                                o.isShamOn = true;
-                            elseif o.isShamOn
-                                start(o);
-                                o.isShamOn = false;
-                            end
-                        else
+                o.writeToFeed('Starstim fake start stim');
+                return;
+            end
+            
+            
+            %% Load the protocol if it has changed
+            if ~strcmpi(o.protocol,o.activeProtocol)
+                stop(o);
+                unloadProtocol(o);
+                loadProtocol(o);
+            end
+            switch upper(o.mode)
+                case {'BLOCKED','TRIAL'}
+                    if o.enabled
+                        if ~o.isShamOn
+                            start(o);  % If it is already on, it won't start again
+                        end
+                        if o.sham
                             pause(o);
+                            o.isShamOn = true;
+                        elseif o.isShamOn
+                            start(o);
                             o.isShamOn = false;
                         end
-                    case 'TIMED'
-                        if o.enabled
-                            start(o);
-                        end
-                        switch (o.nowType)
-                            case 'DC'
-                                % nothing to do here.
-                            case 'AC'
-                                ret = MatNICOnlineFtacsChange(o.nowFrequency, o.NRCHANNELS,o.sock);
-                                o.checkRet(ret,'TIMED tACS frequency change failed');
-                                ret = MatNICOnlinePtacsChange(o.nowPhase, o.NRCHANNELS, o.sock);
-                                o.checkRet(ret,'TIMED tACS phase change failed');
-                            case 'RNS'
-                                disp('RNS Not implemented yet');                                
-                        end
-                    otherwise
-                        c.error(['Unknown starstim mode :' o.mode]);
-                end
-                
-                % Send a trial start marker to the NIC
-                ret = MatNICMarkerSendLSL(o.code('trialStart'),o.markerStream);
-                if ret<0
-                    o.checkRet(ret,'Trialstart marker not delivered');
-                end
+                    else
+                        pause(o);
+                        o.isShamOn = false;
+                    end
+                case 'TIMED'
+                    if o.enabled
+                        start(o);
+                    end
+                    switch (o.nowType)
+                        case 'DC'
+                            % nothing to do here.
+                        case 'AC'
+                            ret = MatNICOnlineFtacsChange(o.nowFrequency, o.NRCHANNELS,o.sock);
+                            o.checkRet(ret,'TIMED tACS frequency change failed');
+                            ret = MatNICOnlinePtacsChange(o.nowPhase, o.NRCHANNELS, o.sock);
+                            o.checkRet(ret,'TIMED tACS phase change failed');
+                        case 'RNS'
+                            disp('RNS Not implemented yet');
+                    end
+                otherwise
+                    c.error(['Unknown starstim mode :' o.mode]);
             end
+            
+            % Send a trial start marker to the NIC
+            ret = MatNICMarkerSendLSL(o.code('trialStart'),o.markerStream);
+            if ret<0
+                o.checkRet(ret,'Trialstart marker not delivered');
+            end
+            
         end
         
         function beforeFrame(o,c,evt) %#ok<INUSD>
@@ -412,6 +423,13 @@ classdef starstim < neurostim.stimulus
         end
         
         function afterTrial(o,c,evt) %#ok<INUSD>
+            if o.fake
+                o.writeToFeed('Starstim fake afterTrial stim');
+                return;
+            end
+            
+            ret = 0;
+            
             switch upper(o.mode)
                 case 'BLOCKED'
                     % Nothing to do (trigger mode keeps running across ITI/trials)
@@ -451,6 +469,7 @@ classdef starstim < neurostim.stimulus
         
         function afterExperiment(o,c,evt) %#ok<INUSD>
             if o.fake
+                o.writeToFeed('Starstim fake afterExperiment');
                 return;
             end
             
@@ -468,13 +487,13 @@ classdef starstim < neurostim.stimulus
                     c.error(['Unknown starstim mode :' o.mode]);
             end
             
-%           % FUTURE WORK to get more fine grained control  
-%             timrs = timerfind('name','starstim.tacs');
-%             if ~isempty(timrs)
-%                 o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
-%                 delete(timrs)
-%             end
-%             
+            %           % FUTURE WORK to get more fine grained control
+            %             timrs = timerfind('name','starstim.tacs');
+            %             if ~isempty(timrs)
+            %                 o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
+            %                 delete(timrs)
+            %             end
+            %
             
             if o.impedanceCheck
                 impedance(o);
@@ -497,47 +516,47 @@ classdef starstim < neurostim.stimulus
             end
         end
         
-% FUTURE WORK to get more fine grained control     use timers in matlab  
-%         function tacs(o,amplitude,channel,transition,duration,frequency)
-%             % function tacs(o,amplitude,channel,transition,duration,frequency)
-%             % Apply tACS at a given amplitude, channel, frequency. The current is ramped
-%             % up and down in 'transition' milliseconds and will last 'duration'
-%             % milliseconds (including the transitions).
-%             
-%             if duration>0 && isa(o.tacsTimer,'timer') && isvalid(o.tacsTimer) && strcmpi(o.tacsTimer.Running,'off')
-%                 c.error('STOPEXPERIMENT','tACS pulse already on? Cannot start another one');
-%             end
-%             
-%             if o.fake
-%                 o.writeToFeed([ datestr(now,'hh:mm:ss') ': tACS frequency set to ' num2str(frequency) ' on channel ' num2str(channel)]);
-%             else
-%                 ret = MatNICOnlineFtacsChange (frequency, channel, o.sock);
-%                 o.checkRet(ret,'FtacsChange');
-%             end
-%             if o.fake
-%                 o.writeToFeed(['tACS amplitude set to ' num2str(amplitude) ' on channel ' num2str(channel) ' (transition = ' num2str(transition) ')']);
-%             else
-%                 ret = MatNICOnlineAtacsChange(amplitude, channel, transition, o.sock);
-%                 o.checkRet(ret,'AtacsChange');
-%             end
-%             
-%             if duration ==0
-%                 toc
-%                 stop(o.tacsTimer); % Stop it first (it has done its work)
-%                 delete (o.tacsTimer); % Delete it.
-%             else
-%                 % Setup a timer to end this stimulation at the appropriate
-%                 % time
-%                 tic
-%                 off  = @(timr,events,obj,chan,trans) tacs(obj,0*chan,chan,trans,0,0);
-%                 o.tacsTimer  = timer('name','starstim.tacs');
-%                 o.tacsTimer.StartDelay = (duration-2*transition)/1000;
-%                 o.tacsTimer.ExecutionMode='SingleShot';
-%                 o.tacsTimer.TimerFcn = {off,o,channel,transition};
-%                 start(o.tacsTimer);
-%             end
-%             
-%         end
+        % FUTURE WORK to get more fine grained control     use timers in matlab
+        %         function tacs(o,amplitude,channel,transition,duration,frequency)
+        %             % function tacs(o,amplitude,channel,transition,duration,frequency)
+        %             % Apply tACS at a given amplitude, channel, frequency. The current is ramped
+        %             % up and down in 'transition' milliseconds and will last 'duration'
+        %             % milliseconds (including the transitions).
+        %
+        %             if duration>0 && isa(o.tacsTimer,'timer') && isvalid(o.tacsTimer) && strcmpi(o.tacsTimer.Running,'off')
+        %                 c.error('STOPEXPERIMENT','tACS pulse already on? Cannot start another one');
+        %             end
+        %
+        %             if o.fake
+        %                 o.writeToFeed([ datestr(now,'hh:mm:ss') ': tACS frequency set to ' num2str(frequency) ' on channel ' num2str(channel)]);
+        %             else
+        %                 ret = MatNICOnlineFtacsChange (frequency, channel, o.sock);
+        %                 o.checkRet(ret,'FtacsChange');
+        %             end
+        %             if o.fake
+        %                 o.writeToFeed(['tACS amplitude set to ' num2str(amplitude) ' on channel ' num2str(channel) ' (transition = ' num2str(transition) ')']);
+        %             else
+        %                 ret = MatNICOnlineAtacsChange(amplitude, channel, transition, o.sock);
+        %                 o.checkRet(ret,'AtacsChange');
+        %             end
+        %
+        %             if duration ==0
+        %                 toc
+        %                 stop(o.tacsTimer); % Stop it first (it has done its work)
+        %                 delete (o.tacsTimer); % Delete it.
+        %             else
+        %                 % Setup a timer to end this stimulation at the appropriate
+        %                 % time
+        %                 tic
+        %                 off  = @(timr,events,obj,chan,trans) tacs(obj,0*chan,chan,trans,0,0);
+        %                 o.tacsTimer  = timer('name','starstim.tacs');
+        %                 o.tacsTimer.StartDelay = (duration-2*transition)/1000;
+        %                 o.tacsTimer.ExecutionMode='SingleShot';
+        %                 o.tacsTimer.TimerFcn = {off,o,channel,transition};
+        %                 start(o.tacsTimer);
+        %             end
+        %
+        %         end
         
         function start(o)
             % Start the current protocol.
