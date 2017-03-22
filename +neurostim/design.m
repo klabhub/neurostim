@@ -468,7 +468,7 @@ classdef design <handle & matlab.mixin.Copyable
                     % Allow users to use singleton or vectors to specify
                     % levels (if the parameter value of a single level is a
                     % vector, put it in a cell array).
-                    if ischar(V) || isscalar(V)
+                    if ~iscell(V) && (ischar(V) || isscalar(V))
                         V = {V};
                     elseif ~iscell(V)
                         V = neurostim.utils.vec2cell(V);
