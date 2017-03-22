@@ -986,17 +986,21 @@ classdef cic < neurostim.plugin
             notify(c,'BASEAFTEREXPERIMENT');
             c.KbQueueStop;
             if c.keyAfterExperiment; KbWait(c.keyDeviceIndex);end
-            save(horzcat(c.fullFile,'.mat'),'c');
+            c.saveData;
             Screen('CloseAll');
             if c.PROFILE; report(c);end
         end
         
-        
+        function saveData(c)
+            filePath = horzcat(c.fullFile,'.mat');
+            save(filePath,'c');
+            disp(horzcat('Data saved to ',filePath)); 
+        end
         
         function delete(c)
             %Destructor. Release all resources. Maybe more to add here?
             Screen('CloseAll');
-            save(horzcat(c.fullFile,'.mat'),'c');
+            c.saveData;
         end
         
         %% Keyboard handling routines
