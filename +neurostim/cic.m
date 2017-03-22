@@ -999,8 +999,8 @@ classdef cic < neurostim.plugin
         
         function delete(c)
             %Destructor. Release all resources. Maybe more to add here?
-            Screen('CloseAll');
             c.saveData;
+            Screen('CloseAll');
         end
         
         %% Keyboard handling routines

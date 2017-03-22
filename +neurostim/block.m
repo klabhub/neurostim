@@ -86,11 +86,19 @@ classdef block < dynamicprops
         
         
         function set.beforeFunction(o,fun)
-            o.beforeFunction = neurostim.utils.str2fun(fun);
+            if isa(fun,'function_handle')
+                o.beforeFunction = fun;
+            else
+                error('Unknown function format');
+            end
         end
         
         function set.afterFunction(o,fun)
-            o.afterFunction = neurostim.utils.str2fun(fun);
+            if isa(fun,'function_handle')
+                o.afterFunction = fun;
+            else
+                error('Unknown function format');
+            end
         end
         
         function v = get.nrConditions(o)
