@@ -845,7 +845,12 @@ classdef cic < neurostim.plugin
                 waitforkey=false;
                 if ~isempty(c.blocks(c.block).beforeMessage)
                     waitforkey=true;
-                    DrawFormattedText(c.window,c.blocks(c.block).beforeMessage,'center','center',c.screen.color.text);
+                    if isa(c.blocks(c.block).beforeMessage,'function_handle')
+                        msg = c.blocks(c.block).beforeMessage(c);
+                    else
+                        msg = c.blocks(c.block).beforeMessage;
+                    end
+                    DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).beforeFunction)
                     waitforkey=c.blocks(c.block).beforeFunction(c);
                 end
@@ -970,7 +975,12 @@ classdef cic < neurostim.plugin
                 waitforkey=false;
                 if ~isempty(c.blocks(c.block).afterMessage)
                     waitforkey=true;
-                    DrawFormattedText(c.window,c.blocks(c.block).afterMessage,'center','center',c.screen.color.text);
+                    if isa(c.blocks(c.block).afterMessage,'function_handle')
+                        msg = c.blocks(c.block).afterMessage(c);
+                    else
+                        msg = c.blocks(c.block).afterMessage;
+                    end
+                    DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).afterFunction)
                     waitforkey=c.blocks(c.block).afterFunction(c);
                 end

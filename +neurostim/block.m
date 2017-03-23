@@ -39,8 +39,8 @@ classdef block < dynamicprops
         randomization='SEQUENTIAL';
         weights=1;
         nrRepeats=1;
-        beforeMessage@char='';
-        afterMessage@char='';
+        beforeMessage='';
+        afterMessage='';
         beforeFunction; % function handle which takes cic as first arg
         afterFunction;
     end
@@ -84,7 +84,28 @@ classdef block < dynamicprops
             v = numel(o.designs);
         end
         
-        
+        function set.beforeMessage(o,fun)
+            if isa(fun,'function_handle')
+                o.beforeMessage = fun;
+            elseif ischar(fun) && strcmp(fun(1),'@')
+                o.beforeMessage = neurostim.utils.str2fun(fun);
+            elseif ischar(fun)
+                o.beforeMessage = fun;
+            else
+                error('beforeMessage must be a string');
+            end
+        end
+        function set.afterMessage(o,fun)
+            if isa(fun,'function_handle')
+                o.afterMessage = fun;
+            elseif ischar(fun) && strcmp(fun(1),'@')
+                o.afterMessage = neurostim.utils.str2fun(fun);
+            elseif ischar(fun)
+                o.afterMessage = fun;
+            else
+                error('afterMessage must be a string');
+            end
+        end
         function set.beforeFunction(o,fun)
             if isa(fun,'function_handle')
                 o.beforeFunction = fun;
