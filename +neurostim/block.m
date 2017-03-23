@@ -87,7 +87,7 @@ classdef block < dynamicprops
         function set.beforeMessage(o,fun)
             if isa(fun,'function_handle')
                 o.beforeMessage = fun;
-            elseif ischar(fun) && strcmp(fun(1),'@')
+            elseif ischar(fun) && strncmp(fun,'@',1)
                 o.beforeMessage = neurostim.utils.str2fun(fun);
             elseif ischar(fun)
                 o.beforeMessage = fun;
@@ -98,7 +98,7 @@ classdef block < dynamicprops
         function set.afterMessage(o,fun)
             if isa(fun,'function_handle')
                 o.afterMessage = fun;
-            elseif ischar(fun) && strcmp(fun(1),'@')
+            elseif ischar(fun) && strncmp(fun,'@',1)
                 o.afterMessage = neurostim.utils.str2fun(fun);
             elseif ischar(fun)
                 o.afterMessage = fun;
@@ -109,7 +109,7 @@ classdef block < dynamicprops
         function set.beforeFunction(o,fun)
             if isa(fun,'function_handle')
                 o.beforeFunction = fun;
-            elseif ischar(fun) && strcmp(fun(1),'@')
+            elseif ischar(fun) && strncmp(fun,'@',1)
                 o.beforeFunction = neurostim.utils.str2fun(fun); 
             else
                 error('Unknown function format');
@@ -119,7 +119,7 @@ classdef block < dynamicprops
         function set.afterFunction(o,fun)
             if isa(fun,'function_handle')
                 o.afterFunction = fun;
-            elseif ischar(fun) && strcmp(fun(1),'@')
+            elseif ischar(fun) && strncmp(fun,'@',1)
                 o.afterFunction = neurostim.utils.str2fun(fun);
             else
                 error('Unknown function format');
