@@ -456,7 +456,7 @@ classdef cic < neurostim.plugin
         
         function write(c,label,value)
             if ~isfield(c.prms,label)
-                c.addProperty(label,value);
+                c.addProperty(label,value,'AbortSet',false);
             else
                 c.(label) = value;
             end
@@ -996,6 +996,15 @@ classdef cic < neurostim.plugin
             notify(c,'BASEAFTEREXPERIMENT');
             c.KbQueueStop;
             if c.keyAfterExperiment; KbWait(c.keyDeviceIndex);end
+            
+            %Prune the log of all plugins/stimuli
+            for a = 1:numel(c.pluginOrder)
+                o = c.(c.pluginOrder{a});
+                if ~isempty(o.prms)
+                    structfun(@pruneLog,o.prms); 
+                end             
+            end    
+            structfun(@pruneLog,c.prms); 
             c.saveData;
             Screen('CloseAll');
             if c.PROFILE; report(c);end
