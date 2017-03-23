@@ -86,6 +86,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
         end
         
+        % Needed by str2fun 
         function ok = setProperty(o,prop,value)
             o.(prop) =value;
             ok = true;

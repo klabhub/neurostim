@@ -6,7 +6,7 @@ function f = str2fun(str)
 if isa(str,'function_handle')
     % IT's already a handle
     f = str;
-elseif ~isempty(str) && strcmpi(str(1),'@')
+elseif strncmpi(str,'@',1)
     % @ as the first char signifies a function
     % Replace stim.size with this.cic.stim.size to allow indirection
     % through cic (assuming that in x.y x always refers to a
