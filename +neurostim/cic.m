@@ -843,13 +843,13 @@ classdef cic < neurostim.plugin
                 
                 
                 waitforkey=false;
-                if ~isempty(c.blocks(c.block).beforeMessage)
+                if isa(c.blocks(c.block).beforeMessage,'function_handle')
+                    msg = c.blocks(c.block).beforeMessage(c);
+                else
+                    msg = c.blocks(c.block).beforeMessage;
+                end
+                if ~isempty(msg)
                     waitforkey=true;
-                    if isa(c.blocks(c.block).beforeMessage,'function_handle')
-                        msg = c.blocks(c.block).beforeMessage(c);
-                    else
-                        msg = c.blocks(c.block).beforeMessage;
-                    end
                     DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).beforeFunction)
                     waitforkey=c.blocks(c.block).beforeFunction(c);
@@ -973,13 +973,13 @@ classdef cic < neurostim.plugin
                 
                 if ~c.flags.experiment;break;end
                 waitforkey=false;
+                if isa(c.blocks(c.block).afterMessage,'function_handle')
+                    msg = c.blocks(c.block).afterMessage(c);
+                else
+                    msg = c.blocks(c.block).afterMessage;
+                end
                 if ~isempty(c.blocks(c.block).afterMessage)
                     waitforkey=true;
-                    if isa(c.blocks(c.block).afterMessage,'function_handle')
-                        msg = c.blocks(c.block).afterMessage(c);
-                    else
-                        msg = c.blocks(c.block).afterMessage;
-                    end
                     DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).afterFunction)
                     waitforkey=c.blocks(c.block).afterFunction(c);
