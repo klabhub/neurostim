@@ -130,6 +130,7 @@ classdef cic < neurostim.plugin
         center;         % Where is the center of the display window.
         file;           % Target file name
         fullFile;       % Target file name including path
+        fullPath;       % Target path name
         subject@char;   % Subject
         startTimeStr@char;  % Start time as a HH:MM:SS string
         cursor;         % Cursor 'none','arrow'; see ShowCursor
@@ -171,8 +172,11 @@ classdef cic < neurostim.plugin
         function v = get.file(c)
             v = [c.subject '.' c.paradigm '.' datestr(c.startTime,'HHMMSS') ];
         end
+        function v = get.fullPath(c)
+            v = fullfile(c.dirs.output,datestr(c.startTime,'YYYY/mm/DD'));
+        end
         function v = get.fullFile(c)
-            v = fullfile(c.dirs.output,datestr(c.startTime,'YYYY/mm/DD'),c.file);
+            v = fullfile(c.fullPath,c.file);
         end
         function v=get.date(c)
             v=datestr(c.startTime,'DD mmm YYYY');
@@ -426,7 +430,7 @@ classdef cic < neurostim.plugin
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             
             % Generate default output files
-            neurostim.plugins.output(c);
+            %neurostim.plugins.output(c);
             
         end
         
@@ -538,11 +542,7 @@ classdef cic < neurostim.plugin
         
         function keyboardResponse(c,key)
             %             CIC Responses to keystrokes.
-            %             q = quit experiment
             switch (key)
-                case 'q'
-                    c.flags.experiment = false;
-                    c.flags.trial = false;
                 case 'n'
                     c.flags.trial = false;
                 case 'ESCAPE'
@@ -797,6 +797,14 @@ classdef cic < neurostim.plugin
                 c.subject = response;
             end
             
+            %Make sure save folder exists.
+            if ~exist(c.fullPath,'dir')
+                success = mkdir(c.fullPath);
+                if ~success
+                    error(horzcat('Save folder ', c.fullPath, ' does not exist and could not be created. Check drive/write access.'));
+                end
+            end
+            
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation  will now be active
             
             %% Set up order and event listeners
@@ -835,9 +843,14 @@ classdef cic < neurostim.plugin
                 
                 
                 waitforkey=false;
-                if ~isempty(c.blocks(c.block).beforeMessage)
+                if isa(c.blocks(c.block).beforeMessage,'function_handle')
+                    msg = c.blocks(c.block).beforeMessage(c);
+                else
+                    msg = c.blocks(c.block).beforeMessage;
+                end
+                if ~isempty(msg)
                     waitforkey=true;
-                    DrawFormattedText(c.window,c.blocks(c.block).beforeMessage,'center','center',c.screen.color.text);
+                    DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).beforeFunction)
                     waitforkey=c.blocks(c.block).beforeFunction(c);
                 end
@@ -960,9 +973,14 @@ classdef cic < neurostim.plugin
                 
                 if ~c.flags.experiment;break;end
                 waitforkey=false;
+                if isa(c.blocks(c.block).afterMessage,'function_handle')
+                    msg = c.blocks(c.block).afterMessage(c);
+                else
+                    msg = c.blocks(c.block).afterMessage;
+                end
                 if ~isempty(c.blocks(c.block).afterMessage)
                     waitforkey=true;
-                    DrawFormattedText(c.window,c.blocks(c.block).afterMessage,'center','center',c.screen.color.text);
+                    DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).afterFunction)
                     waitforkey=c.blocks(c.block).afterFunction(c);
                 end
@@ -978,14 +996,20 @@ classdef cic < neurostim.plugin
             notify(c,'BASEAFTEREXPERIMENT');
             c.KbQueueStop;
             if c.keyAfterExperiment; KbWait(c.keyDeviceIndex);end
+            c.saveData;
             Screen('CloseAll');
             if c.PROFILE; report(c);end
         end
         
+        function saveData(c)
+            filePath = horzcat(c.fullFile,'.mat');
+            save(filePath,'c');
+            disp(horzcat('Data saved to ',filePath)); 
+        end
         
-        
-        function delete(c)%#ok<INUSD>
+        function delete(c)
             %Destructor. Release all resources. Maybe more to add here?
+            c.saveData;
             Screen('CloseAll');
         end
         

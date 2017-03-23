@@ -86,6 +86,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
         end
         
+        function ok = setProperty(o,prop,value)
+            o.(prop) =value;
+            ok = true;
+        end
+
         % Add properties that will be time-logged automatically, and that
         % can be validated after being set.
         % These properties can also be assigned a function to dynamically
