@@ -1,4 +1,4 @@
-classdef parameter < handle
+classdef parameter < handle & matlab.mixin.Copyable
     % Parameter objects are used to store stimulus parameters such as X,Y, nrDots
     % etc. The plugin and stimulus classes have some built-in and users can add
     % parameters to their derived classes.
@@ -7,17 +7,23 @@ classdef parameter < handle
     %       use function definitions to create dependencies on other parameters
     %       are automaritally logged whenever they change
     %
+    % The parameter class is also the main source of information for data
+    % analysis. The get() function provides the interface to extract
+    % parameter values per trial, at certain times, etc. 
+    % 
+    % Implementation:
+    %  Plugins add dynamic properties (plugin.addProperty). The user of the
+    %  plugin can use that dynamic property just like any object property. 
+    % Behind the scenes, each dynprop has a parameter associated with it
+    % (which is stored in the plugin.prms member). Whenever the user calls
+    % plugin.X, the parameter class returns the appropriate value (by
+    % redefining the GetMethod of the dynprop. For most parameters this
+    % will simply be the value that is stored in the parameter, but for
+    % Neurostim function parameters (i.e. specified with '@'), their value
+    % is first computed, logged (if changed), and returned. 
+    % 
+    % When a user sets the value of a property, this change is logged.
     %
-    % Each parameter installs a preget (getValue) and a postset (setValue)
-    % callback handler on % the dynamic property in the plugin that this
-    % parameter belongs to.
-    % For instance, the grating.X dynamic property is associated with a
-    % parameter (stored as grating.prms.X) and each time a user requests
-    % grating.X, the getValue(gratings.prms.X) function is called. This
-    % function assigns the correct value to the dynamic property (for instance
-    % by evaluating a neurostim function). If the value changed it is logged.
-    % Each time the  user assigns a value to the property, setValue(gratings.prms.X) is
-    % called, this logs the change in value.
     %
     % Note: some parameters store Matlab functions. These are simply stored
     % as values, not in o.fun. Only neurostim functions (specified as
@@ -25,15 +31,17 @@ classdef parameter < handle
     % are evaluated before returning a value to the caller (who uses the
     % dynamic property that this parameter is associated with).
     %
+    % Note: I previously implemetned this using PreGet and PostGet
+    % functionality of dynprops, but this turned out to be very slow, and
+    % even worse, sometimes PostSet was called even when only a Get was
+    % requested. 
+    % 
     % BK - Feb 2017
+    % BK - Mar 17 - Changed to use GetMethod/SetMethod
+    %
     
     properties (Constant)
         BLOCKSIZE = 500; % Logs are incremented with this number of values.
-    end
-    
-    properties (Transient, SetAccess = protected, GetAccess =public);
-        setListener; % Stored to allow enable/disable
-        getListener; % Stored to allow enable/disable
     end
     
     properties (SetAccess= protected, GetAccess=public)
@@ -45,36 +53,70 @@ classdef parameter < handle
         trial;    % Trial in which previous values were set.
         cntr=0; % Counter to store where in the log we are.
         capacity=0; % Capacity to store in log
-                
+        
         fun =[];        % Function to allow across parameter dependencies
         funStr = '';    % The neurostim function string
         validate =[];    % Validation function
-        plg@neurostim.plugin; % Handle to the plugin that this belongs to.
-        isFunResult@logical=false; % Used in getValue/setValue
+        plg@neurostim.plugin; % Handle to the plugin that this belongs to.        
+        hDynProp;  % Handle to the dynamic property
     end
     
     methods
-        % Create a parameter for a plugin/stimulu with a name and a value.
-        function  o = parameter(p,nm,v,valFun)
+        function  o = parameter(p,nm,v,h,options)
+            % o = parameter(p,nm,v,h,settings)
+            %  p = plugin 
+            % nm  - name of parameter
+            % h = handle to the corresponding dynprop in the plugin
+            % options = .validate = validation function
+            %
+            % Create a parameter for a plugin/stimulu with a name and a value.
+            % This is called from plugins.addProperty
             o.name = nm;
-            o.plg = p;
-            
-            if nargin>3
-                o.validate = valFun;
-            end
-            
-            % Setup listeners to get, log, and validate changes
-            o.getListener  = p.addlistener(nm,'PreGet',@(src,evt)getValue(o,src,evt));
-            o.setListener = p.addlistener(nm,'PostSet',@(src,evt)setValue(o,src,evt));
-            % Assign the current value to the dynamic property. This calls
-            % the setValue listener, which logs the value (and parses the
+            o.plg = p; % Handle to the plugin
+            o.hDynProp  = h; % Handle to the dynamic property
+            o.validate = options.validate;
+            setupDynProp(o,options); 
+            % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
-            o.plg.(nm) = v; 
+            setValue(o,v);
         end
         
+        function setupDynProp(o,options)
+            % Set the properties of the dynprop that corresponds to this
+            % parm
+           
+            % These are false because we do not use preGet, postSet
+            o.hDynProp.SetObservable  = false; 
+            o.hDynProp.GetObservable  = false;   
+            o.hDynProp.AbortSet       = false;
+            if ~isempty(options)
+            o.hDynProp.GetAccess = options.GetAccess;
+            o.hDynProp.SetAccess = options.SetAccess;
+            end
+            % Install two callback functions that will be called for
+            % getting and setting of the dynprop
+            o.hDynProp.SetMethod =  @(plgn,val)(setValue(o,val,plgn));
+            o.hDynProp.GetMethod =  @(plgn)(o.value);            
+        end
+        
+        function o = duplicate(p,plgn,h)
+            % Duplicate a parameter so that it can be used in a differnt
+            % plugin, with a different dynprop
+            o = copyElement(p); % Deep copy
+            o.plg = plgn; % Change the plugin
+            o.hDynProp = h; % Change the dynprop
+            setupDynProp(o,[]); % Setup the callback handlers (no options; keep Set/Get as is).            
+        end
+        
+        
         function storeInLog(o,v)
-            % Store and Log
+            % Store and Log the new value for this parm
+            
+            
+            % For non-function parns this is the value that will be
+            % returned  to the next getValue
             o.value = v;
+            % Keep a timed log.
             t = o.plg.cic.clockTime;
             o.cntr=o.cntr+1;
             % Allocate space if needed
@@ -90,51 +132,29 @@ classdef parameter < handle
             o.trial(o.cntr)= o.plg.cic.trial;
         end
         
-        % This function is called before the dynprop is used somewhere in the code.
-        % It allows us to evaluate functions.
-        function [v,ok] = getValue(o,src,evt) %#ok<INUSD>
-            if isempty(o.fun)
-                % Simple value. (Which could be a matlab function, but not
-                % a neurostim function)
-                % In principle this could be stored directly in the
-                % dynprop, but then we'd have to keep track of parameters
-                % with and without listeners.
-                v= o.value; 
-                o.setListener.Enabled = false; % Avoid a 'postset' call
-                o.plg.(o.name) = v; % Assign the current value to the dynprop
-                o.setListener.Enabled = true; % Reenable 'postset' calls
-                ok = true;
-            elseif o.plg.cic.stage >o.plg.cic.SETUP
+        function [v,ok] = getFunctionValue(o,plgn) %#ok<INUSD>
+            % This function is called before a function dynprop is used somewhere in the code.
+            % It is installed by setValue when it detects a neurostim function.    
+            if o.plg.cic.stage >o.plg.cic.SETUP
                 % We've passed SETUP phase, function evaluaton should be
                 % possible.
                 v=o.fun(o.plg); % Evaluate the neurostim function
-                o.isFunResult =true; % A flag to allow the setValue function to detect
-                % whether it is being called from here (to log the outcome of
-                % the function) or somewhere else (to change the function to something else).
-                
-                % Assign to the dynprop in the plugin so that the caller gets
-                % the result of the function. This will generate a postSet
-                % event  (if the value changed), which calls setValue and logs the new value .
-                o.plg.(o.name) = v;
-                o.isFunResult =false;
+                if ~isequal(v,o.value);
+                    storeInLog(o,v);
+                end
                 ok = true;
-            else  % -a neurostim function but not all objects have been setup so
-                % function evaluation may not work yet. Evaluate to NaN for now
-                % We don't actually assign this to the dynprop.
+            else  %  not all objects have been setup so
+                % function evaluation may not work yet. Evaluate to NaN for now             
                 v = NaN;
                 ok = false;
             end
         end
         
-        % This function is called after each parametr set
-        function setValue(o,src,evt) %#ok<INUSD>
-            % First, retrieve the value that the dynprop was just set to.
-            o.getListener.Enabled = false; % Avoid a 'preget' call
-            v= o.plg.(o.name); % The raw value that has just been set
-            o.getListener.Enabled = true; % Allow preget calls again
+       
+        function setValue(o,v,plgn) %#ok<INUSD>
+            % Assign a new value to a parameter
             ok = true; % Normally ok; only function evals can be not ok.
-            %Check for a function definition
-            
+            %Check for a function definition            
             if strncmpi(v,'@',1)
                 % The dynprop was set to a neurostim function
                 % Parse the specified function and make it into an anonymous
@@ -142,25 +162,28 @@ classdef parameter < handle
                 o.funStr = v; % store this to be able to restore it later.
                 v = neurostim.utils.str2fun(v);
                 o.fun = v;
-                % Evaluate the function (without calling set again)
-                o.setListener.Enabled = false;
-                [v,ok]= getValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
-                o.setListener.Enabled = true;
-            elseif ~o.isFunResult && ~isempty(o.fun)
+                % Install a GetMethod that evaluates this function
+                o.hDynProp.GetMethod =  @(plgn)(getFunctionValue(o,plgn));                
+                % Evaluate the function to get current value
+                [v,ok]= getFunctionValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).                
+            elseif ~isempty(o.fun)
                 % This is currently a function, and someone is overriding
                 % the parameter with a non-function value. Remove the fun.
                 o.fun = [];
                 o.funStr = '';
-            end
-            
-            % validate
-            if ~isempty(o.validate) && ok
-                o.validate(v);
+                % Change the getMethod to a simple value return
+                o.hDynProp.GetMethod =  @(plgn)(o.value);     
             end
             
             if ok
-                % assign in this object, log, and assign to dynamic prop.
-                storeInLog(o,v); % Log and store in this parameter object
+                % validate
+                if ~isempty(o.validate) 
+                    o.validate(v);
+                end            
+                % Log the new value     
+                if ~isequal(v,o.value)
+                    storeInLog(o,v); 
+                end
             end
         end
         
@@ -187,7 +210,8 @@ classdef parameter < handle
         
         function setDefaultToCurrent(o)
             % Put the default back as the current value
-            o.plg.(o.name) = o.default;
+            %
+            setValue(o,o.default);
             
             % Note that for Neurostim functions ('@' strings) the string
             % value is restored, and then re-parsed in setValue. This is a
@@ -218,7 +242,7 @@ classdef parameter < handle
             % the trial. By setting this to Inf, you get the last value in
             % the trial.
             % 'after' - specify an event and you'll get the first value
-            % after this event. 
+            % after this event.
             % 'trial'  - request only entries occuring in this set of
             % trials.
             %
@@ -232,8 +256,8 @@ classdef parameter < handle
             trial =o.trial(1:o.cntr);
             time = o.time(1:o.cntr);
             trialTime = t2t(o,time,trial,true);
-            block =nans(1,o.cntr); % Will be computed if requested 
-                
+            block =nans(1,o.cntr); % Will be computed if requested
+            
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set (only changes
             % are logged to save space).
@@ -246,7 +270,7 @@ classdef parameter < handle
                 % you get the last value in the trial.
                 if ~isempty(p.Results.after)
                     % Find the last time this event occurred in each trial
-                    [~,aTr,aTi,atETime] = get(o.plg.prms.(p.Results.after) ,'atTrialTime',inf);
+                    [~,aTr,aTi,atETime] = get(o.plg.prms.(p.Results.after) ,'atTrialTime',inf); %#ok<ASGLU>
                 else
                     atETime = o.t2t(p.Results.atTrialTime,1:maxTrial,false); % Conver to eTime
                 end
@@ -269,7 +293,7 @@ classdef parameter < handle
                 trialTime = trialTime(ix);
                 
                 if any(out)
-                    data(out)=[];                    
+                    data(out)=[];
                     trial(out) = [];
                     time(out) = [];
                     trialTime(out) =[];
@@ -332,10 +356,10 @@ classdef parameter < handle
             afterLastTrial = tr > numel(trialStartTime);
             tr(afterLastTrial) = 1;
             if ET2TRT
-                v= t-trialStartTime(tr);                
+                v= t-trialStartTime(tr);
             else
                 v= t+trialStartTime(tr);
-            end            
+            end
             v(beforeFirstTrial) = -Inf;
             v(afterLastTrial) = +Inf;
         end
@@ -345,5 +369,23 @@ classdef parameter < handle
         
     end
     
+    methods (Access = protected, Sealed)
+        function o2= copyElement(o)
+            % This protected function is called from the public (sealed)
+            % copy member of matlab.mixin.Copyable.
+            
+            % Example:
+            % b=copyElement(a)
+            % This will make a copy (with separate properties) of a in b.
+            % This in contrast to b=a, which only copies the handle (so essentialy b==a).
+            
+            % First a shallow copy of fixed properties
+            o2 = copyElement@matlab.mixin.Copyable(o);
+            
+        end
+    end
+    
+    
     
 end
+

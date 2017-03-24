@@ -58,12 +58,16 @@ classdef (Abstract) adaptive < neurostim.plugin
         
         function o= duplicate(o1,nm)
             % Duplicate an adaptive parm ; requires setting a new unique
-            % id.
+            % id. Note that if you ask for more than one duplicate, the
+            % first element in the array of duplicates will be the
+            % original, all others are new. If you ask for one duplicate
+            % we'll assume you really want to have a new one.
             if nargin<2
                 nm = 1;
             end
             if prod(nm)>1
-                for i=1:prod(nm)                
+                o(1) = o1;
+                for i=2:prod(nm)                
                     o(i) = duplicate(o1) ; %#ok<AGROW> These are copies.                   
                 end
                 o = reshape(o,nm);

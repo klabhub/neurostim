@@ -46,7 +46,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function s= duplicate(o,name)
             % This copies the plugin and gives it a new name. See
             % plugin.copyElement
-            s=copyElement(o,name);
+             s=copyElement(o,name);
+            % Add the duplicate to cic.
+            o.cic.add(s);
         end
         
         
@@ -100,6 +102,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             p=inputParser;
             p.addParameter('validate',[]);
             p.addParameter('AbortSet',true);
+            p.addParameter('SetAccess','public');
+            p.addParameter('GetAccess','public');
             p.parse(varargin{:});
             
             
@@ -120,16 +124,21 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 % Add the property as a dynamicprop (this allows users to write
                 % things like o.X = 10;
                 h = o.addprop(prop);
-                h.SetObservable  = true;
-                h.GetObservable  = true;
-                h.AbortSet       = p.Results.AbortSet; % Avoid calling postset if the value did not change.
-                h.GetAccess = 'public'; % Has to be public so that the parameter class can get/set it.
-                h.SetAccess = 'public';
                 % Create a parameter object to do the work behind the scenes.
-                % The parameter constructor adds it to a callback function that is assigned to
-                % the postGet event of the dynamic property created here
-                o.prms.(prop) = neurostim.parameter(o,prop,value);
+                % The parameter constructor adds a callback function that
+                % will log changes and return correct values
+                o.prms.(prop) = neurostim.parameter(o,prop,value,h,p.Results);
             end
+        end
+        
+        function duplicateProperty(o,parm)            
+             % First check if it is already there.
+             h =findprop(o,parm.name);
+             if ~isempty(h)
+                error([parm.name ' is already a property of ' o.name ]);
+             end
+             h= o.addprop(parm.name);
+             o.prms.(parm.name) = duplicate(parm,o,h);
         end
                 
     end
@@ -151,18 +160,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             % First a shallow copy of fixed properties
             s = copyElement@matlab.mixin.Copyable(o);
-            
+            s.prms = []; % Remove parameter objects; new ones will be created for the 
+            % duplicate plugin
             % Then setup the dynamic props again. (We assume all remaining
             % dynprops are parameters of the stimulus/plugin)
             dynProps = setdiff(properties(o),properties(s));
-            s.name=name;
+            s.name=name;            
             for p=1:numel(dynProps)
                 pName = dynProps{p};
-                %TODO: postprocess/validate/set/get access
-                % TODO: update handles to plgin in prms
-                s.addProperty(pName,o.(pName));
-            end
-            o.cic.add(s);
+                duplicateProperty(s,o.prms.(pName));
+            end            
         end
         
     end
