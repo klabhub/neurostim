@@ -111,7 +111,11 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function storeInLog(o,v)
             % Store and Log the new value for this parm
-            
+            if isequal(v,o.value) && o.hDynProp.AbortSet
+               % Value has not changed, and AbortSet =true
+                return;
+            end
+
             
             % For non-function parns this is the value that will be
             % returned  to the next getValue
@@ -139,9 +143,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 % We've passed SETUP phase, function evaluaton should be
                 % possible.
                 v=o.fun(o.plg); % Evaluate the neurostim function
-                if ~isequal(v,o.value);
-                    storeInLog(o,v);
-                end
+                storeInLog(o,v);                
                 ok = true;
             else  %  not all objects have been setup so
                 % function evaluation may not work yet. Evaluate to NaN for now             
@@ -181,9 +183,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                     o.validate(v);
                 end            
                 % Log the new value     
-                if ~isequal(v,o.value)
-                    storeInLog(o,v); 
-                end
+                storeInLog(o,v);                 
             end
         end
         
@@ -256,7 +256,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             trial =o.trial(1:o.cntr);
             time = o.time(1:o.cntr);
             trialTime = t2t(o,time,trial,true);
-            block =nans(1,o.cntr); % Will be computed if requested
+            block =NaN(1,o.cntr); % Will be computed if requested
             
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set (only changes
