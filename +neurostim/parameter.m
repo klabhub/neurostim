@@ -54,12 +54,15 @@ classdef parameter < handle & matlab.mixin.Copyable
         cntr=0; % Counter to store where in the log we are.
         capacity=0; % Capacity to store in log
         
+        noLog@logical; % Set this to true to skip logging
         fun =[];        % Function to allow across parameter dependencies
         funStr = '';    % The neurostim function string
         validate =[];    % Validation function
         plg@neurostim.plugin; % Handle to the plugin that this belongs to.        
         hDynProp;  % Handle to the dynamic property
+        
     end
+    
     
     methods
         function  o = parameter(p,nm,v,h,options)
@@ -75,28 +78,43 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.plg = p; % Handle to the plugin
             o.hDynProp  = h; % Handle to the dynamic property
             o.validate = options.validate;
+            o.noLog = options.noLog;
             setupDynProp(o,options); 
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
             setValue(o,v);
         end
         
+        function stopLog(o)
+            o.noLog =true;
+        end
+        
+        function startLog(o)
+            o.noLog =false;
+        end
+
         function setupDynProp(o,options)
             % Set the properties of the dynprop that corresponds to this
             % parm
            
-            % These are false because we do not use preGet, postSet
+            % These are false because we do not use preGet, postSet and
+            % making the prop unobservable allows the JIT compiler to do
+            % better optimization.
             o.hDynProp.SetObservable  = false; 
             o.hDynProp.GetObservable  = false;   
             o.hDynProp.AbortSet       = false;
             if ~isempty(options)
-            o.hDynProp.GetAccess = options.GetAccess;
-            o.hDynProp.SetAccess = options.SetAccess;
+                o.hDynProp.GetAccess = options.GetAccess;
+                o.hDynProp.SetAccess = options.SetAccess;
             end
             % Install two callback functions that will be called for
             % getting and setting of the dynprop
             o.hDynProp.SetMethod =  @(plgn,val)(setValue(o,val,plgn));
-            o.hDynProp.GetMethod =  @(plgn)(o.value);            
+            % This should not work, but does: (o.value should be evaluated
+            % here, but for some reason it is evaluated  when the
+            % GetMethod is called so that it does return the correct value
+            % at call time). Is this a parse bug in Matlab?
+            o.hDynProp.GetMethod =  @(plgn)(o.value);      
         end
         
         function o = duplicate(p,plgn,h)
@@ -111,8 +129,8 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function storeInLog(o,v)
             % Store and Log the new value for this parm
-            if isequal(v,o.value) && o.hDynProp.AbortSet
-               % Value has not changed, and AbortSet =true
+            if o.noLog || (o.hDynProp.AbortSet && isequal(v,o.value))
+               %Not loggin this or  Value has not changed, and AbortSet =true
                 return;
             end
 
@@ -127,13 +145,11 @@ classdef parameter < handle & matlab.mixin.Copyable
             if o.cntr> o.capacity
                 o.log       = cat(2,o.log,cell(1,o.BLOCKSIZE));
                 o.time      = cat(2,o.time,nan(1,o.BLOCKSIZE));
-                o.trial      = cat(2,o.trial,nan(1,o.BLOCKSIZE));
                 o.capacity = numel(o.log);
             end
             %% Fill the log.
             o.log{o.cntr}  = v;
-            o.time(o.cntr) = t;
-            o.trial(o.cntr)= o.plg.cic.trial;
+            o.time(o.cntr) = t;            
         end
         
         function [v,ok] = getFunctionValue(o,plgn) %#ok<INUSD>
@@ -183,7 +199,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                     o.validate(v);
                 end            
                 % Log the new value     
-                storeInLog(o,v);                 
+                storeInLog(o,v);                
             end
         end
         
@@ -193,7 +209,6 @@ classdef parameter < handle & matlab.mixin.Copyable
             out  = (o.cntr+1):o.capacity;
             o.log(out) =[];
             o.time(out) =[];
-            o.trial(out) =[];
             o.capacity = numel(o.log);
         end
         
@@ -234,7 +249,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Because parameters are logged only when they change,there are
             % additional input arguments that can be provided to put the
             % parameter valus in a more useful format. The raw values should
-            % be inspected carefully and require parsing the trial and time
+            % be inspected carefully and require parsing the time
             % values for their correct interpretation.
             %
             % 'atTrialTime'   - returns exactly one value for each trial
@@ -253,16 +268,16 @@ classdef parameter < handle & matlab.mixin.Copyable
             p.parse(varargin{:});
             
             data = o.log(1:o.cntr);
-            trial =o.trial(1:o.cntr);
             time = o.time(1:o.cntr);
-            trialTime = t2t(o,time,trial,true);
+            trial = o.eTime2Trial(time);
+            trialTime= o.eTime2TrialTime(time,trial,true);
             block =NaN(1,o.cntr); % Will be computed if requested
             
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set (only changes
             % are logged to save space).
             
-            maxTrial = max(o.plg.cic.prms.trial.trial);%
+            maxTrial = o.plg.cic.prms.trial.cntr;
             
             if ~isempty(p.Results.atTrialTime) || ~isempty(p.Results.after)
                 % Return values in each trial as they were defined at a
@@ -272,7 +287,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                     % Find the last time this event occurred in each trial
                     [~,aTr,aTi,atETime] = get(o.plg.prms.(p.Results.after) ,'atTrialTime',inf); %#ok<ASGLU>
                 else
-                    atETime = o.t2t(p.Results.atTrialTime,1:maxTrial,false); % Conver to eTime
+                    atETime = o.eTime2TrialTime(p.Results.atTrialTime,1:maxTrial,false); % Conver to eTime
                 end
                 % For each trial, find the value at the given experiment time
                 ix = nan(1,maxTrial);
@@ -347,8 +362,15 @@ classdef parameter < handle & matlab.mixin.Copyable
             
         end
         
+        function tr = eTime2Trial(o,t)
+            trialStartTime = o.plg.cic.prms.trialStartTime.time;
+            [trialStartTime,T] = meshgrid(t(:),trialStartTime(:));
+            after = (T>trialStartTime);
+            [~,tr] =max(after);
+        end
         
-        function v= t2t(o,t,tr,ET2TRT)
+        function v= eTime2TrialTime(o,t,tr,ET2TRT)
+            
             % Find the time that each trial started by looking in the cic events log.
             beforeFirstTrial = tr==0;
             tr(beforeFirstTrial) =1;
