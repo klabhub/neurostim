@@ -100,8 +100,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         % link properties of one object to another. (g.X='@g.Y+5')
         function addProperty(o,prop,value,varargin)
             p=inputParser;
-            p.addParameter('validate',[]);
-            p.addParameter('AbortSet',true);
+            p.addParameter('validate',[]);            
             p.addParameter('SetAccess','public');
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);

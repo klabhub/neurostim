@@ -102,7 +102,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % better optimization.
             o.hDynProp.SetObservable  = false; 
             o.hDynProp.GetObservable  = false;   
-            o.hDynProp.AbortSet       = false;
+            o.hDynProp.AbortSet       = false; % Always false
             if ~isempty(options)
                 o.hDynProp.GetAccess = options.GetAccess;
                 o.hDynProp.SetAccess = options.SetAccess;
@@ -110,11 +110,13 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Install two callback functions that will be called for
             % getting and setting of the dynprop
             o.hDynProp.SetMethod =  @(plgn,val)(setValue(o,val,plgn));
-            % This should not work, but does: (o.value should be evaluated
+            % Previously we had @(plgn) (o.value) here: this should not work, but does: (o.value should be evaluated
             % here, but for some reason it is evaluated  when the
             % GetMethod is called so that it does return the correct value
-            % at call time). Is this a parse bug in Matlab?
-            o.hDynProp.GetMethod =  @(plgn)(o.value);      
+            % at call time). That method was slightly faster 0.01 ms per
+            % call less, but future fixes in Matlab that fix this (presumed) parse bug 
+            % could cause havoc here so we use a function call.
+            o.hDynProp.GetMethod =  @(plgn)(getValue(o));      
         end
         
         function o = duplicate(p,plgn,h)
@@ -129,8 +131,11 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function storeInLog(o,v)
             % Store and Log the new value for this parm
-            if o.noLog || (o.hDynProp.AbortSet && isequal(v,o.value))
-               %Not loggin this or  Value has not changed, and AbortSet =true
+            % Previously we checked if the value had not changed and logged
+            % only the changes. This turns out to be much slower. So we
+            % store every set now (At the cost of some memory/disk space).
+            if o.noLog 
+               %Not loggin this 
                 return;
             end
 
@@ -139,7 +144,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % returned  to the next getValue
             o.value = v;
             % Keep a timed log.
-            t = o.plg.cic.clockTime;
+            
             o.cntr=o.cntr+1;
             % Allocate space if needed
             if o.cntr> o.capacity
@@ -149,10 +154,17 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             %% Fill the log.
             o.log{o.cntr}  = v;
-            o.time(o.cntr) = t;            
+            o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime            
         end
         
-        function [v,ok] = getFunctionValue(o,plgn) %#ok<INUSD>
+        function v = getValue(o)
+            % This function is called for dynprops that don't have a
+            % function associated with them
+            v = o.value;
+        end
+        
+        
+        function [v,ok] = getFunctionValue(o,plgn) 
             % This function is called before a function dynprop is used somewhere in the code.
             % It is installed by setValue when it detects a neurostim function.    
             if o.plg.cic.stage >o.plg.cic.SETUP
@@ -190,7 +202,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.fun = [];
                 o.funStr = '';
                 % Change the getMethod to a simple value return
-                o.hDynProp.GetMethod =  @(plgn)(o.value);     
+                o.hDynProp.GetMethod =  @(plgn)(getValue(o));     
             end
             
             if ok
@@ -246,11 +258,6 @@ classdef parameter < handle & matlab.mixin.Copyable
             % time  = time relative to start of the experiment
             % block = the block in which this trial occurred.
             %
-            % Because parameters are logged only when they change,there are
-            % additional input arguments that can be provided to put the
-            % parameter valus in a more useful format. The raw values should
-            % be inspected carefully and require parsing the time
-            % values for their correct interpretation.
             %
             % 'atTrialTime'   - returns exactly one value for each trial
             % that corresponds to the value of the parameter at that time in
@@ -274,10 +281,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             block =NaN(1,o.cntr); % Will be computed if requested
             
             % Now that we have the raw values, we can remove some of the less
-            % usefel ones and fill-in some that were never set (only changes
-            % are logged to save space).
+            % usefel ones and fill-in some that were never set 
             
-            maxTrial = o.plg.cic.prms.trial.cntr;
+            maxTrial = o.plg.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1
             
             if ~isempty(p.Results.atTrialTime) || ~isempty(p.Results.after)
                 % Return values in each trial as they were defined at a

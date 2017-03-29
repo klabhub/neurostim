@@ -139,7 +139,7 @@ classdef cic < neurostim.plugin
         trialTime;      % Time elapsed (ms) since the start of the trial
         nrTrialsTotal;   % Number of trials total (all blocks)
         conditionID;    % Unique id for a condition - used by adaptive
-        date;           % Date of the experiment.
+        date;           % Date of the experiment.        
     end
     
     %% Public methods
@@ -420,10 +420,10 @@ classdef cic < neurostim.plugin
             c.addProperty('frameDrop',[]);
             c.addProperty('trialStartTime',[]);
             c.addProperty('trialStopTime',[]);
-            c.addProperty('condition',[],'AbortSet',false);
-            c.addProperty('design',[],'AbortSet',false);
-            c.addProperty('block',0,'AbortSet',false);
-            c.addProperty('blockCntr',0,'AbortSet',false);
+            c.addProperty('condition',[]);
+            c.addProperty('design',[]);
+            c.addProperty('block',0);
+            c.addProperty('blockCntr',0);
             c.addProperty('blockTrial',0);
             c.addProperty('expScript',[]);
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
@@ -456,7 +456,7 @@ classdef cic < neurostim.plugin
         
         function write(c,label,value)
             if ~isfield(c.prms,label)
-                c.addProperty(label,value,'AbortSet',false);
+                c.addProperty(label,value);
             else
                 c.(label) = value;
             end

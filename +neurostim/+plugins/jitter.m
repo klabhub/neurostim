@@ -8,7 +8,7 @@ classdef jitter < neurostim.plugins.adaptive
     properties (SetAccess=protected, GetAccess=public)
      value;
       % BK: I used to have this as a dynprop:      
-      % o.addProperty('value',NaN);%,'AbortSet',false);        
+      % o.addProperty('value',NaN);        
       % but even though that dynprop is updated correctly (and its values
       % are logged in the associated parameter object, those values never
       % made it into the object that called getValue(o). Changing value to
