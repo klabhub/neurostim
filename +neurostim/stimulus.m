@@ -269,7 +269,6 @@ classdef stimulus < neurostim.plugin
         end
         function baseBeforeFrame(s)            
             if s.disabled; return;end
-            glScreenSetup(s.cic,s.window);
             
             %Apply stimulus transform
             if  s.X ~=0 || s.Y~=0 || s.Z~=0  % Evaluating s.XYZ is slower so this could save time compared to any([XYZ]~=0)

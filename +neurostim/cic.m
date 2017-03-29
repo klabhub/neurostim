@@ -500,13 +500,6 @@ classdef cic < neurostim.plugin
         end
         
         
-        function glScreenSetup(c,window)
-            Screen('glLoadIdentity', window);
-            Screen('glTranslate', window,c.screen.xpixels/2,c.screen.ypixels/2);
-            Screen('glScale', window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
-            
-        end
-        
         
         function restoreTextPrefs(c)
             

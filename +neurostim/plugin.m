@@ -22,6 +22,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 error('Stimulus and plugin names must be valid Matlab variable names');
             end
             o.name = n;
+            
             if~isempty(c) % Need this to construct cic itself...dcopy
                 c.add(o);
             end
@@ -319,12 +320,17 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end;
                     end
                 case neurostim.stages.BEFOREFRAME
-                    for o= oList
+                     Screen('glLoadIdentity', c.window);
+                     Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
+                     Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);           
+                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        baseBeforeFrame(o);                       
+                        Screen('glPushMatrix',c.window);                                             
+                        baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class                       
+                        Screen('glPopMatrix',c.window);                                                                     
                         if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end;
                     end
-                case neurostim.stages.AFTERFRAME                    
+                case neurostim.stages.AFTERFRAME      
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseAfterFrame(o);                                            
