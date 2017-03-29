@@ -54,6 +54,8 @@ if isempty(p.Results.c)
    
     %% Setup CIC and the stimuli.
     c = createCic(p.Results.fakeItAll,p.Results.type);
+    c.paradigm      = 'calibrate';
+
     c.dirs.calibration  = p.Results.calibrationDir;
     %% Define conditions and blocks
     % One block of gamma calibration
@@ -127,6 +129,7 @@ if p.Results.lumTest
     % Generate some test luminance value per gun
     % Create a new cic
     cTest = createCic(p.Results.fakeItAll,p.Results.type);
+    c.paradigm      = 'calibrateLumTest';
     cTest.dirs.calibration = p.Results.calibrationDir;
     cTest.screen.calFile =calFile;    
     cTest.screen.colorMode = 'LUM'; 
@@ -170,6 +173,7 @@ end
 if p.Results.xylTest
      % Create a new cic
     cxyL = createCic(p.Results.fakeItAll,p.Results.type);
+    c.paradigm      = 'calibrateXylTest';
     cxyL.screen.colorMode = 'xyL';
     cxyL.dirs.calibration = p.Results.calibrationDir;
     cxyL.screen.calFile = calFile;
@@ -209,6 +213,7 @@ end
 if p.Results.xyzTest
      % Create a new cic
     cxyz = createCic(p.Results.fakeItAll,p.Results.type);
+    c.paradigm      = 'calibrateXyzTest';
     cxyz.screen.colorMode = 'xyz';
     cxyz.screen.calFile = calFile;
     cxyz.dirs.calibration = p.Results.calibrationDir;
@@ -283,7 +288,6 @@ end
         c.screen.type = type;
         c.trialDuration = 250;
         c.iti           = 50;
-        c.paradigm      = 'calibrate';
         c.subject      =  getenv('COMPUTERNAME');
         
         %% Define measurement routine

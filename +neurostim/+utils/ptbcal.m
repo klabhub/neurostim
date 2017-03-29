@@ -6,6 +6,8 @@ function [cal] = ptbcal(c,varargin)
 %  Lxy : the Luminance anc CIE xy values
 %  rgb :  The rgb values corresponding to the measurements
 % spectrum: the full spectrum for each of the values
+% See i1calibrate for an example script that generates such a cic object as
+% its output.
 % 
 % BK  - Feb 2017
 
@@ -15,11 +17,17 @@ p.addParameter('save','',@ischar); % File name where to save. Dir is c.dirs.cali
 p.addParameter('wavelengths',380:10:730,@isnumeric);
 p.parse(varargin{:});
 
+if ~isa(c,'neurostim.cic')
+    error('ptbcal needs a cic object as its input');
+end
+if ~isfield(c.prms,'lxy')
+    error('Cannot extract a cal struct from this CIC object: no measurements?');
+end
 
 %% Extract the measurements .
 [lxy] = get(c.prms.lxy,'AtTrialTime',inf);
 [rgb] = get(c.target.prms.color,'AtTrialTime',inf);
-[spectrum] = get(c.prms.spectrum,'AtTrialTime',inf); %Radiance in mW/(m2 sr nm)
+[spectrum] = get(c.prms.spectrum,'AtTrialTime',inf)/1000; %Radiance in W/(m2 sr nm)
 
 nrGuns = size(rgb,2);
 
@@ -54,8 +62,9 @@ cal.describe.gamma.fitType = 'crtPolyLinear';
 cal.describe.gamma.contrastThresh = 0.001; % Normalized gamma values [0 1] below this are set to zero
 cal.describe.gamma.fitBreakThresh = 0.02;  % Normalized gamma values below this are linearly interpolated
 
+% Find each of the single gun modulations and average over repeated
+% measures
 
-cmfType = 'SB2';
 for g=1:nrGuns
     stay = find(all(rgb(:,setdiff(1:nrGuns,g))==0,2) & rgb(:,g)>0);
     [gunValue,sorted] = sort(rgb(stay,g));
@@ -71,25 +80,19 @@ for g=1:nrGuns
         nrRepeats(iCntr,g) = sum(stay); %#ok<AGROW>
         meanLxy(iCntr,:,g) = mean(thisLxy(stay,:),1); %#ok<AGROW>
         steLxy(iCntr,:,g) = std(thisLxy(stay,:),0,1)./sqrt(sum(stay)); %#ok<AGROW>
-        meanSpectrum(iCntr,:,g) =  mean(thisSpectrum(stay,:),1); %#ok<AGROW>
-        XYZ = spdtotristim(squeeze(meanSpectrum(iCntr,:,g)),p.Results.wavelengths,cmfType);
-        spectrumLum(iCntr,g) = XYZ(2);
+        meanSpectrum(iCntr,:,g) =  mean(thisSpectrum(stay,:),1); %#ok<AGROW>        
     end
+    % Sanity check: integrating the spectrum with Judd-Vos 2 degree vlambda should be the
+    % luminance: multiple with the step size of the wavelenghts and with
+    % the maximum human efficiency (683 lm/W). I checked, this works fine:
+    % lumFromSpec./ meanLxy(:,1,:)   ~ 1
+    %lumFromSpec(:,g) = (vlambda(p.Results.wavelengths,2)'*meanSpectrum(:,:,g)')'*unique(diff(p.Results.wavelengths))*683; %#ok<NASGU>
 end
 
 cal.describe.nAverage = unique(nrRepeats(:)); % Not used, just bookkeeping
 cal.describe.nMeas = size(meanSpectrum,1); % This is the number of levels that were measured.
-% The spectral measures are incorrect... these seem to be the factors.. but
-% I dont knwo why. Waiting for VPIXX support to help ..This does not affect
-% LUM colorMode calibration (which uses lxy measurements)
-%meanSpectrum = meanSpectrum./permute(repmat([222 123 130],[cal.describe.nMeas,1,numel(p.Results.wavelengths)]),[1 3 2]);
 isAmbient = all(rgb==0,2);
 ambient = mean(spectrum(isAmbient,:),1);
-ambientLum = mean(lxy(isAmbient,1));
-ambientLumSe = std(lxy(isAmbient,1),0,1)/sqrt(sum(isAmbient));
-
-
-
 meanSpectrum = meanSpectrum-repmat(ambient,[size(meanSpectrum,1) 1 nrGuns]);
 rectify = meanSpectrum<0;
 disp(['Recitifed: ' num2str(100*sum(rectify(:))./numel(meanSpectrum)) '% ( = ' num2str(100*mean(meanSpectrum(rectify))/mean(meanSpectrum(~rectify))) ' % rad'])
@@ -98,6 +101,10 @@ meanSpectrum = permute(meanSpectrum,[2 1 3]);
 % Shape it in the [nrWavelenghts*nrLevels nrGuns]
 meanSpectrum =reshape(meanSpectrum,[cal.describe.S(3)*cal.describe.nMeas nrGuns]);
 cal.rawdata.mon = meanSpectrum; % Ambient corrected mean spectrum for each gun at each of the levels
+% The measurements of the spectrum for each of the guns was done at these
+% gunvalues:
+cal.rawdata.rawGammaInput = gv; 
+
 
 % Now we've done all the preprocessing. Pass to PTB functions to extract
 % its derived measures (compute gamma functions etc).
@@ -108,35 +115,35 @@ cal.rawdata.mon = meanSpectrum; % Ambient corrected mean spectrum for each gun a
 % cal.rawdata.rawGammaTable, these are between 0 and 1. The basis functions
 % (essentially spectrum per gun) are stored as cal.P_device. 
 cal = CalibrateFitLinMod(cal);
-% The measurements of the spectrum for each of the guns was done at these
-% gunvalues:
-cal.rawdata.rawGammaInput = gv; 
 % Create a gamma table by interpolation. This is stored as cal.gammaTable
 % and cal.gammaInput are the corresponding gunvalues. This table is used to
 % do lookups
 cal = CalibrateFitGamma(cal, 2^cal.describe.dacsize);
-Smon = cal.describe.S;
-Tmon = WlsToT(Smon);
+
+
 cal.P_ambient = ambient';
-cal.T_ambient = Tmon;
-cal.S_ambient = Smon;
+cal.T_ambient = WlsToT(cal.describe.S);
+cal.S_ambient = cal.describe.S;
 
 
 
+%% Neurostim specific additions are stored in cal.ns
+ambientRatio = cal.P_ambient'*cal.P_device;
+ambientRatio = ambientRatio./sum(ambientRatio);
+
+cal.ns.meanLxy = meanLxy;
+cal.ns.steLxy  = steLxy;
+cal.ns.meanAmbientLum = ambientRatio.*mean(lxy(isAmbient,1));
+cal.ns.steAmbientLum = ambientRatio.*std(lxy(isAmbient,1),0,1)/sqrt(sum(isAmbient));
 
 
-%% Neurostim specific additions to cal
-% 
+
 %% Extended gamma
 % Extract extended gamma parameters to use Gamma calibration
-% using a power function fit. Althought the fits are reasonable,
-% using this with c.screen.colorMode = 'LUM' does not reproduce
-% particularly well. Use LUMLIN (below) instead.
-ambientRatio = ambient*cal.P_device;
-ambientRatio = ambientRatio./sum(ambientRatio);
-lum = [ambientLum*ambientRatio ; squeeze(meanLxy(:,1,:))];
-gv = [0 ;gv];
-lumSe = [ambientLumSe*ambientRatio;squeeze(steLxy(:,1,:))];
+% using a power function fit.  These are used in LUM mode
+
+lum = [cal.ns.meanAmbientLum ; squeeze(cal.ns.meanLxy(:,1,:))];
+gv = [0 ;cal.rawdata.rawGammaInput];
 %prms  = max gamma bias
 lum2gun = @(prms,lum) (prms(3)+ (lum./prms(1)).^(1./prms(2))); 
 gun2lum = @(prms,gv) (prms(1).*((gv-prms(3)).^prms(2)));
@@ -144,18 +151,19 @@ maxLum = max(lum);
 for i=1:nrGuns
     parameterGuess = [maxLum(i) 1/2.2 0]; % max gamma bias
     [prms(i,:),residuals,~] = nlinfit(lum(:,i),gv,lum2gun,parameterGuess); %#ok<AGROW>
-    cal.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
+    cal.ns.R2(i)  =1-sum(residuals.^2)./sum(((gv-mean(gv)).^2));
 end
 % Add to cal struct to use later.
-cal.bias = prms(:,3)';
-cal.min  = zeros(1,nrGuns);
-cal.gain  = ones(1,nrGuns);
-cal.max   = prms(:,1)';
-cal.gamma  = prms(:,2)';
-cal.lum2gun  = lum2gun;
-cal.gun2lum  = gun2lum;
-cal.maxLum = squeeze(meanLxy(end,1,:))'; % not corrected for ambient
-cal.ambientLum = ambientLum*ambientRatio;
+cal.ns.bias = prms(:,3)';
+cal.ns.min  = zeros(1,nrGuns);
+cal.ns.gain  = ones(1,nrGuns);
+cal.ns.max   = prms(:,1)';
+cal.ns.gamma  = prms(:,2)';
+cal.ns.lum2gun  = lum2gun;
+cal.ns.gun2lum  = gun2lum;
+cal.ns.maxLum = squeeze(cal.ns.meanLxy(end,1,:))'; % not corrected for ambient
+
+
 % Save the result
 if ~isempty(p.Results.save)        
     disp(['Saving calibration result to ' fullfile(c.dirs.calibration,p.Results.save)]);
@@ -163,45 +171,8 @@ if ~isempty(p.Results.save)
 end
 
 if p.Results.plot
-    % Put up a plot of the essential data
-    figure; clf;
-    subplot(2,2,1);
-    plot(SToWls(cal.S_device), cal.P_device);
-    xlabel('Wavelength (nm)');
-    ylabel('Irradiance (W/m^2 sr nm)');
-    title('Phosphor spectra');
-    axis([380, 780, -Inf, Inf]);
-    
-    subplot(2,2,2);
-    colors = 'rgb';
-    for i=1:nrGuns
-        plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable(:,i), [colors(i) '*']);
-        hold on
-        plot(cal.gammaInput, cal.gammaTable,colors(i));
-    end
-    xlabel('Gun value [0 1]');
-    ylabel('Normalized output [0 1]')
-    title('Normalized Gamma functions');
-    hold off
-    
-    subplot(2,2,3);
-    color = 'rgb';
-    gvI = linspace(0,1,100);
-    for i=1:nrGuns
-        errorbar(gv,lum(:,i),lumSe(:,i),lumSe(:,i),['o' color(i)]);        
-        hold on    
-        prms = [cal.max(i) cal.gamma(i) cal.bias(i) ];
-        plot(gvI,cal.gun2lum(prms,gvI),['-' color(i)])        
-    end
-    ylabel 'Luminance (cd/m^2)'
-    xlabel 'GunValue [0 1]')
-    xlim([0 1]);
-    
-    title (['Inverse Gamma. R^2 = ' num2str(cal.R2,4)]);
-    
-    suptitle([cal.describe.computer ':' datestr(cal.describe.date)])
+    neurostim.utils.plotCal(cal)
 end
-
 
 
 
