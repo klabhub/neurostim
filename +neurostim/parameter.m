@@ -10,7 +10,7 @@ classdef parameter < handle & matlab.mixin.Copyable
     % The parameter class is also the main source of information for data
     % analysis. The get() function provides the interface to extract
     % parameter values per trial, at certain times, etc. 
-    % 
+    % getmet
     % Implementation:
     %  Plugins add dynamic properties (plugin.addProperty). The user of the
     %  plugin can use that dynamic property just like any object property. 
@@ -82,7 +82,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             setupDynProp(o,options); 
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
-            setValue(o,v);
+            setValue(o,[],v);
         end
         
         function stopLog(o)
@@ -109,14 +109,14 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             % Install two callback functions that will be called for
             % getting and setting of the dynprop
-            o.hDynProp.SetMethod =  @(plgn,val)(setValue(o,val,plgn));
+            o.hDynProp.SetMethod =  @o.setValue;
             % Previously we had @(plgn) (o.value) here: this should not work, but does: (o.value should be evaluated
             % here, but for some reason it is evaluated  when the
             % GetMethod is called so that it does return the correct value
             % at call time). That method was slightly faster 0.01 ms per
             % call less, but future fixes in Matlab that fix this (presumed) parse bug 
             % could cause havoc here so we use a function call.
-            o.hDynProp.GetMethod =  @(plgn)(getValue(o));      
+            o.hDynProp.GetMethod =  @o.getValue;      
         end
         
         function o = duplicate(p,plgn,h)
@@ -157,14 +157,14 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime            
         end
         
-        function v = getValue(o)
+        function v = getValue(o,~)
             % This function is called for dynprops that don't have a
             % function associated with them
             v = o.value;
         end
         
         
-        function [v,ok] = getFunctionValue(o,plgn) 
+        function [v,ok] = getFunctionValue(o,~) 
             % This function is called before a function dynprop is used somewhere in the code.
             % It is installed by setValue when it detects a neurostim function.    
             if o.plg.cic.stage >o.plg.cic.SETUP
@@ -181,7 +181,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
        
-        function setValue(o,v,plgn) %#ok<INUSD>
+        function setValue(o,~,v)
             % Assign a new value to a parameter
             ok = true; % Normally ok; only function evals can be not ok.
             %Check for a function definition            
@@ -193,7 +193,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 v = neurostim.utils.str2fun(v);
                 o.fun = v;
                 % Install a GetMethod that evaluates this function
-                o.hDynProp.GetMethod =  @(plgn)(getFunctionValue(o,plgn));                
+                o.hDynProp.GetMethod =  @o.getFunctionValue;                
                 % Evaluate the function to get current value
                 [v,ok]= getFunctionValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).                
             elseif ~isempty(o.fun)
@@ -202,7 +202,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.fun = [];
                 o.funStr = '';
                 % Change the getMethod to a simple value return
-                o.hDynProp.GetMethod =  @(plgn)(getValue(o));     
+                o.hDynProp.GetMethod =  @o.getValue;     
             end
             
             if ok
@@ -238,7 +238,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         function setDefaultToCurrent(o)
             % Put the default back as the current value
             %
-            setValue(o,o.default);
+            setValue(o,[],o.default);
             
             % Note that for Neurostim functions ('@' strings) the string
             % value is restored, and then re-parsed in setValue. This is a
