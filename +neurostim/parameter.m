@@ -269,7 +269,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             data = o.log(1:o.cntr);
             time = o.time(1:o.cntr);
-            trial = o.eTime2Trial(time);
+            trial = o.eTime2TrialNumber(time);
             trialTime= o.eTime2TrialTime(time,trial,true);
             block =NaN(1,o.cntr); % Will be computed if requested
             
@@ -362,11 +362,19 @@ classdef parameter < handle & matlab.mixin.Copyable
             
         end
         
-        function tr = eTime2Trial(o,t)
-            trialStartTime = o.plg.cic.prms.trialStartTime.time;
-            [trialStartTime,T] = meshgrid(t(:),trialStartTime(:));
-            after = (T>trialStartTime);
-            [~,tr] =max(after);
+        function tr = eTime2TrialNumber(o,eventTime)
+            trials = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
+            trialStartTime = o.plg.cic.prms.trial.time;   % Start of the trial
+            
+%             trialStartTime = [-inf [o.plg.cic.prms.trialStartTime.log{:}]];           
+%             trials = 0:numel(trialStartTime);
+            findFun = @(x)(find(x>trialStartTime,1,'last'));
+            trIx = arrayfun(findFun,eventTime);%,'UniformOutput',false);
+            tr = trials(trIx);
+            tr(tr==0) = 1; % Events happening before trial 1 are assinged to trial 1 (but will have negative times relative to trialStart)
+           assert(~any(tr> o.plg.cic.nrTrialsTotal)); 
+            
+            
         end
         
         function v= eTime2TrialTime(o,t,tr,ET2TRT)

@@ -111,6 +111,8 @@ classdef block < dynamicprops
                 o.beforeFunction = fun;
             elseif ischar(fun) && strncmp(fun,'@',1)
                 o.beforeFunction = neurostim.utils.str2fun(fun); 
+            elseif isempty(fun)
+                o.beforeFunction = [];
             else
                 error('Unknown function format');
             end
@@ -121,6 +123,8 @@ classdef block < dynamicprops
                 o.afterFunction = fun;
             elseif ischar(fun) && strncmp(fun,'@',1)
                 o.afterFunction = neurostim.utils.str2fun(fun);
+            elseif isempty(fun)
+                o.afterFunction = [];
             else
                 error('Unknown function format');
             end
