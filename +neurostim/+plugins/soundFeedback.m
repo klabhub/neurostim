@@ -55,16 +55,16 @@ classdef soundFeedback < neurostim.plugins.feedback
     
     methods (Access=public)
         
-        function beforeExperiment(o,c,~)            
+        function beforeExperiment(o)            
             %Check that the sound plugin is enabled
-            snd = c.pluginsByClass('sound');            
+            snd = pluginsByClass(o.cic,'sound');            
             if isempty(snd)
                 o.cic.error('STOPEXPERIMENT','No "sound" plugin detected. soundFeedback relies on it.');
             end            
             %Allocate the audio buffers
             o.buffer = nan(1,o.nItems);
             for i=1:o.nItems
-               o.buffer(i)  = o.cic.sound.createBuffer(o.waveform{i});
+               o.buffer(i)  = createBuffer(o.cic.sound,o.waveform{i});
             end
         end
         
@@ -73,7 +73,7 @@ classdef soundFeedback < neurostim.plugins.feedback
     methods (Access=protected)
          
         function deliver(o,item)
-            o.cic.sound.play(o.buffer(item));   
+            play(o.cic.sound,o.buffer(item));   
         end
  end
         

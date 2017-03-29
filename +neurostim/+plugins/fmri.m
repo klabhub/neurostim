@@ -16,7 +16,7 @@ classdef fmri < neurostim.plugin
             o.listenToEvent('BEFORETRIAL','BEFOREEXPERIMENT');
         end
         
-        function beforeExperiment(o,~,~)
+        function beforeExperiment(o)
             answer=[];
             while (isempty(answer))
                 DrawFormattedText(o.cic.window,'Which scan number is about to start?' ,'center','center',o.cic.screen.color.text);
@@ -27,7 +27,7 @@ classdef fmri < neurostim.plugin
             o.scanNr =answer;
         end
         
-        function beforeTrial(o,~,~)
+        function beforeTrial(o)
             % The goal here is to wait until the pre-triggers have been
             % received (to start at steady-state magnetization). This code
             % interacts directly with PTB Screen and other functionality

@@ -29,9 +29,7 @@ classdef mouse < neurostim.stimulus
     methods (Access = public)
         function o = mouse(c,name)
             o = o@neurostim.stimulus(c,name);
-            
-            o.listenToEvent('BEFOREEXPERIMENT','BEFOREFRAME','AFTERFRAME','AFTERTRIAL')
-            
+             
             %% internally set parameters.
             o.addProperty('clickx',[]);
             o.addProperty('clicky',[]);
@@ -41,7 +39,7 @@ classdef mouse < neurostim.stimulus
             
         end
         
-        function beforeExperiment(o,c,evt)
+        function beforeExperiment(o)
            
             switch lower(o.cursorShape)
                 case {'crosshair', 'cross'}
@@ -62,7 +60,7 @@ classdef mouse < neurostim.stimulus
             
         end
         
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o)
             if ~isempty(o.trajX) || ~isempty(o.trajY) || ~isempty(o.trajTime)
                 o.trajX = [];
                 o.trajY = [];
@@ -70,7 +68,7 @@ classdef mouse < neurostim.stimulus
             end
         end
         
-        function beforeFrame(o,c,evt)
+        function beforeFrame(o)
             
            [o.mousex,o.mousey,buttons] = c.getMouse();
 
@@ -88,23 +86,11 @@ classdef mouse < neurostim.stimulus
            end
         end
         
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
             o.trajX(end+1) = o.mousex;
             o.trajY(end+1) = o.mousey;
-%             o.trajTime(end+1) = c.trialTime;
         end
         
         
-        
-        
-        function afterTrial(o,c,evt)
-            %TODO : not clear to BK what this does...or why it is needed...stop listening in ITI? but then it has to be started again beforeTrial 
-%             q o.addPostSet('trajX',[]);
-%             o.addPostSet('trajY',[]);
-%             o.addPostSet('trajTime',[]);
-%             o.removeListener('trajX');
-%             o.removeListener('trajY');
-%             o.removeListener('trajTime');
-        end
-    end
+       end
 end

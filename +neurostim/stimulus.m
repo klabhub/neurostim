@@ -312,7 +312,7 @@ classdef stimulus < neurostim.plugin
             %%
             % get the stimulus end time
             if s.logOffset
-                s.stopTime=c.flipTime;
+                s.stopTime=s.cic.flipTime;
                 s.logOffset=false;
             end
             

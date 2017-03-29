@@ -234,8 +234,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('enabled',true);
             
             
-            o.listenToEvent('BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME','BEFORETRIAL');
-            
+             
             % Define  marker events to store in the NIC data file
             o.code('trialStart') = 1;
             o.code('stimStart') = 2;
@@ -243,7 +242,7 @@ classdef starstim < neurostim.stimulus
             o.code('trialStop') = 4;
         end
         
-        function beforeExperiment(o,c,evt) %#ok<INUSD>
+        function beforeExperiment(o)
             % Connect to the device, load the protocol.
             if o.fake
                 o.writeToFeed(['Starstim fake conect to ' o.host]);
@@ -321,7 +320,7 @@ classdef starstim < neurostim.stimulus
             end
         end
         
-        function beforeTrial(o,c,evt) %#ok<INUSD>
+        function beforeTrial(o) 
             if o.fake
                 o.writeToFeed('Starstim fake start stim');
                 return;
@@ -378,7 +377,7 @@ classdef starstim < neurostim.stimulus
             
         end
         
-        function beforeFrame(o,c,evt) %#ok<INUSD>
+        function beforeFrame(o)
             if o.fake
                 return;
             end
@@ -422,7 +421,7 @@ classdef starstim < neurostim.stimulus
             
         end
         
-        function afterTrial(o,c,evt) %#ok<INUSD>
+        function afterTrial(o) 
             if o.fake
                 o.writeToFeed('Starstim fake afterTrial stim');
                 return;
@@ -467,7 +466,7 @@ classdef starstim < neurostim.stimulus
             
         end
         
-        function afterExperiment(o,c,evt) %#ok<INUSD>
+        function afterExperiment(o) 
             if o.fake
                 o.writeToFeed('Starstim fake afterExperiment');
                 return;

@@ -44,9 +44,9 @@ classdef eyetracker < neurostim.plugin
         
         
         
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
             if o.useMouse
-                [currentX,currentY,buttons] = c.getMouse;
+                [currentX,currentY,buttons] = o.cic.getMouse;
                 if buttons(1) || o.continuous
                     o.x=currentX;
                     o.y=currentY;

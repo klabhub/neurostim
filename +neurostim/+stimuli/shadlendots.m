@@ -29,8 +29,7 @@ classdef shadlendots < neurostim.stimulus
     methods (Access = public)
         function o = shadlendots(c,name)
             o = o@neurostim.stimulus(c,name);
-            o.listenToEvent('BEFOREFRAME','AFTERFRAME');
-            
+             
             % set dot properties (for user adjustment)
             o.addProperty('coherence',0.75,'validate',@(x)x<=1&&x>=0);
             o.addProperty('apertureD', 50,'validate',@isnumeric); % Diameter of the aperture
@@ -42,10 +41,10 @@ classdef shadlendots < neurostim.stimulus
         end
         
         
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o)
             
             % create all dots
-            createinitialdots(o,c);
+            createinitialdots(o);
             
             % call calculation function
             o.dots2Display = calculatedots(o);
@@ -53,14 +52,14 @@ classdef shadlendots < neurostim.stimulus
         end
         
         
-        function beforeFrame(o,c,evt)
+        function beforeFrame(o)
             % draw dots on Screen
             Screen('DrawDots',o.window,o.dots2Display,o.dotSize,o.color);
             
         end
 
         
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
             
             o.ss(o.Lthis, :) = o.this_s;
             
@@ -71,7 +70,7 @@ classdef shadlendots < neurostim.stimulus
     
     methods (Access=private)
         
-        function createinitialdots(o,c)
+        function createinitialdots(o)
             % sets all the initial variables needed.
             
             % set initial variables
@@ -84,9 +83,9 @@ classdef shadlendots < neurostim.stimulus
             
             % ndots is the number of dots shown per video frame. Dots will be placed in a 
             % square of the size of aperture.
-            o.ndots = min(o.maxDotsPerFrame, ceil(16.7 * apD .* apD * c.screen.xpixels/c.screen.width * 0.01 / c.screen.frameRate));
+            o.ndots = min(o.maxDotsPerFrame, ceil(16.7 * apD .* apD * o.cic.screen.xpixels/o.cic.screen.width * 0.01 /o.cic.screen.frameRate));
             
-            o.dxdymultiplier = (3/c.screen.frameRate);
+            o.dxdymultiplier = (3/o.cic.screen.frameRate);
   
             o.ss = rand(o.ndots*3, 2); % array of dot positions raw [x,y]
 

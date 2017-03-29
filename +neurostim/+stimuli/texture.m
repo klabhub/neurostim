@@ -46,7 +46,6 @@ classdef texture < neurostim.stimulus
   methods (Access = public)
     function o = texture(c,name)
       o = o@neurostim.stimulus(c,name);
-      o.listenToEvent('BEFOREFRAME','BEFOREEXPERIMENT','AFTEREXPERIMENT');
             
       % add texture properties
       o.addProperty('id',[]); % id(s) of the texture(s) to show on the next frame
@@ -80,20 +79,20 @@ classdef texture < neurostim.stimulus
       o.id = id; % last texture added is displayed next...?
     end
 
-    function beforeExperiment(o,~,~)
+    function beforeExperiment(o)
       % create the ptb textures
       for ii = 1:o.numTex,
         o.tex{ii}.ptr = Screen('MakeTexture',o.window,o.tex{ii}.img);
       end
     end
         
-    function afterExperiment(o,~,~)
+    function afterExperiment(o)
       % clean up the ptb textures
       ptr = cellfun(@(x) x.ptr,o.tex,'UniformOutput',true);
       Screen('Close',ptr);
     end
         
-    function beforeFrame(o,~,~)
+    function beforeFrame(o)
       % x.tex is the texture library
       if isempty(o.tex); return; end
       

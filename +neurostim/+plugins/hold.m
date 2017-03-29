@@ -26,10 +26,10 @@ classdef hold < neurostim.plugins.behavior
             o.continuous = true;
         end
         
-        function beforeExperiment(o,c,evt)
+        function beforeExperiment(o)
             
             %Check that the MCC plugin is added.
-            o.mcc = pluginsByClass(c,'mcc');
+            o.mcc = pluginsByClass(o.cic,'mcc');
             if numel(o.mcc)==1
                 o.mcc = o.mcc{1};
             else

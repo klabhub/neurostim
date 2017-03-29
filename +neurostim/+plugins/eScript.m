@@ -109,17 +109,17 @@ classdef eScript < neurostim.plugin
         % has provided. If the function handles have not been provided, the
         % eScript plugin will not be listening to these events so these
         % members will never be called.
-        function beforeFrame(o,c,evt)
-            o.beforeFrameFun(c);
+        function beforeFrame(o)
+            o.beforeFrameFun(o.cic);
         end
-        function afterFrame(o,c,evt)
-            o.afterFrameFun(c);
+        function afterFrame(o)
+            o.afterFrameFun(o.cic);
         end
-        function beforeTrial(o,c,evt)
-            o.beforeTrialFun(c);
+        function beforeTrial(o)
+            o.beforeTrialFun(o.cic);
         end
-        function afterTrial(o,c,evt)
-            o.afterTrialFun(c);
+        function afterTrial(o)
+            o.afterTrialFun(o.cic);
         end
         
         function keyboard(o,key,time)

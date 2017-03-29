@@ -30,8 +30,7 @@ classdef text < neurostim.stimulus
     methods (Access = public)
         function o = text(c,name)
             o = o@neurostim.stimulus(c,name);
-            o.listenToEvent('BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT');
-            
+             
             % add text properties
             o.addProperty('message','Hello World','validate',@ischar);
             o.addProperty('font','Courier New','validate',@ischar);
@@ -44,7 +43,7 @@ classdef text < neurostim.stimulus
         end
         
         
-        function beforeFrame(o,c,evt)
+        function beforeFrame(o)
             % Draw text with the assigned parameters
             % determine text style variable for 'TextStyle'
             if isempty(o.message); return;end
@@ -61,7 +60,7 @@ classdef text < neurostim.stimulus
                 Screen('glScale',o.window,1,-1);
                 X = o.X;
                 Y = o.Y;
-                textsize = round(o.textsize*c.screen.width/c.screen.xpixels);
+                textsize = round(o.textsize*o.cic.screen.width/o.cic.screen.xpixels);
             end
             
             switch lower(o.textstyle)
@@ -120,13 +119,11 @@ classdef text < neurostim.stimulus
             [~,~,bbox]= DrawFormattedText(o.window,o.message,xpos,ypos,o.color);
         end
         
-        function afterTrial(o,c,evt)
+        function afterTrial(o)
             c.restoreTextPrefs;
         end
         
-        function afterExperiment(o,c,evt)
-            c.restoreTextPrefs;
-        end
+    
     end
     
 end

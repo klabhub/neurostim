@@ -43,9 +43,9 @@ classdef visualFeedback < neurostim.plugins.feedback
 %       o.tex = neurostim.stimuli.texture(c,'fbtex_');
     end
     
-    function beforeTrial(o,c,evt)
+    function beforeTrial(o)
       % call the parent class beforeTrial() method
-      beforeTrial@neurostim.plugins.feedback(o,c,evt);
+      beforeTrial@neurostim.plugins.feedback(o);
 
       % reset stimulus on times
       for ii = 1:o.nItems,

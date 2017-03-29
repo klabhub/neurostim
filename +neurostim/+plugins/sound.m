@@ -11,13 +11,13 @@ classdef sound < neurostim.plugin
             o.listenToEvent('BEFOREEXPERIMENT', 'AFTEREXPERIMENT');
         end
         
-        function beforeExperiment(o,c,evt)
+        function beforeExperiment(o)
             % Sound initialization
             InitializePsychSound(1);
             o.paHandle = PsychPortAudio('Open');
         end
         
-        function afterExperiment(o,c,evt)
+        function afterExperiment(o)
             PsychPortAudio('Close', o.paHandle);
         end
         
@@ -50,7 +50,7 @@ classdef sound < neurostim.plugin
         end
         
         
-        function delete(o)
+        function delete(o) %#ok<INUSD>
             PsychPortAudio('Close');
         end
     end

@@ -16,8 +16,7 @@ classdef nafcResponse < neurostim.plugins.behavior
    methods (Access = public)
        function o = nafcResponse(c,name)
             o = o@neurostim.plugins.behavior(c,name); 
-            o.continuous = false;
-            o.listenToEvent('BEFORETRIAL');
+            o.continuous = false;            
             o.addProperty('keyLabels',{},'validate',@iscellstr);
             o.addProperty('keys',{},'validate',@iscellstr);
             o.addProperty('correctKey',[],'validate',@isnumeric);
@@ -25,15 +24,15 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('pressedInd',[]);
             o.addProperty('pressedKey',[]);
             o.addProperty('oncePerTrial',false);
-            o.listenToEvent('BEFORETRIAL');
+            
        end
        
-       function beforeTrial(o,c,evt)            
-           beforeTrial@neurostim.plugins.behavior(o,c,evt); % Call parent
+       function beforeTrial(o)            
+           beforeTrial@neurostim.plugins.behavior(o); % Call parent
            o.responded = false;   % Update responded for this trial
        end
 
-       function beforeExperiment(o,c,evt)
+       function beforeExperiment(o)
            
            if isempty(o.keyLabels)
                o.keyLabels = o.keys;

@@ -245,25 +245,29 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     
     methods (Access = public)
         
-        function baseBeforeExperiment(~)
-            %NOP
+        function baseBeforeExperiment(o)            
+            beforeExperiment(o);
         end
-        function baseBeforeTrial(~)
-            %NOP
+        function baseBeforeTrial(o)            
+            beforeTrial(o);
         end
-        function baseBeforeFrame(~)
-            %NOP
+        function baseBeforeFrame(o)
+%             if o.cic.clockTime-o.cic.frameStart>(1000/o.cic.screen.frameRate - o.cic.requiredSlack)
+%                          o.cic.writeToFeed(['Did not run plugin ' o.name ' beforeFrame in frame ' num2str(o.cic.frame) '.']);
+%                          return;
+%             end
+            beforeFrame(o);
         end
-        function baseAfterFrame(~)
-            %NOP
+        function baseAfterFrame(o)            
+            afterFrame(o);
         end
         
-        function baseAfterTrial(~)
-            %NOP
+        function baseAfterTrial(o)
+            afterTrial(o);
         end
         
-        function baseAfterExperiment(~)
-            %NOP
+        function baseAfterExperiment(o)
+            afterExperiment(o);
         end
         
         function beforeExperiment(~)
@@ -297,45 +301,46 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         function base(oList,what,c)
-            if c.PROFILE;ticTime = c.clockTime;end
+            
             switch (what)
                 case neurostim.stages.BEFOREEXPERIMENT                   
                     for o=oList
+                        if c.PROFILE;ticTime = c.clockTime;end
                         baseBeforeExperiment(o);                         
+                         if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end;
                     end
                     % All plugins BEFOREEXPERIMENT functions have been processed,
                     % store the current parameter values as the defaults.
                     setCurrentParmsToDefault(oList);
                 case neurostim.stages.BEFORETRIAL
                     for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
                         baseBeforeTrial(o);                       
-                        if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end;
                     end
                 case neurostim.stages.BEFOREFRAME
-                    if c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
-                        c.writeToFeed(['Did not run plugins beforeFrame in frame ' num2str(c.frame) '.']);
-                        return;
-                    end
                     for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
                         baseBeforeFrame(o);                       
-                        if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end;
                     end
-                case neurostim.stages.AFTERFRAME
-                    
+                case neurostim.stages.AFTERFRAME                    
                     for o= oList
-                        baseAfterFrame(o);                        
-                        if c.PROFILE; c.addProfile('AFTERFRAME',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        baseAfterFrame(o);                                            
+                        if c.PROFILE; addProfile(c,'AFTERFRAME',o.name,c.clockTime-ticTime);end;
                     end
-                case neurostim.stages.AFTERTRIAL
-                    
+                case neurostim.stages.AFTERTRIAL                    
                     for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
                         baseAfterTrial(o);                        
-                        if c.PROFILE; c.addProfile('AFTERTRIAL',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
                     end
                 case neurostim.stages.AFTEREXPERIMENT
                     for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
                         baseAfterExperiment(o);                       
-                        if c.PROFILE; c.addProfile('AFTEREXPERIMENT',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'AFTEREXPERIMENT',o.name,c.clockTime-ticTime);end;
                     end
                 otherwise
                     error('?');

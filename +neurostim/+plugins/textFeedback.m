@@ -30,9 +30,7 @@ classdef textFeedback < neurostim.plugins.feedback
         end
     end
     
-    methods (Access=public)
-        
-    end
+
     
     methods (Access=protected)
          

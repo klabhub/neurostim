@@ -144,14 +144,14 @@ classdef mcc < neurostim.plugin
             v  = DaqAIn(o.daq,channel,range);
         end
         
-        function afterTrial(o,c,evt)
+        function afterTrial(o)
             ix = any(strcmp(o.mapList.when,'AFTERTRIAL'));
             if ix
                 read(o,ix);
             end
         end
         
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
             ix = any(strcmp(o.mapList.when,'AFTERFRAME'));
             if ix
                 read(o,ix);

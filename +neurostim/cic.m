@@ -5,7 +5,7 @@ classdef cic < neurostim.plugin
     
     %% Constants
     properties (Constant)
-        PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
+        PROFILE@logical = true; % Using a const to allow JIT to compile away profiler code
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
@@ -602,8 +602,8 @@ classdef cic < neurostim.plugin
                 c.(nm) = cat(2,c.(nm),o);
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
-                if strcmp(nm,'plugins') && c.PROFILE
-                    c.profile.(o.name)=struct('BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'cntr',0);
+                if c.PROFILE
+                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'AFTEREXPERIMENT',[],'cntr',0);
                 end
             end
             
@@ -824,7 +824,7 @@ classdef cic < neurostim.plugin
                         
                         base(c.pluginOrder,neurostim.stages.AFTERFRAME,c); 
                         
-                        c.KbQueueCheck;
+                        KbQueueCheck(c);
                         
                         
                         startFlipTime = c.clockTime;
@@ -841,9 +841,9 @@ classdef cic < neurostim.plugin
                         [vbl,stimOn,flip] = Screen('Flip', c.window,0,1-clr); %#ok<ASGLU>
                         vbl =vbl*1000; %ms.
                         if c.frame > 1 && c.PROFILE
-                            c.addProfile('FRAMELOOP',c.name,c.toc);
-                            c.tic
-                            c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
+                            addProfile(c,'FRAMELOOP',c.name,c.toc);
+                            tic(c)
+                            addProfile(c,'FLIPTIME',c.name,c.clockTime-startFlipTime);
                         end
                         
                         if c.frame == 1
@@ -1361,10 +1361,11 @@ classdef cic < neurostim.plugin
                 items = fieldnames(c.profile.(plgns{i}));
                 items(strcmpi(items,'cntr'))=[];
                 nPlots = numel(items);
-                nPerRow = ceil(sqrt(nPlots));
+                nPerCol = floor(sqrt(nPlots));
+                nPerRow = ceil(nPlots/nPerCol);
                 
                 for j=1:nPlots
-                    subplot(nPerRow,nPerRow,j);
+                    subplot(nPerRow,nPerCol,j);
                     vals = c.profile.(plgns{i}).(items{j});
                     hist(vals,100);
                     xlabel 'Time (ms)'; ylabel '#'
