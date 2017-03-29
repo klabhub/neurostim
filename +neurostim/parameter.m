@@ -143,8 +143,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % For non-function parns this is the value that will be
             % returned  to the next getValue
             o.value = v;
-            % Keep a timed log.
-            
+            % Keep a timed log.            
             o.cntr=o.cntr+1;
             % Allocate space if needed
             if o.cntr> o.capacity

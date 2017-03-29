@@ -845,12 +845,12 @@ classdef cic < neurostim.plugin
                         end
                         
                         
-                        if c.guiOn
-                            if mod(c.frame,c.guiFlipEvery)==0
-                                Screen('Flip',c.guiWindow,0,[],2);
-                            end
-                        end
-                        
+%                         if c.guiOn
+%                             if mod(c.frame,c.guiFlipEvery)==0
+%                                 Screen('Flip',c.guiWindow,0,[],2);
+%                             end
+%                         end
+%                         
                         
                         %% Check Timing
                         % Delta between actual and deadline of flip;
