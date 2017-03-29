@@ -25,7 +25,7 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('pressedInd',[]);
             o.addProperty('pressedKey',[]);
             o.addProperty('oncePerTrial',false);
-            o.listenToEvent('BEFOREEXPERIMENT','BEFORETRIAL');
+            o.listenToEvent('BEFORETRIAL');
        end
        
        function beforeTrial(o,c,evt)            

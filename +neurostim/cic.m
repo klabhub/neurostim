@@ -2,32 +2,6 @@
 % See demos directory for examples
 %  BK, AM, TK, 2015
 classdef cic < neurostim.plugin
-    %% Events
-    % All communication with plugins is through events. CIC generates events
-    % to notify plugins (which includes stimuli) about the current stage of
-    % the experiment. Plugins tell CIC that they want to listen to a subset
-    % of all events (plugin.listenToEvent()), and plugins have the code to
-    % respond to the events (plugin.events()).
-    % Note that plugins are completely free to do what they want in the
-    % event handlers. For stimuli, however, each event is first processed
-    % by the base @stimulus class and only then passed to the derived
-    % class. This helps neurostim to generate consistent behavior.
-    events
-        
-        %% Experiment Flow
-        % Events to which the @stimulus class responds (internal)
-        BASEBEFOREEXPERIMENT;
-        BASEAFTEREXPERIMENT;
-        BASEBEFORETRIAL;
-        BASEAFTERTRIAL;
-        BASEBEFOREFRAME;
-        BASEAFTERFRAME;
-        
-        
-        FIRSTFRAME;
-        GIVEREWARD;
-        
-    end
     
     %% Constants
     properties (Constant)
@@ -88,10 +62,12 @@ classdef cic < neurostim.plugin
         cursorVisible = false; % Set it through c.cursor =
         
         %% Internal lists to keep track of stimuli, , and blocks.
-        stimuli;    % Cell array of char with stimulus names.
+        stimuli;    % Vector of stimulus  handles.
+        plugins;    % Vector of plugin handles.
+        pluginOrder; % Vector of plugin handles, sorted by execution order
+        
         blocks@neurostim.block;     % Struct array with .nrRepeats .randomization .conditions
         blockFlow;
-        plugins;    % Cell array of char with names of plugins.
         responseKeys; % Map of keys to actions.
         
         %% Logging and Saving
@@ -110,7 +86,6 @@ classdef cic < neurostim.plugin
         keyHandlers             = {}; % Handles for the plugins that handle the keys.
         
         
-        pluginOrder = {};
         EscPressedTime;
         lastFrameDrop=1;
         propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/nrTrialsTotal'};
@@ -125,6 +100,7 @@ classdef cic < neurostim.plugin
     % Calculated on the fly
     properties (Dependent)
         nrStimuli;      % The number of stimuli currently in CIC
+        nrPlugins;      % The number of plugins (Excluding stimuli) currently inCIC
         nrConditions;   % The number of conditions in this experiment
         nrTrials;       % The number of trials in the current block
         center;         % Where is the center of the display window.
@@ -135,11 +111,10 @@ classdef cic < neurostim.plugin
         startTimeStr@char;  % Start time as a HH:MM:SS string
         cursor;         % Cursor 'none','arrow'; see ShowCursor
         blockName;      % Name of the current block
-        defaultPluginOrder;
         trialTime;      % Time elapsed (ms) since the start of the trial
         nrTrialsTotal;   % Number of trials total (all blocks)
         conditionID;    % Unique id for a condition - used by adaptive
-        date;           % Date of the experiment.        
+        date;           % Date of the experiment.
     end
     
     %% Public methods
@@ -152,6 +127,11 @@ classdef cic < neurostim.plugin
         function v= get.nrStimuli(c)
             v= length(c.stimuli);
         end
+        
+        function v= get.nrPlugins(c)
+            v= length(c.plugins);
+        end
+        
         function v= get.nrTrials(c)
             if c.block
                 v= c.blocks(c.block).nrTrials;
@@ -270,9 +250,6 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function v=get.defaultPluginOrder(c)
-            v = [fliplr(c.stimuli) fliplr(c.plugins)];
-        end
         
         function v= get.trialTime(c)
             v = (c.frame-1)*1000/c.screen.frameRate;
@@ -307,47 +284,7 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function createEventListeners(c)
-            % creates all Event Listeners
-            if isempty(c.pluginOrder)
-                c.pluginOrder = c.defaultPluginOrder;
-            end
-            for a = 1:numel(c.pluginOrder)
-                o = c.(c.pluginOrder{a});
-                
-                for i=1:length(o.evts)
-                    if isa(o,'neurostim.plugin')
-                        % base events allow housekeeping before events
-                        % trigger, but giveReward and firstFrame do not require a
-                        % baseEvent.
-                        if strcmpi(o.evts{i},'GIVEREWARD')
-                            h=@(c,evt)(o.giveReward(o.cic,evt));
-                        elseif strcmpi(o.evts{i},'FIRSTFRAME')
-                            h=@(c,evt)(o.firstFrame(o.cic,evt));
-                        else
-                            addlistener(c,['BASE' o.evts{i}],@o.baseEvents);
-                            switch upper(o.evts{i})
-                                case 'BEFOREEXPERIMENT'
-                                    h= @(c,evt)(o.beforeExperiment(o.cic,evt));
-                                case 'BEFORETRIAL'
-                                    h= @(c,evt)(o.beforeTrial(o.cic,evt));
-                                case 'BEFOREFRAME'
-                                    h= @(c,evt)(o.beforeFrame(o.cic,evt));
-                                case 'AFTERFRAME'
-                                    h= @(c,evt)(o.afterFrame(o.cic,evt));
-                                case 'AFTERTRIAL'
-                                    h= @(c,evt)(o.afterTrial(o.cic,evt));
-                                case 'AFTEREXPERIMENT'
-                                    h= @(c,evt)(o.afterExperiment(o.cic,evt));
-                            end
-                        end
-                        % Install a listener in the derived class so that it
-                        % can respond to notify calls in the base class
-                        addlistener(o,o.evts{i},h);
-                    end
-                end
-            end
-        end
+        
         
         function out=collectPropMessage(c)
             out='\n======================\n';
@@ -398,8 +335,8 @@ classdef cic < neurostim.plugin
             c.stage  = neurostim.cic.SETUP;
             % Initialize empty
             c.startTime     = now;
-            c.stimuli       = {};
-            c.plugins       = {};
+            c.stimuli       = [];
+            c.plugins       = [];
             c.cic           = c; % Need a reference to self to match plugins. This makes the use of functions much easier (see plugin.m)
             
             % The root directory is the directory that contains the
@@ -429,8 +366,7 @@ classdef cic < neurostim.plugin
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             
-            % Generate default output files
-            %neurostim.plugins.output(c);
+            
             
         end
         
@@ -587,51 +523,44 @@ classdef cic < neurostim.plugin
         
         
         
-        function pluginOrder = order(c,varargin)
+        function newOrder = order(c,varargin)
             % pluginOrder = c.order([plugin1] [,plugin2] [,...])
             % Returns pluginOrder when no input is given.
             % Inputs: lists name of plugins in the order they are requested
             % to be executed in.
-            if isempty(c.pluginOrder)
-                c.pluginOrder = c.defaultPluginOrder;
-            end
             
-            if nargin>1
-                if iscellstr(varargin)
-                    a = varargin;
-                else
-                    for j = 1:nargin-1
-                        a{j} = varargin{j}.name; %#ok<AGROW>
-                    end
+            
+            defaultOrder = cat(2,{c.stimuli.name},{c.plugins.name});
+            if nargin==1
+                newOrder = defaultOrder;
+            else
+                newOrder = varargin;
+                notKnown = ~ismember(newOrder,defaultOrder);
+                if any(notKnown)
+                    warning([cat(2,newOrder{notKnown}) ' is not a stimulus or plugin. Ordering failed. Removed from list']);
+                    newOrder(notKnown) = [];
                 end
-                [~,indpos]=ismember(c.pluginOrder,a);
-                reorder=c.pluginOrder(logical(indpos));
-                [~,i]=sort(indpos(indpos>0));
-                reorder=fliplr(reorder(i));
-                neworder=cell(size(c.pluginOrder));
-                neworder(~indpos)=c.pluginOrder(~indpos);
-                neworder(logical(indpos))=reorder;
-                c.pluginOrder=neworder;
+                notSpecified = defaultOrder(~ismember(defaultOrder,newOrder));
+                newOrder = cat(2,newOrder,notSpecified);
+                % Force gui to be first
+                isGui = strcmpi('gui',newOrder);
+                if any(isGui) && ~isGui(1)
+                    newOrder = cat(2,'gui',newOrder(~isGui));
+                end
+            end
+            c.pluginOrder = [];
+            for i=1:numel(newOrder)
+                c.pluginOrder =cat(2,c.pluginOrder,c.(newOrder{i}));
             end
             
-            if ~strcmp(c.pluginOrder(1),'gui') && any(strcmp(c.pluginOrder,'gui'))
-                c.pluginOrder = ['gui' c.pluginOrder(~strcmp(c.pluginOrder,'gui'))];
-            end
-            if numel(c.pluginOrder)<numel(c.defaultPluginOrder)
-                b=ismember(c.defaultPluginOrder,c.pluginOrder);
-                index=find(~b);
-                c.pluginOrder=[c.pluginOrder(1:index-1) c.defaultPluginOrder(index) c.pluginOrder(index:end)];
-            end
-            pluginOrder = c.pluginOrder;
         end
         
         function plgs = pluginsByClass(c,classType)
             %Return pointers to all active plugins of the specified class type.
             ind=1; plgs = [];
-            for i=1:numel(c.plugins)
-                thisPlg = c.(c.plugins{i});
-                if isa(thisPlg,horzcat('neurostim.plugins.',lower(classType)));
-                    plgs{ind} = thisPlg;
+            for p =c.plugins
+                if isa(p,horzcat('neurostim.plugins.',lower(classType)));
+                    plgs{ind} = p; %#ok<AGROW>
                     ind=ind+1;
                 end
             end
@@ -661,7 +590,7 @@ classdef cic < neurostim.plugin
                 nm = 'plugins';
             end
             
-            if ismember(o.name,c.(nm))
+            if any(o==c.(nm))
                 warning(['This name (' o.name ') already exists in CIC. Updating...']);
                 % Update existing
             elseif  isprop(c,o.name)
@@ -670,7 +599,7 @@ classdef cic < neurostim.plugin
                 h = c.addprop(o.name); % Make it a dynamic property
                 c.(o.name) = o;
                 h.SetObservable = false; % No events
-                c.(nm) = cat(2,c.(nm),o.name);
+                c.(nm) = cat(2,c.(nm),o);
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
                 if strcmp(nm,'plugins') && c.PROFILE
@@ -807,32 +736,22 @@ classdef cic < neurostim.plugin
             
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation  will now be active
             
-            %% Set up order and event listeners
-            c.order;
-            c.createEventListeners;
-            c.setupExperiment(block1,varargin{:});
-            
-            % %Setup PTB
+            %% Set up order and blocks
+            order(c);                      
+            setupExperiment(c,block1,varargin{:});            
+            %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);
-            c.KbQueueCreate;
-            c.KbQueueStart;
-            c.checkFrameRate;
+            KbQueueCreate(c);
+            KbQueueStart(c);
+            checkFrameRate(c);
             
             %% Start preparation in all plugins.
-            notify(c,'BASEBEFOREEXPERIMENT');
+            base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', c.screen.color.text);
             Screen('Flip', c.window);
-            if c.keyBeforeExperiment; KbWait(c.keyDeviceIndex);end
-            
-            
-            % All plugins BEFOREEXPERIMENT functions have been processed,
-            % store the current parameter values as the defaults.
-            for a = 1:numel(c.pluginOrder)
-                o = c.(c.pluginOrder{a});
-                setCurrentParmsToDefault(o);
-            end
-            
+            if c.keyBeforeExperiment; KbWait(c.keyDeviceIndex);end            
             c.flags.experiment = true;
+            
             nrBlocks = numel(c.blockFlow.list);
             for blockCntr=1:nrBlocks
                 c.flags.block = true;
@@ -863,15 +782,15 @@ classdef cic < neurostim.plugin
                     c.trial = c.trial+1;
                     
                     % Restore default values
-                    for a = 1:numel(c.pluginOrder)
-                        o = c.(c.pluginOrder{a});
-                        setDefaultParmsToCurrent(o);
-                    end
+                    setDefaultParmsToCurrent(c.pluginOrder);
+                    
                     
                     nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
                     c.blockTrial = c.blockTrial+1;  % For logging and gui only
                     beforeTrial(c);
-                    notify(c,'BASEBEFORETRIAL');
+                    
+                    base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
+                    
                     
                     %ITI - wait
                     if c.trial>1
@@ -899,11 +818,11 @@ classdef cic < neurostim.plugin
                         end
                         
                         
-                        notify(c,'BASEBEFOREFRAME');
+                        base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c); 
                         
                         Screen('DrawingFinished',c.window);
                         
-                        notify(c,'BASEAFTERFRAME');
+                        base(c.pluginOrder,neurostim.stages.AFTERFRAME,c); 
                         
                         c.KbQueueCheck;
                         
@@ -928,7 +847,6 @@ classdef cic < neurostim.plugin
                         end
                         
                         if c.frame == 1
-                            notify(c,'FIRSTFRAME');
                             c.trialStartTime = stimOn*1000; % for trialDuration check
                             c.flipTime=0;
                         end
@@ -967,7 +885,7 @@ classdef cic < neurostim.plugin
                     [~,stimOn]=Screen('Flip', c.window,0,1-c.itiClear);
                     c.trialStopTime = stimOn*1000;
                     c.frame = c.frame+1;
-                    notify(c,'BASEAFTERTRIAL');
+                    base(c.pluginOrder,neurostim.stages.AFTERTRIAL,c); 
                     afterTrial(c);
                 end %conditions in block
                 
@@ -993,18 +911,12 @@ classdef cic < neurostim.plugin
             c.stopTime = now;
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.window);
-            notify(c,'BASEAFTEREXPERIMENT');
+            base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c); 
             c.KbQueueStop;
             if c.keyAfterExperiment; KbWait(c.keyDeviceIndex);end
             
-            %Prune the log of all plugins/stimuli
-            for a = 1:numel(c.pluginOrder)
-                o = c.(c.pluginOrder{a});
-                if ~isempty(o.prms)
-                    structfun(@pruneLog,o.prms); 
-                end             
-            end    
-            structfun(@pruneLog,c.prms); 
+            %Prune the log of all plugins/stimuli and cic itself
+            pruneLog([c.pluginOrder c]);
             c.saveData;
             Screen('CloseAll');
             if c.PROFILE; report(c);end
@@ -1013,7 +925,7 @@ classdef cic < neurostim.plugin
         function saveData(c)
             filePath = horzcat(c.fullFile,'.mat');
             save(filePath,'c');
-            disp(horzcat('Data saved to ',filePath)); 
+            disp(horzcat('Data saved to ',filePath));
         end
         
         function delete(c)
@@ -1231,7 +1143,7 @@ classdef cic < neurostim.plugin
             colorOk = false;
             if ~isempty(c.screen.calFile)
                 % Load a calibration from file. The cal struct has been
-                % generated by utils.ptbcal 
+                % generated by utils.ptbcal
                 
                 c.screen.calibration = LoadCalFile(c.screen.calFile,Inf,c.dirs.calibration); % Retrieve the latest calibration
                 if isempty(c.screen.calibration)
@@ -1241,7 +1153,7 @@ classdef cic < neurostim.plugin
                 if ~isempty(c.screen.colorMatchingFunctions)
                     % The "sensor" is the human observer and we can pick different ones by
                     % chosing a different CMF (in c.screen.cmf). Sensor coordinates
-                    % are XYZ tristimulus values.     
+                    % are XYZ tristimulus values.
                     % Apply color matching functions
                     tmpCmf = load(c.screen.colorMatchingFunctions);
                     fn = fieldnames(tmpCmf);
@@ -1338,7 +1250,7 @@ classdef cic < neurostim.plugin
                 case 'VPIXX-M16'
                     c.overlay = PsychImaging('GetOverlayWindow', c.window);
                     [nrRows,nrCols] = size(c.screen.overlayClut);
-                    if nrCols>0 && nrCols~=3  
+                    if nrCols>0 && nrCols~=3
                         error('The overlay clut should have 3 columns...');
                     end
                     if nrRows>255
@@ -1347,7 +1259,7 @@ classdef cic < neurostim.plugin
                     % Add white for missing clut entries to show error
                     % indices (assuming the bg is not max white)
                     c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
-                    Screen('LoadNormalizedGammaTable',c.window,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT                  
+                    Screen('LoadNormalizedGammaTable',c.window,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1371,7 +1283,7 @@ classdef cic < neurostim.plugin
                         % This mode accepts luminances between min and max
                     end
                 case {'XYZ','XYL'}
-                    % Apply color calibration to the window 
+                    % Apply color calibration to the window
                     PsychColorCorrection('SetSensorToPrimary', c.window, c.screen.calibration);
                 case 'RGB'
                     % Nothing to do
@@ -1479,5 +1391,6 @@ classdef cic < neurostim.plugin
             elapsed = GetSecs*1000 - c.ticTime;
         end
     end
+    
     
 end

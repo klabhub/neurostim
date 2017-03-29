@@ -142,7 +142,8 @@ classdef gui <neurostim.plugin
         function beforeFrame(o,c,evt)
             % Draw
             Screen('glLoadIdentity', c.window);
-            
+            % TODO: use flipEvery setting that is currently in CIC but
+            % should be here to skup a draw
             drawParams(o,c);
             drawMirror(o,c);
             

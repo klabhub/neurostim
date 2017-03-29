@@ -1,33 +1,18 @@
-classdef plugin  < dynamicprops & matlab.mixin.Copyable
+classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogeneous
     % Base class for plugins. Includes logging, functions, etc.
     %
     properties (SetAccess=public)
         cic;  % Pointer to CIC
     end
     
-    events
-        BEFOREFRAME;
-        AFTERFRAME;
-        BEFORETRIAL;
-        AFTERTRIAL;
-        BEFOREEXPERIMENT;
-        AFTEREXPERIMENT;
-    end
     
     properties (SetAccess=private, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
         prms;          % Structure to store all parameters
-    end
-    
-    properties (SetAccess=private, GetAccess=public)
         keyFunc = struct; % structure for functions assigned to keys.
         keyStrokes  = {}; % Cell array of keys that his plugin will respond to
         keyHelp     = {}; % Copy in the plugin allows easier setup of keyboard handling by stimuli and other derived classes.
         evts        = {}; % Events that this plugin will respond to.
-    end
-    
-    properties (Access = private)
-        
     end
     
     methods (Access=public)
@@ -46,7 +31,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function s= duplicate(o,name)
             % This copies the plugin and gives it a new name. See
             % plugin.copyElement
-             s=copyElement(o,name);
+            s=copyElement(o,name);
             % Add the duplicate to cic.
             o.cic.add(s);
         end
@@ -88,19 +73,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
         end
         
-        % Needed by str2fun 
+        % Needed by str2fun
         function ok = setProperty(o,prop,value)
             o.(prop) =value;
             ok = true;
         end
-
+        
         % Add properties that will be time-logged automatically, and that
         % can be validated after being set.
         % These properties can also be assigned a function to dynamically
         % link properties of one object to another. (g.X='@g.Y+5')
         function addProperty(o,prop,value,varargin)
             p=inputParser;
-            p.addParameter('validate',[]);            
+            p.addParameter('validate',[]);
             p.addParameter('SetAccess','public');
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);
@@ -131,16 +116,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
         end
         
-        function duplicateProperty(o,parm)            
-             % First check if it is already there.
-             h =findprop(o,parm.name);
-             if ~isempty(h)
+        function duplicateProperty(o,parm)
+            % First check if it is already there.
+            h =findprop(o,parm.name);
+            if ~isempty(h)
                 error([parm.name ' is already a property of ' o.name ]);
-             end
-             h= o.addprop(parm.name);
-             o.prms.(parm.name) = duplicate(parm,o,h);
+            end
+            h= o.addprop(parm.name);
+            o.prms.(parm.name) = duplicate(parm,o,h);
         end
-                
+        
     end
     
     
@@ -160,16 +145,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             % First a shallow copy of fixed properties
             s = copyElement@matlab.mixin.Copyable(o);
-            s.prms = []; % Remove parameter objects; new ones will be created for the 
+            s.prms = []; % Remove parameter objects; new ones will be created for the
             % duplicate plugin
             % Then setup the dynamic props again. (We assume all remaining
             % dynprops are parameters of the stimulus/plugin)
             dynProps = setdiff(properties(o),properties(s));
-            s.name=name;            
+            s.name=name;
             for p=1:numel(dynProps)
                 pName = dynProps{p};
                 duplicateProperty(s,o.prms.(pName));
-            end            
+            end
         end
         
     end
@@ -259,68 +244,134 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
     
     
     methods (Access = public)
-        % Wrapper to call setCurrentToDefault in the parameters class for
-        % each parameter
-        function setCurrentParmsToDefault(o)
-            if ~isempty(o.prms) 
-                structfun(@setCurrentToDefault,o.prms);
-            end
-        end
-
-                % Wrapper to call setCurrentToDefault in the parameters class for
-        % each parameter
-        function setDefaultParmsToCurrent(o)
-            if ~isempty(o.prms) 
-                structfun(@setDefaultToCurrent,o.prms);
-            end
-        end
-
         
-        function baseEvents(o,c,evt)
+        function baseBeforeExperiment(~)
+            %NOP
+        end
+        function baseBeforeTrial(~)
+            %NOP
+        end
+        function baseBeforeFrame(~)
+            %NOP
+        end
+        function baseAfterFrame(~)
+            %NOP
+        end
+        
+        function baseAfterTrial(~)
+            %NOP
+        end
+        
+        function baseAfterExperiment(~)
+            %NOP
+        end
+        
+        function beforeExperiment(~)
+            %NOP
+        end
+        function beforeTrial(~)
+            %NOP
+        end
+        function beforeFrame(~)
+            %NOP
+        end
+        function afterFrame(~)
+            %NOP
+        end
+        
+        function afterTrial(~)
+            %NOP
+        end
+        
+        function afterExperiment(~)
+            %NOP
+        end
+        
+    end
+    
+    methods (Sealed)
+        % These methods are sealed to allow the use of a heterogeneous
+        % array of plugins/stimuli
+        function v = eq(a,b)
+            v = eq@handle(a,b);
+        end
+        
+        function base(oList,what,c)
             if c.PROFILE;ticTime = c.clockTime;end
-            
-            switch evt.EventName
-                case 'BASEBEFOREEXPERIMENT'
-                     notify(o,'BEFOREEXPERIMENT');
-                    
-                case 'BASEBEFORETRIAL'
-                    notify(o,'BEFORETRIAL');
-                    if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,c.clockTime-ticTime);end;
-                    
-                case 'BASEBEFOREFRAME'
-                    if strcmp(o.name,'gui')
-                        if mod(c.frame,c.guiFlipEvery)>0
-                            return;
-                        end
+            switch (what)
+                case neurostim.stages.BEFOREEXPERIMENT                   
+                    for o=oList
+                        baseBeforeExperiment(o);                         
                     end
+                    % All plugins BEFOREEXPERIMENT functions have been processed,
+                    % store the current parameter values as the defaults.
+                    setCurrentParmsToDefault(oList);
+                case neurostim.stages.BEFORETRIAL
+                    for o= oList
+                        baseBeforeTrial(o);                       
+                        if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,c.clockTime-ticTime);end;
+                    end
+                case neurostim.stages.BEFOREFRAME
                     if c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
-                        c.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
+                        c.writeToFeed(['Did not run plugins beforeFrame in frame ' num2str(c.frame) '.']);
                         return;
                     end
-                    notify(o,'BEFOREFRAME');
-                    if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,c.clockTime-ticTime);end;
-                    
-                case 'BASEAFTERFRAME'
-                    if strcmp(o.name,'gui')
-                        if mod(c.frame,c.guiFlipEvery)>0
-                            return;
-                        end
+                    for o= oList
+                        baseBeforeFrame(o);                       
+                        if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,c.clockTime-ticTime);end;
                     end
-                    if c.requiredSlack ~= 0
-                        if c.frame ~=1 && c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
-                            c.writeToFeed(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) '.']);
-                            return;
-                        end
-                    end
-                    notify(o,'AFTERFRAME');
-                    if c.PROFILE; c.addProfile('AFTERFRAME',o.name,c.clockTime-ticTime);end;
+                case neurostim.stages.AFTERFRAME
                     
-                case 'BASEAFTERTRIAL'
-                    notify(o,'AFTERTRIAL');
-                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
-                case 'BASEAFTEREXPERIMENT'
-                    notify(o,'AFTEREXPERIMENT');
+                    for o= oList
+                        baseAfterFrame(o);                        
+                        if c.PROFILE; c.addProfile('AFTERFRAME',o.name,c.clockTime-ticTime);end;
+                    end
+                case neurostim.stages.AFTERTRIAL
+                    
+                    for o= oList
+                        baseAfterTrial(o);                        
+                        if c.PROFILE; c.addProfile('AFTERTRIAL',o.name,c.clockTime-ticTime);end;
+                    end
+                case neurostim.stages.AFTEREXPERIMENT
+                    for o= oList
+                        baseAfterExperiment(o);                       
+                        if c.PROFILE; c.addProfile('AFTEREXPERIMENT',o.name,c.clockTime-ticTime);end;
+                    end
+                otherwise
+                    error('?');
             end
         end
+        
+        
+        
+        % Wrapper to call setCurrentToDefault in the parameters class for
+        % each parameter
+        function setCurrentParmsToDefault(oList)
+            for o=oList
+                if ~isempty(o.prms)
+                    structfun(@setCurrentToDefault,o.prms);
+                end
+            end
+        end
+        
+        % Wrapper to call setCurrentToDefault in the parameters class for
+        % each parameter
+        function setDefaultParmsToCurrent(oList)
+            for o=oList
+                if ~isempty(o.prms)
+                    structfun(@setDefaultToCurrent,o.prms);
+                end
+            end
+        end
+        
+        function pruneLog(oList)
+            for o=oList
+                if ~isempty(o.prms)
+                    structfun(@pruneLog,o.prms);
+                end
+            end
+            
+        end
     end
+    
 end
