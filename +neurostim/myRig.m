@@ -94,6 +94,9 @@ switch computerName
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
         Screen('Preference', 'SkipSyncTests', 2);
         smallWindow = true;
+    case 'ROOT-PC'
+        c = rig(c,'xpixels',1280,'ypixels',1024,'screenWidth',40,'frameRate',85,'screenNumber',max(Screen('screens')));
+        smallWindow = false;    
     otherwise
         warning('This computer is not recognised. Using default settings.');
         scrNr = max(Screen('screens'));
