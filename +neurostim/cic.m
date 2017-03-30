@@ -1354,10 +1354,11 @@ classdef cic < neurostim.plugin
     
     methods
         function report(c)
+            %% Profile report
             plgns = fieldnames(c.profile);
             for i=1:numel(plgns)
-                figure('Name',plgns{i});
-                
+                if c.profile.(plgns{i}).cntr==0;break;end
+                figure('Name',plgns{i});                
                 items = fieldnames(c.profile.(plgns{i}));
                 items(strcmpi(items,'cntr'))=[];
                 nPlots = numel(items);
@@ -1372,7 +1373,36 @@ classdef cic < neurostim.plugin
                     title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(vals),2))));
                 end
             end
+            
+            %% Framedrop report
+            figure('Name',[c.file ' - framedrop report'])
+            [val,tr,ti,eTi] = get(c.prms.frameDrop);
+            val = cat(1,val{:});
+            delta =val(:,2); % How much too late...
+            slack = 0.2;
+            [~,~,criticalStart] = get(c.prms.trialStartTime,'atTrialTime',inf);
+            [~,~,criticalStop] = get(c.prms.trialStopTime,'atTrialTime',inf);
+            meanDuration = nanmean(criticalStop-criticalStart);
+            out = (ti<(criticalStart(tr)-slack*meanDuration) | ti>(criticalStop(tr)+slack*meanDuration));
+            for i=1:c.nrStimuli                
+                subplot(c.nrStimuli+1,1,i)
+                [~,~,stimstartT] = get(c.stimuli(i).prms.startTime,'atTrialTime',inf);
+                relativeTime  = ti(~out)-stimstartT(tr(~out));
+                relativeTrial  = tr(~out);
+                plot(relativeTime,relativeTrial,'.')
+                xlabel(['Time from stim start (ms)'])
+                ylabel 'Trial'
+                title (c.stimuli(i).name )
+                set(gca,'YLim',[0 max(relativeTrial)+1],'YTick',1:max(relativeTrial),'XLIm',[-slack*meanDuration (1+slack)*meanDuration])
+            end
+            subplot(c.nrStimuli+1,1,c.nrStimuli+1)
+            nrBins = round(numel(ti)/10);
+
+            histogram(ti-criticalStart(tr),nrBins,'BinLimits',[-slack*meanDuration (1+slack)*meanDuration]);%,tBins)
+            xlabel 'Time from trial start (ms)'
+            ylabel '#drops'
         end
+            
         
         function addProfile(c,what,name,duration)
             BLOCKSIZE = 1500;
