@@ -5,7 +5,7 @@ classdef cic < neurostim.plugin
     
     %% Constants
     properties (Constant)
-        PROFILE@logical = true; % Using a const to allow JIT to compile away profiler code
+        PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
@@ -73,9 +73,8 @@ classdef cic < neurostim.plugin
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
         stopTime = [];
-        frameStart = 0;
-        frameDeadline;
-        %data@sib;
+        
+        
         
         %% Profiling information.
         
@@ -354,7 +353,7 @@ classdef cic < neurostim.plugin
             
             
             c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
-            c.addProperty('frameDrop',[]);
+            c.addProperty('frameDrop',[NaN NaN]);
             c.addProperty('trialStartTime',[]);
             c.addProperty('trialStopTime',[]);
             c.addProperty('condition',[]);
@@ -744,7 +743,13 @@ classdef cic < neurostim.plugin
             Screen('Flip', c.window);
             if c.keyBeforeExperiment; KbWait(c.keyDeviceIndex);end            
             c.flags.experiment = true;
+          
             
+            FRAMEDURATION   = 1000/c.screen.frameRate;          
+            ITSAMISS        = c.FRAMESLACK*FRAMEDURATION;
+            locPROFILE      = c.PROFILE;
+            frameDeadline   = NaN;
+           
             nrBlocks = numel(c.blockFlow.list);
             for blockCntr=1:nrBlocks
                 c.flags.block = true;
@@ -796,8 +801,7 @@ classdef cic < neurostim.plugin
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
-                    c.frameStart=c.clockTime;
-                    FRAMEDURATION = 1000/c.screen.frameRate;
+                    
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -820,7 +824,7 @@ classdef cic < neurostim.plugin
                         KbQueueCheck(c);
                         
                         
-                        startFlipTime = c.clockTime;
+                        startFlipTime = GetSecs*1000; % Avoid function call to clocktime
                         
                         % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
                         % stimOn: An estimate of Stimulus-onset time
@@ -828,46 +832,49 @@ classdef cic < neurostim.plugin
                         % missed: indicates if the requested presentation deadline for your stimulus has
                         %           been missed. A negative value means that dead- lines have been satisfied.
                         %            Positive values indicate a
-                        %            deadline-miss. (BK: we use timing
-                        %            info instead)
+                        %            deadline-miss. 
                         % beampos: position of the monitor scanning beam when the time measurement was taken
-                        [vbl,stimOn,flip] = Screen('Flip', c.window,0,1-clr); %#ok<ASGLU>
-                        vbl =vbl*1000; %ms.
-                        if c.frame > 1 && c.PROFILE
-                            addProfile(c,'FRAMELOOP',c.name,c.toc);
+                        vSyncMode = 1; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run                        
+                        [ptbVbl,ptbStimOn] = Screen('Flip', c.window,0,1-clr,vSyncMode);                           
+                        if vSyncMode==0
+                            ptbVbl =ptbVbl*1000; %ms.
+                            ptbStimOn=ptbStimOn*1000;                            
+                        else
+                            % Flip's return arguments are not meaningful.
+                            % It is now difficult to estimate when exactly
+                            % the flip occurred. 
+                            ptbVbl = GetSecs*1000;
+                            ptbStimOn = ptbVbl;                            
+                        end
+                        
+                        if c.frame > 1 && locPROFILE
+                            addProfile(c,'FRAMELOOP','cic',c.toc);
                             tic(c)
-                            addProfile(c,'FLIPTIME',c.name,c.clockTime-startFlipTime);
+                            addProfile(c,'FLIPTIME','cic',GetSecs*1000-startFlipTime);
                         end
                         
-                        if c.frame == 1
-                            c.trialStartTime = stimOn*1000; % for trialDuration check
-                            c.flipTime=0;
-                        end
-                        
-                        
-%                         if c.guiOn
-%                             if mod(c.frame,c.guiFlipEvery)==0
-%                                 Screen('Flip',c.guiWindow,0,[],2);
-%                             end
-%                         end
-%                         
                         
                         %% Check Timing
                         % Delta between actual and deadline of flip;
-                        deltaFlip       = (vbl-c.frameDeadline) ;
-                        missed          = c.frame>1 && abs(deltaFlip) > c.FRAMESLACK*FRAMEDURATION;
-                        c.frameStart    = vbl; % Not logged, but used to check drops/jumps
-                        c.frameDeadline = vbl+FRAMEDURATION;
+                        deltaFlip       = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)                                                
+                        frameDeadline = ptbVbl+FRAMEDURATION;                       
+                        if c.frame == 1                            
+                            c.trialStartTime = ptbStimOn; 
+                            locTRIALSTARTTIME = ptbStimOn; % Faster local access for trialDuration check
+                            c.flipTime=0;                              
+                        else
+                            missed     = abs(deltaFlip) > ITSAMISS;    
+                            if missed
+                                c.frameDrop = [c.frame deltaFlip]; % Log frame and delta
+                                if c.guiOn
+                                    c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(deltaFlip)]);
+                                end
+                            end                            
+                        end 
                         
-                        if missed
-                            c.frameDrop = [c.frame deltaFlip];
-                            if c.guiOn
-                                c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(deltaFlip)]);
-                            end
-                        end
-                        
+                                                                                                
                         if c.getFlipTime
-                            c.flipTime = stimOn*1000-c.trialStartTime;% Used by stimuli to log their onset
+                            c.flipTime = ptbStimOn-locTRIALSTARTTIME;% Used by stimuli to log their onset
                             c.getFlipTime=false;
                         end
                         
@@ -875,8 +882,8 @@ classdef cic < neurostim.plugin
                     
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
-                    [~,stimOn]=Screen('Flip', c.window,0,1-c.itiClear);
-                    c.trialStopTime = stimOn*1000;
+                    [~,ptbStimOn]=Screen('Flip', c.window,0,1-c.itiClear);
+                    c.trialStopTime = ptbStimOn*1000;
                     c.frame = c.frame+1;
                     base(c.pluginOrder,neurostim.stages.AFTERTRIAL,c); 
                     afterTrial(c);

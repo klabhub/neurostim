@@ -51,11 +51,11 @@ switch computerName
         smallWindow = false;
         
     case 'KLAB-U'
-        scrNr = 2;
+        scrNr = 1;
         rect = Screen('rect',scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
-        %c.screen.frameRate=60;
-        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',75,'screenNumber',scrNr);
+        
+%        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         smallWindow = false;
         
     case 'XPS2013'

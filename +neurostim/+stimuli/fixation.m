@@ -23,7 +23,7 @@ classdef fixation < neurostim.stimulus
         end
         
         
-        function beforeFrame(o,c,evt)
+        function beforeFrame(o)
             switch upper(o.shape)                                   
                 case 'RECT' % Rectangle                
                     Screen('FillRect', o.window, o.color,[-(o.size/2) -(o.size2/2) (o.size/2) (o.size2/2)]);                    

@@ -269,16 +269,23 @@ classdef stimulus < neurostim.plugin
         end
         function baseBeforeFrame(s)            
             if s.disabled; return;end
-            
+            % Because this function is called for every stimulus, every
+            % frame, try to optimize as much as possible by avoiding
+            % duplicate access to member properties and dynprops in
+            % particular
+            locWindow =s.window; 
             %Apply stimulus transform
-            if  s.X ~=0 || s.Y~=0 || s.Z~=0  % Evaluating s.XYZ is slower so this could save time compared to any([XYZ]~=0)
-                Screen('glTranslate',s.window,s.X,s.Y,s.Z);
+            sX =s.X;sY=s.Y;sZ=s.Z;            
+            if  any([sX sY sZ]~=0)
+                Screen('glTranslate',locWindow,sX,sY,sZ);
             end
-            if s.scale.x~=1 || s.scale.y ~=1
-                Screen('glScale',s.window,s.scale.x,s.scale.y);
+            sScale = s.scale;
+            if any([sScale.x sScale.y]~=1)
+                Screen('glScale',locWindow,sScale.x,sScale.y);
             end
-            if  s.angle ~=0
-                Screen('glRotate',s.window,s.angle,s.rx,s.ry,s.rz);
+            sAngle= s.angle;
+            if  sAngle ~=0
+                Screen('glRotate',locWindow,sAngle,s.rx,s.ry,s.rz);
             end
             
             %Should the stimulus be drawn on this frame?
@@ -339,9 +346,9 @@ classdef stimulus < neurostim.plugin
                 % get the next screen flip for stopTime
                 s.cic.getFlipTime=true;
             end
-            Screen('glLoadIdentity', s.window);
+            Screen('glLoadIdentity', locWindow);
             if s.diode.on && s.flags.on
-                Screen('FillRect',s.window,s.diode.color,s.diodePosition);
+                Screen('FillRect',locWindow,s.diode.color,s.diodePosition);
             end
         end
         

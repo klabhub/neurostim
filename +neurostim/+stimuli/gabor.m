@@ -42,7 +42,7 @@ classdef gabor < neurostim.stimulus
             
         end
         
-        function beforeExperiment(o,c,evt)
+        function beforeExperiment(o)
             % Create the procedural texture
             try
                 createProcGabor(o);
@@ -52,32 +52,40 @@ classdef gabor < neurostim.stimulus
         end
         
         
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o)
             glUseProgram(o.shader);
             glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
             glUseProgram(0);
         end
         
-        function beforeFrame(o,c,evt)
+        function beforeFrame(o)
             % Draw the texture with the current parameter settings
             %Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] [,rotationAngle] [, filterMode] [, globalAlpha] [, modulateColor] [, textureShader] [, specialFlags] [, auxParameters]);
             sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
             
             %aux parameters need to have 4xn with n<=8 size
-            if numel(o.sigma)==1
-                pad = 0;
-            else
-                pad = [];
+            oSigma  = o.sigma;
+            if numel(oSigma)==1
+                oSigma =[oSigma 0];
             end
-            aux = [o.phase, o.frequency, o.sigma, pad; o.contrast 0 0 0]';
+            oColor = o.color;
+            if numel(oColor) ==1
+                oColor = [oColor 0 0];% Luminance only spec (probably M16 mode)
+            end
+            
+            
+            aux = [o.phase, o.frequency, oSigma; o.contrast 0 0 0]';
 
-            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, 90+o.orientation, filterMode, globalAlpha, [o.color, o.alpha] , textureShader,specialFlags, aux);
+            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, 90+o.orientation, filterMode, globalAlpha, [oColor, o.alpha] , textureShader,specialFlags, aux);
 
         end
         
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
             % Change any or all of the parameters.
-            o.phase = o.phase + o.phaseSpeed;
+            oPhaseSpeed  = o.phaseSpeed;
+            if oPhaseSpeed ~=0
+                o.phase = o.phase + oPhaseSpeed;
+            end
         end
         
     end
