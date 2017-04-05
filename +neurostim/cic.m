@@ -779,12 +779,13 @@ classdef cic < neurostim.plugin
                     
                     % Restore default values
                     setDefaultParmsToCurrent(c.pluginOrder);
-                    
+       
                     
                     nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
                     c.blockTrial = c.blockTrial+1;  % For logging and gui only
                     beforeTrial(c);
                     
+
                     base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
                     
                     
@@ -814,9 +815,7 @@ classdef cic < neurostim.plugin
                         
                         
                         base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c); 
-                        
-                        Screen('DrawingFinished',c.window);
-                        
+                        Screen('DrawingFinished',c.window);                        
                         base(c.pluginOrder,neurostim.stages.AFTERFRAME,c); 
                         
                         KbQueueCheck(c);
@@ -875,6 +874,7 @@ classdef cic < neurostim.plugin
                             c.flipTime = ptbStimOn-locTRIALSTARTTIME;% Used by stimuli to log their onset
                             c.getFlipTime=false;
                         end
+            
                         
                     end % Trial running
                     
@@ -887,6 +887,7 @@ classdef cic < neurostim.plugin
                     afterTrial(c);
                 end %conditions in block
                 
+                Screen('glLoadIdentity', c.window);                          
                 if ~c.flags.experiment;break;end
                 waitforkey=false;
                 if isa(c.blocks(c.block).afterMessage,'function_handle')
@@ -907,8 +908,10 @@ classdef cic < neurostim.plugin
             end %blocks
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
+            
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.window);
+                        
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c); 
             c.KbQueueStop;
             if c.keyAfterExperiment; KbWait(c.keyDeviceIndex);end
