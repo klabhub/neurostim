@@ -465,11 +465,9 @@ classdef cic < neurostim.plugin
             if nargin <4
                 keys = {};
             end
-            if ismember('eScript',c.plugins)
-                plg = c.eScript;
-            else
-                plg = neurostim.plugins.eScript(c);
-                
+            plg = pluginsByClass(c,'eScript');
+            if isempty(plg)
+                plg = neurostim.plugins.eScript(c);                
             end
             plg.addScript(when,fun,keys);
         end

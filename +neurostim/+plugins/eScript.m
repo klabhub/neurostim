@@ -110,20 +110,30 @@ classdef eScript < neurostim.plugin
         % eScript plugin will not be listening to these events so these
         % members will never be called.
         function beforeFrame(o)
-            o.beforeFrameFun(o.cic);
+            if ~isempty(o.beforeFrameFun)
+                o.beforeFrameFun(o.cic);
+            end
         end
         function afterFrame(o)
-            o.afterFrameFun(o.cic);
+            if ~isempty(o.afterFrameFun)
+                o.afterFrameFun(o.cic);
+            end
         end
         function beforeTrial(o)
-            o.beforeTrialFun(o.cic);
+            if ~isempty(o.beforeTrialFun)
+                o.beforeTrialFun(o.cic);
+            end
         end
         function afterTrial(o)
-            o.afterTrialFun(o.cic);
+            if ~isempty(o.afterTrialFun)           
+                o.afterTrialFun(o.cic);
+            end
         end
         
         function keyboard(o,key,time)
-            o.keyFun(o,key,time);
+            if ~isempty(o.keyFun)
+               o.keyFun(o,key,time);
+            end
         end
         
     end

@@ -9,11 +9,13 @@ classdef sound < neurostim.plugin
         function o=sound(c)
             o=o@neurostim.plugin(c,'sound');
             o.listenToEvent('BEFOREEXPERIMENT', 'AFTEREXPERIMENT');
+            % Sound initialization
+            InitializePsychSound(1);
         end
         
         function beforeExperiment(o)
-            % Sound initialization
-            InitializePsychSound(1);
+            
+            
             o.paHandle = PsychPortAudio('Open');
         end
         

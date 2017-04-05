@@ -87,36 +87,25 @@ classdef quest < neurostim.plugins.adaptive
         
         
 %         
-%         function [m,sd,values]= threshold(o)
-%             % Return the estimated thresholds for all conditions
-%             % m = threshold estimate  (QuestMean)
-%             % sd = standard deviation estimate (QuestStd)
-%             % values = Cell array with one vector per condition containing
-%             %               all  parameter values used in the experiment
-%             m = [] ; sd =[];values=[];
-%             if ~isempty(o.Q)
-%                 m =QuestMean(o.Q);
-%                 sd = QuestSd(o.Q);
-%                 m= o.i2p(m);
-%                 sd = o.i2p(sd);% Not sure this is correct,...
-%                 values= o.i2p(o.Q.intensity(1:o.Q.trialCount)');
-%             end
-%             
-%             
-%             if false
-%                 figure;
-%                 hold on
-%                 for i=1:2
-%                     plot(contrasts{i});
-%                 end
-%                 legend('Ori -45','Ori +45');
-%                 xlabel 'Trial'
-%                 ylabel 'Test Contrast'
-%                 title (['Quest Threshold Contrast Estimates. Mean: ' num2str(m,2) '  Std:' num2str(sd)])
-%             end
-%             
-%         end
-%         
+        function [m,sd]= threshold(oo)
+            % Return the estimated thresholds for all conditions
+            % m = threshold estimate  (QuestMean)
+            % sd = standard deviation estimate (QuestStd)
+            m = nan(size(oo)) ; sd =nan(size(oo));
+            cntr=0;
+            for o=oo
+                cntr= cntr+1;
+            if ~isempty(o.Q)
+                x =QuestMean(o.Q);                
+                m(cntr)= o.i2p(x);
+                % Calculate sd while taking i2p mapping into account
+                x = o.i2p(o.Q.x);
+                p=sum(o.Q.pdf);
+                sd(cntr)=sqrt(sum(o.Q.pdf.*x.^2)/p-(sum(o.Q.pdf.*x)/p).^2);
+            end                                  
+            end
+        end
+        
     end
     
 end
