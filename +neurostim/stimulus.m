@@ -368,8 +368,9 @@ classdef stimulus < neurostim.plugin
             afterTrial(s);
         end
         
-        function baseAfterExperiment(~)
+        function baseAfterExperiment(s)
             %NOP
+            afterExperiment(s);
         end
         
         function beforeExperiment(~)
