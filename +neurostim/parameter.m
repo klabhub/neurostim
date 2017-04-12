@@ -354,7 +354,9 @@ classdef parameter < handle & matlab.mixin.Copyable
                 if iscell(data)
                     data=data(stay);
                 else
-                    data=data(stay,:);
+                    sz = size(data);
+                    data = data(stay,:);
+                    data = reshape(data,[sum(stay),sz(2:end)]);
                 end
                 trial = trial(stay);
                 time = time(stay);
