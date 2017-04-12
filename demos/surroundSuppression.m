@@ -57,12 +57,6 @@ f.X = 0;
 f.Y = 0;
 
 
-fix = plugins.fixate(c,'f1');
-fix.from = '@f1.startTime';
-fix.to = '@dots.stopTime';
-fix.X = '@fix.X';
-fix.Y = '@fix.Y';
-fix.tolerance = 3;
  
 %% Define conditions and blocks
 surroundContrast = 0.6;

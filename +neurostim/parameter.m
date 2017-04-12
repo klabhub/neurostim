@@ -330,26 +330,32 @@ classdef parameter < handle & matlab.mixin.Copyable
                     end
                 end
                 
-                if iscell(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data))
-                    if all(cellfun(@(x) (size(x,1)==1),data))
-                        try
-                            data = cat(1,data{:});
-                        catch me %#ok<NASGU>
-                            % Failed. keep the cell array
-                        end
-                    elseif all(cellfun(@(x) (size(x,2)==1),data))
-                        try
-                            data = cat(2,data{:});
-                        catch me %#ok<NASGU>
-                            % Failed. keep the cell array
-                        end
+                %Convert cell array to a matrix if possible
+                if iscell(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
+                    
+                    %Look for a singleton dimension
+                    sz = size(data{1});
+                    catDim = find(sz==1,1,'first');
+                    if isempty(catDim)
+                        %None found. Matrix. So we'll add a dimension.
+                        catDim = numel(sz)+1;
                     end
+                                       
+                    %Convert to matrix
+                    data = cat(catDim,data{:});
+                    
+                    %Put trials in the first dimension
+                    data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);                    
                 end
             end
             
             if ~isempty(p.Results.trial)
                 stay = ismember(trial,p.Results.trial);
-                data=data(stay);
+                if iscell(data)
+                    data=data(stay);
+                else
+                    data=data(stay,:);
+                end
                 trial = trial(stay);
                 time = time(stay);
                 trialTime = trialTime(stay);
