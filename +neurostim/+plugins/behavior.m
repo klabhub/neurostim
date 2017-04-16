@@ -68,15 +68,15 @@ classdef behavior < neurostim.plugin
         
         function afterFrame(o)
             if o.enabled
-                o.update(o.cic,'AFTERFRAME');
+                update(o,o.cic,'AFTERFRAME');
             end
         end
         
         function afterTrial(o)
-            o.update(o.cic,'AFTERTRIAL');
+            update(o,o.cic,'AFTERTRIAL');
             if ~o.done && o.started
                 %The trial ended before the behaviour could be completed. Treat this as a completion.
-                o.result(true,'COMPLETE',false);
+                result(o,true,'COMPLETE',false);
                 o.stopTime = o.cic.trialTime;
             end
         end 

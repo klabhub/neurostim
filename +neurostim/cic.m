@@ -801,6 +801,7 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     
+                    Priority(1);
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -832,7 +833,7 @@ classdef cic < neurostim.plugin
                         %            deadline-miss. 
                         % beampos: position of the monitor scanning beam when the time measurement was taken
                         vSyncMode = 1; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run                        
-                        [ptbVbl,ptbStimOn] = Screen('Flip', c.window,0,1-clr,vSyncMode);                           
+                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.window,0,1-clr,vSyncMode);                           
                         if vSyncMode==0
                             ptbVbl =ptbVbl*1000; %ms.
                             ptbStimOn=ptbStimOn*1000;                            
@@ -841,7 +842,8 @@ classdef cic < neurostim.plugin
                             % It is now difficult to estimate when exactly
                             % the flip occurred. 
                             ptbVbl = GetSecs*1000;
-                            ptbStimOn = ptbVbl;                            
+                            ptbStimOn = ptbVbl;      
+                            missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
                         end
                         
                         if c.frame > 1 && locPROFILE
@@ -852,17 +854,15 @@ classdef cic < neurostim.plugin
                         
                         
                         %% Check Timing
-                        % Delta between actual and deadline of flip;
-                        deltaFlip       = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)                                                
+                        % Delta between actual and deadline of flip;                        
                         frameDeadline = ptbVbl+FRAMEDURATION;                       
                         if c.frame == 1                            
                             c.trialStartTime = ptbStimOn; 
                             locTRIALSTARTTIME = ptbStimOn; % Faster local access for trialDuration check
                             c.flipTime=0;                              
                         else
-                            missed     = abs(deltaFlip) > ITSAMISS;    
-                            if missed
-                                c.frameDrop = [c.frame deltaFlip]; % Log frame and delta
+                            if missed>ITSAMISS
+                                c.frameDrop = [c.frame missed]; % Log frame and delta
                                 if c.guiOn
                                     c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(deltaFlip)]);
                                 end
@@ -877,7 +877,7 @@ classdef cic < neurostim.plugin
             
                         
                     end % Trial running
-                    
+                    Priority(0);
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
                     [~,ptbStimOn]=Screen('Flip', c.window,0,1-c.itiClear);
@@ -1377,6 +1377,11 @@ classdef cic < neurostim.plugin
             %% Framedrop report
             figure('Name',[c.file ' - framedrop report'])
             [val,tr,ti,eTi] = get(c.prms.frameDrop);
+            if size(val,1)==1
+                % No drops
+                title 'No Drops';
+                return
+            end
             val = cat(1,val{:});
             delta =val(:,2); % How much too late...
             slack = 0.2;
@@ -1385,22 +1390,32 @@ classdef cic < neurostim.plugin
             meanDuration = nanmean(criticalStop-criticalStart);
             out = (ti<(criticalStart(tr)-slack*meanDuration) | ti>(criticalStop(tr)+slack*meanDuration));
             for i=1:c.nrStimuli                
-                subplot(c.nrStimuli+1,1,i)
+                subplot(c.nrStimuli+2,1,i)
                 [~,~,stimstartT] = get(c.stimuli(i).prms.startTime,'atTrialTime',inf);
                 relativeTime  = ti(~out)-stimstartT(tr(~out));
                 relativeTrial  = tr(~out);
                 plot(relativeTime,relativeTrial,'.')
-                xlabel(['Time from stim start (ms)'])
+                xlabel('Time from stim start (ms)')
                 ylabel 'Trial'
                 title (c.stimuli(i).name )
                 set(gca,'YLim',[0 max(relativeTrial)+1],'YTick',1:max(relativeTrial),'XLIm',[-slack*meanDuration (1+slack)*meanDuration])
             end
-            subplot(c.nrStimuli+1,1,c.nrStimuli+1)
-            nrBins = round(numel(ti)/10);
-
+            subplot(c.nrStimuli+2,1,c.nrStimuli+1)
+            nrBins = max(10,round(numel(ti)/10));
+    
             histogram(ti-criticalStart(tr),nrBins,'BinLimits',[-slack*meanDuration (1+slack)*meanDuration]);%,tBins)
+    
             xlabel 'Time from trial start (ms)'
             ylabel '#drops'
+            
+            
+            subplot(c.nrStimuli+2,1,c.nrStimuli+2)
+            frameduration = 1000./c.screen.frameRate;
+            bins  = linspace(-frameduration,frameduration,20);
+            histogram(delta,bins);%
+            xlabel 'Delta (ms)'
+            ylabel '#drops'
+            
         end
             
         
