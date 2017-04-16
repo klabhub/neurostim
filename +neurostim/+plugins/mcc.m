@@ -40,7 +40,7 @@ classdef mcc < neurostim.plugin
         function o =mcc(c)
             o  = o@neurostim.plugin(c,'mcc');
             
-            o.listenToEvent('AFTERTRIAL','AFTERFRAME');
+            
             
             % Check what is there.
             o.devices = PsychHID('Devices');

@@ -45,7 +45,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             
             o.uid = u;
             o.trialOutcome = funStr;
-            o.listenToEvent('AFTERTRIAL');
+            
         end
         
         function belongsTo(o,dsgn,cond)

@@ -13,7 +13,7 @@ classdef fmri < neurostim.plugin
             o.addProperty('triggerKey','t');
             
             o.addKey('t',@(x,key) keyboard(x,key));
-            o.listenToEvent('BEFORETRIAL','BEFOREEXPERIMENT');
+            
         end
         
         function beforeExperiment(o)

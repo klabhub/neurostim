@@ -17,7 +17,7 @@ classdef soundFeedback < neurostim.plugins.feedback
     methods (Access=public)
         function o=soundFeedback(c,name)
             o=o@neurostim.plugins.feedback(c,name);
-            o.listenToEvent('BEFOREEXPERIMENT');            
+            
         end
     end
     

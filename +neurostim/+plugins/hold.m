@@ -22,7 +22,7 @@ classdef hold < neurostim.plugins.behavior
             o=o@neurostim.plugins.behavior(c,name);
             o.addProperty('invert',false);
             o.addProperty('mccChannel',1);
-            o.listenToEvent('BEFOREEXPERIMENT');
+            
             o.continuous = true;
         end
         

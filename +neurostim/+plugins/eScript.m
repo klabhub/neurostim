@@ -79,8 +79,6 @@ classdef eScript < neurostim.plugin
             
             if strcmpi(when,'KEYBOARD')
                 o.listenToKeyStroke(keys)
-            elseif ~ismember(upper(when),o.evts)
-                o.listenToEvent(upper(when)); % Plugin should start listening now.
             end
             
             %% Because the script is not logged automatically, we store

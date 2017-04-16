@@ -222,24 +222,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             KbQueueCreate(o.cic);
             KbQueueStart(o.cic);
         end
-        
-        
-        function listenToEvent(o,varargin)
-            % Add  an event that this plugin will respond to. Note that the
-            % user must implement the events function to do the work
-            % Checks to make sure function is called in constructor.
-            callStack = dbstack;
-            tmp=strsplit(callStack(2).name,'.');
-            if ~strcmp(tmp{1},tmp{2}) && ~strcmpi(tmp{2},'addScript')
-                error('Cannot create event listener outside constructor.')
-            else
-                if numel(varargin)==0 || (numel(varargin)==1 && isempty(varargin{1}))
-                    o.evts = {};
-                else
-                    o.evts = union(o.evts,varargin)';    %Only adds if not already listed.
-                end
-            end
-        end
+                        
         
     end
     
