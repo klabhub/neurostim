@@ -735,11 +735,11 @@ classdef cic < neurostim.plugin
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             c.flags.experiment = true;
                         
-            FRAMEDURATION   = 1000/c.screen.frameRate;
+            FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
             ITSAMISS        = c.FRAMESLACK*FRAMEDURATION;
             locPROFILE      = c.PROFILE;
             frameDeadline   = NaN;
-            
+            ListenChar(-1);
             nrBlocks = numel(c.blockFlow.list);
             for blockCntr=1:nrBlocks
                 c.flags.block = true;
@@ -793,7 +793,7 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     
-                    Priority(1);
+                    Priority(MaxPriority(c.window)) 
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -814,7 +814,7 @@ classdef cic < neurostim.plugin
                         KbQueueCheck(c);
                         
                         
-                        startFlipTime = GetSecs*1000; % Avoid function call to clocktime
+                        startFlipTime = GetSecs; % Avoid function call to clocktime
                         
                         % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
                         % stimOn: An estimate of Stimulus-onset time
@@ -824,16 +824,15 @@ classdef cic < neurostim.plugin
                         %            Positive values indicate a
                         %            deadline-miss.
                         % beampos: position of the monitor scanning beam when the time measurement was taken
-                        vSyncMode = 1; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
-                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.window,0,1-clr,vSyncMode);
+                        vSyncMode = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
+                        % Deadline has to be before the predicted next VBL time
+                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.window,frameDeadline,1-clr,vSyncMode);
                         if vSyncMode==0
-                            ptbVbl =ptbVbl*1000; %ms.
-                            ptbStimOn=ptbStimOn*1000;
                         else
                             % Flip's return arguments are not meaningful.
                             % It is now difficult to estimate when exactly
                             % the flip occurred.
-                            ptbVbl = GetSecs*1000;
+                            ptbVbl = GetSecs;
                             ptbStimOn = ptbVbl;
                             missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
                         end
@@ -841,32 +840,31 @@ classdef cic < neurostim.plugin
                         if c.frame > 1 && locPROFILE
                             addProfile(c,'FRAMELOOP','cic',c.toc);
                             tic(c)
-                            addProfile(c,'FLIPTIME','cic',GetSecs*1000-startFlipTime);
+                            addProfile(c,'FLIPTIME','cic',1000*(GetSecs-startFlipTime));
                         end
                         
                         
                         %% Check Timing
                         % Delta between actual and deadline of flip;
-                        frameDeadline = ptbVbl+FRAMEDURATION;
+                        frameDeadline = ptbVbl+0.9*FRAMEDURATION; %a little bit before the next VBL..
                         if c.frame == 1
-                            c.trialStartTime = ptbStimOn;
-                            locTRIALSTARTTIME = ptbStimOn; % Faster local access for trialDuration check
+                            locTRIALSTARTTIME = ptbStimOn*1000; % Faster local access for trialDuration check
+                            c.trialStartTime = locTRIALSTARTTIME;% log it                            
                             c.flipTime=0;
                         else
                             if missed>ITSAMISS
                                 c.frameDrop = [c.frame missed]; % Log frame and delta
                                 if c.guiOn
-                                    c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(deltaFlip)]);
+                                    c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
                                 end
                             end
                         end
                         
                         
                         if c.getFlipTime
-                            c.flipTime = ptbStimOn-locTRIALSTARTTIME;% Used by stimuli to log their onset
+                            c.flipTime = ptbStimOn*1000-locTRIALSTARTTIME;% Used by stimuli to log their onset
                             c.getFlipTime=false;
-                        end
-                        
+                        end                        
                         
                     end % Trial running
                     Priority(0);
@@ -912,6 +910,7 @@ classdef cic < neurostim.plugin
             pruneLog([c.pluginOrder c]);
             c.saveData;
             Screen('CloseAll');
+            ListenChar(0);
             if c.PROFILE; report(c);end
         end
         
@@ -1102,7 +1101,7 @@ classdef cic < neurostim.plugin
             % separate queue for stimuli (subject keybaord) and plugins
             % (experimenter keyboard)
             clear KbCheck; % Seems to be necessary on Ubuntu
-             c.kbInfo.activeKb = {}; % Use a cell to store [] for "default keyboard"
+            c.kbInfo.activeKb = {}; % Use a cell to store [] for "default keyboard"
             if ~isempty(c.kbInfo.subject) && ~isempty(c.kbInfo.experimenter)
                 % Separate subject/experimenter keyboard defined
                 keyList = zeros(1,256);
@@ -1167,7 +1166,9 @@ classdef cic < neurostim.plugin
         function KbQueueStop(c)
             for kb=1:numel(c.kbInfo.activeKb)
                 KbQueueStop(c.kbInfo.activeKb{kb});
+                KbQueueRelease(c.kbInfo.activeKb{kb});
             end
+            
         end
         
         function colorOk = loadCalibration(c)
@@ -1389,7 +1390,9 @@ classdef cic < neurostim.plugin
             plgns = fieldnames(c.profile);
             for i=1:numel(plgns)
                 if c.profile.(plgns{i}).cntr==0;break;end
-                figure('Name',plgns{i});
+                MAXDURATION = 3*1000/c.screen.frameRate;
+                figure('Name',plgns{i},'position',[680   530   818   420]);
+                clf;
                 items = fieldnames(c.profile.(plgns{i}));
                 items(strcmpi(items,'cntr'))=[];
                 nPlots = numel(items);
@@ -1398,13 +1401,33 @@ classdef cic < neurostim.plugin
                 
                 for j=1:nPlots
                     subplot(nPerRow,nPerCol,j);
-                    vals = c.profile.(plgns{i}).(items{j});
-                    hist(vals,100);
+                    vals{i,j} = c.profile.(plgns{i}).(items{j});
+                    out =isinf(vals{i,j}) | isnan(vals{i,j});
+                    thisVals= min(vals{i,j}(~out),MAXDURATION);
+                    hist(thisVals,100);
                     xlabel 'Time (ms)'; ylabel '#'
-                    title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(vals),2))));
+                    title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(vals{i,j}),2))));
                 end
             end
-            
+            if numel(plgns)>1
+            figure('Name','Total','position',[680   530   818   420]); 
+            clf
+            frameItems = find(contains(items,'FRAME'));
+            cntr=1;
+                for j=frameItems'
+                    subplot(1,2,cntr);
+                    total = cat(1,vals{2:end,j});
+                    total =sum(total);
+                    out =isinf(total) | isnan(total);                       
+                    total = min(total(~out),MAXDURATION);
+                    histogram(total,100);
+                    xlabel 'Time (ms)'; ylabel '#'
+                    title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(total)))));
+                    cntr = cntr+1;
+                    hold on
+                    plot(1000./c.screen.frameRate*ones(1,2),ylim,'r')
+                end
+            end
             %% Framedrop report
             figure('Name',[c.file ' - framedrop report'])
             [val,tr,ti,eTi] = get(c.prms.frameDrop);
@@ -1414,7 +1437,7 @@ classdef cic < neurostim.plugin
                 return
             end
             val = cat(1,val{:});
-            delta =val(:,2); % How much too late...
+            delta =1000*val(:,2); % How much too late...
             slack = 0.2;
             [~,~,criticalStart] = get(c.prms.trialStartTime,'atTrialTime',inf);
             [~,~,criticalStop] = get(c.prms.trialStopTime,'atTrialTime',inf);
@@ -1444,6 +1467,7 @@ classdef cic < neurostim.plugin
             frameduration = 1000./c.screen.frameRate;
             bins  = linspace(-frameduration,frameduration,20);
             histogram(delta,bins);%
+            title(['mean = ' num2str(nanmean(delta))])
             xlabel 'Delta (ms)'
             ylabel '#drops'
             

@@ -88,7 +88,8 @@ switch computerName
         c.screen.colorMode = 'RGB';            
         smallWindow = false;
    case 'PTB-P-UBUNTU'
-        c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
+        c = rig(c,'keyboardNumber',[],'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
+        
         c.screen.colorMode = 'RGB';            
         smallWindow = false;                    
   case 'PC2017A'
