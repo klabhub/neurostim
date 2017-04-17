@@ -34,16 +34,23 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
                        
         
-        function addKey(o,key,keyHelp)
-            % addKey(key, fnHandle [,keyHelp])
+        function addKey(o,key,keyHelp,isSubject)
+            % addKey(key, fnHandle [,keyHelp],[,subject])
             % Runs a function in response to a specific key press.
             % key - a single key (string)
-            % handler - function handle of function to run.
-            % Function must be of the format @fn(o,key).
-            if nargin < 4
+            % keyHelp -  a string that explains what this key does
+            % isSubject - bool to indicate whether this is a key press the
+            % subject should do. (Defaults to true for stimuli, false for
+            % plugins)
+            % The user must implement keyboard(o,key)
+            nin =nargin;
+            if nin < 4
+                isSubject = isa(o,'neurostim.stimulus');
+                if nin <3 
                 keyHelp = '?';           
+                end
             end
-            addKeyStroke(o.cic,key,keyHelp,o);
+            addKeyStroke(o.cic,key,keyHelp,o,isSubject);
         end
         
         % Convenience wrapper; just passed to CIC

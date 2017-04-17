@@ -46,6 +46,20 @@ classdef cic < neurostim.plugin
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
+        
+        %% Keyboard interaction
+         kbInfo@struct= struct('keys',{[]},...% PTB numbers for each key that is handled.
+            'help',{{}},... % Help info for key            
+            'plugin',{{}},...  % Callback functions
+            'isSubject',{logical([])},... % Is this a key that is handled by subject keyboard 
+            'default',{-1},... default keyboard -1 means all keyboard
+            'subject',{[]},... % The keyboard that will handle stimuli (=subject)
+            'experimenter',{[]},...% The keyboard that will handle plugins (=experimenter)
+            'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
+            'activeKb',{[]});  % Indices of keyboard that have keys associated with them. set internally)
+         
+       
+        
     end
     
     %% Protected properties.
@@ -76,18 +90,7 @@ classdef cic < neurostim.plugin
         
         %% Profiling information.
         
-        %% Keyboard interaction
-         kbInfo@struct= struct('keys',{[]},...% PTB numbers for each key that is handled.
-            'help',{{}},... % Help info for key            
-            'plugin',{{}},...  % Callback functions
-            'isSubject',{[]},... % Is this a key that is handled by subject keyboard 
-            'default',{[]},... default keyboard
-            'subject',{[]},... % The keyboard that will handle stimuli (=subject)
-            'experimenter',{[]},...% The keyboard that will handle plugins (=experimenter)
-            'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
-            'activeKb',{[]});  % Indices of keyboard that have keys associated with them. set internally)
          
-        
         EscPressedTime;
         lastFrameDrop=1;
         propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/nrTrialsTotal'};
@@ -926,7 +929,7 @@ classdef cic < neurostim.plugin
         
         %% Keyboard handling routines
         %
-        function addKeyStroke(c,key,keyHelp,plg)
+        function addKeyStroke(c,key,keyHelp,plg,isSubject)
             if ischar(key)
                 key = KbName(key);
             end
@@ -939,7 +942,7 @@ classdef cic < neurostim.plugin
                 c.kbInfo.keys(end+1)  = key;
                 c.kbInfo.help{end+1} = keyHelp;
                 c.kbInfo.plugin{end+1} = plg; % Handle to plugin to call keyboard()
-                c.kbInfo.isSubject(end+1) = isa(plg,'neurostim.stimulus');
+                c.kbInfo.isSubject(end+1) = isSubject;
             end
         end
         
@@ -1098,24 +1101,28 @@ classdef cic < neurostim.plugin
             % Put the requested keys in KBQueues, if requested, create a
             % separate queue for stimuli (subject keybaord) and plugins
             % (experimenter keyboard)
+            clear KbCheck; % Seems to be necessary on Ubuntu
              c.kbInfo.activeKb = {}; % Use a cell to store [] for "default keyboard"
             if ~isempty(c.kbInfo.subject) && ~isempty(c.kbInfo.experimenter)
                 % Separate subject/experimenter keyboard defined
                 keyList = zeros(1,256);
-                keyList(c.kbInfo.keys(c.kbInfo.isSubject)) = 1;
-                if any(keyList)
+                if any(c.kbInfo.isSubject)
+                    keyList(c.kbInfo.keys(c.kbInfo.isSubject)) = 1;                    
+                 if any(keyList)
                     KbQueueCreate(c.kbInfo.subject,keyList);
                     KbQueueStart(c.kbInfo.subject);
                     c.kbInfo.activeKb{end+1} = c.kbInfo.subject;
                 end
-                
+                end
                 keyList = zeros(1,256);
+                if any(~c.kbInfo.isSubject)
                 keyList(c.kbInfo.keys(~c.kbInfo.isSubject)) = 1;
                 if any(keyList)
                     KbQueueCreate(c.kbInfo.experimenter,keyList);
                     KbQueueStart(c.kbInfo.experimenter);
                     c.kbInfo.activeKb{end+1} = c.kbInfo.experimenter;
                 end
+                end 
             else
                 keyList = zeros(1,256);
                 keyList(c.kbInfo.keys) = 1;
@@ -1140,7 +1147,7 @@ classdef cic < neurostim.plugin
                     ks = find(firstPress);
                     for k=ks
                         ix = find(c.kbInfo.keys==k);% should be only one.
-                        if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
+                        if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end                        
                         keyboard(c.kbInfo.plugin{ix},KbName(k));%,firstPress(k));
                     end
                 end
