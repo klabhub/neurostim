@@ -484,10 +484,7 @@ classdef cic < neurostim.plugin
                         c.flags.trial = false;
                     else
                         c.EscPressedTime=GetSecs;
-                    end
-                otherwise
-                    %This used to contain code for handling actions from
-                    %addResponse() - no longer used I believe.
+                    end                
             end
         end
         
@@ -527,7 +524,7 @@ classdef cic < neurostim.plugin
                 newOrder = varargin;
                 notKnown = ~ismember(newOrder,defaultOrder);
                 if any(notKnown)
-                    warning(['Not a stimulus or plugin: ' cat(2,newOrder{notKnown}) ' . Ordering failed. Removed from list']);
+                    warning(['Not a stimulus or plugin: ' neurostim.utils.separatedString(newOrder(notKnown)) ' . Ordering failed. Removed from list']);
                     newOrder(notKnown) = [];
                 end
                 notSpecified = defaultOrder(~ismember(defaultOrder,newOrder));
