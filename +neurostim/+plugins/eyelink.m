@@ -53,8 +53,8 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink; % Check that the EyelinkToolBox is available.
             %clear Eyelink;
             o = o@neurostim.plugins.eyetracker(c);
-            o.addKey('F9',@keyboard,'DriftCorrect');
-            o.addKey('F8',@keyboard,'EyelinkSetup');
+            o.addKey('F9','DriftCorrect');
+            o.addKey('F8','EyelinkSetup');
             
             o.addProperty('eyeEvts',struct);
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus

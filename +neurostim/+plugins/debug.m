@@ -5,12 +5,12 @@ classdef debug < neurostim.plugin
     methods
         function o = debug(c)
             o = o@neurostim.plugin(c,'debug');
-            o.addKey('e',@keyboardResponse,'Toggle Erase');
-            o.addKey('c',@keyboardResponse,'Toggle Cursor');
+            o.addKey('e','Toggle Erase');
+            o.addKey('c','Toggle Cursor');
         end
         
         % handle the key strokes defined above
-        function keyboardResponse(o,key)
+        function keyboard(o,key)
             switch upper(key)
                 case 'N'
                     % End trial immediately and move to the next

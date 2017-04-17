@@ -78,7 +78,7 @@ classdef eScript < neurostim.plugin
             end
             
             if strcmpi(when,'KEYBOARD')
-                o.listenToKeyStroke(keys)
+                o.addKey(keys)
             end
             
             %% Because the script is not logged automatically, we store

@@ -12,7 +12,7 @@ classdef fmri < neurostim.plugin
             o.addProperty('trigger',0);
             o.addProperty('triggerKey','t');
             
-            o.addKey('t',@(x,key) keyboard(x,key));
+            o.addKey('t');
             
         end
         
@@ -47,7 +47,7 @@ classdef fmri < neurostim.plugin
         
         % Catch trigger keys. Could be extended with generic user
         % responses.
-        function keyboard(o,key,~)
+        function keyboard(o,key)
             switch upper(key)
                 case 'T'
                     o.trigger = o.trigger+1;

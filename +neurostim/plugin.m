@@ -8,11 +8,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     
     properties (SetAccess=private, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
-        prms;          % Structure to store all parameters
-        keyFunc = struct; % structure for functions assigned to keys.
-        keyStrokes  = {}; % Cell array of keys that his plugin will respond to
-        keyHelp     = {}; % Copy in the plugin allows easier setup of keyboard handling by stimuli and other derived classes.
-        evts        = {}; % Events that this plugin will respond to.
+        prms;          % Structure to store all parameters                
     end
     
     methods (Access=public)
@@ -36,31 +32,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % Add the duplicate to cic.
             o.cic.add(s);
         end
+                       
         
-        
-        function keyboard(o,key,time) %#ok<INUSD>
-            % Generic keyboard handler; when keys are added using keyFun,
-            % this evaluates the function attached.
-            if any(strcmpi(key,fieldnames(o.keyFunc)))
-                o.keyFunc.(key)(o,key);
-            end
-        end
-        
-        
-        function success=addKey(o,key,fnHandle,varargin)
+        function addKey(o,key,keyHelp)
             % addKey(key, fnHandle [,keyHelp])
             % Runs a function in response to a specific key press.
             % key - a single key (string)
-            % fnHandle - function handle of function to run.
+            % handler - function handle of function to run.
             % Function must be of the format @fn(o,key).
             if nargin < 4
-                keyhelp = func2str(fnHandle);
-            else
-                keyhelp = varargin{1};
+                keyHelp = '?';           
             end
-            o.listenToKeyStroke(key,keyhelp);
-            o.keyFunc.(key) = fnHandle;
-            success=true;
+            addKeyStroke(o.cic,key,keyHelp,o);
         end
         
         % Convenience wrapper; just passed to CIC
@@ -160,72 +143,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         
     end
     
-    % Convenience wrapper functions to pass the buck to CIC
-    methods (Sealed)
-        
-        function listenToKeyStroke(o,keys,keyHelp)
-            % listenToKeyStroke(o,keys,keyHelp)
-            % keys - string or cell array of strings corresponding to keys
-            % keyHelp - string or cell array of strings corresponding to key array,
-            % defining a help function for that key.
-            %
-            % Adds an array of keys that this plugin will respond to. Note that the
-            % user must implement the keyboard function to do the work. The
-            % keyHelp is a short string that can help the GUI user to
-            % understand what the key does.
-            if ischar(keys), keys = {keys};end
-            if exist('keyHelp','var')
-                if ischar(keyHelp), keyHelp = {keyHelp};end
-            end
-            
-            if nargin<3 % if keyHelp is empty
-                keyHelp = cell(1,length(keys));
-                [keyHelp{:}] = deal('?');
-            else
-                if length(keys) ~= length(keyHelp)
-                    error('Number of KeyHelp strings not equal to number of keys.')
-                end
-                
-            end
-            
-            if any(size(o.cic)) || strcmpi(o.name,'cic')
-                if strcmpi(o.name,'cic')
-                    cicref=o;
-                else
-                    cicref=o.cic;
-                end
-                % Pass the information to CIC which keeps track of
-                % keystrokes
-                for a = 1:numel(keys)
-                    addKeyStroke(cicref,keys{a},keyHelp{a},o);
-                end
-                KbQueueCreate(cicref);
-                KbQueueStart(cicref);
-            end
-            
-            
-            if ~isempty(keys)
-                o.keyStrokes= cat(2,o.keyStrokes,keys);
-                o.keyHelp= cat(2,o.keyHelp,keyHelp);
-            end
-        end
-        
-        
-        function ignoreKeyStroke(o,keys)
-            % ignoreKeyStroke(o,keys)
-            % An array of keys that this plugin will stop responding
-            % to. These keys must have been added in listenToKeyStroke
-            % previously.
-            removeKeyStrokes(o.cic,keys);
-            o.keyStrokes = o.keyStrokes(~ismember(o.keyStrokes,keys));
-            o.keyHelp = o.keyHelp(~ismember(o.keyStrokes,keys));
-            KbQueueCreate(o.cic);
-            KbQueueStart(o.cic);
-        end
-                        
-        
-    end
-    
+  
     
     methods (Access = public)
         

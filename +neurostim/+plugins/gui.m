@@ -209,30 +209,30 @@ classdef gui <neurostim.plugin
         
         function setupKeyLegend(o)
             b=1;
-            nrKeys = numel(o.cic.keyHandlers);
-            keyName = cell(1,nrKeys);
-            keyStroke = cell(1,nrKeys);
-            keyHelp= cell(1,nrKeys);
-            for a=o.cic.keyHandlers
-                keyName{b} = upper(a{:}.name);
-                keyStroke{b}=KbName(o.cic.allKeyStrokes(b));
-                keyHelp{b} = o.cic.allKeyHelp{b};
-                b=b+1;
-            end
-            nrUKeys = numel(unique(keyName));
-            tmpstring = cell(1,nrUKeys);
-            for d=1:nrUKeys
-                tmp=unique(keyName);
-                tmpName=keyName(strcmp(keyName,tmp{d}));
-                tmpStroke = keyStroke(strcmp(keyName,tmp{d}));
-                tmpHelp = keyHelp(strcmp(keyName,tmp{d}));
-                
-                tmpstr=strcat('<',tmpStroke,{'> '},tmpHelp,'\n');
-                tmpstring{d}=[tmpName{1},': \n',tmpstr{:} '\n'];
-            end
-            o.keyLegend = ['Keys: \n\n',tmpstring{:}];
-            DrawFormattedText(o.guiText,o.keyLegend,o.positionX,o.feedY,c.screen.color.text,[],[],[],o.spacing);
-        
+%             nrKeys = numel(o.cic.keyboard.keys);
+%             keyName = cell(1,nrKeys);
+%             keyStroke = cell(1,nrKeys);
+%             keyHelp= cell(1,nrKeys);
+%             for a=o.cic.keyboard.keys
+%                 keyName{b} = upper(a{:}.name);
+%                 keyStroke{b}=KbName(o.cic.allKeyStrokes(b));
+%                 keyHelp{b} = o.cic.allKeyHelp{b};
+%                 b=b+1;
+%             end
+%             nrUKeys = numel(unique(keyName));
+%             tmpstring = cell(1,nrUKeys);
+%             for d=1:nrUKeys
+%                 tmp=unique(keyName);
+%                 tmpName=keyName(strcmp(keyName,tmp{d}));
+%                 tmpStroke = keyStroke(strcmp(keyName,tmp{d}));
+%                 tmpHelp = keyHelp(strcmp(keyName,tmp{d}));
+%                 
+%                 tmpstr=strcat('<',tmpStroke,{'> '},tmpHelp,'\n');
+%                 tmpstring{d}=[tmpName{1},': \n',tmpstr{:} '\n'];
+%             end
+%             o.keyLegend = ['Keys: \n\n',tmpstring{:}];
+%             DrawFormattedText(o.guiText,o.keyLegend,o.positionX,o.feedY,c.screen.color.text,[],[],[],o.spacing);
+%         
         end
         
         function drawParams(o)

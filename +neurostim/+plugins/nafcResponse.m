@@ -45,19 +45,12 @@ classdef nafcResponse < neurostim.plugins.behavior
            
            % Add key listener for all keys.
            for i = 1:numel(o.keys)
-                o.addKey(o.keys{i},@responseHandler,o.keyLabels{i});
+                o.addKey(o.keys{i},o.keyLabels{i});
            end
        end
-   end
-   
-   methods (Access=protected)
        
-       function inProgress = validate(o)
-          inProgress = o.inProgress;
-       end
        
-       function responseHandler(o,key)
-           
+       function keyboard(o,key)           
            if o.enabled && (~o.responded || ~o.oncePerTrial)
                %Which key was pressed (index, and label)
                o.pressedInd = find(strcmpi(key,o.keys));
@@ -76,6 +69,14 @@ classdef nafcResponse < neurostim.plugins.behavior
                o.responded = true;
            end
        end
+       
+   end
+   
+   methods (Access=protected)
+       
+       function inProgress = validate(o)
+          inProgress = o.inProgress;
+       end              
           
    end  
 end
