@@ -8,7 +8,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     
     properties (SetAccess=private, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
-        prms;          % Structure to store all parameters                
+        prms;          % Structure to store all parameters
     end
     
     methods (Access=public)
@@ -32,25 +32,30 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % Add the duplicate to cic.
             o.cic.add(s);
         end
-                       
         
-        function addKey(o,key,keyHelp,isSubject)
-            % addKey(key, fnHandle [,keyHelp],[,subject])
+        
+        function addKey(o,key,keyHelp,isSubject,fun)
+            % addKey(key, fnHandle [,keyHelp],[,subject],[,fun])
             % Runs a function in response to a specific key press.
             % key - a single key (string)
             % keyHelp -  a string that explains what this key does
             % isSubject - bool to indicate whether this is a key press the
             % subject should do. (Defaults to true for stimuli, false for
             % plugins)
-            % The user must implement keyboard(o,key)
+            % The user must implement keyboard(o,key) or provide a
+            % handle to function that takes a plugin/stimulus and a key as
+            % input.
             nin =nargin;
-            if nin < 4
-                isSubject = isa(o,'neurostim.stimulus');
-                if nin <3 
-                keyHelp = '?';           
+            if nin<5
+                fun =[];
+                if nin < 4
+                    isSubject = isa(o,'neurostim.stimulus');
+                    if nin <3
+                        keyHelp = '?';
+                    end
                 end
             end
-            addKeyStroke(o.cic,key,keyHelp,o,isSubject);
+            addKeyStroke(o.cic,key,keyHelp,o,isSubject,fun);
         end
         
         % Convenience wrapper; just passed to CIC
@@ -150,24 +155,24 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         
     end
     
-  
+    
     
     methods (Access = public)
         
-        function baseBeforeExperiment(o)            
+        function baseBeforeExperiment(o)
             beforeExperiment(o);
         end
-        function baseBeforeTrial(o)            
+        function baseBeforeTrial(o)
             beforeTrial(o);
         end
         function baseBeforeFrame(o)
-%             if o.cic.clockTime-o.cic.frameStart>(1000/o.cic.screen.frameRate - o.cic.requiredSlack)
-%                          o.cic.writeToFeed(['Did not run plugin ' o.name ' beforeFrame in frame ' num2str(o.cic.frame) '.']);
-%                          return;
-%             end
+            %             if o.cic.clockTime-o.cic.frameStart>(1000/o.cic.screen.frameRate - o.cic.requiredSlack)
+            %                          o.cic.writeToFeed(['Did not run plugin ' o.name ' beforeFrame in frame ' num2str(o.cic.frame) '.']);
+            %                          return;
+            %             end
             beforeFrame(o);
         end
-        function baseAfterFrame(o)            
+        function baseAfterFrame(o)
             afterFrame(o);
         end
         
@@ -212,11 +217,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         function base(oList,what,c)
             
             switch (what)
-                case neurostim.stages.BEFOREEXPERIMENT                   
+                case neurostim.stages.BEFOREEXPERIMENT
                     for o=oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        baseBeforeExperiment(o);                         
-                         if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end;
+                        baseBeforeExperiment(o);
+                        if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end;
                     end
                     % All plugins BEFOREEXPERIMENT functions have been processed,
                     % store the current parameter values as the defaults.
@@ -224,36 +229,36 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 case neurostim.stages.BEFORETRIAL
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        baseBeforeTrial(o);                       
+                        baseBeforeTrial(o);
                         if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end;
                     end
                 case neurostim.stages.BEFOREFRAME
-                     Screen('glLoadIdentity', c.window);
-                     Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
-                     Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);           
-                     for o= oList
+                    Screen('glLoadIdentity', c.window);
+                    Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
+                    Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
+                    for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        Screen('glPushMatrix',c.window);                                             
-                        baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class                       
-                        Screen('glPopMatrix',c.window);                                                                     
+                        Screen('glPushMatrix',c.window);
+                        baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class
+                        Screen('glPopMatrix',c.window);
                         if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end;
                     end
-                case neurostim.stages.AFTERFRAME      
+                case neurostim.stages.AFTERFRAME
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        baseAfterFrame(o);                                            
+                        baseAfterFrame(o);
                         if c.PROFILE; addProfile(c,'AFTERFRAME',o.name,c.clockTime-ticTime);end;
                     end
-                case neurostim.stages.AFTERTRIAL                    
+                case neurostim.stages.AFTERTRIAL
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        baseAfterTrial(o);                        
+                        baseAfterTrial(o);
                         if c.PROFILE; addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
                     end
                 case neurostim.stages.AFTEREXPERIMENT
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        baseAfterExperiment(o);                       
+                        baseAfterExperiment(o);
                         if c.PROFILE; addProfile(c,'AFTEREXPERIMENT',o.name,c.clockTime-ticTime);end;
                     end
                 otherwise
