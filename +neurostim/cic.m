@@ -645,15 +645,18 @@ classdef cic < neurostim.plugin
         end
         
         function beforeTrial(c)
-            if ~c.guiOn
-                message=collectPropMessage(c);
-                c.writeToFeed(message);
-            end
+           
         end
         
         
         function afterTrial(c)
+            if ~c.guiOn
+                message=collectPropMessage(c);
+                c.writeToFeed(message);
+            end
+            
             c.collectFrameDrops;
+             
         end
         
         
@@ -739,7 +742,7 @@ classdef cic < neurostim.plugin
             ITSAMISS        = c.FRAMESLACK*FRAMEDURATION;
             locPROFILE      = c.PROFILE;
             frameDeadline   = NaN;
-            ListenChar(-1);
+            %ListenChar(-1);
             nrBlocks = numel(c.blockFlow.list);
             for blockCntr=1:nrBlocks
                 c.flags.block = true;
@@ -910,7 +913,7 @@ classdef cic < neurostim.plugin
             pruneLog([c.pluginOrder c]);
             c.saveData;
             Screen('CloseAll');
-            ListenChar(0);
+            %ListenChar(0);
             if c.PROFILE; report(c);end
         end
         

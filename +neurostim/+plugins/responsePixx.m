@@ -7,18 +7,21 @@ classdef responsePixx < neurostim.plugins.behavior
         NRBUTTONS = 5;
         NRSAMPLES = 1000;
         BASEADDRESS= 12e6;
-        
+        RED =1;
+        YELLOW=2;
+        GREEN=3;
+        BLUE =4;
+        WHITE=5;
     end
     properties (SetAccess=protected)
         responded@logical=false;
-              
+        startedLogger@logical = false;      
     end
     
     methods (Access = public)
-        function o = vpixxResponse(c)
-            o = o@neurostim.plugins.behavior(c,'vpixxResponse');
-            o.continuous = false;
-            
+        function o = responsePixx(c)
+            o = o@neurostim.plugins.behavior(c,'responsePixx');
+            o.continuous = false;            
             o.addProperty('intensity',0.5);
             o.addProperty('lit',false(1,o.NRBUTTONS));
             o.addProperty('startLogTime',NaN);
@@ -29,21 +32,26 @@ classdef responsePixx < neurostim.plugins.behavior
             o.addProperty('correct',[]);            
         end
         
+        function beforeFrame(o)
+            if ~o.startedLogger && o.enabled
+                if islogical(o.lit)
+                    litLogic = o.lit;
+                elseif isnumeric(o.lit) && all(o.lit>0 & o.lit <= o.NRBUTTONS)
+                    litLogic = zeros(1, o.NRBUTTONS);
+                    litLogic(o.lit) =true;
+                else
+                    error('.lit must be a logical or an index ');
+                end
+                o.startLogTime = ResponsePixx('StartNow', true,litLogic,o.intensity); % Clear log
+                o.startedLogger = true;
+            end
+        end
         
         function beforeTrial(o)
-            beforeTrial@neurostim.plugins.behavior(o); % Call parent
-            if islogical(o.lit)
-                litLogic = o.lit;
-            elseif isnumeric(o.lit) && all(o.lit>0 & o.lit <= o.NRBUTTONS)
-                litLogic = zeros(1, o.NRBUTTONS);
-                litLogic(o.lit) =true;
-            else
-                error('.lit must be a logical or an index ');
-            end
-            
-            o.startLogTime = ResponsePixx('StartNow', true,litLogic,o.intensity); % Clear log
+            beforeTrial@neurostim.plugins.behavior(o); % Call parent                        
             o.responded = false;   % Update responded for this trial
             o.inProgress = false;
+            o.startedLogger = false;
         end
         
         function afterTrial(o)
@@ -52,10 +60,15 @@ classdef responsePixx < neurostim.plugins.behavior
         
         function beforeExperiment(o)
             ResponsePixx('Close');
-            ResponsePixx('Open',o.NRSAMPLES,o.BASEADDRESS,o.NRBUTTONS);
+            ResponsePixx('Open',o.NRSAMPLES,o.BASEADDRESS,o.NRBUTTONS);            
         end
         
         function afterExperiment(o)
+            %Re-calibrate time and re-time the pressedButton events 
+            [v,tr,t,te] = get(o.prms.pressedButton,'withDataOnly',true);
+            vpxxT = v(:,end); % Last column has BoxTime
+            [ptbT, sd, ratio] = PsychDataPixx('BoxsecsToGetsecs', vpxxT);            
+            replaceLog(o.prms.pressedButton,num2cell(v,2),1000*ptbT'); % ms
             ResponsePixx('Close');
         end                                
         

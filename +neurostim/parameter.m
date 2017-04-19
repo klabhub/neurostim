@@ -9,19 +9,19 @@ classdef parameter < handle & matlab.mixin.Copyable
     %
     % The parameter class is also the main source of information for data
     % analysis. The get() function provides the interface to extract
-    % parameter values per trial, at certain times, etc. 
+    % parameter values per trial, at certain times, etc.
     % getmet
     % Implementation:
     %  Plugins add dynamic properties (plugin.addProperty). The user of the
-    %  plugin can use that dynamic property just like any object property. 
+    %  plugin can use that dynamic property just like any object property.
     % Behind the scenes, each dynprop has a parameter associated with it
     % (which is stored in the plugin.prms member). Whenever the user calls
     % plugin.X, the parameter class returns the appropriate value (by
     % redefining the GetMethod of the dynprop. For most parameters this
     % will simply be the value that is stored in the parameter, but for
     % Neurostim function parameters (i.e. specified with '@'), their value
-    % is first computed, logged (if changed), and returned. 
-    % 
+    % is first computed, logged (if changed), and returned.
+    %
     % When a user sets the value of a property, this change is logged.
     %
     %
@@ -34,8 +34,8 @@ classdef parameter < handle & matlab.mixin.Copyable
     % Note: I previously implemetned this using PreGet and PostGet
     % functionality of dynprops, but this turned out to be very slow, and
     % even worse, sometimes PostSet was called even when only a Get was
-    % requested. 
-    % 
+    % requested.
+    %
     % BK - Feb 2017
     % BK - Mar 17 - Changed to use GetMethod/SetMethod
     %
@@ -58,7 +58,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         fun =[];        % Function to allow across parameter dependencies
         funStr = '';    % The neurostim function string
         validate =[];    % Validation function
-        plg@neurostim.plugin; % Handle to the plugin that this belongs to.        
+        plg@neurostim.plugin; % Handle to the plugin that this belongs to.
         hDynProp;  % Handle to the dynamic property
         
     end
@@ -67,7 +67,7 @@ classdef parameter < handle & matlab.mixin.Copyable
     methods
         function  o = parameter(p,nm,v,h,options)
             % o = parameter(p,nm,v,h,settings)
-            %  p = plugin 
+            %  p = plugin
             % nm  - name of parameter
             % h = handle to the corresponding dynprop in the plugin
             % options = .validate = validation function
@@ -79,7 +79,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.hDynProp  = h; % Handle to the dynamic property
             o.validate = options.validate;
             o.noLog = options.noLog;
-            setupDynProp(o,options); 
+            setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
             setValue(o,[],v);
@@ -92,16 +92,16 @@ classdef parameter < handle & matlab.mixin.Copyable
         function startLog(o)
             o.noLog =false;
         end
-
+        
         function setupDynProp(o,options)
             % Set the properties of the dynprop that corresponds to this
             % parm
-           
+            
             % These are false because we do not use preGet, postSet and
             % making the prop unobservable allows the JIT compiler to do
             % better optimization.
-            o.hDynProp.SetObservable  = false; 
-            o.hDynProp.GetObservable  = false;   
+            o.hDynProp.SetObservable  = false;
+            o.hDynProp.GetObservable  = false;
             o.hDynProp.AbortSet       = false; % Always false
             if ~isempty(options)
                 o.hDynProp.GetAccess = options.GetAccess;
@@ -114,9 +114,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             % here, but for some reason it is evaluated  when the
             % GetMethod is called so that it does return the correct value
             % at call time). That method was slightly faster 0.01 ms per
-            % call less, but future fixes in Matlab that fix this (presumed) parse bug 
+            % call less, but future fixes in Matlab that fix this (presumed) parse bug
             % could cause havoc here so we use a function call.
-            o.hDynProp.GetMethod =  @o.getValue;      
+            o.hDynProp.GetMethod =  @o.getValue;
         end
         
         function o = duplicate(p,plgn,h)
@@ -125,7 +125,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             o = copyElement(p); % Deep copy
             o.plg = plgn; % Change the plugin
             o.hDynProp = h; % Change the dynprop
-            setupDynProp(o,[]); % Setup the callback handlers (no options; keep Set/Get as is).            
+            setupDynProp(o,[]); % Setup the callback handlers (no options; keep Set/Get as is).
         end
         
         
@@ -134,16 +134,16 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Previously we checked if the value had not changed and logged
             % only the changes. This turns out to be much slower. So we
             % store every set now (At the cost of some memory/disk space).
-            if o.noLog 
-               %Not loggin this 
+            if o.noLog
+                %Not loggin this
                 return;
             end
-
+            
             
             % For non-function parns this is the value that will be
             % returned  to the next getValue
             o.value = v;
-            % Keep a timed log.            
+            % Keep a timed log.
             o.cntr=o.cntr+1;
             % Allocate space if needed
             if o.cntr> o.capacity
@@ -153,7 +153,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             %% Fill the log.
             o.log{o.cntr}  = v;
-            o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime            
+            o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime
         end
         
         function v = getValue(o,~)
@@ -163,27 +163,27 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         
-        function [v,ok] = getFunctionValue(o,~) 
+        function [v,ok] = getFunctionValue(o,~)
             % This function is called before a function dynprop is used somewhere in the code.
-            % It is installed by setValue when it detects a neurostim function.    
+            % It is installed by setValue when it detects a neurostim function.
             if o.plg.cic.stage >o.plg.cic.SETUP
                 % We've passed SETUP phase, function evaluaton should be
                 % possible.
                 v=o.fun(o.plg); % Evaluate the neurostim function
-                storeInLog(o,v);                
+                storeInLog(o,v);
                 ok = true;
             else  %  not all objects have been setup so
-                % function evaluation may not work yet. Evaluate to NaN for now             
+                % function evaluation may not work yet. Evaluate to NaN for now
                 v = NaN;
                 ok = false;
             end
         end
         
-       
+        
         function setValue(o,~,v)
             % Assign a new value to a parameter
             ok = true; % Normally ok; only function evals can be not ok.
-            %Check for a function definition            
+            %Check for a function definition
             if strncmpi(v,'@',1)
                 % The dynprop was set to a neurostim function
                 % Parse the specified function and make it into an anonymous
@@ -192,25 +192,25 @@ classdef parameter < handle & matlab.mixin.Copyable
                 v = neurostim.utils.str2fun(v);
                 o.fun = v;
                 % Install a GetMethod that evaluates this function
-                o.hDynProp.GetMethod =  @o.getFunctionValue;                
+                o.hDynProp.GetMethod =  @o.getFunctionValue;
                 % Evaluate the function to get current value
-                [v,ok]= getFunctionValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).                
+                [v,ok]= getFunctionValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
             elseif ~isempty(o.fun)
                 % This is currently a function, and someone is overriding
                 % the parameter with a non-function value. Remove the fun.
                 o.fun = [];
                 o.funStr = '';
                 % Change the getMethod to a simple value return
-                o.hDynProp.GetMethod =  @o.getValue;     
+                o.hDynProp.GetMethod =  @o.getValue;
             end
             
             if ok
                 % validate
-                if ~isempty(o.validate) 
+                if ~isempty(o.validate)
                     o.validate(v);
-                end            
-                % Log the new value     
-                storeInLog(o,v);                
+                end
+                % Log the new value
+                storeInLog(o,v);
             end
         end
         
@@ -247,6 +247,12 @@ classdef parameter < handle & matlab.mixin.Copyable
             % in others.
         end
         
+        function replaceLog(o,val,eTime)
+            o.log = val;
+            o.time = eTime(:)'; % Row
+            o.capacity = numel(val);
+            o.cntr = numel(val);
+        end
         %% Functions to extract parm values from the log. use this to analyze the data
         function [data,trial,trialTime,time,block] = get(o,varargin)
             % For any parameter, returns up to five  vectors specifying
@@ -271,6 +277,8 @@ classdef parameter < handle & matlab.mixin.Copyable
             p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial
             p.addParameter('after','',@ischar); % Return the first value after this event in the trial
             p.addParameter('trial',[],@isnumeric); % Return only values in these trials
+            p.addParameter('withDataOnly',false,@islogical); % Only those values that have data
+            
             p.parse(varargin{:});
             
             data = o.log(1:o.cntr);
@@ -280,7 +288,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             block =NaN(1,o.cntr); % Will be computed if requested
             
             % Now that we have the raw values, we can remove some of the less
-            % usefel ones and fill-in some that were never set 
+            % usefel ones and fill-in some that were never set
             
             maxTrial = o.plg.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1
             
@@ -331,22 +339,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 end
                 
                 %Convert cell array to a matrix if possible
-                if iscell(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
-                    
-                    %Look for a singleton dimension
-                    sz = size(data{1});
-                    catDim = find(sz==1,1,'first');
-                    if isempty(catDim)
-                        %None found. Matrix. So we'll add a dimension.
-                        catDim = numel(sz)+1;
-                    end
-                                       
-                    %Convert to matrix
-                    data = cat(catDim,data{:});
-                    
-                    %Put trials in the first dimension
-                    data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);                    
-                end
+                data = neurostim.parameter.matrixIfPossible(data);
             end
             
             if ~isempty(p.Results.trial)
@@ -372,6 +365,15 @@ classdef parameter < handle & matlab.mixin.Copyable
             block = block(:);
             trial = trial(:);
             
+            if p.Results.withDataOnly && iscell(data)
+                out  = cellfun(@isempty,data);
+                data(out) =[];
+                data = neurostim.parameter.matrixIfPossible(data);
+                time(out) =[];
+                block(out) = [];
+                trial(out) =[];
+                trialTime(out)=[];
+            end
             
         end
         
@@ -379,13 +381,13 @@ classdef parameter < handle & matlab.mixin.Copyable
             trials = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
             trialStartTime = o.plg.cic.prms.trial.time;   % Start of the trial
             
-%             trialStartTime = [-inf [o.plg.cic.prms.trialStartTime.log{:}]];           
-%             trials = 0:numel(trialStartTime);
+            %             trialStartTime = [-inf [o.plg.cic.prms.trialStartTime.log{:}]];
+            %             trials = 0:numel(trialStartTime);
             findFun = @(x)(find(x>trialStartTime,1,'last'));
             trIx = arrayfun(findFun,eventTime);%,'UniformOutput',false);
             tr = trials(trIx);
             tr(tr==0) = 1; % Events happening before trial 1 are assinged to trial 1 (but will have negative times relative to trialStart)
-           assert(~any(tr> o.plg.cic.nrTrialsTotal)); 
+            assert(~any(tr> o.plg.cic.nrTrialsTotal));
             
             
         end
@@ -426,6 +428,27 @@ classdef parameter < handle & matlab.mixin.Copyable
             o2 = copyElement@matlab.mixin.Copyable(o);
             
         end
+    end
+    methods (Static)
+        function data = matrixIfPossible(data)
+            if iscell(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
+                %Look for a singleton dimension
+                sz = size(data{1});
+                catDim = find(sz==1,1,'first');
+                if isempty(catDim)
+                    %None found. Matrix. So we'll add a dimension.
+                    catDim = numel(sz)+1;
+                end
+                
+                %Convert to matrix
+                data = cat(catDim,data{:});
+                
+                %Put trials in the first dimension
+                data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);
+            end
+            
+        end
+        
     end
     
     

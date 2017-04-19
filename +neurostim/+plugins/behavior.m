@@ -7,6 +7,7 @@ classdef behavior < neurostim.plugin
     
     properties (Access=public)
         failEndsTrial = true;             %Does violating behaviour end trial?
+        successEndsTrial = false;         % Does completing the behavior successfully end the trial?  
         sampleEvent = 'AFTERFRAME';       %On which event(s) should the behavioral data be sampled? (string or cell of strings)
         validateEvent = 'AFTERFRAME';     %On which event(s) should the behavioral data be validated? (i.e. is subject doing the right thing?)
     end
@@ -97,7 +98,7 @@ classdef behavior < neurostim.plugin
             
         end
         
-        function o = sample(o,c)
+        function sample(o,c)
             % wrapper for sampleBehavior function, to be overloaded in
             % subclasses. This should store some value(s) of the
             % requested behaviour (i.e. eye position, mouse position)
@@ -128,7 +129,7 @@ classdef behavior < neurostim.plugin
                 %If behaviour completed
                 if o.inProgress && (c.trialTime>=o.to)
                     %Hooray!
-                    o.result(true,'COMPLETE',false);
+                    o.result(true,'COMPLETE',o.successEndsTrial);
                     return;
                 end
                 
@@ -149,7 +150,7 @@ classdef behavior < neurostim.plugin
                 % if behaviour is discrete (one-shot)
                 if o.inProgress
                     o.started = true;
-                    o.result(true,'COMPLETE',false);
+                    o.result(true,'COMPLETE',o.successEndsTrial);
                 elseif c.trialTime >= o.deadline
                     o.result(false,'FAILEDTOSTART',o.failEndsTrial);
                 end
