@@ -384,7 +384,7 @@ classdef starstim < neurostim.stimulus
                     ret =0;
                 case 'TIMED'
                     ret =0;
-                    waitFor(o,'CODE_STATUS_STIMULATION_FULL')
+                    waitFor(o,'CODE_STATUS_STIMULATION_FULL');
                     if ~o.isOnlineStarted                        
                         switch (o.nowType)
                             case 'DC'
@@ -643,8 +643,7 @@ classdef starstim < neurostim.stimulus
             while (cntr<=nrInSequence)
                 if strcmpi(o.protocolStatus,varargin{cntr})
                     cntr= cntr+1;                    
-                end
-                o.protocolStatus
+                end                
                 pause(0.1); % Check status every 100 ms.
                 if toc> TIMEOUT
                     warning(['Waiting for ' varargin{cntr} ' timed out']);
