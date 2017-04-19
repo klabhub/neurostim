@@ -379,6 +379,11 @@ classdef cic < neurostim.plugin
             c.propsToInform = cat(2,c.propsToInform,varargin{:});
         end
         
+        function setPropsToInform(c,varargin)
+            c.propsToInform = varargin;
+        end
+        
+        
         function showDesign(c,factors)
             if nargin<2
                 factors = [];
