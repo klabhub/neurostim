@@ -380,7 +380,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         function tr = eTime2TrialNumber(o,eventTime)
             trials = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
             trialStartTime = o.plg.cic.prms.trial.time;   % Start of the trial
-            
+            trialStartTime(trials==0) = -Inf;
             %             trialStartTime = [-inf [o.plg.cic.prms.trialStartTime.log{:}]];
             %             trials = 0:numel(trialStartTime);
             findFun = @(x)(find(x>trialStartTime,1,'last'));
@@ -397,7 +397,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Find the time that each trial started by looking in the cic events log.
             beforeFirstTrial = tr==0;
             tr(beforeFirstTrial) =1;
-            trialStartTime = o.plg.cic.prms.trialStartTime.time;
+            trialStartTime = o.plg.cic.prms.trial.time;
             afterLastTrial = tr > numel(trialStartTime);
             tr(afterLastTrial) = 1;
             if ET2TRT

@@ -356,7 +356,7 @@ classdef cic < neurostim.plugin
             
             c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
             c.addProperty('frameDrop',[NaN NaN]);
-            c.addProperty('firstFrameTime',[]);
+            c.addProperty('firstFrame',[]);
             c.addProperty('trialStopTime',[]);
             c.addProperty('condition',[]);
             c.addProperty('design',[]);
@@ -857,7 +857,7 @@ classdef cic < neurostim.plugin
                         frameDeadline = ptbVbl+0.9*FRAMEDURATION; %a little bit before the next VBL..
                         if c.frame == 1
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
-                            c.FIRSTFRAMETIME = locFIRSTFRAMETIME;% log it                            
+                            c.firstFrame = locFIRSTFRAMETIME;% log it                            
                             c.flipTime=0;
                         else
                             if missed>ITSAMISS
@@ -1447,7 +1447,7 @@ classdef cic < neurostim.plugin
             val = cat(1,val{:});
             delta =1000*val(:,2); % How much too late...
             slack = 0.2;
-            [~,~,criticalStart] = get(c.prms.firstFrameTime,'atTrialTime',inf);
+            [~,~,criticalStart] = get(c.prms.firstFrame,'atTrialTime',inf);
             [~,~,criticalStop] = get(c.prms.trialStopTime,'atTrialTime',inf);
             meanDuration = nanmean(criticalStop-criticalStart);
             out = (ti<(criticalStart(tr)-slack*meanDuration) | ti>(criticalStop(tr)+slack*meanDuration));
