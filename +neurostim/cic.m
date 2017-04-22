@@ -356,7 +356,7 @@ classdef cic < neurostim.plugin
             
             c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
             c.addProperty('frameDrop',[NaN NaN]);
-            c.addProperty('trialStartTime',[]);
+            c.addProperty('firstFrameTime',[]);
             c.addProperty('trialStopTime',[]);
             c.addProperty('condition',[]);
             c.addProperty('design',[]);
@@ -856,8 +856,8 @@ classdef cic < neurostim.plugin
                         % Delta between actual and deadline of flip;
                         frameDeadline = ptbVbl+0.9*FRAMEDURATION; %a little bit before the next VBL..
                         if c.frame == 1
-                            locTRIALSTARTTIME = ptbStimOn*1000; % Faster local access for trialDuration check
-                            c.trialStartTime = locTRIALSTARTTIME;% log it                            
+                            locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
+                            c.FIRSTFRAMETIME = locFIRSTFRAMETIME;% log it                            
                             c.flipTime=0;
                         else
                             if missed>ITSAMISS
@@ -870,7 +870,7 @@ classdef cic < neurostim.plugin
                         
                         
                         if c.getFlipTime
-                            c.flipTime = ptbStimOn*1000-locTRIALSTARTTIME;% Used by stimuli to log their onset
+                            c.flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;% Used by stimuli to log their onset
                             c.getFlipTime=false;
                         end                        
                         
@@ -930,7 +930,7 @@ classdef cic < neurostim.plugin
         
         function delete(c) %#ok<INUSD>
             %Destructor. Release all resources. Maybe more to add here?
-            Screen('CloseAll');
+            %Screen('CloseAll');
         end
         
         %% Keyboard handling routines
@@ -1447,7 +1447,7 @@ classdef cic < neurostim.plugin
             val = cat(1,val{:});
             delta =1000*val(:,2); % How much too late...
             slack = 0.2;
-            [~,~,criticalStart] = get(c.prms.trialStartTime,'atTrialTime',inf);
+            [~,~,criticalStart] = get(c.prms.firstFrameTime,'atTrialTime',inf);
             [~,~,criticalStop] = get(c.prms.trialStopTime,'atTrialTime',inf);
             meanDuration = nanmean(criticalStop-criticalStart);
             out = (ti<(criticalStart(tr)-slack*meanDuration) | ti>(criticalStop(tr)+slack*meanDuration));
