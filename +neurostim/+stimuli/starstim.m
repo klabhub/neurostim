@@ -383,9 +383,9 @@ classdef starstim < neurostim.stimulus
                     % nothing to do
                     ret =0;
                 case 'TIMED'
-                    ret =0;
-                    waitFor(o,'CODE_STATUS_STIMULATION_FULL');
-                    if ~o.isOnlineStarted                        
+                    ret =0;                   
+                    if ~o.isOnlineStarted          
+                        waitFor(o,'CODE_STATUS_STIMULATION_FULL');
                         switch (o.nowType)
                             case 'DC'
                                 ret = MatNICOnlineAtdcsChange(o.nowMean, o.NRCHANNELS, o.transition, o.sock);
@@ -398,6 +398,7 @@ classdef starstim < neurostim.stimulus
                         o.isOnlineStarted = true;
                     elseif o.sham && ~o.isShamOn
                         % Ramp back down
+                        waitFor(o,'CODE_STATUS_STIMULATION_FULL');
                         switch (o.nowType)
                             case 'DC'
                                 ret = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
@@ -644,12 +645,13 @@ classdef starstim < neurostim.stimulus
                 if strcmpi(o.protocolStatus,varargin{cntr})
                     cntr= cntr+1;                    
                 end                
-                pause(0.1); % Check status every 100 ms.
+                pause(0.025); % Check status every 25 ms.
                 if toc> TIMEOUT
                     warning(['Waiting for ' varargin{cntr} ' timed out']);
                     break;
                 end
             end
+            % disp([varargin{end} ' : ' num2str(toc) 's']);
         end
         
     end

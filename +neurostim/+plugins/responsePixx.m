@@ -15,21 +15,22 @@ classdef responsePixx < neurostim.plugins.behavior
     end
     properties (SetAccess=protected)
         responded@logical=false;
-        startedLogger@logical = false;      
+        startedLogger@logical = false;
     end
     
     methods (Access = public)
-        function o = responsePixx(c)
-            o = o@neurostim.plugins.behavior(c,'responsePixx');
-            o.continuous = false;            
+        function o = responsePixx(c,name)
+            o = o@neurostim.plugins.behavior(c,name);
+            o.continuous = false;
             o.addProperty('intensity',0.5);
             o.addProperty('lit',false(1,o.NRBUTTONS));
             o.addProperty('startLogTime',NaN);
-            o.addProperty('stopLogTime',NaN);            
+            o.addProperty('stopLogTime',NaN);
             o.addProperty('correctButtons',[]);
-            o.addProperty('pressedButton',[]);   
-            o.addProperty('allowedButtons',[]);   
-            o.addProperty('correct',[]);            
+            o.addProperty('pressedButton',[]);
+            o.addProperty('allowedButtons',[]);
+            o.addProperty('correct',[]);
+            o.addProperty('timeCalibration',struct);
         end
         
         function beforeFrame(o)
@@ -48,7 +49,7 @@ classdef responsePixx < neurostim.plugins.behavior
         end
         
         function beforeTrial(o)
-            beforeTrial@neurostim.plugins.behavior(o); % Call parent                        
+            beforeTrial@neurostim.plugins.behavior(o); % Call parent
             o.responded = false;   % Update responded for this trial
             o.inProgress = false;
             o.startedLogger = false;
@@ -60,17 +61,24 @@ classdef responsePixx < neurostim.plugins.behavior
         
         function beforeExperiment(o)
             ResponsePixx('Close');
-            ResponsePixx('Open',o.NRSAMPLES,o.BASEADDRESS,o.NRBUTTONS);            
+            ResponsePixx('Open',o.NRSAMPLES,o.BASEADDRESS,o.NRBUTTONS);
         end
         
         function afterExperiment(o)
-            %Re-calibrate time and re-time the pressedButton events 
-            [v,tr,t,te] = get(o.prms.pressedButton,'withDataOnly',true);
-            vpxxT = v(:,end); % Last column has BoxTime
-            [ptbT, sd, ratio] = PsychDataPixx('BoxsecsToGetsecs', vpxxT);            
-            replaceLog(o.prms.pressedButton,num2cell(v,2),1000*ptbT'); % ms
+            %Re-calibrate time and re-time the pressedButton events
+            % After this, the time returned by parameter.get for the
+            % pressedButton events will be the time that the buttonPress
+            % occurred as measured by datapixx, but in terms of the PTB
+            % clock
+            [v] = get(o.prms.pressedButton,'withDataOnly',true);
+            if ~isempty(v)
+                vpxxT = v(:,end); % Last column has BoxTime
+                [ptbT, sd, ratio] = PsychDataPixx('BoxsecsToGetsecs', vpxxT);
+                o.timeCalibration = struct('sd',sd,'ratio',ratio); % Store just in case.
+                replaceLog(o.prms.pressedButton,num2cell(v,2),1000*ptbT'); % ms
+            end
             ResponsePixx('Close');
-        end                                
+        end
         
     end
     
@@ -81,7 +89,7 @@ classdef responsePixx < neurostim.plugins.behavior
                 [buttonStates, transitionTimesSecs, ~] = ResponsePixx('GetLoggedResponses');
                 [tIx,buttonNr] = find(buttonStates);
                 ab =o.allowedButtons;
-                if ~isempty(buttonNr) && (isempty(ab) || ismember(buttonNr,ab)) 
+                if ~isempty(buttonNr) && (isempty(ab) || ismember(buttonNr,ab))
                     if numel(buttonNr)>1
                         % more than one button pressed...
                         disp('More than one button...')
@@ -97,7 +105,7 @@ classdef responsePixx < neurostim.plugins.behavior
                     end
                     %Set flag so that behaviour class detects completion next frame
                     o.inProgress = true;
-                    o.responded = true;                  
+                    o.responded = true;
                 end
             end
         end
