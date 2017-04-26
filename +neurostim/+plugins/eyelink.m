@@ -17,7 +17,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     
     properties
         el@struct;
-        eye;
+        eye='LEFT'; %LEFT,RIGHT, or BOTH
         valid;
         commands = {'link_sample_data = LEFT,RIGHT,GAZE,GAZERES,AREA,VELOCITY'};
         edfFile@char = 'test.edf';
@@ -50,8 +50,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     
     methods
         function o = eyelink(c)
-            Eyelink; % Check that the EyelinkToolBox is available.
-            %clear Eyelink;
+            assert(exist('Eyelink.m','file')==2,'The Eyelink toolbox is not available?'); % Check that the EyelinkToolBox is available.            
             o = o@neurostim.plugins.eyetracker(c);
             o.addKey('F9','DriftCorrect');
             o.addKey('F8','EyelinkSetup');
@@ -86,6 +85,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             rect=Screen(o.cic.window,'Rect');
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
             
+            
             % setup sample rate
             if any(o.sampleRate==[250, 500, 1000])
                 o.command(horzcat('sample_rate = ', num2str(o.sampleRate)))
@@ -93,19 +93,49 @@ classdef eyelink < neurostim.plugins.eyetracker
                 c.error('STOPEXPERIMENT','Requested eyelink sample rate is invalid');
             end
             
+          
+           
+            % open file to record data to (will be renamed on copy)
+            [~,tmpFile] = fileparts(tempname);
+            o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
+            Eyelink('Openfile', o.edfFile);
+            
+            switch upper(o.eye)
+                case 'LEFT'
+                    Eyelink('Command','binocular_enabled=NO');
+                    Eyelink('Command','active_eye=LEFT');
+                    Eyelink('Message','%s', 'EYE_USED 0');
+                case 'RIGHT'
+                    Eyelink('Command','binocular_enabled=NO');
+                    Eyelink('Command','active_eye=RIGHT');
+                    Eyelink('Message','%s', 'EYE_USED 1');
+                case {'BOTH','BINOCULAR'}
+                    Eyelink('Command','binocular_enabled=YES');
+                    Eyelink('Command','active_eye=LEFT,RIGHT');
+                    Eyelink('Message','%s', 'EYE_USED 2');
+            end
+            
             %Pass all commands to Eyelink
             for i=1:length(o.commands)
                result = Eyelink('Command', o.commands{i}); %TODO: handle results
             end
             
-            % open file to record data to (will be renamed on copy)
-            [~,tmpFile] = fileparts(tempname);
-            o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
-            Eyelink('Openfile', o.edfFile);
+            
             if o.keepExperimentSetup
                 restoreExperimentSetup(o);
-            else eyelinkSetup(o);
+            else
+                eyelinkSetup(o);
             end
+            
+            Eyelink('Command','add_file_preamble_text',['RECORDED BY ' o.cic.experiment]);
+            Eyelink('Command','add_file_preamble_text',['NEUROSTIM FILE ' o.cic.fullFile]);
+
+            Eyelink('Message','DISPLAY_COORDS %d %d %d %d',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
+            Eyelink('Message','%s',['DISPLAY_SIZE ' num2str(o.cic.screen.width) ' ' num2str(o.cic.screen.height)]);	
+            Eyelink('Message','%s', ['FRAMERATE ' num2str(o.cic.screen.frameRate) ' Hz.']);
+            
+            
+           
         end
         
         function afterExperiment(o)
@@ -166,7 +196,10 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
             
             Eyelink('Command','record_status_message %s%s%s',o.cic.paradigm, '_TRIAL:',num2str(o.cic.trial));
-            Eyelink('Message','%s',['TR:' num2str(o.cic.trial)]);   %will this be used to align clocks later?
+            Eyelink('Message','%s',['TR:' num2str(o.cic.trial)]);   %will this be used to align clocks later?   
+            Eyelink('Message','TRIALID %d-%d',o.cic.condition,o.cic.trial);               	
+            
+            
             o.eyeClockTime = Eyelink('TrackerTime');
 
         end

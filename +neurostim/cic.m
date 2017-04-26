@@ -363,7 +363,8 @@ classdef cic < neurostim.plugin
             c.addProperty('block',0);
             c.addProperty('blockCntr',0);
             c.addProperty('blockTrial',0);
-            c.addProperty('expScript',[]);
+            c.addProperty('expScript',[]); % The contents of the experiment file
+            c.addProperty('experiment',''); % The experiment file
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             
@@ -708,6 +709,7 @@ classdef cic < neurostim.plugin
                 stack = dbstack('-completenames',1);
                 if ~isempty(stack) % Can happen with ctrl-retun execution of code
                     c.expScript = fileread(stack(1).file);
+                    c.experiment = stack(1).file;
                 end
             catch
                 warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
@@ -801,7 +803,7 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     
-                    Priority(MaxPriority(c.window)) 
+                    Priority(MaxPriority(c.window));
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -1004,7 +1006,7 @@ classdef cic < neurostim.plugin
             if c.guiOn
                 c.gui.writeToFeed(message);
             else
-                message=horzcat('\n',num2str(c.trial), ': ', message, '\n');
+                message=horzcat('\n TR:',num2str(c.trial), ': ', message);
                 fprintf(message);
             end
         end

@@ -248,6 +248,9 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function replaceLog(o,val,eTime)
+            % This function replaces the log and time values with new
+            % values. We use this, for instance, to re-time the button
+            % presses of the Vpixx response box in terms of PTB time.
             o.log = val;
             o.time = eTime(:)'; % Row
             o.capacity = numel(val);
@@ -431,7 +434,7 @@ classdef parameter < handle & matlab.mixin.Copyable
     end
     methods (Static)
         function data = matrixIfPossible(data)
-            if iscell(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
+            if iscell(data) && ~isempty(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
                 %Look for a singleton dimension
                 sz = size(data{1});
                 catDim = find(sz==1,1,'first');
