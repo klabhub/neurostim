@@ -362,7 +362,7 @@ classdef stimulus < neurostim.plugin
         function baseAfterTrial(s)
             
             if isempty(s.stopTime) || s.offFrame>=s.cic.frame
-                s.stopTime=s.cic.trialStopTime-s.cic.trialStartTime;
+                s.stopTime=s.cic.trialStopTime-s.cic.firstFrame;
                 s.logOffset=false;
             end
             afterTrial(s);
