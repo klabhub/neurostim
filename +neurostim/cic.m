@@ -492,7 +492,9 @@ classdef cic < neurostim.plugin
                         c.flags.trial = false;
                     else
                         c.EscPressedTime=GetSecs;
-                    end                
+                    end   
+                otherwise
+                    error(c,'STOPEXPERIMENT',['Unknown key ' key '. Did you forget to specify a callback function (check addKey)?']);
             end
         end
         
@@ -1007,7 +1009,7 @@ classdef cic < neurostim.plugin
                 c.gui.writeToFeed(message);
             else
                 message=horzcat('\n TR:',num2str(c.trial), ': ', message);
-                fprintf(message);
+                fprintf(1,message);
             end
         end
         
