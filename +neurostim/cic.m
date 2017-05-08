@@ -2,32 +2,6 @@
 % See demos directory for examples
 %  BK, AM, TK, 2015
 classdef cic < neurostim.plugin
-    %% Events
-    % All communication with plugins is through events. CIC generates events
-    % to notify plugins (which includes stimuli) about the current stage of
-    % the experiment. Plugins tell CIC that they want to listen to a subset
-    % of all events (plugin.listenToEvent()), and plugins have the code to
-    % respond to the events (plugin.events()).
-    % Note that plugins are completely free to do what they want in the
-    % event handlers. For stimuli, however, each event is first processed
-    % by the base @stimulus class and only then passed to the derived
-    % class. This helps neurostim to generate consistent behavior.
-    events
-        
-        %% Experiment Flow
-        % Events to which the @stimulus class responds (internal)
-        BASEBEFOREEXPERIMENT;
-        BASEAFTEREXPERIMENT;
-        BASEBEFORETRIAL;
-        BASEAFTERTRIAL;
-        BASEBEFOREFRAME;
-        BASEAFTERFRAME;
-        
-        
-        FIRSTFRAME;
-        GIVEREWARD;
-        
-    end
     
     %% Constants
     properties (Constant)
@@ -49,7 +23,6 @@ classdef cic < neurostim.plugin
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
-        keyDeviceIndex          = []; % Use the first device by default
         fileOverwrite           = false; % Allow output file overwrite.
         keyBeforeExperiment     = true;
         keyAfterExperiment      =true;
@@ -73,6 +46,19 @@ classdef cic < neurostim.plugin
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
+        
+        %% Keyboard interaction
+         kbInfo@struct= struct('keys',{[]},...% PTB numbers for each key that is handled.
+            'help',{{}},... % Help info for key            
+            'plugin',{{}},...  % Which plugin will handle the key (keyboard() will be called)
+            'isSubject',{logical([])},... % Is this a key that is handled by subject keyboard ?
+            'fun',{{}},... % Function handle that is used instead of the plugins keyboard function (usually empty)
+            'default',{-1},... default keyboard -1 means all keyboard
+            'subject',{[]},... % The keyboard that will handle keys for which isSubect is true (=by default stimuli)
+            'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
+            'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
+            'activeKb',{[]});  % Indices of keyboard that have keys associated with them. Set and used internally)                
+        
     end
     
     %% Protected properties.
@@ -88,29 +74,22 @@ classdef cic < neurostim.plugin
         cursorVisible = false; % Set it through c.cursor =
         
         %% Internal lists to keep track of stimuli, , and blocks.
-        stimuli;    % Cell array of char with stimulus names.
+        stimuli;    % Vector of stimulus  handles.
+        plugins;    % Vector of plugin handles.
+        pluginOrder; % Vector of plugin handles, sorted by execution order
+        
         blocks@neurostim.block;     % Struct array with .nrRepeats .randomization .conditions
         blockFlow;
-        plugins;    % Cell array of char with names of plugins.
-        responseKeys; % Map of keys to actions.
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
         stopTime = [];
-        frameStart = 0;
-        frameDeadline;
-        %data@sib;
+        
+        
         
         %% Profiling information.
         
-        %% Keyboard interaction
-        allKeyStrokes          = []; % PTB numbers for each key that is handled.
-        allKeyHelp             = {}; % Help info for key
-        %         keyDeviceIndex          = []; % Use the first device by default
-        keyHandlers             = {}; % Handles for the plugins that handle the keys.
-        
-        
-        pluginOrder = {};
+         
         EscPressedTime;
         lastFrameDrop=1;
         propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/nrTrialsTotal'};
@@ -125,6 +104,7 @@ classdef cic < neurostim.plugin
     % Calculated on the fly
     properties (Dependent)
         nrStimuli;      % The number of stimuli currently in CIC
+        nrPlugins;      % The number of plugins (Excluding stimuli) currently inCIC
         nrConditions;   % The number of conditions in this experiment
         nrTrials;       % The number of trials in the current block
         center;         % Where is the center of the display window.
@@ -135,11 +115,10 @@ classdef cic < neurostim.plugin
         startTimeStr@char;  % Start time as a HH:MM:SS string
         cursor;         % Cursor 'none','arrow'; see ShowCursor
         blockName;      % Name of the current block
-        defaultPluginOrder;
         trialTime;      % Time elapsed (ms) since the start of the trial
         nrTrialsTotal;   % Number of trials total (all blocks)
         conditionID;    % Unique id for a condition - used by adaptive
-        date;           % Date of the experiment.        
+        date;           % Date of the experiment.
     end
     
     %% Public methods
@@ -152,6 +131,11 @@ classdef cic < neurostim.plugin
         function v= get.nrStimuli(c)
             v= length(c.stimuli);
         end
+        
+        function v= get.nrPlugins(c)
+            v= length(c.plugins);
+        end
+        
         function v= get.nrTrials(c)
             if c.block
                 v= c.blocks(c.block).nrTrials;
@@ -270,9 +254,6 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function v=get.defaultPluginOrder(c)
-            v = [fliplr(c.stimuli) fliplr(c.plugins)];
-        end
         
         function v= get.trialTime(c)
             v = (c.frame-1)*1000/c.screen.frameRate;
@@ -307,47 +288,7 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function createEventListeners(c)
-            % creates all Event Listeners
-            if isempty(c.pluginOrder)
-                c.pluginOrder = c.defaultPluginOrder;
-            end
-            for a = 1:numel(c.pluginOrder)
-                o = c.(c.pluginOrder{a});
-                
-                for i=1:length(o.evts)
-                    if isa(o,'neurostim.plugin')
-                        % base events allow housekeeping before events
-                        % trigger, but giveReward and firstFrame do not require a
-                        % baseEvent.
-                        if strcmpi(o.evts{i},'GIVEREWARD')
-                            h=@(c,evt)(o.giveReward(o.cic,evt));
-                        elseif strcmpi(o.evts{i},'FIRSTFRAME')
-                            h=@(c,evt)(o.firstFrame(o.cic,evt));
-                        else
-                            addlistener(c,['BASE' o.evts{i}],@o.baseEvents);
-                            switch upper(o.evts{i})
-                                case 'BEFOREEXPERIMENT'
-                                    h= @(c,evt)(o.beforeExperiment(o.cic,evt));
-                                case 'BEFORETRIAL'
-                                    h= @(c,evt)(o.beforeTrial(o.cic,evt));
-                                case 'BEFOREFRAME'
-                                    h= @(c,evt)(o.beforeFrame(o.cic,evt));
-                                case 'AFTERFRAME'
-                                    h= @(c,evt)(o.afterFrame(o.cic,evt));
-                                case 'AFTERTRIAL'
-                                    h= @(c,evt)(o.afterTrial(o.cic,evt));
-                                case 'AFTEREXPERIMENT'
-                                    h= @(c,evt)(o.afterExperiment(o.cic,evt));
-                            end
-                        end
-                        % Install a listener in the derived class so that it
-                        % can respond to notify calls in the base class
-                        addlistener(o,o.evts{i},h);
-                    end
-                end
-            end
-        end
+        
         
         function out=collectPropMessage(c)
             out='\n======================\n';
@@ -398,8 +339,8 @@ classdef cic < neurostim.plugin
             c.stage  = neurostim.cic.SETUP;
             % Initialize empty
             c.startTime     = now;
-            c.stimuli       = {};
-            c.plugins       = {};
+            c.stimuli       = [];
+            c.plugins       = [];
             c.cic           = c; % Need a reference to self to match plugins. This makes the use of functions much easier (see plugin.m)
             
             % The root directory is the directory that contains the
@@ -407,30 +348,27 @@ classdef cic < neurostim.plugin
             c.dirs.root     = strrep(fileparts(mfilename('fullpath')),'+neurostim','');
             c.dirs.output   = getenv('TEMP');
             
-            % Setup the keyboard handling
-            c.responseKeys  = neurostim.map;
-            c.allKeyStrokes = [];
-            c.allKeyHelp  = {};
+            % Setup the keyboard handling       
             % Keys handled by CIC
-            c.addKey('ESCAPE',@keyboardResponse,'Quit');
-            c.addKey('n',@keyboardResponse,'Next Trial');
+            c.addKey('ESCAPE','Quit');
+            c.addKey('n','Next Trial');
             
             
             c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
-            c.addProperty('frameDrop',[]);
-            c.addProperty('trialStartTime',[]);
+            c.addProperty('frameDrop',[NaN NaN]);
+            c.addProperty('firstFrame',[]);
             c.addProperty('trialStopTime',[]);
             c.addProperty('condition',[]);
             c.addProperty('design',[]);
             c.addProperty('block',0);
             c.addProperty('blockCntr',0);
             c.addProperty('blockTrial',0);
-            c.addProperty('expScript',[]);
+            c.addProperty('expScript',[]); % The contents of the experiment file
+            c.addProperty('experiment',''); % The experiment file
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             
-            % Generate default output files
-            %neurostim.plugins.output(c);
+            
             
         end
         
@@ -441,6 +379,11 @@ classdef cic < neurostim.plugin
         function addPropsToInform(c,varargin)
             c.propsToInform = cat(2,c.propsToInform,varargin{:});
         end
+        
+        function setPropsToInform(c,varargin)
+            c.propsToInform = varargin;
+        end
+        
         
         function showDesign(c,factors)
             if nargin<2
@@ -530,17 +473,15 @@ classdef cic < neurostim.plugin
             if nargin <4
                 keys = {};
             end
-            if ismember('eScript',c.plugins)
-                plg = c.eScript;
-            else
+            plg = pluginsByClass(c,'eScript');
+            if isempty(plg)
                 plg = neurostim.plugins.eScript(c);
-                
             end
             plg.addScript(when,fun,keys);
         end
         
         
-        function keyboardResponse(c,key)
+        function keyboard(c,key)
             %             CIC Responses to keystrokes.
             switch (key)
                 case 'n'
@@ -551,10 +492,9 @@ classdef cic < neurostim.plugin
                         c.flags.trial = false;
                     else
                         c.EscPressedTime=GetSecs;
-                    end
+                    end   
                 otherwise
-                    %This used to contain code for handling actions from
-                    %addResponse() - no longer used I believe.
+                    error(c,'STOPEXPERIMENT',['Unknown key ' key '. Did you forget to specify a callback function (check addKey)?']);
             end
         end
         
@@ -563,13 +503,6 @@ classdef cic < neurostim.plugin
             [x,y] = c.pixel2Physical(x,y);
         end
         
-        
-        function glScreenSetup(c,window)
-            Screen('glLoadIdentity', window);
-            Screen('glTranslate', window,c.screen.xpixels/2,c.screen.ypixels/2);
-            Screen('glScale', window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
-            
-        end
         
         
         function restoreTextPrefs(c)
@@ -587,51 +520,44 @@ classdef cic < neurostim.plugin
         
         
         
-        function pluginOrder = order(c,varargin)
+        function newOrder = order(c,varargin)
             % pluginOrder = c.order([plugin1] [,plugin2] [,...])
             % Returns pluginOrder when no input is given.
             % Inputs: lists name of plugins in the order they are requested
             % to be executed in.
-            if isempty(c.pluginOrder)
-                c.pluginOrder = c.defaultPluginOrder;
-            end
             
-            if nargin>1
-                if iscellstr(varargin)
-                    a = varargin;
-                else
-                    for j = 1:nargin-1
-                        a{j} = varargin{j}.name; %#ok<AGROW>
-                    end
+            
+            defaultOrder = cat(2,{c.stimuli.name},{c.plugins.name});
+            if nargin==1
+                newOrder = defaultOrder;
+            else
+                newOrder = varargin;
+                notKnown = ~ismember(newOrder,defaultOrder);
+                if any(notKnown)
+                    warning(['Not a stimulus or plugin: ' neurostim.utils.separatedString(newOrder(notKnown)) ' . Ordering failed. Removed from list']);
+                    newOrder(notKnown) = [];
                 end
-                [~,indpos]=ismember(c.pluginOrder,a);
-                reorder=c.pluginOrder(logical(indpos));
-                [~,i]=sort(indpos(indpos>0));
-                reorder=fliplr(reorder(i));
-                neworder=cell(size(c.pluginOrder));
-                neworder(~indpos)=c.pluginOrder(~indpos);
-                neworder(logical(indpos))=reorder;
-                c.pluginOrder=neworder;
+                notSpecified = defaultOrder(~ismember(defaultOrder,newOrder));
+                newOrder = cat(2,newOrder,notSpecified);
+                % Force gui to be first
+                isGui = strcmpi('gui',newOrder);
+                if any(isGui) && ~isGui(1)
+                    newOrder = cat(2,'gui',newOrder(~isGui));
+                end
+            end
+            c.pluginOrder = [];
+            for i=1:numel(newOrder)
+                c.pluginOrder =cat(2,c.pluginOrder,c.(newOrder{i}));
             end
             
-            if ~strcmp(c.pluginOrder(1),'gui') && any(strcmp(c.pluginOrder,'gui'))
-                c.pluginOrder = ['gui' c.pluginOrder(~strcmp(c.pluginOrder,'gui'))];
-            end
-            if numel(c.pluginOrder)<numel(c.defaultPluginOrder)
-                b=ismember(c.defaultPluginOrder,c.pluginOrder);
-                index=find(~b);
-                c.pluginOrder=[c.pluginOrder(1:index-1) c.defaultPluginOrder(index) c.pluginOrder(index:end)];
-            end
-            pluginOrder = c.pluginOrder;
         end
         
         function plgs = pluginsByClass(c,classType)
             %Return pointers to all active plugins of the specified class type.
             ind=1; plgs = [];
-            for i=1:numel(c.plugins)
-                thisPlg = c.(c.plugins{i});
-                if isa(thisPlg,horzcat('neurostim.plugins.',lower(classType)));
-                    plgs{ind} = thisPlg;
+            for p =c.plugins
+                if isa(p,horzcat('neurostim.plugins.',lower(classType)));
+                    plgs{ind} = p; %#ok<AGROW>
                     ind=ind+1;
                 end
             end
@@ -661,7 +587,7 @@ classdef cic < neurostim.plugin
                 nm = 'plugins';
             end
             
-            if ismember(o.name,c.(nm))
+            if any(o==c.(nm))
                 warning(['This name (' o.name ') already exists in CIC. Updating...']);
                 % Update existing
             elseif  isprop(c,o.name)
@@ -670,19 +596,14 @@ classdef cic < neurostim.plugin
                 h = c.addprop(o.name); % Make it a dynamic property
                 c.(o.name) = o;
                 h.SetObservable = false; % No events
-                c.(nm) = cat(2,c.(nm),o.name);
+                c.(nm) = cat(2,c.(nm),o);
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
-                if strcmp(nm,'plugins') && c.PROFILE
-                    c.profile.(o.name)=struct('BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'cntr',0);
+                if c.PROFILE
+                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'AFTEREXPERIMENT',[],'cntr',0);
                 end
             end
-            
-            % Call the keystroke function
-            for i=1:length(o.keyStrokes)
-                addKeyStroke(c,o.keyStrokes{i},o.keyHelp{i},o);
-            end
-            
+                       
         end
         
         %% -- Specify conditions -- %%
@@ -732,15 +653,18 @@ classdef cic < neurostim.plugin
         end
         
         function beforeTrial(c)
-            if ~c.guiOn
-                message=collectPropMessage(c);
-                c.writeToFeed(message);
-            end
+           
         end
         
         
         function afterTrial(c)
+            if ~c.guiOn
+                message=collectPropMessage(c);
+                c.writeToFeed(message);
+            end
+            
             c.collectFrameDrops;
+             
         end
         
         
@@ -787,6 +711,7 @@ classdef cic < neurostim.plugin
                 stack = dbstack('-completenames',1);
                 if ~isempty(stack) % Can happen with ctrl-retun execution of code
                     c.expScript = fileread(stack(1).file);
+                    c.experiment = stack(1).file;
                 end
             catch
                 warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
@@ -807,32 +732,26 @@ classdef cic < neurostim.plugin
             
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation  will now be active
             
-            %% Set up order and event listeners
-            c.order;
-            c.createEventListeners;
-            c.setupExperiment(block1,varargin{:});
-            
-            % %Setup PTB
+            %% Set up order and blocks
+            order(c);
+            setupExperiment(c,block1,varargin{:});
+            %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);
-            c.KbQueueCreate;
-            c.KbQueueStart;
-            c.checkFrameRate;
+            checkFrameRate(c);
             
             %% Start preparation in all plugins.
-            notify(c,'BASEBEFOREEXPERIMENT');
+            base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
+            KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
             DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', c.screen.color.text);
             Screen('Flip', c.window);
-            if c.keyBeforeExperiment; KbWait(c.keyDeviceIndex);end
-            
-            
-            % All plugins BEFOREEXPERIMENT functions have been processed,
-            % store the current parameter values as the defaults.
-            for a = 1:numel(c.pluginOrder)
-                o = c.(c.pluginOrder{a});
-                setCurrentParmsToDefault(o);
-            end
-            
+            if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             c.flags.experiment = true;
+                        
+            FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
+            ITSAMISS        = c.FRAMESLACK*FRAMEDURATION;
+            locPROFILE      = c.PROFILE;
+            frameDeadline   = NaN;
+            %ListenChar(-1);
             nrBlocks = numel(c.blockFlow.list);
             for blockCntr=1:nrBlocks
                 c.flags.block = true;
@@ -856,22 +775,23 @@ classdef cic < neurostim.plugin
                 end
                 Screen('Flip',c.window);
                 if waitforkey
-                    KbWait(c.keyDeviceIndex,2);
+                    KbWait(c.kbInfo.pressAnyKey,2);
                 end
                 c.blockTrial =0;
                 while ~c.blocks(c.block).done
                     c.trial = c.trial+1;
                     
                     % Restore default values
-                    for a = 1:numel(c.pluginOrder)
-                        o = c.(c.pluginOrder{a});
-                        setDefaultParmsToCurrent(o);
-                    end
+                    setDefaultParmsToCurrent(c.pluginOrder);
+                    
                     
                     nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
                     c.blockTrial = c.blockTrial+1;  % For logging and gui only
                     beforeTrial(c);
-                    notify(c,'BASEBEFORETRIAL');
+                    
+                    
+                    base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
+                    
                     
                     %ITI - wait
                     if c.trial>1
@@ -884,8 +804,8 @@ classdef cic < neurostim.plugin
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
-                    c.frameStart=c.clockTime;
-                    FRAMEDURATION = 1000/c.screen.frameRate;
+                    
+                    Priority(MaxPriority(c.window));
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -899,16 +819,14 @@ classdef cic < neurostim.plugin
                         end
                         
                         
-                        notify(c,'BASEBEFOREFRAME');
-                        
+                        base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
                         Screen('DrawingFinished',c.window);
+                        base(c.pluginOrder,neurostim.stages.AFTERFRAME,c);
                         
-                        notify(c,'BASEAFTERFRAME');
-                        
-                        c.KbQueueCheck;
+                        KbQueueCheck(c);
                         
                         
-                        startFlipTime = c.clockTime;
+                        startFlipTime = GetSecs; % Avoid function call to clocktime
                         
                         % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
                         % stimOn: An estimate of Stimulus-onset time
@@ -916,61 +834,62 @@ classdef cic < neurostim.plugin
                         % missed: indicates if the requested presentation deadline for your stimulus has
                         %           been missed. A negative value means that dead- lines have been satisfied.
                         %            Positive values indicate a
-                        %            deadline-miss. (BK: we use timing
-                        %            info instead)
+                        %            deadline-miss.
                         % beampos: position of the monitor scanning beam when the time measurement was taken
-                        [vbl,stimOn,flip] = Screen('Flip', c.window,0,1-clr); %#ok<ASGLU>
-                        vbl =vbl*1000; %ms.
-                        if c.frame > 1 && c.PROFILE
-                            c.addProfile('FRAMELOOP',c.name,c.toc);
-                            c.tic
-                            c.addProfile('FLIPTIME',c.name,c.clockTime-startFlipTime);
+                        vSyncMode = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
+                        % Deadline has to be before the predicted next VBL time
+                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.window,frameDeadline,1-clr,vSyncMode);
+                        if vSyncMode==0
+                        else
+                            % Flip's return arguments are not meaningful.
+                            % It is now difficult to estimate when exactly
+                            % the flip occurred.
+                            ptbVbl = GetSecs;
+                            ptbStimOn = ptbVbl;
+                            missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
                         end
                         
-                        if c.frame == 1
-                            notify(c,'FIRSTFRAME');
-                            c.trialStartTime = stimOn*1000; % for trialDuration check
-                            c.flipTime=0;
-                        end
-                        
-                        
-                        if c.guiOn
-                            if mod(c.frame,c.guiFlipEvery)==0
-                                Screen('Flip',c.guiWindow,0,[],2);
-                            end
+                        if c.frame > 1 && locPROFILE
+                            addProfile(c,'FRAMELOOP','cic',c.toc);
+                            tic(c)
+                            addProfile(c,'FLIPTIME','cic',1000*(GetSecs-startFlipTime));
                         end
                         
                         
                         %% Check Timing
                         % Delta between actual and deadline of flip;
-                        deltaFlip       = (vbl-c.frameDeadline) ;
-                        missed          = c.frame>1 && abs(deltaFlip) > c.FRAMESLACK*FRAMEDURATION;
-                        c.frameStart    = vbl; % Not logged, but used to check drops/jumps
-                        c.frameDeadline = vbl+FRAMEDURATION;
-                        
-                        if missed
-                            c.frameDrop = [c.frame deltaFlip];
-                            if c.guiOn
-                                c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(deltaFlip)]);
+                        frameDeadline = ptbVbl+0.9*FRAMEDURATION; %a little bit before the next VBL..
+                        if c.frame == 1
+                            locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
+                            c.firstFrame = locFIRSTFRAMETIME;% log it                            
+                            c.flipTime=0;
+                        else
+                            if missed>ITSAMISS
+                                c.frameDrop = [c.frame missed]; % Log frame and delta
+                                if c.guiOn
+                                    c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
+                                end
                             end
                         end
                         
+                        
                         if c.getFlipTime
-                            c.flipTime = stimOn*1000-c.trialStartTime;% Used by stimuli to log their onset
+                            c.flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;% Used by stimuli to log their onset
                             c.getFlipTime=false;
-                        end
+                        end                        
                         
                     end % Trial running
-                    
+                    Priority(0);
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
-                    [~,stimOn]=Screen('Flip', c.window,0,1-c.itiClear);
-                    c.trialStopTime = stimOn*1000;
+                    [~,ptbStimOn]=Screen('Flip', c.window,0,1-c.itiClear);
+                    c.trialStopTime = ptbStimOn*1000;
                     c.frame = c.frame+1;
-                    notify(c,'BASEAFTERTRIAL');
+                    base(c.pluginOrder,neurostim.stages.AFTERTRIAL,c);
                     afterTrial(c);
                 end %conditions in block
                 
+                Screen('glLoadIdentity', c.window);
                 if ~c.flags.experiment;break;end
                 waitforkey=false;
                 if isa(c.blocks(c.block).afterMessage,'function_handle')
@@ -986,77 +905,73 @@ classdef cic < neurostim.plugin
                 end
                 Screen('Flip',c.window);
                 if waitforkey
-                    KbWait(c.keyDeviceIndex,2);
+                    KbWait(c.kbInfo.pressAnyKey,2);
                 end
             end %blocks
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
+            
             DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
             Screen('Flip', c.window);
-            notify(c,'BASEAFTEREXPERIMENT');
-            c.KbQueueStop;
-            if c.keyAfterExperiment; KbWait(c.keyDeviceIndex);end
             
-            %Prune the log of all plugins/stimuli
-            for a = 1:numel(c.pluginOrder)
-                o = c.(c.pluginOrder{a});
-                if ~isempty(o.prms)
-                    structfun(@pruneLog,o.prms); 
-                end             
-            end    
-            structfun(@pruneLog,c.prms); 
+            base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
+            c.KbQueueStop;
+            if c.keyAfterExperiment; KbWait(c.kbInfo.pressAnyKey);end
+            
+            %Prune the log of all plugins/stimuli and cic itself
+            pruneLog([c.pluginOrder c]);
             c.saveData;
             Screen('CloseAll');
+            %ListenChar(0);
             if c.PROFILE; report(c);end
         end
         
         function saveData(c)
             filePath = horzcat(c.fullFile,'.mat');
             save(filePath,'c');
-            disp(horzcat('Data saved to ',filePath)); 
+            disp(horzcat('Data saved to ',filePath));
         end
         
-        function delete(c)
+        function delete(c) %#ok<INUSD>
             %Destructor. Release all resources. Maybe more to add here?
-            c.saveData;
-            Screen('CloseAll');
+            %Screen('CloseAll');
         end
         
         %% Keyboard handling routines
         %
-        function addKeyStroke(c,key,keyHelp,p)
+        function addKeyStroke(c,key,keyHelp,plg,isSubject,fun)
             if ischar(key)
                 key = KbName(key);
             end
             if ~isnumeric(key) || key <1 || key>256
-                error('Please use KbName to add keys to keyhandlers')
+                error('Please use KbName to add keys')
             end
-            if ismember(key,c.allKeyStrokes)
+            if  ismember(key,c.kbInfo.keys)
                 error(['The ' key ' key is in use. You cannot add it again...']);
             else
-                c.allKeyStrokes = cat(2,c.allKeyStrokes,key);
-                c.keyHandlers{end+1}  = p;
-                c.allKeyHelp{end+1} = keyHelp;
+                c.kbInfo.keys(end+1)  = key;
+                c.kbInfo.help{end+1} = keyHelp;
+                c.kbInfo.plugin{end+1} = plg; % Handle to plugin to call keyboard()
+                c.kbInfo.isSubject(end+1) = isSubject;
+                c.kbInfo.fun{end+1} = fun;
             end
         end
         
-        function removeKeyStrokes(c,key)
+        function removeKeyStroke(c,key)
             % removeKeyStrokes(c,key)
             % removes keys (cell array of strings) from cic. These keys are
             % no longer listened to.
             if ischar(key) || iscellstr(key)
                 key = KbName(key);
             end
-            if ~isnumeric(key) || any(key <1) || any(key>256)
-                error('Please use KbName to add keys to keyhandlers')
-            end
-            if any(~ismember(key,c.allKeyStrokes))
-                error(['The ' key(~ismember(key,c.allKeyStrokes)) ' key is not in use. You cannot remove it...']);
+            ix = ismember(key,c.kbInfo.keys);
+            if ~any(ix)
+                warning(['The ' key(~ix) ' key is not in use. You cannot remove it...??']);
             else
-                index = ismember(c.allKeyStrokes,key);
-                c.allKeyStrokes(index) = [];
-                c.keyHandlers(index)  = [];
-                c.allKeyHelp(index) = [];
+                out = ismember(c.kbInfo.keys,key);
+                c.kbInfo.keys(out) = [];
+                c.kbInfo.help(out)  = [];
+                c.kbInfo.plugin(out) = [];
             end
         end
         
@@ -1093,8 +1008,8 @@ classdef cic < neurostim.plugin
             if c.guiOn
                 c.gui.writeToFeed(message);
             else
-                message=horzcat('\n',num2str(c.trial), ': ', message, '\n');
-                fprintf(message);
+                message=horzcat('\n TR:',num2str(c.trial), ': ', message);
+                fprintf(1,message);
             end
         end
         
@@ -1122,6 +1037,8 @@ classdef cic < neurostim.plugin
             pin.addParameter('frameRate',[]);
             pin.addParameter('screenNumber',[]);
             pin.addParameter('keyboardNumber',[]);
+            pin.addParameter('subjectKeyboard',[]);
+            pin.addParameter('experimenterKeyboard',[]);
             pin.addParameter('eyelink',false);
             pin.addParameter('eyelinkCommands',[]);
             pin.addParameter('outputDir',[]);
@@ -1153,8 +1070,15 @@ classdef cic < neurostim.plugin
                 c.screen.number  = pin.Results.screenNumber;
             end
             if ~isempty(pin.Results.keyboardNumber)
-                c.keyDeviceIndex  = pin.Results.keyboardNumber;
+                c.kbInfo.default = pin.Results.keyboardNumber;
             end
+            if ~isempty(pin.Results.subjectKeyboard)
+                c.kbInfo.subject= pin.Results.subjectKeyboard;
+            end
+            if ~isempty(pin.Results.experimenterKeyboard)
+                c.kbInfo.experimenter = pin.Results.experimenterKeyboard;
+            end
+            
             if ~isempty(pin.Results.outputDir)
                 c.dirs.output  = pin.Results.outputDir;
             end
@@ -1184,54 +1108,86 @@ classdef cic < neurostim.plugin
         
         %% Keyboard handling routines(protected). Basically light wrappers
         % around the PTB core functions
-        function KbQueueCreate(c,device)
-            if nargin>1
-                c.keyDeviceIndex = device;
-            end
-            keyList = zeros(1,256);
-            keyList(c.allKeyStrokes) = 1;
-            KbQueueCreate(c.keyDeviceIndex,keyList);
-        end
-        
-        function KbQueueStart(c)
-            KbQueueStart(c.keyDeviceIndex);
-        end
-        
-        % Public access to allow plugins to call this...
-        function KbQueueCheck(c)
-            [pressed, firstPress, firstRelease, lastPress, lastRelease]= KbQueueCheck(c.keyDeviceIndex);%#ok<ASGLU>
-            if pressed
-                % Some key was pressed, pass it to the plugin that wants
-                % it.
-                %                 firstRelease(out)=[]; not using right now
-                %                 lastPress(out) =[];
-                %                 lastRelease(out)=[];
-                ks = find(firstPress);
-                for k=ks
-                    ix = find(c.allKeyStrokes==k);% should be only one.
-                    if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
-                    % Call the keyboard member function in the relevant
-                    % class
-                    c.keyHandlers{ix}.keyboard(KbName(k),firstPress(k));
+        function KbQueueCreate(c)
+            % Put the requested keys in KBQueues, if requested, create a
+            % separate queue for stimuli (subject keybaord) and plugins
+            % (experimenter keyboard)
+            clear KbCheck; % Seems to be necessary on Ubuntu
+            c.kbInfo.activeKb = {}; % Use a cell to store [] for "default keyboard"
+            if ~isempty(c.kbInfo.subject) && ~isempty(c.kbInfo.experimenter)
+                % Separate subject/experimenter keyboard defined
+                keyList = zeros(1,256);
+                if any(c.kbInfo.isSubject)
+                    keyList(c.kbInfo.keys(c.kbInfo.isSubject)) = 1;                    
+                 if any(keyList)
+                    KbQueueCreate(c.kbInfo.subject,keyList);
+                    KbQueueStart(c.kbInfo.subject);
+                    c.kbInfo.activeKb{end+1} = c.kbInfo.subject;
+                end
+                end
+                keyList = zeros(1,256);
+                if any(~c.kbInfo.isSubject)
+                keyList(c.kbInfo.keys(~c.kbInfo.isSubject)) = 1;
+                if any(keyList)
+                    KbQueueCreate(c.kbInfo.experimenter,keyList);
+                    KbQueueStart(c.kbInfo.experimenter);
+                    c.kbInfo.activeKb{end+1} = c.kbInfo.experimenter;
+                end
+                end 
+            else
+                keyList = zeros(1,256);
+                keyList(c.kbInfo.keys) = 1;
+                if any(keyList)
+                    KbQueueCreate(c.kbInfo.default,keyList);
+                    KbQueueStart(c.kbInfo.default);
+                    c.kbInfo.activeKb{end+1} = c.kbInfo.default;
                 end
             end
         end
         
         
+         function KbQueueCheck(c)
+            for kb=1:numel(c.kbInfo.activeKb)
+                [pressed, firstPress, firstRelease, lastPress, lastRelease]= KbQueueCheck(c.kbInfo.activeKb{kb});%#ok<ASGLU>
+                if pressed
+                    % Some key was pressed, pass it to the plugin that wants
+                    % it.
+                    %                 firstRelease(out)=[]; not using right now
+                    %                 lastPress(out) =[];
+                    %                 lastRelease(out)=[];
+                    ks = find(firstPress);
+                    for k=ks
+                        ix = find(c.kbInfo.keys==k);% should be only one.
+                        if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end                        
+                        if isempty(c.kbInfo.fun{ix})
+                            % Use the plugin's keyboard function
+                            keyboard(c.kbInfo.plugin{ix},KbName(k));%,firstPress(k));
+                        else
+                            % Use the specified function
+                            c.kbInfo.fun{ix}(c.kbInfo.plugin{ix},KbName(k));%,firstPress(k));
+                        end
+                    end
+                end
+            end
+        end
         
     end
     
     methods (Access=private)
         
         function KbQueueStop(c)
-            KbQueueStop(c.keyDeviceIndex);
+            for kb=1:numel(c.kbInfo.activeKb)
+                KbQueueStop(c.kbInfo.activeKb{kb});
+                KbQueueRelease(c.kbInfo.activeKb{kb});
+            end
+            
         end
         
         function colorOk = loadCalibration(c)
             colorOk = false;
             if ~isempty(c.screen.calFile)
                 % Load a calibration from file. The cal struct has been
-                % generated by utils.ptbcal 
+                % generated by utils.ptbcal
                 
                 c.screen.calibration = LoadCalFile(c.screen.calFile,Inf,c.dirs.calibration); % Retrieve the latest calibration
                 if isempty(c.screen.calibration)
@@ -1241,7 +1197,7 @@ classdef cic < neurostim.plugin
                 if ~isempty(c.screen.colorMatchingFunctions)
                     % The "sensor" is the human observer and we can pick different ones by
                     % chosing a different CMF (in c.screen.cmf). Sensor coordinates
-                    % are XYZ tristimulus values.     
+                    % are XYZ tristimulus values.
                     % Apply color matching functions
                     tmpCmf = load(c.screen.colorMatchingFunctions);
                     fn = fieldnames(tmpCmf);
@@ -1338,7 +1294,7 @@ classdef cic < neurostim.plugin
                 case 'VPIXX-M16'
                     c.overlay = PsychImaging('GetOverlayWindow', c.window);
                     [nrRows,nrCols] = size(c.screen.overlayClut);
-                    if nrCols>0 && nrCols~=3  
+                    if nrCols>0 && nrCols~=3
                         error('The overlay clut should have 3 columns...');
                     end
                     if nrRows>255
@@ -1347,7 +1303,7 @@ classdef cic < neurostim.plugin
                     % Add white for missing clut entries to show error
                     % indices (assuming the bg is not max white)
                     c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
-                    Screen('LoadNormalizedGammaTable',c.window,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT                  
+                    Screen('LoadNormalizedGammaTable',c.window,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1371,7 +1327,7 @@ classdef cic < neurostim.plugin
                         % This mode accepts luminances between min and max
                     end
                 case {'XYZ','XYL'}
-                    % Apply color calibration to the window 
+                    % Apply color calibration to the window
                     PsychColorCorrection('SetSensorToPrimary', c.window, c.screen.calibration);
                 case 'RGB'
                     % Nothing to do
@@ -1442,24 +1398,93 @@ classdef cic < neurostim.plugin
     
     methods
         function report(c)
+            %% Profile report
             plgns = fieldnames(c.profile);
             for i=1:numel(plgns)
-                figure('Name',plgns{i});
-                
+                if c.profile.(plgns{i}).cntr==0;break;end
+                MAXDURATION = 3*1000/c.screen.frameRate;
+                figure('Name',plgns{i},'position',[680   530   818   420]);
+                clf;
                 items = fieldnames(c.profile.(plgns{i}));
                 items(strcmpi(items,'cntr'))=[];
                 nPlots = numel(items);
-                nPerRow = ceil(sqrt(nPlots));
+                nPerCol = floor(sqrt(nPlots));
+                nPerRow = ceil(nPlots/nPerCol);
                 
                 for j=1:nPlots
-                    subplot(nPerRow,nPerRow,j);
-                    vals = c.profile.(plgns{i}).(items{j});
-                    hist(vals,100);
+                    subplot(nPerRow,nPerCol,j);
+                    vals{i,j} = c.profile.(plgns{i}).(items{j});
+                    out =isinf(vals{i,j}) | isnan(vals{i,j});
+                    thisVals= min(vals{i,j}(~out),MAXDURATION);
+                    hist(thisVals,100);
                     xlabel 'Time (ms)'; ylabel '#'
-                    title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(vals),2))));
+                    title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(vals{i,j}),2))));
                 end
             end
+            if numel(plgns)>1
+            figure('Name','Total','position',[680   530   818   420]); 
+            clf
+            frameItems = find(contains(items,'FRAME'));
+            cntr=1;
+                for j=frameItems'
+                    subplot(1,2,cntr);
+                    total = cat(1,vals{2:end,j});
+                    total =sum(total);
+                    out =isinf(total) | isnan(total);                       
+                    total = min(total(~out),MAXDURATION);
+                    histogram(total,100);
+                    xlabel 'Time (ms)'; ylabel '#'
+                    title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(total)))));
+                    cntr = cntr+1;
+                    hold on
+                    plot(1000./c.screen.frameRate*ones(1,2),ylim,'r')
+                end
+            end
+            %% Framedrop report
+            figure('Name',[c.file ' - framedrop report'])
+            [val,tr,ti,eTi] = get(c.prms.frameDrop);
+            if size(val,1)==1
+                % No drops
+                title 'No Drops';
+                return
+            end
+            val = cat(1,val{:});
+            delta =1000*val(:,2); % How much too late...
+            slack = 0.2;
+            [~,~,criticalStart] = get(c.prms.firstFrame,'atTrialTime',inf);
+            [~,~,criticalStop] = get(c.prms.trialStopTime,'atTrialTime',inf);
+            meanDuration = nanmean(criticalStop-criticalStart);
+            out = (ti<(criticalStart(tr)-slack*meanDuration) | ti>(criticalStop(tr)+slack*meanDuration));
+            for i=1:c.nrStimuli
+                subplot(c.nrStimuli+2,1,i)
+                [~,~,stimstartT] = get(c.stimuli(i).prms.startTime,'atTrialTime',inf);
+                relativeTime  = ti(~out)-stimstartT(tr(~out));
+                relativeTrial  = tr(~out);
+                plot(relativeTime,relativeTrial,'.')
+                xlabel('Time from stim start (ms)')
+                ylabel 'Trial'
+                title (c.stimuli(i).name )
+                set(gca,'YLim',[0 max(relativeTrial)+1],'YTick',1:max(relativeTrial),'XLIm',[-slack*meanDuration (1+slack)*meanDuration])
+            end
+            subplot(c.nrStimuli+2,1,c.nrStimuli+1)
+            nrBins = max(10,round(numel(ti)/10));
+            
+            histogram(ti-criticalStart(tr),nrBins,'BinLimits',[-slack*meanDuration (1+slack)*meanDuration]);%,tBins)
+            
+            xlabel 'Time from trial start (ms)'
+            ylabel '#drops'
+            
+            
+            subplot(c.nrStimuli+2,1,c.nrStimuli+2)
+            frameduration = 1000./c.screen.frameRate;
+            bins  = linspace(-frameduration,frameduration,20);
+            histogram(delta,bins);%
+            title(['mean = ' num2str(nanmean(delta))])
+            xlabel 'Delta (ms)'
+            ylabel '#drops'
+            
         end
+        
         
         function addProfile(c,what,name,duration)
             BLOCKSIZE = 1500;
@@ -1479,5 +1504,6 @@ classdef cic < neurostim.plugin
             elapsed = GetSecs*1000 - c.ticTime;
         end
     end
+    
     
 end

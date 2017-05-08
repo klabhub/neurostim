@@ -16,8 +16,7 @@ classdef nafcResponse < neurostim.plugins.behavior
    methods (Access = public)
        function o = nafcResponse(c,name)
             o = o@neurostim.plugins.behavior(c,name); 
-            o.continuous = false;
-            o.listenToEvent('BEFORETRIAL');
+            o.continuous = false;            
             o.addProperty('keyLabels',{},'validate',@iscellstr);
             o.addProperty('keys',{},'validate',@iscellstr);
             o.addProperty('correctKey',[],'validate',@isnumeric);
@@ -25,15 +24,15 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('pressedInd',[]);
             o.addProperty('pressedKey',[]);
             o.addProperty('oncePerTrial',false);
-            o.listenToEvent('BEFOREEXPERIMENT','BEFORETRIAL');
+            
        end
        
-       function beforeTrial(o,c,evt)            
-           beforeTrial@neurostim.plugins.behavior(o,c,evt); % Call parent
+       function beforeTrial(o)            
+           beforeTrial@neurostim.plugins.behavior(o); % Call parent
            o.responded = false;   % Update responded for this trial
        end
 
-       function beforeExperiment(o,c,evt)
+       function beforeExperiment(o)
            
            if isempty(o.keyLabels)
                o.keyLabels = o.keys;
@@ -46,19 +45,12 @@ classdef nafcResponse < neurostim.plugins.behavior
            
            % Add key listener for all keys.
            for i = 1:numel(o.keys)
-                o.addKey(o.keys{i},@responseHandler,o.keyLabels{i});
+                o.addKey(o.keys{i},o.keyLabels{i},true); % True= isSubject 
            end
        end
-   end
-   
-   methods (Access=protected)
        
-       function inProgress = validate(o)
-          inProgress = o.inProgress;
-       end
        
-       function responseHandler(o,key)
-           
+       function keyboard(o,key)           
            if o.enabled && (~o.responded || ~o.oncePerTrial)
                %Which key was pressed (index, and label)
                o.pressedInd = find(strcmpi(key,o.keys));
@@ -77,6 +69,14 @@ classdef nafcResponse < neurostim.plugins.behavior
                o.responded = true;
            end
        end
+       
+   end
+   
+   methods (Access=protected)
+       
+       function inProgress = validate(o)
+          inProgress = o.inProgress;
+       end              
           
    end  
 end

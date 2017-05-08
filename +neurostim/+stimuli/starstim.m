@@ -196,10 +196,7 @@ classdef starstim < neurostim.stimulus
             if o.fake;
                 return;
             end
-            stop(o);
-            unloadProtocol(o);
-            close(o.sock);
-            
+            onExit(o);           
         end
         % Constructor. Provide a handle to CIC, the Starstim hostname.
         % You can fake a NIC by specifying 'fake' as the hostname
@@ -234,8 +231,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('enabled',true);
             
             
-            o.listenToEvent('BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFOREFRAME','BEFORETRIAL');
-            
+             
             % Define  marker events to store in the NIC data file
             o.code('trialStart') = 1;
             o.code('stimStart') = 2;
@@ -243,14 +239,14 @@ classdef starstim < neurostim.stimulus
             o.code('trialStop') = 4;
         end
         
-        function beforeExperiment(o,c,evt) %#ok<INUSD>
+        function beforeExperiment(o)
             % Connect to the device, load the protocol.
             if o.fake
                 o.writeToFeed(['Starstim fake conect to ' o.host]);
             else
                 [ret, stts, o.sock] = MatNICConnect(o.host);
                 o.checkRet(ret,['Host:' stts]);
-                [pth,file] = fileparts(c.fullFile);
+                [pth,file] = fileparts(o.cic.fullFile);
                 pth = fullfile(pth,file);
                 if ~exist(pth,'dir')
                     mkdir(pth);
@@ -260,7 +256,7 @@ classdef starstim < neurostim.stimulus
                 % File format : % YYYYMMDD_[subject].edf
                 % Always generate .easy file, and edf file (NIC requires
                 % it), and generate .stim when stimulating.
-                ret = MatNICConfigureFileNameAndTypes(c.subject,true,false,true,true,false,o.sock);
+                ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,false,true,true,false,o.sock);
                 o.checkRet(ret,'FileNameAndTypes');
                 [ret,o.markerStream] = MatNICMarkerConnectLSL('Neurostim');
                 o.checkRet(ret,'Please enable the Neurostim Marker Stream in NIC');
@@ -296,7 +292,7 @@ classdef starstim < neurostim.stimulus
                 % new protocol defined
                 unloadProtocol(o); % Unload current
                 o.protocol= prtcl;
-            end
+            end 
             % Load the protocol
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 o.checkRet(-1,'A protocol is currently running on the NIC. Please stop it first')
@@ -310,7 +306,7 @@ classdef starstim < neurostim.stimulus
         end
         
         function unloadProtocol(o)
-            if ~ischar(o.protocolStatus) || strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
+            if ~ischar(o.protocolStatus) || strcmpi(o.protocolStatus,'CODE_STATUS_IDLE') || strcmpi(o.protocolStatus,'CODE_STATUS_STIMULATION_FULL')
                 return; % No protocol loaded.
             end
             ret = MatNICUnloadProtocol(o.sock);
@@ -321,7 +317,7 @@ classdef starstim < neurostim.stimulus
             end
         end
         
-        function beforeTrial(o,c,evt) %#ok<INUSD>
+        function beforeTrial(o) 
             if o.fake
                 o.writeToFeed('Starstim fake start stim');
                 return;
@@ -367,7 +363,7 @@ classdef starstim < neurostim.stimulus
                             disp('RNS Not implemented yet');
                     end
                 otherwise
-                    c.error(['Unknown starstim mode :' o.mode]);
+                    o.cic.error(['Unknown starstim mode :' o.mode]);
             end
             
             % Send a trial start marker to the NIC
@@ -378,7 +374,7 @@ classdef starstim < neurostim.stimulus
             
         end
         
-        function beforeFrame(o,c,evt) %#ok<INUSD>
+        function beforeFrame(o)
             if o.fake
                 return;
             end
@@ -387,8 +383,9 @@ classdef starstim < neurostim.stimulus
                     % nothing to do
                     ret =0;
                 case 'TIMED'
-                    ret =0;
-                    if ~o.isOnlineStarted
+                    ret =0;                   
+                    if ~o.isOnlineStarted          
+                        waitFor(o,'CODE_STATUS_STIMULATION_FULL');
                         switch (o.nowType)
                             case 'DC'
                                 ret = MatNICOnlineAtdcsChange(o.nowMean, o.NRCHANNELS, o.transition, o.sock);
@@ -401,6 +398,7 @@ classdef starstim < neurostim.stimulus
                         o.isOnlineStarted = true;
                     elseif o.sham && ~o.isShamOn
                         % Ramp back down
+                        waitFor(o,'CODE_STATUS_STIMULATION_FULL');
                         switch (o.nowType)
                             case 'DC'
                                 ret = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
@@ -414,7 +412,7 @@ classdef starstim < neurostim.stimulus
                     end
                     
                 otherwise
-                    c.error(['Unknown starstim mode :' o.mode]);
+                    o.cic.error(['Unknown starstim mode :' o.mode]);
             end
             if ret<0
                 o.checkRet(ret,[ o.nowType  ' parameter change failed']);
@@ -422,7 +420,7 @@ classdef starstim < neurostim.stimulus
             
         end
         
-        function afterTrial(o,c,evt) %#ok<INUSD>
+        function afterTrial(o) 
             if o.fake
                 o.writeToFeed('Starstim fake afterTrial stim');
                 return;
@@ -456,7 +454,7 @@ classdef starstim < neurostim.stimulus
                     end
                     o.isShamOn = false;
                 otherwise
-                    c.error(['Unknown starstim mode :' o.mode]);
+                    o.cic.error(['Unknown starstim mode :' o.mode]);
             end
             
             % Send a trial start marker to the NIC
@@ -467,7 +465,7 @@ classdef starstim < neurostim.stimulus
             
         end
         
-        function afterExperiment(o,c,evt) %#ok<INUSD>
+        function afterExperiment(o) 
             if o.fake
                 o.writeToFeed('Starstim fake afterExperiment');
                 return;
@@ -484,7 +482,7 @@ classdef starstim < neurostim.stimulus
                 case 'TRIAL'
                 case 'TIMED'
                 otherwise
-                    c.error(['Unknown starstim mode :' o.mode]);
+                    o.cic.error(['Unknown starstim mode :' o.mode]);
             end
             
             %           % FUTURE WORK to get more fine grained control
@@ -524,7 +522,7 @@ classdef starstim < neurostim.stimulus
         %             % milliseconds (including the transitions).
         %
         %             if duration>0 && isa(o.tacsTimer,'timer') && isvalid(o.tacsTimer) && strcmpi(o.tacsTimer.Running,'off')
-        %                 c.error('STOPEXPERIMENT','tACS pulse already on? Cannot start another one');
+        %                 o.cic.error('STOPEXPERIMENT','tACS pulse already on? Cannot start another one');
         %             end
         %
         %             if o.fake
@@ -563,13 +561,18 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 o.writeToFeed('Start Stim');
             elseif ~o.isProtocolOn
+                
                 ret = MatNICStartProtocol(o.sock);
-                o.checkRet(ret,['Protocol ' o.protocol ' could not be started']);
+                if ret==0
+                    disp(['Started ' o.protocol]);
+                else
+                    o.checkRet(ret,['Protocol ' o.protocol ' could not be started']);
+                end
                 waitFor(o,'CODE_STATUS_STIMULATION_FULL');
                 % This waitFor is slow, and adds at least 1s to
                 % the startup, but at least we're in a defined
                 % state after the wait.
-                %else already started
+                % else already started
             end
         end
         
@@ -579,7 +582,11 @@ classdef starstim < neurostim.stimulus
                 o.writeToFeed('Stimulation stopped');
             elseif o.isProtocolOn
                 ret = MatNICAbortProtocol(o.sock);
-                o.checkRet(ret,['Protocol ' o.protocol ' could not be stopped']);
+                if ret==-2
+                    % already stopped
+                else
+                    o.checkRet(ret,['Protocol ' o.protocol ' could not be stopped']);
+                end
                 %else -  already stopped
             end
             
@@ -617,24 +624,34 @@ classdef starstim < neurostim.stimulus
             % Check a return value and display a message if something is
             % wrong.
             if ret<0
-                close(o.sock);
+                onExit(o)
                 o.cic.error('STOPEXPERIMENT',['StarStim failed: Status ' o.status ':  ' num2str(ret) ' ' msg]);
             end
         end
         
+        function onExit(o)
+            stop(o);
+            unloadProtocol(o);
+            close(o.sock);
+        end
         
         function waitFor(o,varargin)
             % busy-wait for a sequence of status events.
             cntr =1;
             nrInSequence = numel(varargin);
-            TIMEOUT = 5;
+            TIMEOUT = 25;
             tic;
-            while (cntr<=nrInSequence && toc <TIMEOUT)
+            while (cntr<=nrInSequence)
                 if strcmpi(o.protocolStatus,varargin{cntr})
-                    cntr= cntr+1;
+                    cntr= cntr+1;                    
+                end                
+                pause(0.025); % Check status every 25 ms.
+                if toc> TIMEOUT
+                    warning(['Waiting for ' varargin{cntr} ' timed out']);
+                    break;
                 end
-                pause(0.1); % Check status every 100 ms.
             end
+            % disp([varargin{end} ' : ' num2str(toc) 's']);
         end
         
     end

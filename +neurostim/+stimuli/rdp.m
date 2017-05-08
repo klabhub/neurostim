@@ -41,7 +41,6 @@ classdef rdp < neurostim.stimulus
     methods (Access = public)
         function o = rdp(c,name)
             o = o@neurostim.stimulus(c,name);
-            o.listenToEvent('BEFOREFRAME','AFTERFRAME');
             o.addProperty('size',5,'validate',@isnumeric);
             o.addProperty('maxRadius',100,'validate',@isnumeric);
             o.addProperty('speed',5,'validate',@isnumeric);
@@ -61,7 +60,7 @@ classdef rdp < neurostim.stimulus
         end
         
         
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o)
             
             % overrule one of the velocity vectors based on coord system
             if o.coordSystem == 1
@@ -80,12 +79,12 @@ classdef rdp < neurostim.stimulus
         end
         
         
-        function beforeFrame(o,c,evt)
+        function beforeFrame(o)
             Screen('DrawDots',o.window, [o.x o.y]', o.size, o.color);
         end
         
         
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
             
             % reduce lifetime by 1
             if o.noiseMode ~= 1

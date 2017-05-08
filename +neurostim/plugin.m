@@ -1,33 +1,14 @@
-classdef plugin  < dynamicprops & matlab.mixin.Copyable
+classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogeneous
     % Base class for plugins. Includes logging, functions, etc.
     %
     properties (SetAccess=public)
         cic;  % Pointer to CIC
     end
     
-    events
-        BEFOREFRAME;
-        AFTERFRAME;
-        BEFORETRIAL;
-        AFTERTRIAL;
-        BEFOREEXPERIMENT;
-        AFTEREXPERIMENT;
-    end
     
     properties (SetAccess=private, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
         prms;          % Structure to store all parameters
-    end
-    
-    properties (SetAccess=private, GetAccess=public)
-        keyFunc = struct; % structure for functions assigned to keys.
-        keyStrokes  = {}; % Cell array of keys that his plugin will respond to
-        keyHelp     = {}; % Copy in the plugin allows easier setup of keyboard handling by stimuli and other derived classes.
-        evts        = {}; % Events that this plugin will respond to.
-    end
-    
-    properties (Access = private)
-        
     end
     
     methods (Access=public)
@@ -37,6 +18,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
                 error('Stimulus and plugin names must be valid Matlab variable names');
             end
             o.name = n;
+            
             if~isempty(c) % Need this to construct cic itself...dcopy
                 c.add(o);
             end
@@ -46,35 +28,34 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
         function s= duplicate(o,name)
             % This copies the plugin and gives it a new name. See
             % plugin.copyElement
-             s=copyElement(o,name);
+            s=copyElement(o,name);
             % Add the duplicate to cic.
             o.cic.add(s);
         end
         
         
-        function keyboard(o,key,time) %#ok<INUSD>
-            % Generic keyboard handler; when keys are added using keyFun,
-            % this evaluates the function attached.
-            if any(strcmpi(key,fieldnames(o.keyFunc)))
-                o.keyFunc.(key)(o,key);
-            end
-        end
-        
-        
-        function success=addKey(o,key,fnHandle,varargin)
-            % addKey(key, fnHandle [,keyHelp])
+        function addKey(o,key,keyHelp,isSubject,fun)
+            % addKey(key, fnHandle [,keyHelp],[,subject],[,fun])
             % Runs a function in response to a specific key press.
             % key - a single key (string)
-            % fnHandle - function handle of function to run.
-            % Function must be of the format @fn(o,key).
-            if nargin < 4
-                keyhelp = func2str(fnHandle);
-            else
-                keyhelp = varargin{1};
+            % keyHelp -  a string that explains what this key does
+            % isSubject - bool to indicate whether this is a key press the
+            % subject should do. (Defaults to true for stimuli, false for
+            % plugins)
+            % The user must implement keyboard(o,key) or provide a
+            % handle to function that takes a plugin/stimulus and a key as
+            % input.
+            nin =nargin;
+            if nin<5
+                fun =[];
+                if nin < 4
+                    isSubject = isa(o,'neurostim.stimulus');
+                    if nin <3
+                        keyHelp = '?';
+                    end
+                end
             end
-            o.listenToKeyStroke(key,keyhelp);
-            o.keyFunc.(key) = fnHandle;
-            success=true;
+            addKeyStroke(o.cic,key,keyHelp,o,isSubject,fun);
         end
         
         % Convenience wrapper; just passed to CIC
@@ -88,19 +69,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             o.cic.writeToFeed(horzcat(o.name, ': ', message));
         end
         
-        % Needed by str2fun 
+        % Needed by str2fun
         function ok = setProperty(o,prop,value)
             o.(prop) =value;
             ok = true;
         end
-
+        
         % Add properties that will be time-logged automatically, and that
         % can be validated after being set.
         % These properties can also be assigned a function to dynamically
         % link properties of one object to another. (g.X='@g.Y+5')
         function addProperty(o,prop,value,varargin)
             p=inputParser;
-            p.addParameter('validate',[]);            
+            p.addParameter('validate',[]);
             p.addParameter('SetAccess','public');
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);
@@ -131,16 +112,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             end
         end
         
-        function duplicateProperty(o,parm)            
-             % First check if it is already there.
-             h =findprop(o,parm.name);
-             if ~isempty(h)
+        function duplicateProperty(o,parm)
+            % First check if it is already there.
+            h =findprop(o,parm.name);
+            if ~isempty(h)
                 error([parm.name ' is already a property of ' o.name ]);
-             end
-             h= o.addprop(parm.name);
-             o.prms.(parm.name) = duplicate(parm,o,h);
+            end
+            h= o.addprop(parm.name);
+            o.prms.(parm.name) = duplicate(parm,o,h);
         end
-                
+        
     end
     
     
@@ -160,167 +141,161 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable
             
             % First a shallow copy of fixed properties
             s = copyElement@matlab.mixin.Copyable(o);
-            s.prms = []; % Remove parameter objects; new ones will be created for the 
+            s.prms = []; % Remove parameter objects; new ones will be created for the
             % duplicate plugin
             % Then setup the dynamic props again. (We assume all remaining
             % dynprops are parameters of the stimulus/plugin)
             dynProps = setdiff(properties(o),properties(s));
-            s.name=name;            
+            s.name=name;
             for p=1:numel(dynProps)
                 pName = dynProps{p};
                 duplicateProperty(s,o.prms.(pName));
-            end            
+            end
         end
         
     end
     
-    % Convenience wrapper functions to pass the buck to CIC
-    methods (Sealed)
-        
-        function listenToKeyStroke(o,keys,keyHelp)
-            % listenToKeyStroke(o,keys,keyHelp)
-            % keys - string or cell array of strings corresponding to keys
-            % keyHelp - string or cell array of strings corresponding to key array,
-            % defining a help function for that key.
-            %
-            % Adds an array of keys that this plugin will respond to. Note that the
-            % user must implement the keyboard function to do the work. The
-            % keyHelp is a short string that can help the GUI user to
-            % understand what the key does.
-            if ischar(keys), keys = {keys};end
-            if exist('keyHelp','var')
-                if ischar(keyHelp), keyHelp = {keyHelp};end
-            end
-            
-            if nargin<3 % if keyHelp is empty
-                keyHelp = cell(1,length(keys));
-                [keyHelp{:}] = deal('?');
-            else
-                if length(keys) ~= length(keyHelp)
-                    error('Number of KeyHelp strings not equal to number of keys.')
-                end
-                
-            end
-            
-            if any(size(o.cic)) || strcmpi(o.name,'cic')
-                if strcmpi(o.name,'cic')
-                    cicref=o;
-                else
-                    cicref=o.cic;
-                end
-                % Pass the information to CIC which keeps track of
-                % keystrokes
-                for a = 1:numel(keys)
-                    addKeyStroke(cicref,keys{a},keyHelp{a},o);
-                end
-                KbQueueCreate(cicref);
-                KbQueueStart(cicref);
-            end
-            
-            
-            if ~isempty(keys)
-                o.keyStrokes= cat(2,o.keyStrokes,keys);
-                o.keyHelp= cat(2,o.keyHelp,keyHelp);
-            end
-        end
-        
-        
-        function ignoreKeyStroke(o,keys)
-            % ignoreKeyStroke(o,keys)
-            % An array of keys that this plugin will stop responding
-            % to. These keys must have been added in listenToKeyStroke
-            % previously.
-            removeKeyStrokes(o.cic,keys);
-            o.keyStrokes = o.keyStrokes(~ismember(o.keyStrokes,keys));
-            o.keyHelp = o.keyHelp(~ismember(o.keyStrokes,keys));
-            KbQueueCreate(o.cic);
-            KbQueueStart(o.cic);
-        end
-        
-        
-        function listenToEvent(o,varargin)
-            % Add  an event that this plugin will respond to. Note that the
-            % user must implement the events function to do the work
-            % Checks to make sure function is called in constructor.
-            callStack = dbstack;
-            tmp=strsplit(callStack(2).name,'.');
-            if ~strcmp(tmp{1},tmp{2}) && ~strcmpi(tmp{2},'addScript')
-                error('Cannot create event listener outside constructor.')
-            else
-                if numel(varargin)==0 || (numel(varargin)==1 && isempty(varargin{1}))
-                    o.evts = {};
-                else
-                    o.evts = union(o.evts,varargin)';    %Only adds if not already listed.
-                end
-            end
-        end
-        
-    end
     
     
     methods (Access = public)
+        
+        function baseBeforeExperiment(o)
+            beforeExperiment(o);
+        end
+        function baseBeforeTrial(o)
+            beforeTrial(o);
+        end
+        function baseBeforeFrame(o)
+            %             if o.cic.clockTime-o.cic.frameStart>(1000/o.cic.screen.frameRate - o.cic.requiredSlack)
+            %                          o.cic.writeToFeed(['Did not run plugin ' o.name ' beforeFrame in frame ' num2str(o.cic.frame) '.']);
+            %                          return;
+            %             end
+            beforeFrame(o);
+        end
+        function baseAfterFrame(o)
+            afterFrame(o);
+        end
+        
+        function baseAfterTrial(o)
+            afterTrial(o);
+        end
+        
+        function baseAfterExperiment(o)
+            afterExperiment(o);
+        end
+        
+        function beforeExperiment(~)
+            %NOP
+        end
+        function beforeTrial(~)
+            %NOP
+        end
+        function beforeFrame(~)
+            %NOP
+        end
+        function afterFrame(~)
+            %NOP
+        end
+        
+        function afterTrial(~)
+            %NOP
+        end
+        
+        function afterExperiment(~)
+            %NOP
+        end
+        
+    end
+    
+    methods (Sealed)
+        % These methods are sealed to allow the use of a heterogeneous
+        % array of plugins/stimuli
+        function v = eq(a,b)
+            v = eq@handle(a,b);
+        end
+        
+        function base(oList,what,c)
+            
+            switch (what)
+                case neurostim.stages.BEFOREEXPERIMENT
+                    for o=oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        baseBeforeExperiment(o);
+                        if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end;
+                    end
+                    % All plugins BEFOREEXPERIMENT functions have been processed,
+                    % store the current parameter values as the defaults.
+                    setCurrentParmsToDefault(oList);
+                case neurostim.stages.BEFORETRIAL
+                    for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        baseBeforeTrial(o);
+                        if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end;
+                    end
+                case neurostim.stages.BEFOREFRAME
+                    Screen('glLoadIdentity', c.window);
+                    Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
+                    Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
+                    for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        Screen('glPushMatrix',c.window);
+                        baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class
+                        Screen('glPopMatrix',c.window);
+                        if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end;
+                    end
+                case neurostim.stages.AFTERFRAME
+                    for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        baseAfterFrame(o);
+                        if c.PROFILE; addProfile(c,'AFTERFRAME',o.name,c.clockTime-ticTime);end;
+                    end
+                case neurostim.stages.AFTERTRIAL
+                    for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        baseAfterTrial(o);
+                        if c.PROFILE; addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
+                    end
+                case neurostim.stages.AFTEREXPERIMENT
+                    for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        baseAfterExperiment(o);
+                        if c.PROFILE; addProfile(c,'AFTEREXPERIMENT',o.name,c.clockTime-ticTime);end;
+                    end
+                otherwise
+                    error('?');
+            end
+        end
+        
+        
+        
         % Wrapper to call setCurrentToDefault in the parameters class for
         % each parameter
-        function setCurrentParmsToDefault(o)
-            if ~isempty(o.prms) 
-                structfun(@setCurrentToDefault,o.prms);
+        function setCurrentParmsToDefault(oList)
+            for o=oList
+                if ~isempty(o.prms)
+                    structfun(@setCurrentToDefault,o.prms);
+                end
             end
         end
-
-                % Wrapper to call setCurrentToDefault in the parameters class for
-        % each parameter
-        function setDefaultParmsToCurrent(o)
-            if ~isempty(o.prms) 
-                structfun(@setDefaultToCurrent,o.prms);
-            end
-        end
-
         
-        function baseEvents(o,c,evt)
-            if c.PROFILE;ticTime = c.clockTime;end
-            
-            switch evt.EventName
-                case 'BASEBEFOREEXPERIMENT'
-                     notify(o,'BEFOREEXPERIMENT');
-                    
-                case 'BASEBEFORETRIAL'
-                    notify(o,'BEFORETRIAL');
-                    if c.PROFILE; c.addProfile('BEFORETRIAL',o.name,c.clockTime-ticTime);end;
-                    
-                case 'BASEBEFOREFRAME'
-                    if strcmp(o.name,'gui')
-                        if mod(c.frame,c.guiFlipEvery)>0
-                            return;
-                        end
-                    end
-                    if c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
-                        c.writeToFeed(['Did not run ' o.name ' beforeFrame in frame ' num2str(c.frame) '.']);
-                        return;
-                    end
-                    notify(o,'BEFOREFRAME');
-                    if c.PROFILE; c.addProfile('BEFOREFRAME',o.name,c.clockTime-ticTime);end;
-                    
-                case 'BASEAFTERFRAME'
-                    if strcmp(o.name,'gui')
-                        if mod(c.frame,c.guiFlipEvery)>0
-                            return;
-                        end
-                    end
-                    if c.requiredSlack ~= 0
-                        if c.frame ~=1 && c.clockTime-c.frameStart>(1000/c.screen.frameRate - c.requiredSlack)
-                            c.writeToFeed(['Did not run ' o.name ' afterFrame in frame ' num2str(c.frame) '.']);
-                            return;
-                        end
-                    end
-                    notify(o,'AFTERFRAME');
-                    if c.PROFILE; c.addProfile('AFTERFRAME',o.name,c.clockTime-ticTime);end;
-                    
-                case 'BASEAFTERTRIAL'
-                    notify(o,'AFTERTRIAL');
-                    if (c.PROFILE); addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
-                case 'BASEAFTEREXPERIMENT'
-                    notify(o,'AFTEREXPERIMENT');
+        % Wrapper to call setCurrentToDefault in the parameters class for
+        % each parameter
+        function setDefaultParmsToCurrent(oList)
+            for o=oList
+                if ~isempty(o.prms)
+                    structfun(@setDefaultToCurrent,o.prms);
+                end
             end
+        end
+        
+        function pruneLog(oList)
+            for o=oList
+                if ~isempty(o.prms)
+                    structfun(@pruneLog,o.prms);
+                end
+            end
+            
         end
     end
+    
 end

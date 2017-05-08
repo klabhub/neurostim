@@ -65,7 +65,7 @@ classdef feedback < neurostim.plugin
     methods (Access=public)
         function o=feedback(c,name)
             o=o@neurostim.plugin(c,name);
-            o.listenToEvent('BEFORETRIAL', 'AFTERTRIAL','AFTERFRAME');
+            
             o.addProperty('nItems',0,'validate',@isnumeric);         
         end  
     end
@@ -101,7 +101,7 @@ classdef feedback < neurostim.plugin
             chAdd(o,p.Unmatched);
         end
         
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o)
             %Reset flags for all items.
             for i=1:o.nItems
                 o.(['item' num2str(i) 'delivered']) = false;
@@ -124,12 +124,12 @@ classdef feedback < neurostim.plugin
             end
         end
         
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
             %Check if any feedback items should be delivered
             deliverPending(o,o.afterFrameQueue);
         end
 
-        function afterTrial(o,c,evt)
+        function afterTrial(o)
             %Check if any feedback items should be delivered
             deliverPending(o,o.afterTrialQueue);
             report(o);

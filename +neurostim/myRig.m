@@ -51,11 +51,11 @@ switch computerName
         smallWindow = false;
         
     case 'KLAB-U'
-        scrNr = 2;
+        scrNr = 1;
         rect = Screen('rect',scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',60,'screenNumber',scrNr);
-        %c.screen.frameRate=60;
-        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',75,'screenNumber',scrNr);
+        
+%        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         smallWindow = false;
         
     case 'XPS2013'
@@ -87,7 +87,12 @@ switch computerName
         c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         c.screen.colorMode = 'RGB';            
         smallWindow = false;
-    case 'PC2017A'
+   case 'PTB-P-UBUNTU'
+        c = rig(c,'keyboardNumber',[],'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
+        
+        c.screen.colorMode = 'RGB';            
+        smallWindow = false;                    
+  case 'PC2017A'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);

@@ -18,12 +18,12 @@ classdef fixation < neurostim.stimulus
             o.addProperty('size2',5,'validate',@isnumeric);
             o.addProperty('color2',[0 0 0],'validate',@isnumeric);
             o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR'}))) ;               
-            o.listenToEvent('BEFOREFRAME');
+            
             o.on = 0;
         end
         
         
-        function beforeFrame(o,c,evt)
+        function beforeFrame(o)
             switch upper(o.shape)                                   
                 case 'RECT' % Rectangle                
                     Screen('FillRect', o.window, o.color,[-(o.size/2) -(o.size2/2) (o.size/2) (o.size2/2)]);                    

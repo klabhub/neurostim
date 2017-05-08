@@ -19,17 +19,9 @@ classdef stimulus < neurostim.plugin
     %   mccChannel - a linked MCC Channel to output alongside a stimulus.
     %
     %
-    %TODO: Should we have a small class for storing durations in both
-    %frames and msec in a dependent way? used for "on",
-    
-    properties (SetAccess=private,GetAccess=public)
-        beforeFrameListenerHandle =[];
-        afterFrameListenerHandle =[];
-    end
-    
-    properties
-        flags = struct('on',true);
-        overlay@logical=false; % Flag to indicate that this stimulus is drawn on the overlay in M16 mode.
+   
+    properties (SetAccess=public,GetAccess=public)
+          overlay@logical=false; % Flag to indicate that this stimulus is drawn on the overlay in M16 mode.
         window;
     end
     
@@ -44,6 +36,7 @@ classdef stimulus < neurostim.plugin
     end
     
     properties (Access=protected)
+        flags = struct('on',true);    
         stimstart = false;
         stimstop = false;
         logOffset@logical;
@@ -52,7 +45,7 @@ classdef stimulus < neurostim.plugin
     end
     
     methods
-               
+        
         function v = get.time(o)
             v = o.cic.frames2ms(o.frame);
         end
@@ -79,7 +72,7 @@ classdef stimulus < neurostim.plugin
             else
                 v=Inf;
             end
-        end        
+        end
         
     end
     
@@ -104,7 +97,6 @@ classdef stimulus < neurostim.plugin
             s.addProperty('disabled',false);
             
             s.addProperty('rngSeed',[],'validate',@isnumeric);
-            s.listenToEvent('BEFORETRIAL','AFTERTRIAL','BEFOREEXPERIMENT');
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
@@ -125,20 +117,7 @@ classdef stimulus < neurostim.plugin
     end
     
     methods (Access= public)
-        function beforeTrial(s,c,evt)
-            % to be overloaded in subclasses; necessary for baseBeforeTrial
-            % (RSVP re-check)
-        end
-        
-        function afterTrial(s,c,evt)
-            % to be overloaded in subclasses; needed for baseAfterTrial
-            % (stimulus stopTime check)
-        end
-        
-        function beforeExperiment(s,c,evt)
-            % to be overloaded in subclasses; needed for baseBeforeExperiment
-            % (stimulus stopTime check)
-        end
+       
         
         
         function addRSVP(s,design,varargin)
@@ -177,21 +156,21 @@ classdef stimulus < neurostim.plugin
     
     methods (Access=private)
         
-        function s = updateRSVP(s,c)            
+        function s = updateRSVP(s)
             %How many frames for item + blank (ISI)?
-            nFramesPerItem = c.ms2frames(s.rsvp.duration+s.rsvp.isi);            
+            nFramesPerItem = s.cic.ms2frames(s.rsvp.duration+s.rsvp.isi);
             %How many frames since the RSVP stream started?
-            rsvpFrame = c.frame-s.onFrame; 
+            rsvpFrame = s.cic.frame-s.onFrame;
             %Which item frame are we in?
-            itemFrame = mod(rsvpFrame, nFramesPerItem);            
-            %If at the start of a new element, move the design to the 
-            % next "trial" 
+            itemFrame = mod(rsvpFrame, nFramesPerItem);
+            %If at the start of a new element, move the design to the
+            % next "trial"
             if itemFrame==0
                 ok = nextTrial(s.rsvp.design);
                 if ~ok
                     % Ran out of "trials"
-                    s.rsvp.design.shuffle; % Reshuffle the list 
-                end                
+                    s.rsvp.design.shuffle; % Reshuffle the list
+                end
                 % Get current specs and apply
                 specs = s.rsvp.design.specs;
                 for sp=1:size(specs,1)
@@ -200,7 +179,7 @@ classdef stimulus < neurostim.plugin
             end
             
             %Blank now if it's time to do so.
-            startIsiFrame = c.ms2frames(s.rsvp.duration);
+            startIsiFrame = s.cic.ms2frames(s.rsvp.duration);
             s.flags.on = itemFrame < startIsiFrame;  % Blank during rsvp isi
             if s.rsvp.log
                 if itemFrame == 0
@@ -208,7 +187,7 @@ classdef stimulus < neurostim.plugin
                 elseif itemFrame==startIsiFrame;
                     s.rsvpIsi = true;
                 end
-            end            
+            end
         end
         
         function setupDiode(s)
@@ -239,149 +218,182 @@ classdef stimulus < neurostim.plugin
     % the derived class an oppurtunity to respond to changes that this
     % base functionality makes.
     methods (Access=public)
+        function baseBeforeExperiment(s)
+            % Check whether this stimulus should be displayed on
+            % the color overlay in VPIXX-M16 mode.  Done here to
+            % avoid the overhead of calling this every draw.
+            if strcmpi(s.cic.screen.type,'VPIXX-M16') && s.overlay
+                s.window = s.cic.overlay;
+            else
+                s.window = s.cic.window;
+            end
+            if s.rsvp.active
+                %Check that stimulus durations and ISIs are multiples of the frame interval (defined as within 5% of a frame)
+                [dur,rem1] = c.ms2frames(s.rsvp.duration,true);
+                [isi,rem2] = c.ms2frames(s.rsvp.isi,true);
+                if any(abs([rem1,rem2])>0.05)
+                    s.writeToFeed('Requested RSVP duration or ISI is impossible. (non-multiple of frame interval)');
+                else
+                    %Set to multiple of frame interval
+                    s.rsvp.duration = dur*1000/c.screen.frameRate;
+                    s.rsvp.isi = isi*1000/c.screen.frameRate;
+                end
+            end
+            
+            if s.diode.on
+                setupDiode(s);
+            end
+            if ~isempty(s.mccChannel) && any(strcmp(s.cic.plugins,'mcc'))
+                s.cic.mcc.map(s,'DIGITAL',s.mccChannel,s.on,'FIRSTFRAME')
+            end
+            beforeExperiment(s);
+        end
         
-        function baseEvents(s,c,evt)
-            switch evt.EventName
-                case 'BASEBEFOREFRAME'
-                    if s.disabled; return;end
-                    glScreenSetup(c,s.window);
-                    
-                    %Apply stimulus transform
-                    if  s.X ~=0 || s.Y~=0 || s.Z~=0  % Evaluating s.XYZ is slower so this could save time compared to any([XYZ]~=0)
-                        Screen('glTranslate',s.window,s.X,s.Y,s.Z);
-                    end
-                    if s.scale.x~=1 || s.scale.y ~=1
-                        Screen('glScale',s.window,s.scale.x,s.scale.y);
-                    end
-                    if  s.angle ~=0
-                        Screen('glRotate',s.window,s.angle,s.rx,s.ry,s.rz);
-                    end
-                    
-                    %Should the stimulus be drawn on this frame?
-                    % This partially duplicates get.onFrame get.offFrame
-                    % code to minimize computations (and especially dynprop
-                    % evaluations which can be '@' functions and slow)
-                    sOn = s.on;
-                    sOnFrame = inf;  %Adjusted as needed in the if/then
-                    sOffFrame = inf;                        
-                    if isinf(sOn)
-                        s.flags.on =false; %Dont bother checking the rest
-                    else                        
-                        sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
-                        if c.frame < sOnFrame % Not on yet. 
-                            s.flags.on = false;
-                        else % Is on already or turning on. Checck that we have not 
-                            % reached full duration yet.
-                            sDuration  =s.duration;
-                            sOffFrame = s.cic.ms2frames(sOn+sDuration,true);
-                            s.flags.on = c.frame <sOffFrame;
-                        end
-                    end
-                    
-                    %% RSVP mode
-                    %   Update parameter values if necesssary
-                    if s.rsvp.active && s.flags.on
-                        s=updateRSVP(s,c);
-                    end
-                    
-                    %%
-                    % get the stimulus end time
-                    if s.logOffset
-                        s.stopTime=c.flipTime;
-                        s.logOffset=false;
-                    end
-                    
-                    %If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
-                    if c.frame==sOffFrame
-                        s.logOffset=true;
-                    end
-                    
-                    %If the stimulus should be drawn on this frame:
-                    if s.flags.on
-                        %If this is the first frame that the stimulus will be drawn, register that it has started.
-                        if ~s.stimstart
-                            s.stimstart = true;
-                            c.getFlipTime=true; % tell CIC to store the next flip time, to log startTime in next frame
-                        end
-                        
-                        %If the previous frame was the first frame, log the time that the flip actually happened.
-                        if c.frame==sOnFrame+1
-                            s.startTime = c.flipTime;
-                        end
-                        
-                        %Pass control to the child class and any other listeners
-                        notify(s,'BEFOREFRAME');
-                        
-                    elseif s.stimstart && (c.frame==sOffFrame)% if the stimulus will not be shown,
-                        % get the next screen flip for stopTime
-                        c.getFlipTime=true;
-                    end
-                    Screen('glLoadIdentity', s.window);
-                    if s.diode.on && s.flags.on
-                        Screen('FillRect',s.window,s.diode.color,s.diodePosition);
-                    end
-                case 'BASEAFTERFRAME'                    
-                    if s.disabled; return;end
-                        
-                    if s.flags.on
-                        notify(s,'AFTERFRAME');
-                    end
-                case 'BASEBEFORETRIAL'
-                    %                     if ~isempty(s.rsvp) TODO different rsvps in different
-                    %                     conditions
-                    %                         s.addRSVP(s.rsvp{:})
-                    %                     end
-                    if s.rsvp.active
-                        s.rsvp.design.shuffle; % Reshuffle each trial
-                    end
-                    
-                    %Reset variables here?
-                    s.startTime = Inf;
-                    s.stopTime = Inf;
-                    s.stimstart=false;
-                    
-                    notify(s,'BEFORETRIAL');
-                    
-                case 'BASEAFTERTRIAL'
-                    if isempty(s.stopTime) || s.offFrame>=c.frame
-                        s.stopTime=c.trialStopTime-c.trialStartTime;
-                        s.logOffset=false;
-                    end
-                    notify(s,'AFTERTRIAL');
-                    
-                case 'BASEBEFOREEXPERIMENT'
-                    % Check whether this stimulus should be displayed on
-                    % the color overlay in VPIXX-M16 mode.  Done here to
-                    % avoid the overhead of calling this every draw. 
-                    if strcmpi(s.cic.screen.type,'VPIXX-M16') && s.overlay
-                        s.window = s.cic.overlay;
-                    else
-                        s.window = s.cic.window;
-                    end
-                    if s.rsvp.active
-                        %Check that stimulus durations and ISIs are multiples of the frame interval (defined as within 5% of a frame)
-                        [dur,rem1] = c.ms2frames(s.rsvp.duration,true);
-                        [isi,rem2] = c.ms2frames(s.rsvp.isi,true);
-                        if any(abs([rem1,rem2])>0.05)
-                            s.writeToFeed('Requested RSVP duration or ISI is impossible. (non-multiple of frame interval)');
-                        else
-                            %Set to multiple of frame interval
-                            s.rsvp.duration = dur*1000/c.screen.frameRate;
-                            s.rsvp.isi = isi*1000/c.screen.frameRate;
-                        end
-                    end
-                    
-                    if s.diode.on
-                        setupDiode(s);
-                    end
-                    if ~isempty(s.mccChannel) && any(strcmp(s.cic.plugins,'mcc'))
-                        s.cic.mcc.map(s,'DIGITAL',s.mccChannel,s.on,'FIRSTFRAME')
-                    end
-                    notify(s,'BEFOREEXPERIMENT');
-                    
-                case 'BASEAFTEREXPERIMENT'
-                    notify(s,'AFTEREXPERIMENT');
+        
+        function baseBeforeTrial(s)
+            %                     if ~isempty(s.rsvp) TODO different rsvps in different
+            %                     conditions
+            %                         s.addRSVP(s.rsvp{:})
+            %                     end
+            if s.rsvp.active
+                s.rsvp.design.shuffle; % Reshuffle each trial
+            end
+            
+            %Reset variables here?
+            s.startTime = Inf;
+            s.stopTime = Inf;
+            s.stimstart=false;
+            
+            beforeTrial(s);
+            
+        end
+        function baseBeforeFrame(s)            
+            if s.disabled; return;end
+            % Because this function is called for every stimulus, every
+            % frame, try to optimize as much as possible by avoiding
+            % duplicate access to member properties and dynprops in
+            % particular
+            locWindow =s.window; 
+            %Apply stimulus transform
+            sX =s.X;sY=s.Y;sZ=s.Z;            
+            if  any([sX sY sZ]~=0)
+                Screen('glTranslate',locWindow,sX,sY,sZ);
+            end
+            sScale = s.scale;
+            if any([sScale.x sScale.y]~=1)
+                Screen('glScale',locWindow,sScale.x,sScale.y);
+            end
+            sAngle= s.angle;
+            if  sAngle ~=0
+                Screen('glRotate',locWindow,sAngle,s.rx,s.ry,s.rz);
+            end
+            
+            %Should the stimulus be drawn on this frame?
+            % This partially duplicates get.onFrame get.offFrame
+            % code to minimize computations (and especially dynprop
+            % evaluations which can be '@' functions and slow)
+            sOn = s.on;
+            sOnFrame = inf;  %Adjusted as needed in the if/then
+            sOffFrame = inf;
+            if isinf(sOn)
+                s.flags.on =false; %Dont bother checking the rest
+            else
+                sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
+                if s.cic.frame < sOnFrame % Not on yet.
+                    s.flags.on = false;
+                else % Is on already or turning on. Checck that we have not
+                    % reached full duration yet.
+                    sDuration  =s.duration;
+                    sOffFrame = s.cic.ms2frames(sOn+sDuration,true);
+                    s.flags.on = s.cic.frame <sOffFrame;
+                end
+            end
+            
+            %% RSVP mode
+            %   Update parameter values if necesssary
+            if s.rsvp.active && s.flags.on
+                s=updateRSVP(s);
+            end
+            
+            %%
+            % get the stimulus end time
+            if s.logOffset
+                s.stopTime=s.cic.flipTime;
+                s.logOffset=false;
+            end
+            
+            %If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
+            if s.cic.frame==sOffFrame
+                s.logOffset=true;
+            end
+            
+            %If the stimulus should be drawn on this frame:
+            if s.flags.on
+                %If this is the first frame that the stimulus will be drawn, register that it has started.
+                if ~s.stimstart
+                    s.stimstart = true;
+                    s.cic.getFlipTime=true; % tell CIC to store the next flip time, to log startTime in next frame
+                end
+                
+                %If the previous frame was the first frame, log the time that the flip actually happened.
+                if s.cic.frame==sOnFrame+1
+                    s.startTime = s.cic.flipTime;
+                end
+                
+                %Pass control to the child class and any other listeners
+                beforeFrame(s);
+            elseif s.stimstart && (s.cic.frame==sOffFrame)% if the stimulus will not be shown,
+                % get the next screen flip for stopTime
+                s.cic.getFlipTime=true;
+            end
+            Screen('glLoadIdentity', locWindow);
+            if s.diode.on && s.flags.on
+                Screen('FillRect',locWindow,s.diode.color,s.diodePosition);
             end
         end
+        
+        function baseAfterFrame(s)
+            ok = ~s.disabled && s.flags.on;
+            if ok
+                afterFrame(s)
+            end
+        end
+        
+        function baseAfterTrial(s)
+            
+            if isempty(s.stopTime) || s.offFrame>=s.cic.frame
+                s.stopTime=s.cic.trialStopTime-s.cic.firstFrame;
+                s.logOffset=false;
+            end
+            afterTrial(s);
+        end
+        
+        function baseAfterExperiment(s)
+            %NOP
+            afterExperiment(s);
+        end
+        
+        function beforeExperiment(~)
+            %NOP
+        end
+        function beforeTrial(~)
+            %NOP
+        end
+        function beforeFrame(~)
+            %NOP
+        end
+        function afterFrame(~)
+            %NOP
+        end
+        
+        function afterTrial(~)
+            %NOP
+        end
+        
+        function afterExperiment(~)
+            %NOP
+        end
+        
+        
     end
 end

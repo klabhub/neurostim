@@ -88,83 +88,84 @@ classdef gui <neurostim.plugin
         function o = gui(c)
             % Construct a GUI plugin
             o = o@neurostim.plugin(c,'gui');
-            o.listenToEvent('BEFOREFRAME','AFTERTRIAL','AFTEREXPERIMENT','BEFOREEXPERIMENT','BEFORETRIAL','AFTERFRAME');
+            
 %             o.on=0;
 %             o.duration =Inf;
         end
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
             if (o.updateEachFrame)
-                updateParams(o,c);
-                updateBehavior(o,c);
+                updateParams(o);
+                updateBehavior(o);
             end
         end
         
-        function beforeExperiment(o,c,evt)
+        function beforeExperiment(o)
             % Handle beforeExperiment setup
             c.guiOn=true;
-            c.mirror=Screen('OpenOffscreenWindow',c.window,c.screen.color.background);
+            c.mirror=Screen('OpenOffscreenWindow',o.cic.window,o.cic.screen.color.background);
             o.guiFeedBack=Screen('OpenOffScreenWindow',c.guiWindow,o.cic.screen.color.background);
-            o.guiRect = c.mirrorPixels;
+            o.guiRect = o.cic.mirrorPixels;
             o.mirrorRect=mirrorRectCalc(o);
-            o.guiText=Screen('OpenOffscreenWindow',-1, c.screen.color.background,o.guiRect);
+            o.guiText=Screen('OpenOffscreenWindow',-1, o.cic.screen.color.background,o.guiRect);
             slack=5;
             switch (o.xAlign)
                 case 'right'
-                    o.positionX=(c.mirrorPixels(3))*1/2;
+                    o.positionX=(o.cic.mirrorPixels(3))*1/2;
                 case 'left'
-                    o.positionX = c.mirrorPixels(3)/2;
+                    o.positionX = o.cic.mirrorPixels(3)/2;
                 otherwise
-                    o.positionX=(c.mirrorPixels(3))*1/2;
+                    o.positionX=(o.cic.mirrorPixels(3))*1/2;
             end
             
             switch (o.yAlign)
                 case 'center'
-                    o.positionY=(c.mirrorPixels(4)-c.mirrorPixels(2));
+                    o.positionY=(o.cic.mirrorPixels(4)-o.cic.mirrorPixels(2));
                 otherwise
                     o.positionY=50;
             end
             
             sampleText=Screen('TextBounds',o.guiText,'QTUVWqpgyid');
             o.textHeight=sampleText(4)-sampleText(2);
-            o.feedX=c.mirrorPixels(3)/2+2*slack;
-            o.feedY=c.mirrorPixels(4)*.5+slack;
-            o.paramsBox=[c.mirrorPixels(3)/2 0 c.mirrorPixels(3) o.mirrorRect(4)];
-            o.feedBox = [slack o.feedY-slack c.mirrorPixels(3)-slack c.mirrorPixels(4)-(4*slack)];
-            o.eyetrackers=c.pluginsByClass('eyetracker');
-            o.behaviours=c.pluginsByClass('behavior');
-            c.writeToFeed('Started Experiment');
+            o.feedX=o.cic.mirrorPixels(3)/2+2*slack;
+            o.feedY=o.cic.mirrorPixels(4)*.5+slack;
+            o.paramsBox=[o.cic.mirrorPixels(3)/2 0 o.cic.mirrorPixels(3) o.mirrorRect(4)];
+            o.feedBox = [slack o.feedY-slack o.cic.mirrorPixels(3)-slack o.cic.mirrorPixels(4)-(4*slack)];
+            o.eyetrackers=o.cic.pluginsByClass('eyetracker');
+            o.behaviours=o.cic.pluginsByClass('behavior');
+            o.cic.writeToFeed('Started Experiment');
             
             
             
         end
         
         
-        function beforeFrame(o,c,evt)
+        function beforeFrame(o)
             % Draw
-            Screen('glLoadIdentity', c.window);
-            
-            drawParams(o,c);
-            drawMirror(o,c);
+            Screen('glLoadIdentity', o.cic.window);
+            % TODO: use flipEvery setting that is currently in CIC but
+            % should be here to skup a draw
+            drawParams(o,o.cic);
+            drawMirror(o,o.cic);
             
         end
         
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o)
             % Update
-            updateParams(o,c);
-            setupKeyLegend(o,c);
-            setupBehavior(o,c);
+            updateParams(o);
+            setupKeyLegend(o);
+            setupBehavior(o);
         end
         
-        function afterTrial(o,c,evt)
-            updateParams(o,c);
-            drawParams(o,c);
-            updateBehavior(o,c);
-            drawMirror(o,c);
+        function afterTrial(o)
+            updateParams(o);
+            drawParams(o);
+            updateBehavior(o);
+            drawMirror(o);
         end
         
-        function afterExperiment(o,c,evt)
-            updateParams(o,c);
-            drawParams(o,c);
+        function afterExperiment(o)
+            updateParams(o);
+            drawParams(o);
         end
         
         
@@ -206,35 +207,40 @@ classdef gui <neurostim.plugin
     
     methods (Access =private)
         
-        function setupKeyLegend(o,c)
+        function setupKeyLegend(o)
             b=1;
-            for a=c.keyHandlers
-                keyName{b} = upper(a{:}.name);
-                keyStroke{b}=KbName(c.allKeyStrokes(b));
-                keyHelp{b} = c.allKeyHelp{b};
-                b=b+1;
-            end
-            
-            for d=1:numel(unique(keyName))
-                tmp=unique(keyName);
-                tmpName=keyName(strcmp(keyName,tmp{d}));
-                tmpStroke = keyStroke(strcmp(keyName,tmp{d}));
-                tmpHelp = keyHelp(strcmp(keyName,tmp{d}));
-                
-                tmpstr=strcat('<',tmpStroke,{'> '},tmpHelp,'\n');
-                tmpstring{d}=[tmpName{1},': \n',tmpstr{:} '\n'];
-            end
-            o.keyLegend = ['Keys: \n\n',tmpstring{:}];
-            DrawFormattedText(o.guiText,o.keyLegend,o.positionX,o.feedY,c.screen.color.text,[],[],[],o.spacing);
-        
+%             nrKeys = numel(o.cic.keyboard.keys);
+%             keyName = cell(1,nrKeys);
+%             keyStroke = cell(1,nrKeys);
+%             keyHelp= cell(1,nrKeys);
+%             for a=o.cic.keyboard.keys
+%                 keyName{b} = upper(a{:}.name);
+%                 keyStroke{b}=KbName(o.cic.allKeyStrokes(b));
+%                 keyHelp{b} = o.cic.allKeyHelp{b};
+%                 b=b+1;
+%             end
+%             nrUKeys = numel(unique(keyName));
+%             tmpstring = cell(1,nrUKeys);
+%             for d=1:nrUKeys
+%                 tmp=unique(keyName);
+%                 tmpName=keyName(strcmp(keyName,tmp{d}));
+%                 tmpStroke = keyStroke(strcmp(keyName,tmp{d}));
+%                 tmpHelp = keyHelp(strcmp(keyName,tmp{d}));
+%                 
+%                 tmpstr=strcat('<',tmpStroke,{'> '},tmpHelp,'\n');
+%                 tmpstring{d}=[tmpName{1},': \n',tmpstr{:} '\n'];
+%             end
+%             o.keyLegend = ['Keys: \n\n',tmpstring{:}];
+%             DrawFormattedText(o.guiText,o.keyLegend,o.positionX,o.feedY,c.screen.color.text,[],[],[],o.spacing);
+%         
         end
         
-        function drawParams(o,c)
-                Screen('DrawTexture',c.guiWindow,o.guiText,[],[],[],0);
+        function drawParams(o)
+                Screen('DrawTexture',o.cic.guiWindow,o.guiText,[],[],[],0);
 %             DrawFormattedText(win, tstring [, sx][, sy][, color][, wrapat][, flipHorizontal][, flipVertical][, vSpacing][, righttoleft][, winRect])
         end
         
-        function updateParams(o,c)
+        function updateParams(o)
             % Update the text with the current values of the parameters.
             o.paramText  = o.header;
             for i=1:numel(o.props)
@@ -260,13 +266,13 @@ classdef gui <neurostim.plugin
             end
             o.paramText=[o.paramText o.footer];
             %draw to offscreen window
-            Screen('FillRect',o.guiText,c.screen.color.background,o.paramsBox);
+            Screen('FillRect',o.guiText,o.cic.screen.color.background,o.paramsBox);
             DrawFormattedText(o.guiText, o.paramText, o.positionX,o.positionY, c.screen.color.text,o.nrCharsPerLine,[],[],o.spacing);
             
 %           
         end
         
-        function setupBehavior(o,c)
+        function setupBehavior(o)
             o.tolerances=[];
             o.toleranceLine=[];
             if ~isempty(o.behaviours)
@@ -276,13 +282,13 @@ classdef gui <neurostim.plugin
                        % which the fixation tolerance allows
                        oval=[a{:}.X-a{:}.tolerance; a{:}.Y-a{:}.tolerance;a{:}.X+a{:}.tolerance;a{:}.Y+a{:}.tolerance];
                        % convert to pixel dimensions
-                       oval=o.phys2Pix(c,oval);
+                       oval=phys2Pix(o,oval);
                        o.tolerances=[o.tolerances oval];
                    elseif isa(a{:},'neurostim.plugins.saccade')
                       % find the line between the two fixation points
                       line = [a{:}.startX;a{:}.startY;a{:}.endX;a{:}.endY];
                       % convert to pixel dimensions
-                      line=o.phys2Pix(c,line);
+                      line=phys2Pix(o,line);
                       line=[line(1) line(2);line(3) line(4)];
                       o.toleranceLine=[o.toleranceLine line];
                    end
@@ -290,9 +296,9 @@ classdef gui <neurostim.plugin
             end
         end
         
-        function shape=phys2Pix(o,c,v)
-            [x1,y1]=c.physical2Pixel(v(1),v(2));
-            [x2,y2]=c.physical2Pixel(v(3),v(4));
+        function shape=phys2Pix(o,v)
+            [x1,y1]=o.cic.physical2Pixel(v(1),v(2));
+            [x2,y2]=o.cic.physical2Pixel(v(3),v(4));
             if x2<x1
                 tmp=x1;
                 x1=x2;
@@ -306,10 +312,10 @@ classdef gui <neurostim.plugin
             shape=[x1;y1;x2;y2];
         end
         
-        function drawMirror(o,c)
-            %drawBehavior(o,c)
+        function drawMirror(o)
+            %drawBehavior(o)
             % draws any behavior tolerance circles.
-            Screen('DrawTexture',c.mirror,c.window,[],[],[],0);
+            Screen('DrawTexture',o.cic.mirror,o.cic.window,[],[],[],0);
             if ~isempty(o.tolerances)
             Screen('FrameOval',c.mirror,[o.toleranceColor],o.tolerances,2);
             end
@@ -317,17 +323,17 @@ classdef gui <neurostim.plugin
                 Screen('DrawLines',c.mirror,o.toleranceLine',2,[o.toleranceColor]);
             end
             if c.frame>1 && ~isempty(o.eyetrackers)
-                    [eyeX,eyeY]=c.physical2Pixel(c.eye.x,c.eye.y);
+                    [eyeX,eyeY]=o.cic.physical2Pixel(o.cic.eye.x,o.cic.eye.y);
                     xsize=30;
-                    Screen('DrawLines',c.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,c.screen.color.text,[eyeX eyeY]);
+                    Screen('DrawLines',o.cic.mirror,[-xsize xsize 0 0;0 0 -xsize xsize],5,o.cic.screen.color.text,[eyeX eyeY]);
             end
             
-            Screen('DrawTexture',o.guiText,c.mirror,[c.screen.xorigin c.screen.yorigin  c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],o.mirrorRect,[],0);
-            Screen('FrameRect',o.guiText,c.screen.color.text,o.mirrorRect);
+            Screen('DrawTexture',o.guiText,o.cic.mirror,[o.cic.screen.xorigin o.cic.screen.yorigin  o.cic.screen.xorigin+c.screen.xpixels o.cic.screen.yorigin+o.cic.screen.ypixels],o.mirrorRect,[],0);
+            Screen('FrameRect',o.guiText,o.cic.screen.color.text,o.mirrorRect);
         end
         
-        function updateBehavior(o,c)
-            %updateBehavior(o,c)
+        function updateBehavior(o)
+            %updateBehavior(o)
             %updates behavior circles
             o.tolerances=[];
             o.toleranceLine=[];
@@ -335,11 +341,11 @@ classdef gui <neurostim.plugin
             for a=o.behaviors
                 if isa(a{:},'neurostim.plugins.fixate')
                     oval=[a{:}.X-a{:}.tolerance; a{:}.Y-a{:}.tolerance;a{:}.X+a{:}.tolerance;a{:}.Y+a{:}.tolerance];
-                    oval=o.phys2Pix(c,oval);
+                    oval=phys2Pix(o,oval);
                     o.tolerances=[o.tolerances oval];
                 elseif isa(a{:},'neurostim.plugins.saccade')
                     line = [a{:}.startX;a{:}.startY;a{:}.endX;a{:}.endY];
-                    line=o.phys2Pix(c,line);
+                    line=phys2Pix(o,line);
                     line=[line(1) line(2);line(3) line(4)];
                     o.toleranceLine=[o.toleranceLine line];
                 end

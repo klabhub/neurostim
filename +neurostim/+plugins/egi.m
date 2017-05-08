@@ -25,7 +25,7 @@ classdef egi < neurostim.plugin
             o.addProperty('clockVariability',NaN); % Measured clock variability
             o.addProperty('fineTuneClockOffset',0); % User specifiable offset to reduce AV tester offsets to 0
             o.addProperty('syncEveryN',Inf); %  Sync the clocks every N trials
-            o.listenToEvent('BEFOREEXPERIMENT','BEFORETRIAL','AFTERTRIAL','AFTEREXPERIMENT');
+            
         end 
         
         function logStimulusStart(o,stimulus)
@@ -53,31 +53,31 @@ classdef egi < neurostim.plugin
 %             end
         end
         
-        function beforeExperiment(o,c,evt)            
+        function beforeExperiment(o)            
             o.connect;            
             o.synchronize; % Check that we can sync, and set the NetStation clock to ours.
             o.startRecording;
-            o.event('BREC','DESC','Begin recording','FLNM',c.fullFile,'PDGM',c.paradigm,'SUBJ',c.subject);
+            o.event('BREC','DESC','Begin recording','FLNM',o.cic.fullFile,'PDGM',o.cic.paradigm,'SUBJ',o.cic.subject);
         end
         
         
-        function afterExperiment(o,c,evt)
+        function afterExperiment(o)
             o.event('EREC','DESC','End recording');
             o.stopRecording;
             o.disconnect;
         end
         
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o)
             % Should we sync again? Or is once enough beforeExperiment?
             % O.synchronize; .
-            if mod(c.trial,o.syncEveryN)==0
+            if mod(o.cic.trial,o.syncEveryN)==0
                 NetStation('RESETCLOCK',(o.cic.clockTime-o.clockOffset-o.fineTuneClockOffset),0);        
             end
-            o.event('BTRL','DESC','Begin trial','TRIA',c.trial,'BLCK',c.block,'COND',c.conditionName);            
+            o.event('BTRL','DESC','Begin trial','TRIA',o.cic.trial,'BLCK',o.cic.block,'COND',o.cic.conditionName);            
         end
         
-        function afterTrial(o,c,evt)
-            o.event('ETRL','DESC','End trial','TRIA',c.trial,'BLCK',c.block,'COND',c.conditionName);            
+        function afterTrial(o)
+            o.event('ETRL','DESC','End trial','TRIA',o.cic.trial,'BLCK',o.cic.block,'COND',o.cic.conditionName);            
         end
     end
     

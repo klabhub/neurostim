@@ -123,7 +123,7 @@ end
 
 % Create a block for this design and specify the repeats per design
 myBlock=block('myBlock',d);
-myBlock.nrRepeats = 20; % Because the design has 2 conditions, this results in 2*nrRepeats trials.
+myBlock.nrRepeats = 10; % Because the design has 2 conditions, this results in 2*nrRepeats trials.
 c.run(myBlock);
 
 %% Do some analysis on the data

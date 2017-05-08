@@ -78,9 +78,7 @@ classdef eScript < neurostim.plugin
             end
             
             if strcmpi(when,'KEYBOARD')
-                o.listenToKeyStroke(keys)
-            elseif ~ismember(upper(when),o.evts)
-                o.listenToEvent(upper(when)); % Plugin should start listening now.
+                o.addKey(keys)
             end
             
             %% Because the script is not logged automatically, we store
@@ -109,21 +107,31 @@ classdef eScript < neurostim.plugin
         % has provided. If the function handles have not been provided, the
         % eScript plugin will not be listening to these events so these
         % members will never be called.
-        function beforeFrame(o,c,evt)
-            o.beforeFrameFun(c);
+        function beforeFrame(o)
+            if ~isempty(o.beforeFrameFun)
+                o.beforeFrameFun(o.cic);
+            end
         end
-        function afterFrame(o,c,evt)
-            o.afterFrameFun(c);
+        function afterFrame(o)
+            if ~isempty(o.afterFrameFun)
+                o.afterFrameFun(o.cic);
+            end
         end
-        function beforeTrial(o,c,evt)
-            o.beforeTrialFun(c);
+        function beforeTrial(o)
+            if ~isempty(o.beforeTrialFun)
+                o.beforeTrialFun(o.cic);
+            end
         end
-        function afterTrial(o,c,evt)
-            o.afterTrialFun(c);
+        function afterTrial(o)
+            if ~isempty(o.afterTrialFun)           
+                o.afterTrialFun(o.cic);
+            end
         end
         
         function keyboard(o,key,time)
-            o.keyFun(o,key,time);
+            if ~isempty(o.keyFun)
+               o.keyFun(o,key,time);
+            end
         end
         
     end

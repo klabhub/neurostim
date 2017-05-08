@@ -12,11 +12,11 @@ classdef fmri < neurostim.plugin
             o.addProperty('trigger',0);
             o.addProperty('triggerKey','t');
             
-            o.addKey('t',@(x,key) keyboard(x,key));
-            o.listenToEvent('BEFORETRIAL','BEFOREEXPERIMENT');
+            o.addKey('t');
+            
         end
         
-        function beforeExperiment(o,~,~)
+        function beforeExperiment(o)
             answer=[];
             while (isempty(answer))
                 DrawFormattedText(o.cic.window,'Which scan number is about to start?' ,'center','center',o.cic.screen.color.text);
@@ -27,7 +27,7 @@ classdef fmri < neurostim.plugin
             o.scanNr =answer;
         end
         
-        function beforeTrial(o,~,~)
+        function beforeTrial(o)
             % The goal here is to wait until the pre-triggers have been
             % received (to start at steady-state magnetization). This code
             % interacts directly with PTB Screen and other functionality
@@ -47,7 +47,7 @@ classdef fmri < neurostim.plugin
         
         % Catch trigger keys. Could be extended with generic user
         % responses.
-        function keyboard(o,key,~)
+        function keyboard(o,key)
             switch upper(key)
                 case 'T'
                     o.trigger = o.trigger+1;

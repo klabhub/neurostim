@@ -75,8 +75,8 @@ plugins.sound(c);           %Use the sound plugin
 
 % Add correct/incorrect feedback
 s= plugins.soundFeedback(c,'soundFeedback');
-s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@choice.success & choice.correct');
-s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@choice.success & ~choice.correct');
+s.add('waveform','correct.wav','when','afterFrame','criterion','@choice.success & choice.correct');
+s.add('waveform','incorrect.wav','when','afterFrame','criterion','@choice.success & ~choice.correct');
 
 %% Experimental design
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.

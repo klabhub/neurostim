@@ -17,7 +17,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     
     properties
         el@struct;
-        eye;
+        eye='LEFT'; %LEFT,RIGHT, or BOTH
         valid;
         commands = {'link_sample_data = LEFT,RIGHT,GAZE,GAZERES,AREA,VELOCITY'};
         edfFile@char = 'test.edf';
@@ -50,20 +50,19 @@ classdef eyelink < neurostim.plugins.eyetracker
     
     methods
         function o = eyelink(c)
-            Eyelink; % Check that the EyelinkToolBox is available.
-            %clear Eyelink;
+            assert(exist('Eyelink.m','file')==2,'The Eyelink toolbox is not available?'); % Check that the EyelinkToolBox is available.            
             o = o@neurostim.plugins.eyetracker(c);
-            o.addKey('F9',@keyboard,'DriftCorrect');
-            o.addKey('F8',@keyboard,'EyelinkSetup');
-            o.listenToEvent('BEFOREEXPERIMENT','AFTEREXPERIMENT','BEFORETRIAL','AFTERFRAME'); %The parent class is also listening to the AFTERFRAME event. Intended?
+            o.addKey('F9','DriftCorrect');
+            o.addKey('F8','EyelinkSetup');
+            
             o.addProperty('eyeEvts',struct);
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
         end
         
-        function beforeExperiment(o,c,evt)
+        function beforeExperiment(o)
             
             %Initalise default Eyelink el structure and set some values.
-            o.el=EyelinkInitDefaults(c.window);
+            o.el=EyelinkInitDefaults(o.cic.window);
             o.el.calibrationtargetcolour = o.clbTargetColor;
             o.el.calibrationtargetsize = o.clbTargetSize./o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
@@ -78,13 +77,14 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
             
             if result==-1
-                c.error('STOPEXPERIMENT','Eyelink failed to initialize');
+                o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
                 return;
             end
             
             %Tell Eyelink about the pixel coordinates
-            rect=Screen(c.window,'Rect');
+            rect=Screen(o.cic.window,'Rect');
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
+            
             
             % setup sample rate
             if any(o.sampleRate==[250, 500, 1000])
@@ -93,28 +93,58 @@ classdef eyelink < neurostim.plugins.eyetracker
                 c.error('STOPEXPERIMENT','Requested eyelink sample rate is invalid');
             end
             
+          
+           
+            % open file to record data to (will be renamed on copy)
+            [~,tmpFile] = fileparts(tempname);
+            o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
+            Eyelink('Openfile', o.edfFile);
+            
+            switch upper(o.eye)
+                case 'LEFT'
+                    Eyelink('Command','binocular_enabled=NO');
+                    Eyelink('Command','active_eye=LEFT');
+                    Eyelink('Message','%s', 'EYE_USED 0');
+                case 'RIGHT'
+                    Eyelink('Command','binocular_enabled=NO');
+                    Eyelink('Command','active_eye=RIGHT');
+                    Eyelink('Message','%s', 'EYE_USED 1');
+                case {'BOTH','BINOCULAR'}
+                    Eyelink('Command','binocular_enabled=YES');
+                    Eyelink('Command','active_eye=LEFT,RIGHT');
+                    Eyelink('Message','%s', 'EYE_USED 2');
+            end
+            
             %Pass all commands to Eyelink
             for i=1:length(o.commands)
                result = Eyelink('Command', o.commands{i}); %TODO: handle results
             end
             
-            % open file to record data to (will be renamed on copy)
-            [~,tmpFile] = fileparts(tempname);
-            o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
-            Eyelink('Openfile', o.edfFile);
+            
             if o.keepExperimentSetup
                 restoreExperimentSetup(o);
-            else eyelinkSetup(o);
+            else
+                eyelinkSetup(o);
             end
+            
+            Eyelink('Command','add_file_preamble_text',['RECORDED BY ' o.cic.experiment]);
+            Eyelink('Command','add_file_preamble_text',['NEUROSTIM FILE ' o.cic.fullFile]);
+
+            Eyelink('Message','DISPLAY_COORDS %d %d %d %d',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
+            Eyelink('Message','%s',['DISPLAY_SIZE ' num2str(o.cic.screen.width) ' ' num2str(o.cic.screen.height)]);	
+            Eyelink('Message','%s', ['FRAMERATE ' num2str(o.cic.screen.frameRate) ' Hz.']);
+            
+            
+           
         end
         
-        function afterExperiment(o,c,evt)
+        function afterExperiment(o)
 
             Eyelink('StopRecording');
             Eyelink('CloseFile');
             try
                 writeToFeed(o,'Attempting to receive Eyelink edf file');
-                newFileName = [c.fullFile '.edf'];
+                newFileName = [o.cic.fullFile '.edf'];
                 status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir               
                 if status>0
                     o.edfFile = newFileName; 
@@ -128,7 +158,7 @@ classdef eyelink < neurostim.plugins.eyetracker
           Eyelink('Shutdown');
         end
         
-        function beforeTrial(o,c,evt)
+        function beforeTrial(o)
             o.trackedEye; %This doesn't currently do anything for Eyelink??
             
             % Do re-calibration if requested
@@ -165,16 +195,19 @@ classdef eyelink < neurostim.plugins.eyetracker
                 end
             end
             
-            Eyelink('Command','record_status_message %s%s%s',c.paradigm, '_TRIAL:',num2str(c.trial));
-            Eyelink('Message','%s',['TR:' num2str(c.trial)]);   %will this be used to align clocks later?
+            Eyelink('Command','record_status_message %s%s%s',o.cic.paradigm, '_TRIAL:',num2str(o.cic.trial));
+            Eyelink('Message','%s',['TR:' num2str(o.cic.trial)]);   %will this be used to align clocks later?   
+            Eyelink('Message','TRIALID %d-%d',o.cic.condition,o.cic.trial);               	
+            
+            
             o.eyeClockTime = Eyelink('TrackerTime');
 
         end
         
-        function afterFrame(o,c,evt)
+        function afterFrame(o)
 
             if ~o.isRecording
-                c.error('STOPEXPERIMENT','Eyelink is not recording...');
+                o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
                 return;
             end
                        
@@ -184,7 +217,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % get the sample in the form of an event structure
                     sample = Eyelink( 'NewestFloatSample');
                     % convert to physical coordinates
-                    [o.x,o.y] = c.pixel2Physical(sample.gx(o.eye+1),sample.gy(o.eye+1));    % +1 as accessing MATLAB array
+                    [o.x,o.y] = o.cic.pixel2Physical(sample.gx(o.eye+1),sample.gy(o.eye+1));    % +1 as accessing MATLAB array
                     o.pupilSize = sample.pa(o.eye+1);
                     o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;
                 end %

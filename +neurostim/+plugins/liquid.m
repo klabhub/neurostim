@@ -13,13 +13,13 @@ classdef liquid < neurostim.plugins.feedback
             o.addProperty('mccChannel',9);
             o.addProperty('jackpotPerc',1);
             o.addProperty('jackpotDur',1000);
-            o.listenToEvent('BEFOREEXPERIMENT');
+            
         end
         
-        function beforeExperiment(o,c,evt)
+        function beforeExperiment(o)
             
             %Check that the MCC plugin is added.
-            o.mcc = pluginsByClass(c,'mcc');
+            o.mcc = pluginsByClass(o.cic,'mcc');
             if numel(o.mcc)==1
                 o.mcc = o.mcc{1};
                 
