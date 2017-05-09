@@ -287,7 +287,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             data = o.log(1:o.cntr);
             time = o.time(1:o.cntr);
             trial = o.eTime2TrialNumber(time);
-            trialTime= o.eTime2TrialTime(time,trial,true);
+            trialTime= o.eTime2TrialTime(time);
             block =NaN(1,o.cntr); % Will be computed if requested
             
             % Now that we have the raw values, we can remove some of the less
@@ -303,7 +303,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                     % Find the last time this event occurred in each trial
                     [~,aTr,aTi,atETime] = get(o.plg.prms.(p.Results.after) ,'atTrialTime',inf); %#ok<ASGLU>
                 else
-                    atETime = o.eTime2TrialTime(p.Results.atTrialTime,1:maxTrial,false); % Conver to eTime
+                    atETime = o.trialTime2ETime(p.Results.atTrialTime,1:maxTrial); % Conver to eTime
                 end
                 % For each trial, find the value at the given experiment time
                 ix = nan(1,maxTrial);
@@ -380,40 +380,39 @@ classdef parameter < handle & matlab.mixin.Copyable
             
         end
         
+        
+        function t = trialStartTime(o)
+            % Return the time that the trial started (all trialTimes are
+            % aligned to this).
+            tr = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
+            t = o.plg.cic.prms.trial.time;   % Start of the trial
+            t(tr==0) = [];
+            assert(numel(t)==o.plg.cic.nrTrialsTotal);
+        end
+        
         function tr = eTime2TrialNumber(o,eventTime)
-            trials = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
-            trialStartTime = o.plg.cic.prms.trial.time;   % Start of the trial
-            trialStartTime(trials==0) = -Inf;
-            %             trialStartTime = [-inf [o.plg.cic.prms.trialStartTime.log{:}]];
-            %             trials = 0:numel(trialStartTime);
-            findFun = @(x)(find(x>trialStartTime,1,'last'));
-            trIx = arrayfun(findFun,eventTime);%,'UniformOutput',false);
-            tr = trials(trIx);
-            tr(tr==0) = 1; % Events happening before trial 1 are assinged to trial 1 (but will have negative times relative to trialStart)
+            trStartT = trialStartTime(o);
+            tr = arrayfun(@(t,t0) neurostim.parameter.align(t,trStartT,true),eventTime);%,'UniformOutput',false);
             assert(~any(tr> o.plg.cic.nrTrialsTotal));
             
             
         end
         
-        function v= eTime2TrialTime(o,t,tr,ET2TRT)
-            
+        function trTime= eTime2TrialTime(o,eventTime)
             % Find the time that each trial started by looking in the cic events log.
-            beforeFirstTrial = tr==0;
-            tr(beforeFirstTrial) =1;
-            trialStartTime = o.plg.cic.prms.trial.time;
-            afterLastTrial = tr > numel(trialStartTime);
-            tr(afterLastTrial) = 1;
-            if ET2TRT
-                v= t-trialStartTime(tr);
-            else
-                v= t+trialStartTime(tr);
-            end
-            v(beforeFirstTrial) = -Inf;
-            v(afterLastTrial) = +Inf;
+            trStartT = trialStartTime(o);
+            trTime = arrayfun(@(t,t0) neurostim.parameter.align(t,trStartT,false),eventTime);%,'UniformOutput',false);
+            
+        end
+                
+        
+        function eTime= trialTime2ETime(o,trTime,tr)
+            trStartT = trialStartTime(o);
+            eTime= trTime + trStartT(tr);
         end
         
-        
-        
+                
+      
         
     end
     
@@ -450,6 +449,23 @@ classdef parameter < handle & matlab.mixin.Copyable
                 data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);
             end
             
+        end
+        
+        
+          function [v] = align(t,trialT,returnTr)
+            tr= find(t>=trialT,1,'last');
+            if isempty(tr)
+                    % Happened before first trial start
+                    tr =1;
+            end
+                
+            if returnTr% 
+                %Return the trial number
+                v = tr;
+            else
+                % Return the time in the trial
+                v  = t-trialT(tr);
+            end
         end
         
     end
