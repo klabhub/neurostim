@@ -1,13 +1,10 @@
-classdef trellis < plugin
+classdef trellis < neurostim.plugin
     properties (Constant)
         SAMPLINGFREQ = 30000; %30KHz
-        availableStreams = upper({'raw','stim','hi-res','lfp','spk','spkfilt'});
+        availableStreams = upper({'raw','stim','hi-res','lfp','spk','spkfilt','1ksps','30ksps'});
         availablePorts ='ABCD';
     end
-
-    properties (public)
-        
-    end
+    
     properties (SetAccess=protected,GetAccess=public)
         operator@double;    % Operator (NIP/Trellis) that we're talking to currently
     end
@@ -29,7 +26,7 @@ classdef trellis < plugin
     
     methods
         function v = get.time(~)
-            v = 1000*xippmex('time')/trellis.SAMPLINGFREQ;
+            v = 1000*xippmex('time')/neurostim.plugins.trellis.SAMPLINGFREQ;
         end
         
         function v = get.operators(~)
@@ -65,22 +62,16 @@ classdef trellis < plugin
     methods
         function o = trellis(c)
             % Construct a trellis plugin
-            o = o@plugin(c,'trellis');
-            o.addProperty('trialBit',[],@isnumeric);
-            o.addProperty('trialStart',[],@isnumeric);
-            o.addProperty('trialStop',[],@isnumeric);
-            o.addProperty('record',{});
-            
-            
-            for strm = 1:numel(o.availableStreams)
-            for p=1:numel(o.availablePorts)
-                record(o,'port',ports(p),'channel',1:128,'stream',o.availableStreams{strm},'off',true);                 
-            end
-            end
-            record(o,'port','ANALOG','channel',1:32,'stream','raw','off',true);     
-             
-            
-            % By default 
+            o = o@neurostim.plugin(c,'trellis');
+            o.addProperty('trialBit',[]);
+            o.addProperty('trialStart',[]);
+            o.addProperty('trialStop',[]);
+            o.addProperty('streamSettings',{});
+    % Example (future) streamSettings={{'port','A','channel',1:64,'stream','raw'};
+    %              {'port','A','channel',1:64,'stream','lfp'};
+    %              {'port','SMA','channel',3,'stream','1ksps'}};
+
+                                                
         end
         
         function digout(~,channel,value)
@@ -97,16 +88,18 @@ classdef trellis < plugin
             end
         end
         
-        function record(o,varargin)            
-            % Specify what (strm) to record from which channels
-            % chan is a vector with channels
-            % stream a cell array of streams to enable.
+        function stream(o,varargin)
+            % Function to activate/inactivate certain streams. 
+            % Ther is no way to chose data saving for these streams, and
+            % there seem to be some bugs (e.g. turning 1ksps for SMA on
+            % also affects B1??). Limited usefulness so skip for now (And
+            % just define stream/save in the Trellis interface).
             p = inputParser;
             p.addParameter('port','',@(x) (ischar(x) && ismember(upper(x),{'ANALOG','SMA','MICROD','LINELEVEL','A','B','C','D'})));
-            p.addParameter('channel',[],@(x) (isnumeric(x) && x>=1 && x <=128));
-            p.addParameter('stream','',@(x) (ischar(x) && ismember(upper(x),o.availableStreams)));   
-            p.addParameter('on',true,@islogical); 
-            p.parse(varargin{:});            
+            p.addParameter('channel',[],@(x) (isnumeric(x) && all(x>=1 & x <=128)));
+            p.addParameter('stream','',@(x) (ischar(x) && (isempty(x) || ismember(upper(x),o.availableStreams))));
+            p.addParameter('on',true,@islogical);
+            p.parse(varargin{:});
             switch upper(p.Results.port)
                 case {'SMA','ANALOG'}
                     portOffset = 10240;
@@ -115,22 +108,37 @@ classdef trellis < plugin
                 case 'LINELEVEL'
                     portOffset  = 10268;
                 case {'A','B','C','D'}
-                    portOffset = 128*(find(upper(p.Results.port),'ABCD')-1);                    
+                    portOffset = 128*(find(upper(p.Results.port)=='ABCD')-1);
             end
-            xippmex('signal',p.Results.channel+portOffset,p.Results.stream,p.Results.on);
+            % Select the electrodes that have a front end connected.
+            elec= intersect(p.Results.channel+portOffset,o.allChannels);
+            if any(elec)
+                if isempty(p.Results.stream)
+                    % ''  means all streams defined for the first electrode
+                    % in the set.
+                    stream  = xippmex('signal',elec(1));
+                else
+                    stream = {p.Results.stream};
+                end                
+                %Activate/inactivate the streams. 
+                for i=1:numel(stream)
+                    xippmex('signal',elec,lower(stream{i}),double(p.Results.on));
+                end
+            end
         end
         
-        function beforeExperiments(o)
+        function beforeExperiment(o)
             
+            %% Iniitialize
             try
                 stat = xippmex;
-            catch 
+            catch
                 stat = -1;
             end
             if stat ~= 1; error('Xippmex Did Not Initialize');  end
-
             
-             %% Connect to Trellis/NIP
+            
+            %% Connect to Trellis/NIP
             tmp = o.operators;
             if isempty(tmp)
                 error('Could not find Trellis on the network...')
@@ -141,15 +149,23 @@ classdef trellis < plugin
             o.operator = tmp;
             
             %% Define recording & stim electrodes
+            % Disabled for now as this only does the streaming not saving.
+            % First turn everything off
+%             for strm = 1:numel(o.availableStreams)
+%                 for p=1:numel(o.availablePorts)                    
+%                     stream(o,'port',o.availablePorts(p),'channel',1:128,'stream','','on',false);
+%                 end
+%             end
+%             stream(o,'port','ANALOG','channel',1:32,'stream','','on',false);
+%             % Then enable those that have been selected. 
+%             if ~isempty(o.streamSettings)
+%                 for i=1:numel(o.streamSettings)
+%                     record(o,o.streamSettings{i}{:});
+%                 end
+%             end
             
-            if ~isempty(o.streamSettings)
-                for i=1:numel(o.streamSettings)
-                    record(o,o.streamSettings{i}{:});
-                end
-            end
             
-            
-            %% First make sure Trellis has stopped and then 
+            %% First make sure Trellis has stopped and then
             
             if ~strcmpi(o.status,'stopped')
                 warning('Trellis was still recording when this experiment started');
@@ -165,9 +181,9 @@ classdef trellis < plugin
             end
             
             % Now start it with the file name specified by CIC. The
-            % recording will run until stopped (0) and autoincrement for file names 
+            % recording will run until stopped (0) and autoincrement for file names
             % is off.
-            stat = xippmex('trial',o.operator,'recording',o.cic.file,0,false);            
+            stat = xippmex('trial',o.operator,'recording',o.cic.file,0,false);
             if ~strcmpi(stat.status,'recording')
                 o.cic.error('Failed to start recording on Trellis');
             end
