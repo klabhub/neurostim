@@ -1,10 +1,13 @@
 classdef trellis < plugin
     properties (Constant)
         SAMPLINGFREQ = 30000; %30KHz
-        availableStreams = {'raw','stim','hi-res','lfp','spk','spkfilt'}
+        availableStreams = upper({'raw','stim','hi-res','lfp','spk','spkfilt'});
+        availablePorts ='ABCD';
     end
 
-    
+    properties (public)
+        
+    end
     properties (SetAccess=protected,GetAccess=public)
         operator@double;    % Operator (NIP/Trellis) that we're talking to currently
     end
@@ -32,6 +35,7 @@ classdef trellis < plugin
         function v = get.operators(~)
             v = xippmex('opers');
         end
+        
         function v= get.status(o)
             v = xippmex('trial',o.operator);
         end
@@ -63,7 +67,20 @@ classdef trellis < plugin
             % Construct a trellis plugin
             o = o@plugin(c,'trellis');
             o.addProperty('trialBit',[],@isnumeric);
+            o.addProperty('trialStart',[],@isnumeric);
+            o.addProperty('trialStop',[],@isnumeric);
+            o.addProperty('record',{});
             
+            
+            for strm = 1:numel(o.availableStreams)
+            for p=1:numel(o.availablePorts)
+                record(o,'port',ports(p),'channel',1:128,'stream',o.availableStreams{strm},'off',true);                 
+            end
+            end
+            record(o,'port','ANALOG','channel',1:32,'stream','raw','off',true);     
+             
+            
+            % By default 
         end
         
         function digout(~,channel,value)
@@ -80,30 +97,40 @@ classdef trellis < plugin
             end
         end
         
-        function record(o,chan,strm)
+        function record(o,varargin)            
             % Specify what (strm) to record from which channels
             % chan is a vector with channels
             % stream a cell array of streams to enable.
-            if ischar(strm);strm = {strm};end;
-            notOk = setdiff(strm,trellis.availableStreams);
-            if any(notOk)
-                error(['Unknown stream: ' notOk{:}]);
+            p = inputParser;
+            p.addParameter('port','',@(x) (ischar(x) && ismember(upper(x),{'ANALOG','SMA','MICROD','LINELEVEL','A','B','C','D'})));
+            p.addParameter('channel',[],@(x) (isnumeric(x) && x>=1 && x <=128));
+            p.addParameter('stream','',@(x) (ischar(x) && ismember(upper(x),o.availableStreams)));   
+            p.addParameter('on',true,@islogical); 
+            p.parse(varargin{:});            
+            switch upper(p.Results.port)
+                case {'SMA','ANALOG'}
+                    portOffset = 10240;
+                case 'MICROD'
+                    portOffset = 10244;
+                case 'LINELEVEL'
+                    portOffset  = 10268;
+                case {'A','B','C','D'}
+                    portOffset = 128*(find(upper(p.Results.port),'ABCD')-1);                    
             end
-            
-            e= o.allChannels;
-            notOk = setdiff(e,chan);
-            if any(notOk)
-                error(['These electrodes are not available : ' num2str(notOk)]);
-            end
-            args = cell(1,2*numel(strm));
-            args(1:2:end) = deal(strm{:});
-            args(2:2:end) = true;   % Enable all specified streams
-            xippmex('signal',chan,args{:});
+            xippmex('signal',p.Results.channel+portOffset,p.Results.stream,p.Results.on);
         end
         
         function beforeExperiments(o)
             
-              % Connect to Trellis/NIP
+            try
+                stat = xippmex;
+            catch 
+                stat = -1;
+            end
+            if stat ~= 1; error('Xippmex Did Not Initialize');  end
+
+            
+             %% Connect to Trellis/NIP
             tmp = o.operators;
             if isempty(tmp)
                 error('Could not find Trellis on the network...')
@@ -113,24 +140,38 @@ classdef trellis < plugin
             end
             o.operator = tmp;
             
-            % First make sure Trellis has stopped
-            stat = o.status;
-            if ~strcmpi(stat.status,'stopped')
-                warning('Trellis was still recording when this experiment started');
-                stat = xippmex('trial',o.operator,'stopped');
+            %% Define recording & stim electrodes
+            
+            if ~isempty(o.streamSettings)
+                for i=1:numel(o.streamSettings)
+                    record(o,o.streamSettings{i}{:});
+                end
             end
-            if ~strcmpi(stat.status,'stopped')
-                error('Failed to stop Trellis?');
+            
+            
+            %% First make sure Trellis has stopped and then 
+            
+            if ~strcmpi(o.status,'stopped')
+                warning('Trellis was still recording when this experiment started');
+                xippmex('trial',o.operator,'stopped');
+            end
+            
+            tic;
+            while(~strcmpi(o.status,'stopped'))
+                pause (1);
+                if toc > 5 % 5 s timeout to stop
+                    o.cic.error('Failed to stop Trellis?');
+                end
             end
             
             % Now start it with the file name specified by CIC. The
-            % recording will run until stopped (Inf) and autoincrement is
-            % off.
-            stat = xippmex('trial',o.operator,'recording',o.cic.file,Inf,false);
-            
+            % recording will run until stopped (0) and autoincrement for file names 
+            % is off.
+            stat = xippmex('trial',o.operator,'recording',o.cic.file,0,false);            
             if ~strcmpi(stat.status,'recording')
-                error('Failed to start recording on Trellis');
+                o.cic.error('Failed to start recording on Trellis');
             end
+            
         end
         function afterExperiment(o)
             % Close the UDP link
@@ -142,13 +183,14 @@ classdef trellis < plugin
             if ~isempty(o.trialBit)
                 digout(o,o.trialBit,true);
             end
+            o.trialStart = xippmex('time')/(o.SAMPLINGFREQ/1000); % Time in ms since NIP on
         end
         function afterTrial(o)
             % unset trial bit
             if ~isempty(o.trialBit)
                 digout(o,o.trialBit,false);
             end
-            
+            o.trialStop = xippmex('time')/(o.SAMPLINGFREQ/1000); % Time in ms since NIP on
         end
     end
 end
