@@ -3,11 +3,7 @@ classdef trellis < plugin
         SAMPLINGFREQ = 30000; %30KHz
         availableStreams = {'raw','stim','hi-res','lfp','spk','spkfilt'}
     end
-    
-    properties (SetAccess=public)
-        trialBit@double = []; % DigOut used to signal trial start to the NIP
-        
-    end
+
     
     properties (SetAccess=protected,GetAccess=public)
         operator@double;    % Operator (NIP/Trellis) that we're talking to currently
@@ -66,6 +62,8 @@ classdef trellis < plugin
         function o = trellis(c)
             % Construct a trellis plugin
             o = o@plugin(c,'trellis');
+            o.addProperty('trialBit',[],@isnumeric);
+            
         end
         
         function digout(~,channel,value)
@@ -103,55 +101,54 @@ classdef trellis < plugin
             xippmex('signal',chan,args{:});
         end
         
+        function beforeExperiments(o)
+            
+              % Connect to Trellis/NIP
+            tmp = o.operators;
+            if isempty(tmp)
+                error('Could not find Trellis on the network...')
+            end
+            if numel(tmp)>1
+                error('More than on Trellis on the network??');
+            end
+            o.operator = tmp;
+            
+            % First make sure Trellis has stopped
+            stat = o.status;
+            if ~strcmpi(stat.status,'stopped')
+                warning('Trellis was still recording when this experiment started');
+                stat = xippmex('trial',o.operator,'stopped');
+            end
+            if ~strcmpi(stat.status,'stopped')
+                error('Failed to stop Trellis?');
+            end
+            
+            % Now start it with the file name specified by CIC. The
+            % recording will run until stopped (Inf) and autoincrement is
+            % off.
+            stat = xippmex('trial',o.operator,'recording',o.cic.file,Inf,false);
+            
+            if ~strcmpi(stat.status,'recording')
+                error('Failed to start recording on Trellis');
+            end
+        end
+        function afterExperiment(o)
+            % Close the UDP link
+            xippmex('close');
+        end
         
-%         function events(o,src,evt)
-%             switch evt.EventName
-%                 case 'BEFOREEXPERIMENT'
-%                     
-%                     ok = true;
-%                     % Connect to Trellis/NIP
-%                     tmp = o.operators;
-%                     if isempty(tmp)
-%                         error('Could not find Trellis on the network...')
-%                     end
-%                     if numel(tmp)>1
-%                         error('More than on Trellis on the network??');
-%                     end
-%                     o.operator = tmp;
-%                     
-%                     % First make sure Trellis has stopped
-%                     stat = o.status;
-%                     if ~strcmpi(stat.status,'stopped')
-%                         warning('Trellis was still recording when this experiment started');
-%                         stat = xippmex('trial',o.operator,'stopped');
-%                     end
-%                     if ~strcmpi(stat.status,'stopped')
-%                         error('Failed to stop Trellis?');
-%                     end
-%                     
-%                     % Now start it with the file name specified by CIC. The
-%                     % recording will run until stopped (Inf) and autoincrement is
-%                     % off.
-%                     stat = xippmex('trial',o.operator,'recording',o.cic.file,Inf,false);
-%                     
-%                     if ~strcmpi(stat.status,'recording')
-%                         error('Failed to start recording on Trellis');
-%                     end
-%                 case 'AFTEREXPERIMENT'
-%                     % Close the UDP link
-%                     xippmex('close');
-%                 case 'BEFORETRIAL'
-%                     % Set trial bit
-%                     if ~isempty(o.trialBit)
-%                         digout(o,o.trialBit,true);
-%                     end
-%                 case 'AFTERTRIAL'
-%                     % unset trial bit
-%                     if ~isempty(o.trialBit)
-%                         digout(o,o.trialBit,false);
-%                     end
-%             end
-%         end
-        
+        function beforeTrial(o)
+            % Set trial bit
+            if ~isempty(o.trialBit)
+                digout(o,o.trialBit,true);
+            end
+        end
+        function afterTrial(o)
+            % unset trial bit
+            if ~isempty(o.trialBit)
+                digout(o,o.trialBit,false);
+            end
+            
+        end
     end
 end
