@@ -387,7 +387,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             tr = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
             t = o.plg.cic.prms.trial.time;   % Start of the trial
             t(tr==0) = [];
-            assert(numel(t)==o.plg.cic.nrTrialsTotal);
+            assert(numel(t)<=o.plg.cic.nrTrialsTotal);
         end
         
         function tr = eTime2TrialNumber(o,eventTime)

@@ -365,8 +365,10 @@ classdef starstim < neurostim.stimulus
                 case 'TIMED'
                     if o.enabled
                         start(o);
+                        waitFor(o,'CODE_STATUS_STIMULATION_FULL');
                     end
                     switch (o.nowType)
+                        
                         case 'DC'
                             % nothing to do here.
                         case 'AC'
@@ -493,6 +495,7 @@ classdef starstim < neurostim.stimulus
             if ~isempty(timrs)
                    delete(timrs)
             end
+            
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
@@ -507,14 +510,7 @@ classdef starstim < neurostim.stimulus
                     o.cic.error(['Unknown starstim mode :' o.mode]);
             end
             
-            %           % FUTURE WORK to get more fine grained control
-            %             timrs = timerfind('name','starstim.tacs');
-            %             if ~isempty(timrs)
-            %                 o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
-            %                 delete(timrs)
-            %             end
-            %
-            
+               
             if o.impedanceCheck
                 impedance(o);
             end
@@ -522,7 +518,7 @@ classdef starstim < neurostim.stimulus
             unloadProtocol(o);
             MatNICMarkerCloseLSL(o.markerStream);
             close(o.sock);
-            o.writeFeed('Stimulation done. Connection with Starstim closed');
+            o.cic.writeToFeed('Stimulation done. Connection with Starstim closed');
             
         end
     end

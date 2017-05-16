@@ -1008,7 +1008,7 @@ classdef cic < neurostim.plugin
             if c.guiOn
                 c.gui.writeToFeed(message);
             else
-                message=horzcat('\n TR:',num2str(c.trial), ': ', message);
+                message=horzcat('\n TR:',num2str(c.trial), ': ', message, '\n');
                 fprintf(1,message);
             end
         end
