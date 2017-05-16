@@ -489,6 +489,10 @@ classdef starstim < neurostim.stimulus
                 return;
             end
             
+            timrs = timerfind('name','starstim.multiTrialTimer');
+            if ~isempty(timrs)
+                   delete(timrs)
+            end
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
@@ -518,6 +522,7 @@ classdef starstim < neurostim.stimulus
             unloadProtocol(o);
             MatNICMarkerCloseLSL(o.markerStream);
             close(o.sock);
+            o.writeFeed('Stimulation done. Connection with Starstim closed');
             
         end
     end
@@ -561,11 +566,13 @@ classdef starstim < neurostim.stimulus
             elseif o.isProtocolOn
                 ret = MatNICAbortProtocol(o.sock);
                 if ret==-2
+                    return
                     % already stopped
                 else
                     o.checkRet(ret,['Protocol ' o.protocol ' could not be stopped']);
                 end
                 %else -  already stopped
+                waitFor(o,{'CODE_STATUS_PROTOCOL_ABORTED','CODE_STATUS_IDLE'});% Either of these is fine
             end
             
         end
@@ -609,23 +616,30 @@ classdef starstim < neurostim.stimulus
         
         function onExit(o)
             stop(o);
+            timrs = timerfind('name','starstim.multiTrialTimer');
+            if ~isempty(timrs)
+                   delete(timrs)
+            end            
             unloadProtocol(o);
             close(o.sock);
         end
         
         function waitFor(o,varargin)
             % busy-wait for a sequence of status events.
+            % waitFor(o,'a','b') first waits for a then for b
+            % waitFor(o,{'a','b'}) waits for either a or b to occur
             cntr =1;
             nrInSequence = numel(varargin);
             TIMEOUT = 25;
             tic;
             while (cntr<=nrInSequence)
-                if strcmpi(o.protocolStatus,varargin{cntr})
+                if any(strcmpi(o.protocolStatus,varargin{cntr}))
                     cntr= cntr+1;                    
                 end                
                 pause(0.025); % Check status every 25 ms.
                 if toc> TIMEOUT
                     warning(['Waiting for ' varargin{cntr} ' timed out']);
+                    warning(['Last status was ' o.protocolStatus ]);
                     break;
                 end
             end
