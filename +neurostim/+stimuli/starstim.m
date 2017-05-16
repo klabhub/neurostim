@@ -28,8 +28,11 @@ classdef starstim < neurostim.stimulus
     % BLOCKED:
     %    Simplest mode: trigger the start of a named protocol in the first
     %   trial in which .enabled =true and keep running until a trial is about
-    %   to start that has .enabled =false (or the end of the trial, whichever
+    %   to start that has .enabled =false (or the end of the experiment, whichever
     %   is earlier).
+    % If the paradigm has no "trial" in which stimulation can be turned off
+    % again, use the multiTrialDuration parameter, which will turn
+    % stimulation off after a given time (ms).
     %
     % TRIAL:
     %   Start the rampup of the protocol before each .enabled=true trial, then
@@ -92,6 +95,7 @@ classdef starstim < neurostim.stimulus
         isShamOn@logical = false;
         
         activeProtocol@char='';
+        timerEnabled@logical=false;
     end
     
     
@@ -193,7 +197,7 @@ classdef starstim < neurostim.stimulus
         
         % Destructor
         function delete(o)
-            if o.fake;
+            if o.fake
                 return;
             end
             onExit(o);           
@@ -226,7 +230,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('phase',0);
             o.addProperty('transition',NaN);
             o.addProperty('frequency',NaN);
-            
+            o.addProperty('multiTrialDuration',0);
             o.addProperty('sham',false);
             o.addProperty('enabled',true);
             
@@ -241,6 +245,12 @@ classdef starstim < neurostim.stimulus
         
         function beforeExperiment(o)
             % Connect to the device, load the protocol.
+             timrs = timerfind('name','starstim.multiTrialTimer');
+             if ~isempty(timrs)
+                    o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
+                   delete(timrs)
+             end
+            o.timerEnabled = false;
             if o.fake
                 o.writeToFeed(['Starstim fake conect to ' o.host]);
             else
@@ -269,22 +279,7 @@ classdef starstim < neurostim.stimulus
                 end
                 protocolSet = MatNICProtocolSet();
                 o.matNICVersion = protocolSet('MATNIC_VERSION');
-            end
-            
-            %%
-            % Delete any remaning timers (if the previous run was ok, there
-            % should be none)
-            % FUTURE WORK to get more fine grained control
-            %             timrs = timerfind('name','starstim.tacs');
-            %             if ~isempty(timrs)
-            %                 o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
-            %                 delete(timrs)
-            %             end
-            
-            
-            
-            
-            
+            end                                                           
         end
         
         function loadProtocol(o,prtcl)
@@ -316,7 +311,10 @@ classdef starstim < neurostim.stimulus
                 o.activeProtocol ='';
             end
         end
-        
+        function timerOff(o)
+            pause(o);
+            o.timerEnabled = false;
+        end
         function beforeTrial(o) 
             if o.fake
                 o.writeToFeed('Starstim fake start stim');
@@ -343,10 +341,27 @@ classdef starstim < neurostim.stimulus
                             start(o);
                             o.isShamOn = false;
                         end
+                        %% If multiTrialduration>0 we want to start a stimulation now and then keep it running
+                        % for a fixed duration (that can be longer than a
+                        % trial). We use a timer to turn off stimulation
+                        % some time in the future. After being turned off,
+                        % the next trial with Blocked .enabled will turn it
+                        % on again
+                        if strcmpi(o.mode,'BLOCKED') && o.multiTrialDuration >0 && ~o.timerEnabled                                                       
+                            off  = @(timr,events,obj) (timerOff(obj));
+                            tmr= timer('name','starstim.multiTrialTimer'); 
+                            tmr.StartDelay = (o.multiTrialDuration-o.nowTransition)/1000;
+                            tmr.ExecutionMode='SingleShot';
+                            tmr.TimerFcn = {off,o};
+                            start(tmr);
+                            o.timerEnabled = true;
+                        end                            
                     else
                         pause(o);
                         o.isShamOn = false;
                     end
+                    
+                    
                 case 'TIMED'
                     if o.enabled
                         start(o);
@@ -390,6 +405,9 @@ classdef starstim < neurostim.stimulus
                             case 'DC'
                                 ret = MatNICOnlineAtdcsChange(o.nowMean, o.NRCHANNELS, o.transition, o.sock);
                             case 'AC'
+                                if o.duration>=10000
+                                    o.cic.error('Maximum duration is 10s. Use BLOCKED mode instead?');
+                                end
                                 ret = MatNICOnlineAtacsPeak(o.nowAmplitude,o.NRCHANNELS,o.transition,o.duration,o.transition,o.sock);
                             case 'RNS'
                                 disp('RNS Not implemented yet');
@@ -514,47 +532,7 @@ classdef starstim < neurostim.stimulus
             end
         end
         
-        % FUTURE WORK to get more fine grained control     use timers in matlab
-        %         function tacs(o,amplitude,channel,transition,duration,frequency)
-        %             % function tacs(o,amplitude,channel,transition,duration,frequency)
-        %             % Apply tACS at a given amplitude, channel, frequency. The current is ramped
-        %             % up and down in 'transition' milliseconds and will last 'duration'
-        %             % milliseconds (including the transitions).
-        %
-        %             if duration>0 && isa(o.tacsTimer,'timer') && isvalid(o.tacsTimer) && strcmpi(o.tacsTimer.Running,'off')
-        %                 o.cic.error('STOPEXPERIMENT','tACS pulse already on? Cannot start another one');
-        %             end
-        %
-        %             if o.fake
-        %                 o.writeToFeed([ datestr(now,'hh:mm:ss') ': tACS frequency set to ' num2str(frequency) ' on channel ' num2str(channel)]);
-        %             else
-        %                 ret = MatNICOnlineFtacsChange (frequency, channel, o.sock);
-        %                 o.checkRet(ret,'FtacsChange');
-        %             end
-        %             if o.fake
-        %                 o.writeToFeed(['tACS amplitude set to ' num2str(amplitude) ' on channel ' num2str(channel) ' (transition = ' num2str(transition) ')']);
-        %             else
-        %                 ret = MatNICOnlineAtacsChange(amplitude, channel, transition, o.sock);
-        %                 o.checkRet(ret,'AtacsChange');
-        %             end
-        %
-        %             if duration ==0
-        %                 toc
-        %                 stop(o.tacsTimer); % Stop it first (it has done its work)
-        %                 delete (o.tacsTimer); % Delete it.
-        %             else
-        %                 % Setup a timer to end this stimulation at the appropriate
-        %                 % time
-        %                 tic
-        %                 off  = @(timr,events,obj,chan,trans) tacs(obj,0*chan,chan,trans,0,0);
-        %                 o.tacsTimer  = timer('name','starstim.tacs');
-        %                 o.tacsTimer.StartDelay = (duration-2*transition)/1000;
-        %                 o.tacsTimer.ExecutionMode='SingleShot';
-        %                 o.tacsTimer.TimerFcn = {off,o,channel,transition};
-        %                 start(o.tacsTimer);
-        %             end
-        %
-        %         end
+      
         
         function start(o)
             % Start the current protocol.
