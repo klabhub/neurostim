@@ -43,6 +43,8 @@ classdef block < dynamicprops
         afterMessage='';
         beforeFunction; % function handle which takes cic as first arg
         afterFunction;
+        beforeKeyPress@logical = true;
+        afterKeyPress@logical = true;
     end
     
     properties (GetAccess=public, SetAccess = protected)

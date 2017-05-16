@@ -385,8 +385,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Return the time that the trial started (all trialTimes are
             % aligned to this).
             tr = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
-            t = o.plg.cic.prms.trial.time;   % Start of the trial
+            t = o.plg.cic.prms.trial.time;   % Start of the trial            
             t(tr==0) = [];
+            t(isnan(t))= []; 
             assert(numel(t)<=o.plg.cic.nrTrialsTotal);
         end
         

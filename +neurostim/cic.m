@@ -768,7 +768,7 @@ classdef cic < neurostim.plugin
                     msg = c.blocks(c.block).beforeMessage;
                 end
                 if ~isempty(msg)
-                    waitforkey=true;
+                    waitforkey=c.blocks(c.block).beforeKeyPress;
                     DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).beforeFunction)
                     waitforkey=c.blocks(c.block).beforeFunction(c);
@@ -890,15 +890,14 @@ classdef cic < neurostim.plugin
                 end %conditions in block
                 
                 Screen('glLoadIdentity', c.window);
-                if ~c.flags.experiment;break;end
-                waitforkey=false;
+                if ~c.flags.experiment;break;end                
                 if isa(c.blocks(c.block).afterMessage,'function_handle')
                     msg = c.blocks(c.block).afterMessage(c);
                 else
                     msg = c.blocks(c.block).afterMessage;
                 end
                 if ~isempty(c.blocks(c.block).afterMessage)
-                    waitforkey=true;
+                    waitforkey=c.blocks(c.block).afterKeyPress;
                     DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).afterFunction)
                     waitforkey=c.blocks(c.block).afterFunction(c);
