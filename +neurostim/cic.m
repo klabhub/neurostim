@@ -1423,7 +1423,8 @@ classdef cic < neurostim.plugin
             if numel(plgns)>1
             figure('Name','Total','position',[680   530   818   420]); 
             clf
-            frameItems = find(contains(items,'FRAME'));
+%             frameItems = find(contains(items,'FRAME')); % contains() was introduced in R2016b...
+            frameItems = find(cellfun(@(x) ~isempty(strfind(x,'FRAME')),items));
             cntr=1;
                 for j=frameItems'
                     subplot(1,2,cntr);
