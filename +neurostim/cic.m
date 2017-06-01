@@ -838,8 +838,7 @@ classdef cic < neurostim.plugin
                         % beampos: position of the monitor scanning beam when the time measurement was taken
                         vSyncMode = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
                         % Deadline has to be before the predicted next VBL time
-%                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.window,frameDeadline,1-clr,vSyncMode);
-                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.window,[],1-clr,vSyncMode);
+                        [ptbVbl,ptbStimOn] = Screen('Flip', c.window,[],1-clr,vSyncMode);
                         missed = (ptbVbl-frameDeadline-FRAMEDURATION); % Positive is too late (i.e. a drop)
                         
                         if vSyncMode==0
