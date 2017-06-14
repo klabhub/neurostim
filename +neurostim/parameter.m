@@ -56,6 +56,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         noLog@logical; % Set this to true to skip logging
         fun =[];        % Function to allow across parameter dependencies
+        funPrms@neurostim.parameter;
         funStr = '';    % The neurostim function string
         validate =[];    % Validation function
         plg@neurostim.plugin; % Handle to the plugin that this belongs to.
@@ -169,7 +170,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             if o.plg.cic.stage >o.plg.cic.SETUP
                 % We've passed SETUP phase, function evaluaton should be
                 % possible.
-                v=o.fun(o.plg); % Evaluate the neurostim function
+                v=o.fun(o.funPrms); % Evaluate the neurostim function
                 storeInLog(o,v);
                 ok = true;
             else  %  not all objects have been setup so
@@ -189,8 +190,8 @@ classdef parameter < handle & matlab.mixin.Copyable
                 % Parse the specified function and make it into an anonymous
                 % function.
                 o.funStr = v; % store this to be able to restore it later.
-                v = neurostim.utils.str2fun(v);
-                o.fun = v;
+                [o.fun,o.funPrms] = neurostim.utils.str2fun(v,o.plg.cic);
+                
                 % Install a GetMethod that evaluates this function
                 o.hDynProp.GetMethod =  @o.getFunctionValue;
                 % Evaluate the function to get current value
