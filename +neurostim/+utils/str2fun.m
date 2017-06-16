@@ -29,17 +29,20 @@ elseif strncmpi(str,'@',1)
     %Find the unique parameter class objects and store their handles
     plgAndProp = regexp(str,'(\<[a-zA-Z_]+\w*\.\w+)','match');
     plgAndProp = unique(plgAndProp);
-    
-    for i=1:numel(plgAndProp)
-        plg = cell2mat(regexp(plgAndProp{i},'(\<[a-zA-Z_]+\w*\.)','match'));
-        prm = strrep(plgAndProp{i},plg,'');
-        plg = plg(1:end-1);
-        h(i) = c.(plg).prms.(prm);
-    end
-    
-    %Replace each reference to them with args(i)
-    for i=1:numel(h)
-        str = regexprep(str, ['(\<' plgAndProp{i}, ')'],['args(',num2str(i),').value']);
+    if ~isempty(plgAndProp)
+        for i=1:numel(plgAndProp)
+            plg = cell2mat(regexp(plgAndProp{i},'(\<[a-zA-Z_]+\w*\.)','match'));
+            prm = strrep(plgAndProp{i},plg,'');
+            plg = plg(1:end-1);
+            h(i) = c.(plg).prms.(prm);
+        end
+        
+        %Replace each reference to them with args(i)
+        for i=1:numel(h)
+            str = regexprep(str, ['(\<' plgAndProp{i}, ')'],['args(',num2str(i),').value']);
+        end
+    else
+        h = [];
     end
     
     funStr = horzcat('@(args) ',str);

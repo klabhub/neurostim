@@ -56,7 +56,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         noLog@logical; % Set this to true to skip logging
         fun =[];        % Function to allow across parameter dependencies
-        funPrms@neurostim.parameter;
+        funPrms;
         funStr = '';    % The neurostim function string
         validate =[];    % Validation function
         plg@neurostim.plugin; % Handle to the plugin that this belongs to.
@@ -164,57 +164,59 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         
-        function [v,ok] = getFunctionValue(o,~)
+        function v = getFunctionValue(o,~)
             % This function is called before a function dynprop is used somewhere in the code.
             % It is installed by setValue when it detects a neurostim function.
-            if o.plg.cic.stage >o.plg.cic.SETUP
-                % We've passed SETUP phase, function evaluaton should be
-                % possible.
-                v=o.fun(o.funPrms); % Evaluate the neurostim function
-                storeInLog(o,v);
-                ok = true;
-            else  %  not all objects have been setup so
-                % function evaluation may not work yet. Evaluate to NaN for now
-                v = NaN;
-                ok = false;
-            end
+            v=o.fun(o.funPrms); % Evaluate the neurostim function
+            storeInLog(o,v);
         end
         
         
         function setValue(o,~,v)
             % Assign a new value to a parameter
-            ok = true; % Normally ok; only function evals can be not ok.
+
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % The dynprop was set to a neurostim function
-                % Parse the specified function and make it into an anonymous
-                % function.
+                % Parse the specified function and make it into an anonymous function.
                 o.funStr = v; % store this to be able to restore it later.
-                [o.fun,o.funPrms] = neurostim.utils.str2fun(v,o.plg.cic);
-                
-                % Install a GetMethod that evaluates this function
-                o.hDynProp.GetMethod =  @o.getFunctionValue;
-                % Evaluate the function to get current value
-                [v,ok]= getFunctionValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
+
+                %If we are still at setup (i.e. not run-time), don't build the function b/c referenced objects might not exist yet.
+                %It will happen once c.run() starts using o.funStr
+                if o.plg.cic.stage >o.plg.cic.SETUP
+                    %Construct the anonymous function (f(args), where args are neurostim.parameter handles)
+                    %If still in setup, the function properties will just return the function string
+                    [o.fun,o.funPrms] = neurostim.utils.str2fun(v,o.plg.cic);
+                    
+                    % Install a GetMethod that evaluates this function
+                    o.hDynProp.GetMethod =  @o.getFunctionValue;
+                    
+                    % Evaluate the function to get current value
+                    v= getFunctionValue(o);
+                else
+                    %Add it to the list of functions to be made at runtime.
+                    addFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name)
+                end
             elseif ~isempty(o.fun)
                 % This is currently a function, and someone is overriding
                 % the parameter with a non-function value. Remove the fun.
                 o.fun = [];
                 o.funStr = '';
+                o.funPrms = [];
+                delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);
                 % Change the getMethod to a simple value return
                 o.hDynProp.GetMethod =  @o.getValue;
             end
             
-            if ok
-                % validate
-                if ~isempty(o.validate)
-                    o.validate(v);
-                end
-                % Log the new value
-                storeInLog(o,v);
+            % validate
+            if ~isempty(o.validate)
+                o.validate(v);
             end
+            % Log the new value
+            storeInLog(o,v);
         end
-        
+  
+                
         % Called before saving an object to clean out the empty elements in
         % the log.
         function pruneLog(o)
