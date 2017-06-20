@@ -62,7 +62,15 @@ classdef eyelink < neurostim.plugins.eyetracker
         function beforeExperiment(o)
             
             %Initalise default Eyelink el structure and set some values.
-            o.el=EyelinkInitDefaults(o.window);
+            % first call it with the mainWindow 
+            o.el=EyelinkInitDefaults(o.cic.mainWindow);
+            % But if we're using an overlay (i.e. using a vpixx in m16
+            % mode) we have to adjust a few things
+            if (o.cic.overlayWindow == o.window)
+                % We plan to draw on the overlay
+                o.el.window = o.window;
+            end
+                
             o.el.calibrationtargetcolour = o.clbTargetColor;
             o.el.calibrationtargetsize = o.clbTargetSize./o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
@@ -96,7 +104,7 @@ classdef eyelink < neurostim.plugins.eyetracker
           
            
             % open file to record data to (will be renamed on copy)
-            [~,tmpFile] = fileparts(tempname);
+             [~,tmpFile] = fileparts(tempname);
             o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
             Eyelink('Openfile', o.edfFile);
             

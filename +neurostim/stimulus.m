@@ -213,7 +213,15 @@ classdef stimulus < neurostim.plugin
     % the derived class an oppurtunity to respond to changes that this
     % base functionality makes.
     methods (Access=public)
-        function baseBeforeExperiment(s)        
+        function baseBeforeExperiment(s)     
+            % Check whether this stimulus should be displayed on
+            % the color overlay in VPIXX-M16 mode.  Done here to
+            % avoid the overhead of calling this every draw.
+            if strcmpi(s.cic.screen.type,'VPIXX-M16') && s.overlay
+                s.window = s.cic.overlayWindow;
+            else
+                s.window = s.cic.mainWindow;
+            end            
             if s.rsvp.active
                 %Check that stimulus durations and ISIs are multiples of the frame interval (defined as within 5% of a frame)
                 [dur,rem1] = c.ms2frames(s.rsvp.duration,true);

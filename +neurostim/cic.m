@@ -65,8 +65,8 @@ classdef cic < neurostim.plugin
     % These are set internally
     properties (GetAccess=public, SetAccess =protected)
         %% Program Flow
-        window =[]; % The PTB window
-        overlay =[]; % The color overlay for special colormodes (VPIXX-M16)
+        mainWindow = []; % The PTB window
+        overlayWindow =[]; % The color overlay for special colormodes (VPIXX-M16)
         stage@double;
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         
@@ -212,10 +212,10 @@ classdef cic < neurostim.plugin
                 value = -1;
             end
             if value==-1  % neurostim convention -1 or 'none'
-                HideCursor(c.window);
+                HideCursor(c.mainWindow);
                 c.cursorVisible = false;
             else
-                ShowCursor(value,c.window);
+                ShowCursor(value,c.mainWindow);
                 c.cursorVisible = true;
             end
         end
@@ -268,7 +268,7 @@ classdef cic < neurostim.plugin
                 error('frameRate not specified');
             end
             
-            frInterval = Screen('GetFlipInterval',c.window)*1000;
+            frInterval = Screen('GetFlipInterval',c.mainWindow)*1000;
             percError = abs(frInterval-(1000/c.screen.frameRate))/frInterval*100;
             if percError > 5
                 clear all
@@ -499,7 +499,7 @@ classdef cic < neurostim.plugin
         end
         
         function [x,y,buttons] = getMouse(c)
-            [x,y,buttons] = GetMouse(c.window);
+            [x,y,buttons] = GetMouse(c.mainWindow);
             [x,y] = c.pixel2Physical(x,y);
         end
         
@@ -510,9 +510,9 @@ classdef cic < neurostim.plugin
             defaultfont = Screen('Preference','DefaultFontName');
             defaultsize = Screen('Preference','DefaultFontSize');
             defaultstyle = Screen('Preference','DefaultFontStyle');
-            Screen('TextFont', c.window, defaultfont);
-            Screen('TextSize', c.window, defaultsize);
-            Screen('TextStyle', c.window, defaultstyle);
+            Screen('TextFont', c.mainWindow, defaultfont);
+            Screen('TextSize', c.mainWindow, defaultsize);
+            Screen('TextStyle', c.mainWindow, defaultstyle);
             
         end
         
@@ -740,10 +740,11 @@ classdef cic < neurostim.plugin
             checkFrameRate(c);
             
             %% Start preparation in all plugins.
+            c.window = c.mainWindow; % Allows plugins to use .window 
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
-            DrawFormattedText(c.window, 'Press any key to start...', c.center(1), 'center', c.screen.color.text);
-            Screen('Flip', c.window);
+            DrawFormattedText(c.mainWindow, 'Press any key to start...', c.center(1), 'center', c.screen.color.text);
+            Screen('Flip', c.mainWindow);
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             c.flags.experiment = true;
                         
@@ -769,11 +770,11 @@ classdef cic < neurostim.plugin
                 end
                 if ~isempty(msg)
                     waitforkey=c.blocks(c.block).beforeKeyPress;
-                    DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
+                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).beforeFunction)
                     waitforkey=c.blocks(c.block).beforeFunction(c);
                 end
-                Screen('Flip',c.window);
+                Screen('Flip',c.mainWindow);
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
@@ -797,7 +798,7 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
-                            Screen('Flip',c.window,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
                     end
                     
@@ -805,7 +806,7 @@ classdef cic < neurostim.plugin
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     
-                    Priority(MaxPriority(c.window));
+                    Priority(MaxPriority(c.mainWindow));
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -820,7 +821,7 @@ classdef cic < neurostim.plugin
                         
                         
                         base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
-                        Screen('DrawingFinished',c.window);
+                        Screen('DrawingFinished',c.mainWindow);
                         base(c.pluginOrder,neurostim.stages.AFTERFRAME,c);
                         
                         KbQueueCheck(c);
@@ -838,7 +839,7 @@ classdef cic < neurostim.plugin
                         % beampos: position of the monitor scanning beam when the time measurement was taken
                         vSyncMode = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
                         % Deadline has to be before the predicted next VBL time
-                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.window,frameDeadline,1-clr,vSyncMode);
+                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,vSyncMode);
                         if vSyncMode==0
                         else
                             % Flip's return arguments are not meaningful.
@@ -882,14 +883,14 @@ classdef cic < neurostim.plugin
                     Priority(0);
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
-                    [~,ptbStimOn]=Screen('Flip', c.window,0,1-c.itiClear);
+                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
                     c.frame = c.frame+1;
                     base(c.pluginOrder,neurostim.stages.AFTERTRIAL,c);
                     afterTrial(c);
                 end %conditions in block
                 
-                Screen('glLoadIdentity', c.window);
+                Screen('glLoadIdentity', c.mainWindow);
                 if ~c.flags.experiment;break;end                
                 if isa(c.blocks(c.block).afterMessage,'function_handle')
                     msg = c.blocks(c.block).afterMessage(c);
@@ -898,11 +899,11 @@ classdef cic < neurostim.plugin
                 end
                 if ~isempty(c.blocks(c.block).afterMessage)
                     waitforkey=c.blocks(c.block).afterKeyPress;
-                    DrawFormattedText(c.window,msg,'center','center',c.screen.color.text);
+                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
                 elseif ~isempty(c.blocks(c.block).afterFunction)
                     waitforkey=c.blocks(c.block).afterFunction(c);
                 end
-                Screen('Flip',c.window);
+                Screen('Flip',c.mainWindow);
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
@@ -910,8 +911,8 @@ classdef cic < neurostim.plugin
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
             
-            DrawFormattedText(c.window, 'This is the end...', 'center', 'center', c.screen.color.text);
-            Screen('Flip', c.window);
+            DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
+            Screen('Flip', c.mainWindow);
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
             c.KbQueueStop;
@@ -1283,7 +1284,7 @@ classdef cic < neurostim.plugin
                 PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'CheckOnly');
             end
             %% Open the window
-            c.window = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
+            c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             
             
             %% Perform initialization that requires an open window
@@ -1291,7 +1292,7 @@ classdef cic < neurostim.plugin
                 case 'GENERIC'
                     % nothing to do
                 case 'VPIXX-M16'
-                    c.overlay = PsychImaging('GetOverlayWindow', c.window);
+                    c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
                     [nrRows,nrCols] = size(c.screen.overlayClut);
                     if nrCols>0 && nrCols~=3
                         error('The overlay clut should have 3 columns...');
@@ -1302,7 +1303,7 @@ classdef cic < neurostim.plugin
                     % Add white for missing clut entries to show error
                     % indices (assuming the bg is not max white)
                     c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
-                    Screen('LoadNormalizedGammaTable',c.window,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
+                    Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1313,30 +1314,30 @@ classdef cic < neurostim.plugin
                     % Nothing to do.
                 case 'LUM'
                     % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
-                    PsychColorCorrection('SetEncodingGamma', c.window,1./c.screen.calibration.gamma);
+                    PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.gamma);
                     if isnan(c.screen.calibration.bias)
                         % Only gamma defined
-                        PsychColorCorrection('SetColorClampingRange',c.window,0,1); % In non-extended mode, luminance is between [0 1]
+                        PsychColorCorrection('SetColorClampingRange',c.mainWindow,0,1); % In non-extended mode, luminance is between [0 1]
                     else
                         % If the user set the calibration.bias parameters then s/he wants to perform a slightly more advanced calibration
                         % out = bias + gain * ((lum-minLum)./(maxLum-minLum)) ^1./gamma )
                         % where each parameter can be specified per gun
                         % (i.e. c.calibration.bias= [ 0 0.1 0])
-                        PsychColorCorrection('SetExtendedGammaParameters', c.window, c.screen.calibration.min, c.screen.calibration.max, c.screen.calibration.gain,c.screen.calibration.bias);
+                        PsychColorCorrection('SetExtendedGammaParameters', c.mainWindow, c.screen.calibration.min, c.screen.calibration.max, c.screen.calibration.gain,c.screen.calibration.bias);
                         % This mode accepts luminances between min and max
                     end
                 case {'XYZ','XYL'}
                     % Apply color calibration to the window
-                    PsychColorCorrection('SetSensorToPrimary', c.window, c.screen.calibration);
+                    PsychColorCorrection('SetSensorToPrimary', c.mainWindow, c.screen.calibration);
                 case 'RGB'
                     % Nothing to do
                 otherwise
                     error(['Unknown color mode: ' c.screen.colorMode]);
             end
-            PsychColorCorrection('SetColorClampingRange',c.window,0,1); % Final pixel value is between [0 1]
+            PsychColorCorrection('SetColorClampingRange',c.mainWindow,0,1); % Final pixel value is between [0 1]
             
             %% Perform additional setup routines
-            Screen(c.window,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             
             %% Setup the GUI.
             %
