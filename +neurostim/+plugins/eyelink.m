@@ -64,14 +64,9 @@ classdef eyelink < neurostim.plugins.eyetracker
             %Initalise default Eyelink el structure and set some values.
             % first call it with the mainWindow 
             o.el=EyelinkInitDefaults(o.cic.mainWindow);
-            % But if we're using an overlay (i.e. using a vpixx in m16
-            % mode) we have to adjust a few things
-            if (o.cic.overlayWindow == o.window)
-                % We plan to draw on the overlay
-                o.el.window = o.window;
-            end
                 
             o.el.calibrationtargetcolour = o.clbTargetColor;
+            o.el.msgfontcolour = o.cic.screen.color.text;
             o.el.calibrationtargetsize = o.clbTargetSize./o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
                 o.el.calibrationtargetwidth = o.clbTargetSize/2/o.cic.screen.width*100; %default to half radius
@@ -84,7 +79,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
             end
             
-            if result==-1
+            if result ~=0
                 o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
                 return;
             end
