@@ -40,6 +40,15 @@ classdef gabor < neurostim.stimulus
             %% Motion
             o.addProperty('phaseSpeed',0);
             
+            %% Special use
+            % Set oriMask to n>1 to create a sum of Gabors masking stimulus
+            % with little if any orientation contents. oriMask =8 will
+            % superimpose 8 gabors with random phase, and equally spaced
+            % orientations. oriMask=-8 will randomize the orientations.
+            o.addProperty('oriMask',0,'validate',@isnumeric); 
+            o.addProperty('phaseOffset',0); % Used internally to randomize phase for the ori mask
+            o.addProperty('oriOffset',0); % Used internally to determine the orientation of the mask components
+            
         end
         
         function beforeExperiment(o)
@@ -56,6 +65,19 @@ classdef gabor < neurostim.stimulus
             glUseProgram(o.shader);
             glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
             glUseProgram(0);
+            
+            if o.oriMask~=0
+                n = abs(o.oriMask);                
+                o.phaseOffset = 360*rand(1,n); % Always randomized
+                if o.oriMask<0
+                    o.oriOffset= 180*rand(1,n); % Random orientations for n<0
+                else
+                    o.oriOffset= linspace(0,180,n);
+                end
+            end
+            
+            
+            
         end
         
         function beforeFrame(o)
@@ -73,10 +95,20 @@ classdef gabor < neurostim.stimulus
                 oColor = [oColor 0 0];% Luminance only spec (probably M16 mode)
             end
             
+                       
+            if o.oriMask~=0
+                % Adjust alpha to overlay Gabors in the oriMask
+                n =  abs(o.oriMask);
+                o.alpha = 1/n;                
+            else
+                n=1;
+            end
             
-            aux = [o.phase, o.frequency, oSigma; o.contrast 0 0 0]';
-
-            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, 90+o.orientation, filterMode, globalAlpha, [oColor, o.alpha] , textureShader,specialFlags, aux);
+            % Draw the Gabor using the GLSL shader
+            for i=1:n
+                aux = [(o.phase+o.phaseOffset(i))*pi/180, o.frequency, oSigma; o.contrast 0 0 0]';    
+                Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, 90+o.orientation+o.oriOffset(i), filterMode, globalAlpha, [oColor, o.alpha] , textureShader,specialFlags, aux);
+            end
 
         end
         

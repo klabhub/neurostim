@@ -116,8 +116,7 @@ classdef cic < neurostim.plugin
         cursor;         % Cursor 'none','arrow'; see ShowCursor
         blockName;      % Name of the current block
         trialTime;      % Time elapsed (ms) since the start of the trial
-        nrTrialsTotal;   % Number of trials total (all blocks)
-        conditionID;    % Unique id for a condition - used by adaptive
+        nrTrialsTotal;   % Number of trials total (all blocks)        
         date;           % Date of the experiment.
     end
     
@@ -358,7 +357,7 @@ classdef cic < neurostim.plugin
             c.addProperty('frameDrop',[NaN NaN]);
             c.addProperty('firstFrame',[]);
             c.addProperty('trialStopTime',[]);
-            c.addProperty('condition',[]);
+            c.addProperty('condition',[]);  % Linear index, specific to a design
             c.addProperty('design',[]);
             c.addProperty('block',0);
             c.addProperty('blockCntr',0);
