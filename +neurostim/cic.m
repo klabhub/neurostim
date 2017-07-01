@@ -553,13 +553,13 @@ classdef cic < neurostim.plugin
         
         function plgs = pluginsByClass(c,classType)
             %Return pointers to all active plugins of the specified class type.
-            ind=1; plgs = [];
-            for p =c.plugins
-                if isa(p,horzcat('neurostim.plugins.',lower(classType)));
-                    plgs{ind} = p; %#ok<AGROW>
-                    ind=ind+1;
+            stay= false(1,c.nrPlugins); 
+            for p =1:c.nrPlugins
+                if isa(c.plugins(p),horzcat('neurostim.plugins.',classType))
+                    stay(p) =true;                     
                 end
             end
+            plgs = c.plugins(stay);
         end
         
         function disp(c)

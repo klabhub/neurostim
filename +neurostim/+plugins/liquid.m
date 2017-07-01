@@ -21,8 +21,6 @@ classdef liquid < neurostim.plugins.feedback
             %Check that the MCC plugin is added.
             o.mcc = pluginsByClass(o.cic,'mcc');
             if numel(o.mcc)==1
-                o.mcc = o.mcc{1};
-                
                 %Iniatilise the bit low
                 o.mcc.digitalOut(o.mccChannel,false);
             else
