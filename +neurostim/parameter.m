@@ -132,15 +132,20 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function storeInLog(o,v)
             % Store and Log the new value for this parm
-            % Previously we checked if the value had not changed and logged
-            % only the changes. This turns out to be much slower. So we
-            % store every set now (At the cost of some memory/disk space).
+            
+            % Check if the value changed and log only the changes. 
+            %(at some point this seemed to be slower than just logging everything. 
+            % but tests on July 1st 2017 showed that this was (no longer)
+            % correct. 
+            
+            if (ischar(v) && strcmp(v,o.value)) || (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value))
+                return;
+            end
             if o.noLog
                 %Not loggin this
                 return;
             end
-            
-            
+                        
             % For non-function parns this is the value that will be
             % returned  to the next getValue
             o.value = v;

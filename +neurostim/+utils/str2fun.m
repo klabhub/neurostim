@@ -34,7 +34,7 @@ elseif strncmpi(str,'@',1)
             plg = cell2mat(regexp(plgAndProp{i},'(\<[a-zA-Z_]+\w*\.)','match'));
             prm = strrep(plgAndProp{i},plg,'');
             plg = plg(1:end-1);
-            h(i) = c.(plg).prms.(prm);
+            h(i) = c.(plg).prms.(prm); %#ok<AGROW> Array of parameters. 
         end
         
         %Replace each reference to them with args(i)

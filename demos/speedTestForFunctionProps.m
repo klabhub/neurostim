@@ -66,7 +66,7 @@ rep = profile('info');
 
 this = arrayfun(@(x) strcmpi(x.FunctionName,'parameter>parameter.getFunctionValue'),rep.FunctionTable);
 results = rep.FunctionTable(this);
-disp(['Time per call = ', num2str(results.TotalTime./results.NumCalls*1000), 'ms']);
+disp(['Calls: ' num2str(results.NumCalls) ' - Time per call = ', num2str(results.TotalTime./results.NumCalls*1000), 'ms']);
 
 keyboard
     
