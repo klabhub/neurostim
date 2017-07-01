@@ -258,14 +258,19 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         %% Functions to extract parm values from the log. use this to analyze the data
         function [data,trial,trialTime,time,block] = get(o,varargin)
-            % For any parameter, returns up to five  vectors specifying
-            % the values of the parameter during the experiment
+            % Usage example:
+            %     [data,trial,trialTime,time,block] = get(c.dots.prms.Y,'atTrialTime',Inf)
+            %
+            % For any parameter, returns up to five vectors specifying
+            % the values of the parameter during the experiment:
+            %
             % data = values
-            % trial = trial in whcih that value occurred
+            % trial = trial in which that value occurred
             % trialTime = Time relative to start of the trial
             % time  = time relative to start of the experiment
             % block = the block in which this trial occurred.
             %
+            %   Optional input arguments as param/value pairs:
             %
             % 'atTrialTime'   - returns exactly one value for each trial
             % that corresponds to the value of the parameter at that time in
