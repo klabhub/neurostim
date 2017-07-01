@@ -106,6 +106,7 @@ classdef psyBayes < neurostim.plugins.adaptive
         
         function plot(o)
             % Call the psybayes_plot function on the current state.
+            figure('name',o.name)
             psybayes_plot(o.psy);
         end
         
