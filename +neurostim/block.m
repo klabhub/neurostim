@@ -170,7 +170,7 @@ classdef block < dynamicprops
                 end
             end
             
-            c.condition = o.condition; % Log the condition change
+            c.condition = o.condition; % Log the condition change (this is a linear index, specific to the current design)
             spcs = specs(o.design); % Retrieve the specs from the design            
             %% Now apply the values to the parms in the plugins.
             nrParms = size(spcs,1);

@@ -2,8 +2,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     % Base class for plugins. Includes logging, functions, etc.
     %
     properties (SetAccess=public)
-        cic;  % Pointer to CIC
+        cic;  % Pointer to CIC    
+        overlay@logical=false; % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
+        window;    
     end
+    
     
     
     properties (SetAccess=private, GetAccess=public)
@@ -160,6 +163,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     methods (Access = public)
         
         function baseBeforeExperiment(o)
+            % Check whether this plugin should be displayed on
+            % the color overlay in VPIXX-M16 mode.  Done here to
+            % avoid the overhead of calling this every draw.
+            if strcmpi(o.cic.screen.type,'VPIXX-M16') && o.overlay
+                o.window = o.cic.overlayWindow;
+            else
+                o.window = o.cic.mainWindow;
+            end            
             beforeExperiment(o);
         end
         function baseBeforeTrial(o)
