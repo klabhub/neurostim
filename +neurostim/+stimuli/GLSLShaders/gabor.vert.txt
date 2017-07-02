@@ -3,12 +3,9 @@
  * Shader for drawing of basic parameterized gabor patches using xyL color
  * coordinates. Based on PTB basic gabor shader.
  *
+ * All variables come in as degrees and are converted to radians here.
  * BK - April 2014	 
  */
-
-const float twopi     = 2.0 * 3.141592654;
-const float sqrtof2pi = 2.5066282746;
-const float deg2rad = 3.141592654 / 180.0;
 
 /* Set from Matlab when texture is created */
 uniform int rgbColor;
@@ -40,12 +37,12 @@ void main()
     /* auxParameters0   = [o.phase, o.frequency, o.sigma, ]
        auxParameters1   = o.peakLuminance 0 0 0 ] */
 
-    phase               = deg2rad * auxParameters0[0];
-    freqTwoPi           = auxParameters0[1] * twopi;
+    phase               = radians(auxParameters0[0]);
+    freqTwoPi           = auxParameters0[1] * 2.0 * 3.141592654;
     sigma1              = auxParameters0[2];
     sigma2              = auxParameters0[3];    
     contrast            = auxParameters1[0];
-    orientation         = deg2rad * sizeAngleFilterMode.z;
+    orientation         = radians(90-sizeAngleFilterMode.z);
     color               = modulateColor;
     
 }

@@ -2,6 +2,8 @@
  * File: BasicGaborShader.frag.txt
  * Shader for drawing of xyL Gabor patches.
  * Adapted from PTB.
+ * All variables are in radians (conversion takes place in vert.txt; 
+ * the m-code is in degrees.
  * BK  April 2014
  */
 
@@ -27,7 +29,7 @@ void main()
     /* Note that this is a constant for all fragments, but we can not do it in */
     /* the vertex shader, because the vertex shader does not have sufficient   */
     /* numeric precision on some common hardware out there. */
-    vec2 coeff = vec2(cos(-orientation), sin(-orientation)) * freqTwoPi;
+    vec2 coeff = vec2(cos(orientation), sin(orientation)) * freqTwoPi;
 
     /* Evaluate sine grating at requested position, angle and phase: */
     float sv = sin(dot(coeff, pos) + phase);
