@@ -11,7 +11,7 @@ cd ../tools
 stats= profile('info');
 prms = ~cellfun(@isempty,strfind({stats.FunctionTable.FileName},'parameter.m'));
 allData = stats.FunctionTable(prms);
-funcs= {'getValue','getFunctionValue','setValue'}
+funcs= {'getValue','getFunctionValue','setValue'};
 for i=1:numel(funcs)
 prms = ~cellfun(@isempty,strfind({allData.FunctionName},funcs{i}));
 

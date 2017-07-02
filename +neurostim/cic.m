@@ -5,7 +5,7 @@ classdef cic < neurostim.plugin
     
     %% Constants
     properties (Constant)
-        PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
+        PROFILE@logical = true; % Using a const to allow JIT to compile away profiler code
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
@@ -1423,7 +1423,7 @@ classdef cic < neurostim.plugin
             if numel(plgns)>1
             figure('Name','Total','position',[680   530   818   420]); 
             clf
-            frameItems = find(contains(items,'FRAME'));
+            frameItems = find(~cellfun(@isempty,strfind(items,'FRAME')));
             cntr=1;
                 for j=frameItems'
                     subplot(1,2,cntr);
