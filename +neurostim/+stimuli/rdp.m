@@ -36,7 +36,9 @@ classdef rdp < neurostim.stimulus
         framesLeft;
     end
     
-    
+    properties
+        deleteMe = 10;
+    end
     
     methods (Access = public)
         function o = rdp(c,name)
