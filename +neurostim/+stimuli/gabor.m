@@ -2,7 +2,7 @@ classdef gabor < neurostim.stimulus
     % Wrapper class for the (fast) procedural Gabor textures in the PTB.
     % 
     % Adjustable variables (from CreateProcGabor.m):
-    % 	orientation - orientation angle in degrees (0-360)
+    % 	orientation - orientation angle in degrees (0-180)
     % 	contrast - amplitude of gabor in intensity units
     % 	phase - the phase of the gabor's sine grating in degrees.
     % 	frequency - gabor's spatial frequency in cycles per pixel
@@ -68,7 +68,7 @@ classdef gabor < neurostim.stimulus
             
             if o.oriMask~=0
                 n = abs(o.oriMask);                
-                o.phaseOffset = 360*rand(1,n); % Always randomized
+                o.phaseOffset = 360*rand(1,n); % Always randomized ina n oriMask
                 if o.oriMask<0
                     o.oriOffset= 180*rand(1,n); % Random orientations for n<0
                 else
@@ -106,8 +106,8 @@ classdef gabor < neurostim.stimulus
             
             % Draw the Gabor using the GLSL shader
             for i=1:n
-                aux = [(o.phase+o.phaseOffset(i))*pi/180, o.frequency, oSigma; o.contrast 0 0 0]';    
-                Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, 90+o.orientation+o.oriOffset(i), filterMode, globalAlpha, [oColor, o.alpha] , textureShader,specialFlags, aux);
+                aux = [(o.phase+o.phaseOffset(i)), o.frequency, oSigma; o.contrast 0 0 0]';    
+                Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, o.orientation+o.oriOffset(i), filterMode, globalAlpha, [oColor, o.alpha] , textureShader,specialFlags, aux);
             end
 
         end
