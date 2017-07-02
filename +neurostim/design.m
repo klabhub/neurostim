@@ -416,7 +416,7 @@ classdef design <handle & matlab.mixin.Copyable
                             thisV = V{srcSub{:}};
                             if isa(thisV,'neurostim.plugins.adaptive')
                                 if o.nrFactors>1
-                                    linearIx = sub2ind(o.nrLevels,ix(i,:));
+                                    linearIx = sub2ind(o.nrLevels,ix(i,1),ix(i,2));
                                 else
                                     linearIx = ix(i,1);
                                 end

@@ -62,8 +62,11 @@ classdef eyelink < neurostim.plugins.eyetracker
         function beforeExperiment(o)
             
             %Initalise default Eyelink el structure and set some values.
-            o.el=EyelinkInitDefaults(o.cic.window);
+            % first call it with the mainWindow 
+            o.el=EyelinkInitDefaults(o.cic.mainWindow);
+                
             o.el.calibrationtargetcolour = o.clbTargetColor;
+            o.el.msgfontcolour = o.cic.screen.color.text;
             o.el.calibrationtargetsize = o.clbTargetSize./o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
                 o.el.calibrationtargetwidth = o.clbTargetSize/2/o.cic.screen.width*100; %default to half radius
@@ -76,13 +79,13 @@ classdef eyelink < neurostim.plugins.eyetracker
                 result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
             end
             
-            if result==-1
+            if result ~=0
                 o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
                 return;
             end
             
             %Tell Eyelink about the pixel coordinates
-            rect=Screen(o.cic.window,'Rect');
+            rect=Screen(o.window,'Rect');
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
             
             
@@ -96,7 +99,7 @@ classdef eyelink < neurostim.plugins.eyetracker
           
            
             % open file to record data to (will be renamed on copy)
-            [~,tmpFile] = fileparts(tempname);
+             [~,tmpFile] = fileparts(tempname);
             o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
             Eyelink('Openfile', o.edfFile);
             

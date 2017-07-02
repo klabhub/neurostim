@@ -74,7 +74,8 @@ classdef starstim < neurostim.stimulus
     properties (SetAccess=protected, GetAccess= public)        
         NICVersion;
         matNICVersion;
-        code@containers.Map = containers.Map('KeyType','char','ValueType','double');
+        code@containers.Map = containers.Map('KeyType','char','ValueType','double');     
+        mustExit@logical = false;
     end
     
     % Public Get, but set through functions or internally
@@ -180,6 +181,7 @@ classdef starstim < neurostim.stimulus
     end
     
     methods % Public
+      
         function abort(o)
             stop(o);
         end
@@ -192,7 +194,9 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 return;
             end
-            onExit(o);           
+            if o.mustExit
+                onExit(o);           
+            end
         end
         % Constructor. Provide a handle to CIC, the Starstim hostname.
         % You can fake a NIC by specifying 'fake' as the hostname
@@ -248,6 +252,7 @@ classdef starstim < neurostim.stimulus
             else
                 [ret, stts, o.sock] = MatNICConnect(o.host);
                 o.checkRet(ret,['Host:' stts]);
+                o.mustExit = true;
                 [pth,file] = fileparts(o.cic.fullFile);
                 pth = fullfile(pth,file);
                 if ~exist(pth,'dir')
@@ -270,7 +275,7 @@ classdef starstim < neurostim.stimulus
                     o.checkRet(ret,['Define marker: ' key{i}]);
                 end
                 protocolSet = MatNICProtocolSet();
-                o.matNICVersion = protocolSet('MATNIC_VERSION');
+                o.matNICVersion = protocolSet('MATNIC_VERSION');                
             end                                                           
         end
         

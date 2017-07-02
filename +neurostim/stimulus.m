@@ -20,11 +20,6 @@ classdef stimulus < neurostim.plugin
     %
     %
    
-    properties (SetAccess=public,GetAccess=public)
-          overlay@logical=false; % Flag to indicate that this stimulus is drawn on the overlay in M16 mode.
-        window;
-    end
-    
     
     properties (Dependent)
         off;
@@ -218,25 +213,25 @@ classdef stimulus < neurostim.plugin
     % the derived class an oppurtunity to respond to changes that this
     % base functionality makes.
     methods (Access=public)
-        function baseBeforeExperiment(s)
+        function baseBeforeExperiment(s)     
             % Check whether this stimulus should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
             % avoid the overhead of calling this every draw.
             if strcmpi(s.cic.screen.type,'VPIXX-M16') && s.overlay
-                s.window = s.cic.overlay;
+                s.window = s.cic.overlayWindow;
             else
-                s.window = s.cic.window;
-            end
+                s.window = s.cic.mainWindow;
+            end            
             if s.rsvp.active
                 %Check that stimulus durations and ISIs are multiples of the frame interval (defined as within 5% of a frame)
-                [dur,rem1] = c.ms2frames(s.rsvp.duration,true);
-                [isi,rem2] = c.ms2frames(s.rsvp.isi,true);
+                [dur,rem1] = s.cic.ms2frames(s.rsvp.duration,true);
+                [isi,rem2] = s.cic.ms2frames(s.rsvp.isi,true);
                 if any(abs([rem1,rem2])>0.05)
                     s.writeToFeed('Requested RSVP duration or ISI is impossible. (non-multiple of frame interval)');
                 else
                     %Set to multiple of frame interval
-                    s.rsvp.duration = dur*1000/c.screen.frameRate;
-                    s.rsvp.isi = isi*1000/c.screen.frameRate;
+                    s.rsvp.duration = dur*1000/s.cic.screen.frameRate;
+                    s.rsvp.isi = isi*1000/s.cic.screen.frameRate;
                 end
             end
             
