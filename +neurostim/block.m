@@ -20,19 +20,26 @@ classdef block < dynamicprops
     %       wherein the weights correspond to the equivalent design (i.e. a factorial or set of conditions).
     %
     %   myBlock.beforeMessage - a string containing a message which will
-    %       write to screen before the block begins, and wait for a keypress.
+    %       write to screen before the block begins.
     %       myBlock.afterMessage - a string containing a message which will write
     %       to screen after the block ends. (and wait for keypress)
     %
     %   myBlock.beforeFunction - function handle to a function to run before the block.
     %       e.g.:
     %       out=myFunction(c)
-    %           Output: true or false, whether run() should wait for a keypress
-    %               before continuing
+    %           Output: ignored. 
     %           Input: cic - use to reference other properties as required.
     %
     %   myBlock.afterFunction - same format as beforeFunction.
     %
+    %   myBlock.beforeKeyPress = logical; whether to wait after showing the
+    %   before message and/or executing the before function.
+    %   
+    %   myBlock.afterKeyPress = same as beforeKeyPress.
+    % 
+    % Note that the function is evaluated and the message is written to the
+    % screen first, and then cic will wait until the user presses a key (if
+    % requested).
     %
     
     properties        

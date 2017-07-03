@@ -10,6 +10,8 @@ classdef cic < neurostim.plugin
         RUNNING = 1;
         POST    = 2;
         FRAMESLACK = 0.05; % Allow x% slack in screen flip time.
+        VSYNCMODE = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
+        USEFRAMEDEADLINE = true;
     end
     
     %% Public properties
@@ -270,9 +272,8 @@ classdef cic < neurostim.plugin
             frInterval = Screen('GetFlipInterval',c.mainWindow)*1000;
             percError = abs(frInterval-(1000/c.screen.frameRate))/frInterval*100;
             if percError > 5
-                clear all
-                close all
-                error('Actual frame rate doesn''t match the requested rate');
+                sca;
+                error(['Actual frame rate ( ' num2str(1000./frInterval) ' ) doesn''t match the requested rate (' num2str(c.screen.frameRate) ')']);
             else
                 c.screen.frameRate = 1000/frInterval;
             end
@@ -760,23 +761,28 @@ classdef cic < neurostim.plugin
                 %% Then let each block set itself up
                 beforeBlock(c.blocks(c.block));
                 
-                
-                waitforkey=false;
+                % Show a beforeBlock message, and execute a beforeBlock
+                % function (if requested).
+                waitforkey = false; % Only if a message/fun and requested.
                 if isa(c.blocks(c.block).beforeMessage,'function_handle')
                     msg = c.blocks(c.block).beforeMessage(c);
                 else
                     msg = c.blocks(c.block).beforeMessage;
-                end
-                if ~isempty(msg)
-                    waitforkey=c.blocks(c.block).beforeKeyPress;
+                end                
+                if ~isempty(msg)                                        
                     DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
-                elseif ~isempty(c.blocks(c.block).beforeFunction)
-                    waitforkey=c.blocks(c.block).beforeFunction(c);
+                    waitforkey=c.blocks(c.block).beforeKeyPress;
+                end                
+                if ~isempty(c.blocks(c.block).beforeFunction)
+                    c.blocks(c.block).beforeFunction(c);
+                    waitforkey=c.blocks(c.block).beforeKeyPress;
                 end
                 Screen('Flip',c.mainWindow);
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
+                
+                %% Start the trials in the block
                 c.blockTrial =0;
                 while ~c.blocks(c.block).done
                     c.trial = c.trial+1;
@@ -836,10 +842,25 @@ classdef cic < neurostim.plugin
                         %            Positive values indicate a
                         %            deadline-miss.
                         % beampos: position of the monitor scanning beam when the time measurement was taken
-                        vSyncMode = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
-                        % Deadline has to be before the predicted next VBL time
-                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,vSyncMode);
-                        if vSyncMode==0
+                        
+                           
+                        if c.USEFRAMEDEADLINE
+                            % Deadline has to be before the predicted next
+                            % VBL time: we subtract 0.5ms from the
+                            % predicted (absolute) time
+                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline-0.5e-3,1-clr,c.VSYNCMODE);
+                        else
+                            % On some systems specifying a
+                            % framedeadline can cause framedrops. (See
+                            % tools/testFlip to test this and https://groups.yahoo.com/neo/groups/psychtoolbox/conversations/topics/21981
+                            % for a possible explanationa and some
+                            % OS-specific discussion how to potentially solve this
+                            % issue. Not specifying a deadline (as we do
+                            % here) is an alternative solution.
+                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,[],1-clr,c.VSYNCMODE);
+                        end
+                        
+                        if c.VSYNCMODE==0 
                         else
                             % Flip's return arguments are not meaningful.
                             % It is now difficult to estimate when exactly
@@ -856,9 +877,8 @@ classdef cic < neurostim.plugin
                         end
                         
                         
-                        %% Check Timing
-                        % Delta between actual and deadline of flip;
-                        frameDeadline = ptbVbl+0.9*FRAMEDURATION; %a little bit before the next VBL..
+                        % Predict next frame and check frame drops 
+                        frameDeadline = ptbVbl+ FRAMEDURATION; 
                         if c.frame == 1
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
                             c.firstFrame = locFIRSTFRAMETIME;% log it                            
@@ -891,16 +911,21 @@ classdef cic < neurostim.plugin
                 
                 Screen('glLoadIdentity', c.mainWindow);
                 if ~c.flags.experiment;break;end                
+                
+                %% Perform afterBlock message/function
+                waitforkey = false;
                 if isa(c.blocks(c.block).afterMessage,'function_handle')
                     msg = c.blocks(c.block).afterMessage(c);
                 else
                     msg = c.blocks(c.block).afterMessage;
-                end
-                if ~isempty(c.blocks(c.block).afterMessage)
-                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end                                
+                if ~isempty(msg)                    
                     DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
-                elseif ~isempty(c.blocks(c.block).afterFunction)
-                    waitforkey=c.blocks(c.block).afterFunction(c);
+                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end                
+                if ~isempty(c.blocks(c.block).afterFunction)
+                   c.blocks(c.block).afterFunction(c);
+                   waitforkey=c.blocks(c.block).afterKeyPress;
                 end
                 Screen('Flip',c.mainWindow);
                 if waitforkey
@@ -1478,7 +1503,7 @@ classdef cic < neurostim.plugin
             frameduration = 1000./c.screen.frameRate;
             bins  = linspace(-frameduration,frameduration,20);
             histogram(delta,bins);%
-            title(['mean = ' num2str(nanmean(delta))])
+            title(['median = ' num2str(nanmedian(delta))])
             xlabel 'Delta (ms)'
             ylabel '#drops'
             
