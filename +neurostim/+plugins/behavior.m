@@ -31,8 +31,13 @@ classdef behavior < neurostim.plugin
             o.validateEvent = checkEventArgs(o,val);
         end       
         function v= get.enabled(o)
-            t = o.cic.trialTime;
-            v = ~o.done && t >= o.on && t <= o.off;
+            if o.done
+                v = false;
+            else
+                %This part is reltively slow, hence the if approach here
+                t = o.cic.trialTime;
+                v = t >= o.on && t <= o.off;
+            end
         end
     end
     
@@ -196,8 +201,8 @@ classdef behavior < neurostim.plugin
                 allGood = false;
             end
             
-            %Make sure that the request is an actual event
-            if ~all(ismember(val,{'AFTERTRIAL','AFTERFRAME'}))
+            %Make sure that the request is an actual event (or empty)
+            if ~all(ismember(val,{'AFTERTRIAL','AFTERFRAME',''}))
                 allGood = false;
             end
             

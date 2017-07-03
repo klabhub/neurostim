@@ -843,7 +843,10 @@ classdef cic < neurostim.plugin
                         % beampos: position of the monitor scanning beam when the time measurement was taken
                         vSyncMode = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
                         % Deadline has to be before the predicted next VBL time
-                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,vSyncMode);
+                        [ptbVbl,ptbStimOn] = Screen('Flip', c.window,[],1-clr,vSyncMode);
+                        missed = (ptbVbl-frameDeadline-FRAMEDURATION); % Positive is too late (i.e. a drop)
+                        
+%                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,vSyncMode);
                         if vSyncMode==0
                         else
                             % Flip's return arguments are not meaningful.
@@ -1442,7 +1445,8 @@ classdef cic < neurostim.plugin
             if numel(plgns)>1
             figure('Name','Total','position',[680   530   818   420]); 
             clf
-            frameItems = find(contains(items,'FRAME'));
+%             frameItems = find(contains(items,'FRAME')); % contains() was introduced in R2016b...
+            frameItems = find(cellfun(@(x) ~isempty(strfind(x,'FRAME')),items));
             cntr=1;
                 for j=frameItems'
                     subplot(1,2,cntr);
