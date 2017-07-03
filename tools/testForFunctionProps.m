@@ -1,17 +1,7 @@
-function c=speedTestForFunctionProps
-%Two-alternative forced choice (2AFC) motion task.
-%
-%This demo shows how to use:
-%       - Visual stimuli
-%       - Fixation control using (virtual or real) eye tracking.
-%       - Gaze-contingent stimulus presentation.
-%       - Subject feedback/reward.
-%       - Specification of experiemntal design (factorials, blocks, trial randomization)
-%
-%The task:
-%
-%       - "Fixate" on the fixation point to start the trial by moving the mouse and clicking on it
-%       - Is the motion upward (press "a") or downward (press "z")? Respond only once motion disappears.
+function c=testForFunctionProps
+%This used to be a test for how long function properties would take to
+%evaluate. Now it is a test-bed for implementation of str2fun, as well as
+%block.beforeFunction etc.
 
 import neurostim.*
 commandwindow;
@@ -54,9 +44,10 @@ myDesign.fac1.dots.direction=[-90 90];         %Two dot directions
 %Specify a block of trials
 myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
 myBlock.nrRepeats=10;
+myBlock.beforeMessage = @(c) num2str(c.dots.X);
 
 %% Run the experiment.
-c.order('sound','dots','liquid','soundFeedback','Eyelink','gui');   %Ignore this for now - we hope to remove the need for this.
+c.order('dots');   %Ignore this for now - we hope to remove the need for this.
 c.subject = 'easyD';
 
 profile on;
@@ -64,7 +55,7 @@ c.run(myBlock);
 profile off;
 rep = profile('info');
 
-this = arrayfun(@(x) strcmpi(x.FunctionName,'parameter>parameter.getFunctionValue'),rep.FunctionTable);
+this = arrayfun(@(x) strcmpi(x.FunctionName,'parameter>parameter.getValue'),rep.FunctionTable);
 results = rep.FunctionTable(this);
 disp(['Calls: ' num2str(results.NumCalls) ' - Time per call = ', num2str(results.TotalTime./results.NumCalls*1000), 'ms']);
 

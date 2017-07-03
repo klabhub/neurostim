@@ -163,22 +163,21 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function v = getValue(o,~)
-            % This function is called for dynprops that don't have a
-            % function associated with them
-            v = o.value;
+            % The dynamic property uses this as its GetMethod
+            %
+            % If this is a simple property, return its value
+            if isempty(o.fun)
+                v = o.value;
+            else
+                %Otherwise, evaluate the neurostim function
+                v=o.fun(o.funPrms);
+                
+                %The value might have changed, so allow it to be logged if need be
+                storeInLog(o,v);
+            end
         end
-        
-        
-        function v = getFunctionValue(o,~)
-            % This function is called before a function dynprop is used somewhere in the code.
-            % It is installed by setValue when it detects a neurostim function.
-            v=o.fun(o.funPrms); % Evaluate the neurostim function
-            storeInLog(o,v);
-        end
-        
         
         function setValue(o,~,v)
-            % Assign a new value to a parameter
 
             %Check for a function definition
             if strncmpi(v,'@',1)
@@ -192,12 +191,9 @@ classdef parameter < handle & matlab.mixin.Copyable
                     %Construct the anonymous function (f(args), where args are neurostim.parameter handles)
                     %If still in setup, the function properties will just return the function string
                     [o.fun,o.funPrms] = neurostim.utils.str2fun(v,o.plg.cic);
-                    
-                    % Install a GetMethod that evaluates this function
-                    o.hDynProp.GetMethod =  @o.getFunctionValue;
-                    
+
                     % Evaluate the function to get current value
-                    v= getFunctionValue(o);
+                    v= getValue(o);
                 else
                     %Add it to the list of functions to be made at runtime.
                     addFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name)
@@ -209,8 +205,6 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.funStr = '';
                 o.funPrms = [];
                 delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);
-                % Change the getMethod to a simple value return
-                o.hDynProp.GetMethod =  @o.getValue;
             end
             
             % validate
