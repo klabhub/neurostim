@@ -54,7 +54,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         cntr=0; % Counter to store where in the log we are.
         capacity=0; % Capacity to store in log
         
-        noLog@logical; % Set this to true to skip logging
+        noLog; % Set this to true to skip logging
         fun =[];        % Function to allow across parameter dependencies
         funPrms;
         funStr = '';    % The neurostim function string
