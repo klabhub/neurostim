@@ -5,7 +5,7 @@ classdef cic < neurostim.plugin
     
     %% Constants
     properties (Constant)
-        PROFILE@logical = true; % Using a const to allow JIT to compile away profiler code
+        PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
