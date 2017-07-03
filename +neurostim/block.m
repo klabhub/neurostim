@@ -46,7 +46,7 @@ classdef block < dynamicprops
         randomization='SEQUENTIAL';
         weights=1;
         nrRepeats=1;
-        beforeMessage='';
+        beforeMessage=''; %String to display before the start of a block (can be a function, f(cic), that returns a string)
         afterMessage='';
         beforeFunction; % function handle which takes cic as first arg
         afterFunction;
@@ -94,10 +94,9 @@ classdef block < dynamicprops
         end
         
         function set.beforeMessage(o,fun)
+            %Function must accept cic as the sole input argument and return a string
             if isa(fun,'function_handle')
                 o.beforeMessage = fun;
-            elseif ischar(fun) && strncmp(fun,'@',1)
-                o.beforeMessage = neurostim.utils.str2fun(fun);
             elseif ischar(fun)
                 o.beforeMessage = fun;
             else
@@ -105,10 +104,9 @@ classdef block < dynamicprops
             end
         end
         function set.afterMessage(o,fun)
+            %Function must accept cic as the sole input argument and return a string
             if isa(fun,'function_handle')
                 o.afterMessage = fun;
-            elseif ischar(fun) && strncmp(fun,'@',1)
-                o.afterMessage = neurostim.utils.str2fun(fun);
             elseif ischar(fun)
                 o.afterMessage = fun;
             else
@@ -116,10 +114,9 @@ classdef block < dynamicprops
             end
         end
         function set.beforeFunction(o,fun)
+            %Function must accept cic as the sole input argument.
             if isa(fun,'function_handle')
                 o.beforeFunction = fun;
-            elseif ischar(fun) && strncmp(fun,'@',1)
-                o.beforeFunction = neurostim.utils.str2fun(fun); 
             elseif isempty(fun)
                 o.beforeFunction = [];
             else
@@ -128,10 +125,9 @@ classdef block < dynamicprops
         end
         
         function set.afterFunction(o,fun)
+            %Function must accept cic as the sole input argument.
             if isa(fun,'function_handle')
                 o.afterFunction = fun;
-            elseif ischar(fun) && strncmp(fun,'@',1)
-                o.afterFunction = neurostim.utils.str2fun(fun);
             elseif isempty(fun)
                 o.afterFunction = [];
             else

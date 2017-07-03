@@ -99,7 +99,7 @@ classdef cic < neurostim.plugin
         profile=struct('cic',struct('FRAMELOOP',[],'FLIPTIME',[],'cntr',0));
         
         guiWindow;
-        
+        funPropsToMake=struct('plugin',{},'prop',{});
     end
     
     %% Dependent Properties
@@ -732,6 +732,11 @@ classdef cic < neurostim.plugin
             
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation  will now be active
             
+            %Construct any function properties by setting them again (this time the actual anonymous functions will be constructed)
+            for i=1:numel(c.funPropsToMake)
+                c.(c.funPropsToMake(i).plugin).(c.funPropsToMake(i).prop) = c.(c.funPropsToMake(i).plugin).(c.funPropsToMake(i).prop);
+            end
+
             %% Set up order and blocks
             order(c);
             setupExperiment(c,block1,varargin{:});
@@ -1125,6 +1130,23 @@ classdef cic < neurostim.plugin
             c.screen.yorigin = pin.Results.yorigin;
             c.screen.colorMode = pin.Results.colorMode;
         end
+        
+                
+        function addFunProp(c,plugin,prop)
+            %Function properties are constructed at run-time
+            %This adds one to the list to be created.
+            isMatch = arrayfun(@(x) strcmpi(x.plugin,plugin)&&strcmpi(x.prop,prop),c.funPropsToMake);
+            
+            if isempty(isMatch) || ~any(isMatch)
+                c.funPropsToMake(end+1).plugin = plugin;
+                c.funPropsToMake(end).prop = prop;
+            end
+        end
+        function delFunProp(c,plugin,prop)
+            %Remove the specified funProp. Someone must have changesd their mind before run-time.
+            isMatch = arrayfun(@(x) strcmpi(x.plugin,plugin)&&strcmpi(x.prop,prop),c.funPropsToMake);
+            c.funPropsToMake(isMatch) = [];
+        end     
     end
     
     
@@ -1406,10 +1428,7 @@ classdef cic < neurostim.plugin
             
             
             
-        end
-        
-        
-        
+        end   
     end
     
     

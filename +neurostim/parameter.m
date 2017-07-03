@@ -54,8 +54,9 @@ classdef parameter < handle & matlab.mixin.Copyable
         cntr=0; % Counter to store where in the log we are.
         capacity=0; % Capacity to store in log
         
-        noLog@logical; % Set this to true to skip logging
+        noLog; % Set this to true to skip logging
         fun =[];        % Function to allow across parameter dependencies
+        funPrms;
         funStr = '';    % The neurostim function string
         validate =[];    % Validation function
         plg@neurostim.plugin; % Handle to the plugin that this belongs to.
@@ -131,15 +132,17 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function storeInLog(o,v)
             % Store and Log the new value for this parm
-            % Previously we checked if the value had not changed and logged
-            % only the changes. This turns out to be much slower. So we
-            % store every set now (At the cost of some memory/disk space).
-            if o.noLog
-                %Not loggin this
+            
+            % Check if the value changed and log only the changes. 
+            %(at some point this seemed to be slower than just logging everything. 
+            % but tests on July 1st 2017 showed that this was (no longer)
+            % correct. 
+            
+            if o.noLog || (ischar(v) && strcmp(v,o.value)) || (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value))
+                % No change, no logging.
                 return;
             end
-            
-            
+                                   
             % For non-function parns this is the value that will be
             % returned  to the next getValue
             o.value = v;
@@ -157,63 +160,59 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function v = getValue(o,~)
-            % This function is called for dynprops that don't have a
-            % function associated with them
-            v = o.value;
-        end
-        
-        
-        function [v,ok] = getFunctionValue(o,~)
-            % This function is called before a function dynprop is used somewhere in the code.
-            % It is installed by setValue when it detects a neurostim function.
-            if o.plg.cic.stage >o.plg.cic.SETUP
-                % We've passed SETUP phase, function evaluaton should be
-                % possible.
-                v=o.fun(o.plg); % Evaluate the neurostim function
+            % The dynamic property uses this as its GetMethod
+            %
+            % If this is a simple property, return its value
+            if isempty(o.fun)
+                v = o.value;
+            else
+                %Otherwise, evaluate the neurostim function
+                v=o.fun(o.funPrms);
+                
+                %The value might have changed, so allow it to be logged if need be
                 storeInLog(o,v);
-                ok = true;
-            else  %  not all objects have been setup so
-                % function evaluation may not work yet. Evaluate to NaN for now
-                v = NaN;
-                ok = false;
             end
         end
         
-        
         function setValue(o,~,v)
-            % Assign a new value to a parameter
-            ok = true; % Normally ok; only function evals can be not ok.
+
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % The dynprop was set to a neurostim function
-                % Parse the specified function and make it into an anonymous
-                % function.
+                % Parse the specified function and make it into an anonymous function.
                 o.funStr = v; % store this to be able to restore it later.
-                v = neurostim.utils.str2fun(v);
-                o.fun = v;
-                % Install a GetMethod that evaluates this function
-                o.hDynProp.GetMethod =  @o.getFunctionValue;
-                % Evaluate the function to get current value
-                [v,ok]= getFunctionValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
+
+                %If we are still at setup (i.e. not run-time), don't build the function b/c referenced objects might not exist yet.
+                %It will happen once c.run() starts using o.funStr
+                if o.plg.cic.stage >o.plg.cic.SETUP
+                    %Construct the anonymous function (f(args), where args are neurostim.parameter handles)
+                    %If still in setup, the function properties will just return the function string
+                    [o.fun,o.funPrms] = neurostim.utils.str2fun(v,o.plg.cic);
+
+                    % Evaluate the function to get current value
+                    v= getValue(o);
+                else
+                    %Add it to the list of functions to be made at runtime.
+                    addFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name)
+                end
             elseif ~isempty(o.fun)
                 % This is currently a function, and someone is overriding
                 % the parameter with a non-function value. Remove the fun.
                 o.fun = [];
                 o.funStr = '';
-                % Change the getMethod to a simple value return
-                o.hDynProp.GetMethod =  @o.getValue;
+                o.funPrms = [];
+                delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);
             end
             
-            if ok
-                % validate
-                if ~isempty(o.validate)
-                    o.validate(v);
-                end
-                % Log the new value
-                storeInLog(o,v);
+            % validate
+            if ~isempty(o.validate)
+                o.validate(v);
             end
+            % Log the new value
+            storeInLog(o,v);
         end
-        
+  
+                
         % Called before saving an object to clean out the empty elements in
         % the log.
         function pruneLog(o)
