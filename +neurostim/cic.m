@@ -11,7 +11,7 @@ classdef cic < neurostim.plugin
         POST    = 2;
         FRAMESLACK = 0.05; % Allow x% slack in screen flip time.
         VSYNCMODE = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
-        USEFRAMEDEADLINE = true;
+        USEFRAMEDEADLINE = false;
     end
     
     %% Public properties
