@@ -111,12 +111,6 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Install two callback functions that will be called for
             % getting and setting of the dynprop
             o.hDynProp.SetMethod =  @o.setValue;
-            % Previously we had @(plgn) (o.value) here: this should not work, but does: (o.value should be evaluated
-            % here, but for some reason it is evaluated  when the
-            % GetMethod is called so that it does return the correct value
-            % at call time). That method was slightly faster 0.01 ms per
-            % call less, but future fixes in Matlab that fix this (presumed) parse bug
-            % could cause havoc here so we use a function call.
             o.hDynProp.GetMethod =  @o.getValue;
         end
         
@@ -161,14 +155,14 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function v = getValue(o,~)
             % The dynamic property uses this as its GetMethod
-            v = o.value;           
-        end
-        
-        function v = getFunValue(o,~)
-            % The dynamic property defined with a function uses this as its GetMethod
-            v=o.fun(o.funPrms);
-            %The value might have changed, so allow it to be logged if need be
-            storeInLog(o,v);
+            if isempty(o.fun)
+                v = o.value;           
+            else
+                 % The dynamic property defined with a function uses this as its GetMethod
+                v=o.fun(o.funPrms);
+                %The value might have changed, so allow it to be logged if need be
+                storeInLog(o,v);
+            end
         end
         
         function setValue(o,~,v)
@@ -187,8 +181,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                     [o.fun,o.funPrms] = neurostim.utils.str2fun(v,o.plg.cic);
 
                     % Evaluate the function to get current value
-                    v= getFunValue(o);
-                    o.hDynProp.GetMethod =  @o.getFunValue; % Change the get method to do fun-evals
+                    v= getValue(o);                    
                 else
                     %Add it to the list of functions to be made at runtime.
                     addFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name)
@@ -199,8 +192,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.fun = [];
                 o.funStr = '';
                 o.funPrms = [];
-                delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);
-                o.hDynProp.GetMethod = @o.getValue;
+                delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);                
             end
             
             % validate
