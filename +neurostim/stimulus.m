@@ -37,6 +37,7 @@ classdef stimulus < neurostim.plugin
         logOffset@logical;
         rsvp;
         diodePosition;
+       
     end
     
     methods
@@ -83,7 +84,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('duration',Inf,'validate',@isnumeric);
             s.addProperty('color',[1/3 1/3 50],'validate',@isnumeric);
             s.addProperty('alpha',1,'validate',@(x)x<=1&&x>=0);
-            s.addProperty('scale',struct('x',1,'y',1,'z',1));
+            s.addProperty('scale',[1 1 1]);
             s.addProperty('angle',0,'validate',@isnumeric);
             s.addProperty('rx',0,'validate',@isnumeric);
             s.addProperty('ry',0,'validate',@isnumeric);
@@ -275,8 +276,8 @@ classdef stimulus < neurostim.plugin
                 Screen('glTranslate',locWindow,sX,sY,sZ);
             end
             sScale = s.scale;
-            if any([sScale.x sScale.y]~=1)
-                Screen('glScale',locWindow,sScale.x,sScale.y);
+            if any(sScale~=1)
+                Screen('glScale',locWindow,sScale(1),sScale(2),sScale(3));
             end
             sAngle= s.angle;
             if  sAngle ~=0

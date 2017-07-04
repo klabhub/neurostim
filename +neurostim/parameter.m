@@ -138,7 +138,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % but tests on July 1st 2017 showed that this was (no longer)
             % correct. 
             
-            if o.noLog || (ischar(v) && strcmp(v,o.value)) || (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value))
+            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value)) || (ischar(v) && strcmp(v,o.value)) || o.noLog 
                 % No change, no logging.
                 return;
             end
@@ -161,21 +161,18 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function v = getValue(o,~)
             % The dynamic property uses this as its GetMethod
-            %
-            % If this is a simple property, return its value
-            if isempty(o.fun)
-                v = o.value;
-            else
-                %Otherwise, evaluate the neurostim function
-                v=o.fun(o.funPrms);
-                
-                %The value might have changed, so allow it to be logged if need be
-                storeInLog(o,v);
-            end
+            v = o.value;           
+        end
+        
+        function v = getFunValue(o,~)
+            % The dynamic property defined with a function uses this as its GetMethod
+            v=o.fun(o.funPrms);
+            %The value might have changed, so allow it to be logged if need be
+            storeInLog(o,v);
         end
         
         function setValue(o,~,v)
-
+           
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % The dynprop was set to a neurostim function
@@ -190,7 +187,8 @@ classdef parameter < handle & matlab.mixin.Copyable
                     [o.fun,o.funPrms] = neurostim.utils.str2fun(v,o.plg.cic);
 
                     % Evaluate the function to get current value
-                    v= getValue(o);
+                    v= getFunValue(o);
+                    o.hDynProp.GetMethod =  @o.getFunValue; % Change the get method to do fun-evals
                 else
                     %Add it to the list of functions to be made at runtime.
                     addFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name)
@@ -202,6 +200,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.funStr = '';
                 o.funPrms = [];
                 delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);
+                o.hDynProp.GetMethod = @o.getValue;
             end
             
             % validate
