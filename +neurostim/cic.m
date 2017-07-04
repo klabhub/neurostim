@@ -10,8 +10,7 @@ classdef cic < neurostim.plugin
         RUNNING = 1;
         POST    = 2;
         FRAMESLACK = 0.05; % Allow x% slack in screen flip time.
-        VSYNCMODE = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
-        USEFRAMEDEADLINE = true;
+        VSYNCMODE = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run       
     end
     
     %% Public properties
@@ -849,23 +848,14 @@ classdef cic < neurostim.plugin
                         % beampos: position of the monitor scanning beam when the time measurement was taken
                         
                            
-                        if c.USEFRAMEDEADLINE
                             % Deadline has to be before the predicted next
                             % VBL time: we subtract 0.5ms from the
                             % predicted (absolute) time
-                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline-0.5e-3,1-clr,c.VSYNCMODE);
-                        else
-                            % On some systems specifying a
-                            % framedeadline can cause framedrops. (See
-                            % tools/testFlip to test this and https://groups.yahoo.com/neo/groups/psychtoolbox/conversations/topics/21981
-                            % for a possible explanationa and some
-                            % OS-specific discussion how to potentially solve this
-                            % issue. Not specifying a deadline (as we do
-                            % here) is an alternative solution.
-                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,[],1-clr,c.VSYNCMODE);
-                        end
+                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline-ITSAMISS,1-clr,c.VSYNCMODE);
+                       
                         
                         if c.VSYNCMODE==0 
+                            % Flip returns correct values
                         else
                             % Flip's return arguments are not meaningful.
                             % It is now difficult to estimate when exactly

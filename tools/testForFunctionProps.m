@@ -57,12 +57,12 @@ rep = profile('info');
 
 this = arrayfun(@(x) strcmpi(x.FunctionName,'parameter>parameter.getValue'),rep.FunctionTable);
 results = rep.FunctionTable(this);
-disp(['Calls: ' num2str(results.NumCalls) ' - Time per call = ', num2str(results.TotalTime./results.NumCalls*1000), 'ms']);
+disp(['GetValue Calls: ' num2str(results.NumCalls) ' - Time per call = ', num2str(results.TotalTime./results.NumCalls*1000), 'ms']);
 
 this = arrayfun(@(x) strcmpi(x.FunctionName,'parameter>parameter.getFunValue'),rep.FunctionTable);
 if any(this)
 results = rep.FunctionTable(this);
-disp(['Calls: ' num2str(results.NumCalls) ' - Time per call = ', num2str(results.TotalTime./results.NumCalls*1000), 'ms']);
+disp(['GetFunValue Calls: ' num2str(results.NumCalls) ' - Time per call = ', num2str(results.TotalTime./results.NumCalls*1000), 'ms']);
 end
 keyboard
     
