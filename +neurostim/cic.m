@@ -9,7 +9,7 @@ classdef cic < neurostim.plugin
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
-        FRAMESLACK = 0.05; % Allow x% slack in screen flip time.
+        FRAMESLACK = 0.1; % Allow x% slack in screen flip time.
         VSYNCMODE = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run       
     end
     

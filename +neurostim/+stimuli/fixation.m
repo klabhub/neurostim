@@ -24,15 +24,15 @@ classdef fixation < neurostim.stimulus
         
         
         function beforeFrame(o)
-            locSize = o.size; %
-            locSize2 = o.size2;
-            
+            locSize = o.size; % Local copy, to prevent repeated expensive "getting" of NS param          
             switch upper(o.shape)                                   
-                case 'RECT' % Rectangle                
+                case 'RECT' % Rectangle 
+                    locSize2 = o.size2;
                     Screen('FillRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                    
                 case 'CIRC' % Circle
                     Screen('FillOval', o.window,o.color,[-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]); % With antialiasing.                    
                 case 'DONUT' % DONUT
+                    locSize2 = o.size2;
                     Screen('FillOval', o.window,o.color, [-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]);  
                     Screen('FillOval', o.window,o.color2, [-(locSize2/2) -(locSize2/2) (locSize2/2) (locSize2/2)]);                                
                 case 'TRIA'  %Oriented triangle                 
@@ -43,6 +43,7 @@ classdef fixation < neurostim.stimulus
                     y = [-0.5*locSize +0.5*locSize -0.5*locSize];
                    Screen('FillPoly',o.window,o.color,[x' y'],1);                           
                 case 'OVAL' % oval
+                    locSize2 = o.size2;
                     x = [-(locSize/2) (locSize/2)];
                     y = [-(locSize2/2) (locSize2/2)];
                     Screen('FillOval', o.window, o.color, [x(1) y(1) x(2) y(2)]);
