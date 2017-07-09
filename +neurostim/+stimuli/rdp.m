@@ -212,30 +212,36 @@ classdef rdp < neurostim.stimulus
         function moveDots(o)
             
             %warp - move dots outside aperture
+            
+            %Work with a local copy (faster than repeated "gets" on NS params)
+            dwellTime = o.dwellTime;
+            maxRadius = o.maxRadius;
+            
             switch o.motionMode
-                case {1, lower('linear')} %linear
+                case 1 %linear
+
                     % calculates future position
-                    futureX = o.x+o.dwellTime.*o.dx;
-                    futureY = o.y+o.dwellTime.*o.dy;
+                    futureX = o.x+dwellTime.*o.dx;
+                    futureY = o.y+dwellTime.*o.dy;
                     futureRad = sqrt(futureX.^2 + futureY.^2);
-                    tmp=futureRad>o.maxRadius;
+                    tmp=futureRad>maxRadius;
                     if any(tmp)   % if any new dots are outside the max radius
                         % move dots
-                        [dotDir,~] = cart2pol(o.dx(logical(tmp)),o.dy(logical(tmp)));
-                        [xr, yr] = rotateXY(o,o.x(logical(tmp)),o.y(logical(tmp)),-dotDir);
-                        chordLength = 2*sqrt(o.maxRadius^2 - yr.^2);
+                        [dotDir,~] = cart2pol(o.dx(tmp),o.dy(tmp));
+                        [xr, yr] = rotateXY(o,o.x(tmp),o.y(tmp),-dotDir);
+                        chordLength = 2*sqrt(maxRadius^2 - yr.^2);
                         xr = xr - chordLength;
-                        [o.x(logical(tmp)), o.y(logical(tmp))] = rotateXY(o,xr,yr,dotDir);
+                        [o.x(tmp), o.y(tmp)] = rotateXY(o,xr,yr,dotDir);
                     end
                     
-                case {0, lower('spiral')} %spiral
-                    temp1 = o.dR>0 & (o.radius+o.dwellTime.*o.dR)>o.maxRadius;
-                    temp2 = o.dR<0 & (o.radius+o.dwellTime.*o.dR)<0;
+                case 0 %spiral
+                    temp1 = o.dR>0 & (o.radius+dwellTime.*o.dR)>maxRadius;
+                    temp2 = o.dR<0 & (o.radius+dwellTime.*o.dR)<0;
                     
                     if (any(temp1) || any(temp2))   % if any dots are outside the max radius or below 0
                         % position new dots randomly
                         nsMax = max(-1*o.dR(temp1 | temp2), 0);
-                        nsMin = min(o.maxRadius, o.maxRadius - o.dR(temp1 | temp2));
+                        nsMin = min(maxRadius, maxRadius - o.dR(temp1 | temp2));
                         o.radius(temp1 | temp2) = nsMax + (nsMin - nsMax).*rand(size(nsMax));
                     end
                     
@@ -249,13 +255,13 @@ classdef rdp < neurostim.stimulus
             switch o.motionMode
                 case 0 %spiral
                     o.phiOffset = o.phiOffset + o.dwellTime.*o.dphi;
-                    o.radius = o.radius + o.dwellTime.*o.dR;
+                    o.radius = o.radius + dwellTime.*o.dR;
                     o.x = o.radius.*cosd(o.phiOffset);
                     o.y = o.radius.*sind(o.phiOffset);
                     
                 case 1  %linear
-                    o.x = o.x + o.dwellTime.*o.dx;
-                    o.y = o.y + o.dwellTime.*o.dy;
+                    o.x = o.x + dwellTime.*o.dx;
+                    o.y = o.y + dwellTime.*o.dy;
             end
         end
         

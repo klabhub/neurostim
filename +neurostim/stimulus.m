@@ -291,17 +291,17 @@ classdef stimulus < neurostim.plugin
             sOn = s.on;
             sOnFrame = inf;  %Adjusted as needed in the if/then
             sOffFrame = inf;
+            cFrame = s.cic.frame;
             if isinf(sOn)
                 s.flags.on =false; %Dont bother checking the rest
             else
                 sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
-                if s.cic.frame < sOnFrame % Not on yet.
+                if cFrame < sOnFrame % Not on yet.
                     s.flags.on = false;
                 else % Is on already or turning on. Checck that we have not
                     % reached full duration yet.
-                    sDuration  =s.duration;
-                    sOffFrame = s.cic.ms2frames(sOn+sDuration,true);
-                    s.flags.on = s.cic.frame <sOffFrame;
+                    sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
+                    s.flags.on = cFrame <sOffFrame;
                 end
             end
             
@@ -319,7 +319,7 @@ classdef stimulus < neurostim.plugin
             end
             
             %If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
-            if s.cic.frame==sOffFrame
+            if cFrame==sOffFrame
                 s.logOffset=true;
             end
             
@@ -332,20 +332,22 @@ classdef stimulus < neurostim.plugin
                 end
                 
                 %If the previous frame was the first frame, log the time that the flip actually happened.
-                if s.cic.frame==sOnFrame+1
+                if cFrame==sOnFrame+1
                     s.startTime = s.cic.flipTime;
                 end
                 
                 %Pass control to the child class and any other listeners
                 beforeFrame(s);
-            elseif s.stimstart && (s.cic.frame==sOffFrame)% if the stimulus will not be shown,
+                
+                if s.diode.on
+                    Screen('FillRect',locWindow,s.diode.color,s.diodePosition);
+                end
+            elseif s.stimstart && (cFrame==sOffFrame)% if the stimulus will not be shown,
                 % get the next screen flip for stopTime
                 s.cic.getFlipTime=true;
             end
             Screen('glLoadIdentity', locWindow);
-            if s.diode.on && s.flags.on
-                Screen('FillRect',locWindow,s.diode.color,s.diodePosition);
-            end
+
         end
         
         function baseAfterFrame(s)
