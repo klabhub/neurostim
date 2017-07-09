@@ -110,18 +110,38 @@ classdef psyBayes < neurostim.plugins.adaptive
             psybayes_plot(o.psy);
         end
         
-        function [m,sd]= posterior(oo)
+        function [m,sd,hdr]= posterior(oo,alpha,plotIt)
+            % function [m,sd,hdr]= posterior(oo,alpha,plotIt)
+            % alpha = Level for high density interval [0.25]
+            % plotIt = Show a graph [false]
+            %
             % Return the estimated parameters for psybayes
             % m = maximum likely  posterior estimate
             % sd = standard deviation of the posterior estimate
+            % hdi = High density region at the alpha level. [low high]
+            if nargin<2
+                alpha = 0.25;
+            end
+            if nargin<3
+                plotIt = false;
+            end
+            
             nrO = numel(oo);            
-            m = nan(nrO,3);
-            sd = nan(nrO,3);
+            m = nan(3,nrO);
+            sd = nan(3,nrO);
+            hdr = nan(3,2,nrO);
             for j=1:nrO
                 try
                 for i=find(oo(j).vars)
                     other = setdiff(1:3,i);
                     y = neurostim.plugins.psyBayes.marginalpost(oo(j).psy.post,oo(j).psy.psychopost,other);
+                    N=100;
+                    f = linspace(0,max(y),N);
+                    Y = repmat(y(:),[1 N]);
+                    R = Y>repmat(f,[numel(y), 1]);
+                    P = sum(Y.*R); 
+                    fAlpha = f(find(P>(1-alpha),1,'last'));
+                    ix = y>fAlpha;
                     switch i
                         case 1
                             x = oo(j).psy.mu;
@@ -131,12 +151,36 @@ classdef psyBayes < neurostim.plugins.adaptive
                             x = oo(j).psy.lambda;
                     end
                     y = y /sum(y);
-                    m(j,i) = sum(y.*x);
-                    sd(j,i) = sqrt(sum(y.*x.^2) - m(j,i)^2);
+                    m(i,j) = sum(y.*x);
+                    sd(i,j) = sqrt(sum(y.*((x - m(i,j)).^2)));
+                    
+                    if sum(abs(diff(ix)) >2)
+                        warning('This HDR is non-contiguous');
+                        % Better return nan than the wrong limits..
+                        hdr(i,1,j) = NaN;
+                        hdr(i,2,j) = NaN;
+                    else % Contiguous HDR
+                        hdr(i,1,j) = x(find(ix==1,1,'first')); 
+                        hdr(i,2,j) = x(find(ix==1,1,'last'));
+                    end
                 end
                 catch
                     lasterr
                     disp (['Failed to compute posterior on ' oo(j).name])
+                end
+            end
+            
+            if plotIt
+                parms = {'\mu','\sigma','\lambda'};
+                for i=1:3
+                    subplot(1,3,i);
+                    hold on
+                    h =bar((1:size(m,2))',m(i,:)');
+                    h.FaceColor = 'w';
+                    errorbar((1:size(m,2))',m(i,:)',squeeze(hdr(i,1,:))-m(i,:)',squeeze(hdr(i,2,:))-m(i,:)','*')
+                    ylabel (parms{i})
+                    xlabel 'Conditions'
+                    set(gca,'XTick',1:size(m,2))
                 end
             end
         end

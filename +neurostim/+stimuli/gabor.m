@@ -45,7 +45,8 @@ classdef gabor < neurostim.stimulus
             % with little if any orientation contents. oriMask =8 will
             % superimpose 8 gabors with random phase, and equally spaced
             % orientations. oriMask=-8 will randomize the orientations.
-            o.addProperty('oriMask',0,'validate',@isnumeric); 
+            o.addProperty('oriMask',0,'validate',@isnumeric);
+            o.addProperty('oriMaskPhaseRand',false,'validate',@islogical);
             o.addProperty('phaseOffset',0); % Used internally to randomize phase for the ori mask
             o.addProperty('oriOffset',0); % Used internally to determine the orientation of the mask components
             
@@ -67,8 +68,12 @@ classdef gabor < neurostim.stimulus
             glUseProgram(0);
             
             if o.oriMask~=0
-                n = abs(o.oriMask);                
-                o.phaseOffset = 360*rand(1,n); % Always randomized ina n oriMask
+                n = abs(o.oriMask);  
+                if o.oriMaskPhaseRand 
+                    o.phaseOffset = 360*rand(1,n); % 
+                else
+                    o.phaseOffset = zeros(1,n);    
+                end
                 if o.oriMask<0
                     o.oriOffset= 180*rand(1,n); % Random orientations for n<0
                 else
