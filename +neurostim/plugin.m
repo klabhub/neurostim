@@ -177,7 +177,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             beforeTrial(o);
         end
         function baseBeforeFrame(o)
-            %             if o.cic.clockTime-o.cic.frameStart>(1000/o.cic.screen.frameRate - o.cic.requiredSlack)
+            %             if o.cic.clockTime-o.cic.frameStart>(1000/o.cic.screen.frameRate - o.cic.timing.pluginSlack)
             %                          o.cic.writeToFeed(['Did not run plugin ' o.name ' beforeFrame in frame ' num2str(o.cic.frame) '.']);
             %                          return;
             %             end

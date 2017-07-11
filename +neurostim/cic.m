@@ -9,8 +9,6 @@ classdef cic < neurostim.plugin
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
-        FRAMESLACK = 0.1; % Allow x% slack in screen flip time.
-        VSYNCMODE = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run       
     end
     
     %% Public properties
@@ -39,10 +37,12 @@ classdef cic < neurostim.plugin
             'calibration',struct('gamma',2.2,'bias',nan(1,3),'min',nan(1,3),'max',nan(1,3),'gain',nan(1,3)),...
             'overlayClut',[]);    %screen-related parameters.
         
+        timing = struct('vsyncMode',0,... % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run 
+                                'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
+                                'pluginSlack',0); % see plugin.m 
+                
         flipTime;   % storing the frame flip time.
-        getFlipTime@logical = false; %flag to notify whether to get the frame flip time.
-        requiredSlack = 0;  % required slack time in frame loop (stops all plugins after this time has passed)
-        
+        getFlipTime@logical = false; %flag to notify whether to get the frame flip time.        
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
@@ -753,7 +753,11 @@ classdef cic < neurostim.plugin
             c.flags.experiment = true;
                         
             FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
-            ITSAMISS        = c.FRAMESLACK*FRAMEDURATION;
+            if c.timing.vsyncMode==0
+                ITSAMISS =  0.9*FRAMEDURATION; 
+            else
+                ITSAMISS = c.timing.frameSlack*FRAMEDURATION;
+            end
             locPROFILE      = c.PROFILE;
             frameDeadline   = NaN;
             %ListenChar(-1);
@@ -847,23 +851,20 @@ classdef cic < neurostim.plugin
                         %            deadline-miss.
                         % beampos: position of the monitor scanning beam when the time measurement was taken
                         
-                           
-                            % Deadline has to be before the predicted next
-                            % VBL time: we subtract 0.5ms from the
-                            % predicted (absolute) time
-                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline-ITSAMISS,1-clr,c.VSYNCMODE);
+                        % Start (or schedule) the flip   
+                        [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
                        
                         
-                        if c.VSYNCMODE==0 
-                            % Flip returns correct values
+                        if c.timing.vsyncMode==0 
+                            % Flip returns correct values                            
                         else
                             % Flip's return arguments are not meaningful.
                             % It is now difficult to estimate when exactly
                             % the flip occurred.
                             ptbVbl = GetSecs;
                             ptbStimOn = ptbVbl;
-                            missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
                         end
+                        missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
                         
                         if c.frame > 1 && locPROFILE
                             addProfile(c,'FRAMELOOP','cic',c.toc);

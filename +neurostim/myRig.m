@@ -84,10 +84,12 @@ switch computerName
        c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',133,'screenHeight',75, 'frameRate',60,'screenNumber',1);
         Screen('Preference', 'SkipSyncTests', 2);
     case 'PTB-P'
-        Screen('Preference', 'SkipSyncTests', 2);
+        Screen('Preference', 'SkipSyncTests', 0);
         c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         c.screen.colorMode = 'RGB';            
         smallWindow = false;
+        c.timing.vsyncMode =0;
+        c.timing.frameSlack = 0.1;
    case 'PTB-P-UBUNTU'
         c = rig(c,'keyboardNumber',[],'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         
