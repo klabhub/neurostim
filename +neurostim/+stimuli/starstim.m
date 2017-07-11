@@ -29,7 +29,8 @@ classdef starstim < neurostim.stimulus
     %    Simplest mode: trigger the start of a named protocol in the first
     %   trial in which .enabled =true and keep running until a trial is about
     %   to start that has .enabled =false (or the end of the experiment, whichever
-    %   is earlier).
+    %   is earlier).Note that the .transition variable is ignored in this
+    %   mode: the ramp duration in the protocol is used instead.
     % TRIAL:
     %   Start the rampup of the protocol before each .enabled=true trial, then
     %   and ramp it down after each such trial. Because pausing/starting takes
@@ -45,7 +46,7 @@ classdef starstim < neurostim.stimulus
     %  electrodes, but has zero current for each. Those values are then
     %  overruled by Neurostim.
     %  Ramping up/down is controlled by the .transition parameter which has
-    %  to be at least 100 ms. Ramp up starst at starstim.on time in each
+    %  to be at least 100 ms. Ramp up starts at starstim.on time in each
     %  trial.
     %
     % In each mode, you can switch NIC protocols by assinging a new value to
@@ -69,6 +70,7 @@ classdef starstim < neurostim.stimulus
         
         mode@char = 'BLOCKED'; % 'BLOCKED','TRIAL','TIMED'
         NRCHANNELS = 8;  % nrChannels in your device.
+        debug = false;
     end
     % Public Get, but set through functions or internally
     properties (SetAccess=protected, GetAccess= public)        
@@ -76,6 +78,7 @@ classdef starstim < neurostim.stimulus
         matNICVersion;
         code@containers.Map = containers.Map('KeyType','char','ValueType','double');     
         mustExit@logical = false;
+        
     end
     
     % Public Get, but set through functions or internally
@@ -130,9 +133,14 @@ classdef starstim < neurostim.stimulus
                 if isempty(stts) || ~ischar(stts)
                     v =false;
                 else
-                    v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL',});
+                    v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP'});
                 end
+                
+            if o.debug
+                disp(stts);
             end
+            end
+            
         end
         
         function v= get.isProtocolPaused(o)
@@ -145,6 +153,10 @@ classdef starstim < neurostim.stimulus
                 else
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_PAUSED', 'CODE_STATUS_IDLE'});
                 end
+                
+            if o.debug
+                disp(stts);
+            end
             end
         end
         
@@ -501,10 +513,13 @@ classdef starstim < neurostim.stimulus
         
         function start(o)
             % Start the current protocol.
+              
+            if o.debug
+                disp('Start');
+            end
             if o.fake
                 o.writeToFeed('Start Stim');
-            elseif ~o.isProtocolOn
-                
+            elseif ~o.isProtocolOn            
                 ret = MatNICStartProtocol(o.sock);
                 if ret==0
                     disp(['Started ' o.protocol]);
@@ -521,6 +536,9 @@ classdef starstim < neurostim.stimulus
         
         function stop(o)
             % Stop the current protocol
+           if o.debug
+                disp('Stop');
+            end
             if o.fake
                 o.writeToFeed('Stimulation stopped');
             elseif o.isProtocolOn
@@ -539,6 +557,9 @@ classdef starstim < neurostim.stimulus
         
         function pause(o)
             % Pause the current protocol
+            if o.debug
+                disp('Pause');
+            end
             if o.fake
                 o.writeToFeed('Stimulation stopped');
             elseif ~o.isProtocolPaused
