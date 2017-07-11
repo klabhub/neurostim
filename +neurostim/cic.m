@@ -9,7 +9,8 @@ classdef cic < neurostim.plugin
         SETUP   = 0;
         RUNNING = 1;
         POST    = 2;
-        FRAMESLACK = 0.05; % Allow x% slack in screen flip time.
+        FRAMESLACK = 0.1; % Allow x% slack in screen flip time.
+        VSYNCMODE = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run       
     end
     
     %% Public properties
@@ -97,7 +98,7 @@ classdef cic < neurostim.plugin
         profile=struct('cic',struct('FRAMELOOP',[],'FLIPTIME',[],'cntr',0));
         
         guiWindow;
-        
+        funPropsToMake=struct('plugin',{},'prop',{});
     end
     
     %% Dependent Properties
@@ -116,8 +117,7 @@ classdef cic < neurostim.plugin
         cursor;         % Cursor 'none','arrow'; see ShowCursor
         blockName;      % Name of the current block
         trialTime;      % Time elapsed (ms) since the start of the trial
-        nrTrialsTotal;   % Number of trials total (all blocks)
-        conditionID;    % Unique id for a condition - used by adaptive
+        nrTrialsTotal;   % Number of trials total (all blocks)        
         date;           % Date of the experiment.
     end
     
@@ -271,9 +271,8 @@ classdef cic < neurostim.plugin
             frInterval = Screen('GetFlipInterval',c.mainWindow)*1000;
             percError = abs(frInterval-(1000/c.screen.frameRate))/frInterval*100;
             if percError > 5
-                clear all
-                close all
-                error('Actual frame rate doesn''t match the requested rate');
+                sca;
+                error(['Actual frame rate ( ' num2str(1000./frInterval) ' ) doesn''t match the requested rate (' num2str(c.screen.frameRate) ')']);
             else
                 c.screen.frameRate = 1000/frInterval;
             end
@@ -358,7 +357,7 @@ classdef cic < neurostim.plugin
             c.addProperty('frameDrop',[NaN NaN]);
             c.addProperty('firstFrame',[]);
             c.addProperty('trialStopTime',[]);
-            c.addProperty('condition',[]);
+            c.addProperty('condition',[]);  % Linear index, specific to a design
             c.addProperty('design',[]);
             c.addProperty('block',0);
             c.addProperty('blockCntr',0);
@@ -554,13 +553,13 @@ classdef cic < neurostim.plugin
         
         function plgs = pluginsByClass(c,classType)
             %Return pointers to all active plugins of the specified class type.
-            ind=1; plgs = [];
-            for p =c.plugins
-                if isa(p,horzcat('neurostim.plugins.',lower(classType)));
-                    plgs{ind} = p; %#ok<AGROW>
-                    ind=ind+1;
+            stay= false(1,c.nrPlugins); 
+            for p =1:c.nrPlugins
+                if isa(c.plugins(p),horzcat('neurostim.plugins.',classType))
+                    stay(p) =true;                     
                 end
             end
+            plgs = c.plugins(stay);
         end
         
         function disp(c)
@@ -732,6 +731,11 @@ classdef cic < neurostim.plugin
             
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation  will now be active
             
+            %Construct any function properties by setting them again (this time the actual anonymous functions will be constructed)
+            for i=1:numel(c.funPropsToMake)
+                c.(c.funPropsToMake(i).plugin).(c.funPropsToMake(i).prop) = c.(c.funPropsToMake(i).plugin).(c.funPropsToMake(i).prop);
+            end
+
             %% Set up order and blocks
             order(c);
             setupExperiment(c,block1,varargin{:});
@@ -761,23 +765,28 @@ classdef cic < neurostim.plugin
                 %% Then let each block set itself up
                 beforeBlock(c.blocks(c.block));
                 
-                
-                waitforkey=false;
+                % Show a beforeBlock message, and execute a beforeBlock
+                % function (if requested).
+                waitforkey = false; % Only if a message/fun and requested.
                 if isa(c.blocks(c.block).beforeMessage,'function_handle')
                     msg = c.blocks(c.block).beforeMessage(c);
                 else
                     msg = c.blocks(c.block).beforeMessage;
-                end
-                if ~isempty(msg)
-                    waitforkey=c.blocks(c.block).beforeKeyPress;
+                end                
+                if ~isempty(msg)                                        
                     DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
-                elseif ~isempty(c.blocks(c.block).beforeFunction)
-                    waitforkey=c.blocks(c.block).beforeFunction(c);
+                    waitforkey=c.blocks(c.block).beforeKeyPress;
+                end                
+                if ~isempty(c.blocks(c.block).beforeFunction)
+                    c.blocks(c.block).beforeFunction(c);
+                    waitforkey=c.blocks(c.block).beforeKeyPress;
                 end
                 Screen('Flip',c.mainWindow);
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
+                
+                %% Start the trials in the block
                 c.blockTrial =0;
                 while ~c.blocks(c.block).done
                     c.trial = c.trial+1;
@@ -837,10 +846,16 @@ classdef cic < neurostim.plugin
                         %            Positive values indicate a
                         %            deadline-miss.
                         % beampos: position of the monitor scanning beam when the time measurement was taken
-                        vSyncMode = 0; % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
-                        % Deadline has to be before the predicted next VBL time
-                        [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,vSyncMode);
-                        if vSyncMode==0
+                        
+                           
+                            % Deadline has to be before the predicted next
+                            % VBL time: we subtract 0.5ms from the
+                            % predicted (absolute) time
+                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline-ITSAMISS,1-clr,c.VSYNCMODE);
+                       
+                        
+                        if c.VSYNCMODE==0 
+                            % Flip returns correct values
                         else
                             % Flip's return arguments are not meaningful.
                             % It is now difficult to estimate when exactly
@@ -857,9 +872,8 @@ classdef cic < neurostim.plugin
                         end
                         
                         
-                        %% Check Timing
-                        % Delta between actual and deadline of flip;
-                        frameDeadline = ptbVbl+0.9*FRAMEDURATION; %a little bit before the next VBL..
+                        % Predict next frame and check frame drops 
+                        frameDeadline = ptbVbl+ FRAMEDURATION; 
                         if c.frame == 1
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
                             c.firstFrame = locFIRSTFRAMETIME;% log it                            
@@ -892,16 +906,21 @@ classdef cic < neurostim.plugin
                 
                 Screen('glLoadIdentity', c.mainWindow);
                 if ~c.flags.experiment;break;end                
+                
+                %% Perform afterBlock message/function
+                waitforkey = false;
                 if isa(c.blocks(c.block).afterMessage,'function_handle')
                     msg = c.blocks(c.block).afterMessage(c);
                 else
                     msg = c.blocks(c.block).afterMessage;
-                end
-                if ~isempty(c.blocks(c.block).afterMessage)
-                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end                                
+                if ~isempty(msg)                    
                     DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
-                elseif ~isempty(c.blocks(c.block).afterFunction)
-                    waitforkey=c.blocks(c.block).afterFunction(c);
+                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end                
+                if ~isempty(c.blocks(c.block).afterFunction)
+                   c.blocks(c.block).afterFunction(c);
+                   waitforkey=c.blocks(c.block).afterKeyPress;
                 end
                 Screen('Flip',c.mainWindow);
                 if waitforkey
@@ -1101,6 +1120,23 @@ classdef cic < neurostim.plugin
             c.screen.yorigin = pin.Results.yorigin;
             c.screen.colorMode = pin.Results.colorMode;
         end
+        
+                
+        function addFunProp(c,plugin,prop)
+            %Function properties are constructed at run-time
+            %This adds one to the list to be created.
+            isMatch = arrayfun(@(x) strcmpi(x.plugin,plugin)&&strcmpi(x.prop,prop),c.funPropsToMake);
+            
+            if isempty(isMatch) || ~any(isMatch)
+                c.funPropsToMake(end+1).plugin = plugin;
+                c.funPropsToMake(end).prop = prop;
+            end
+        end
+        function delFunProp(c,plugin,prop)
+            %Remove the specified funProp. Someone must have changesd their mind before run-time.
+            isMatch = arrayfun(@(x) strcmpi(x.plugin,plugin)&&strcmpi(x.prop,prop),c.funPropsToMake);
+            c.funPropsToMake(isMatch) = [];
+        end     
     end
     
     
@@ -1382,10 +1418,7 @@ classdef cic < neurostim.plugin
             
             
             
-        end
-        
-        
-        
+        end   
     end
     
     
@@ -1424,7 +1457,7 @@ classdef cic < neurostim.plugin
             if numel(plgns)>1
             figure('Name','Total','position',[680   530   818   420]); 
             clf
-            frameItems = find(contains(items,'FRAME'));
+            frameItems = find(~cellfun(@isempty,strfind(items,'FRAME')));
             cntr=1;
                 for j=frameItems'
                     subplot(1,2,cntr);
@@ -1479,7 +1512,7 @@ classdef cic < neurostim.plugin
             frameduration = 1000./c.screen.frameRate;
             bins  = linspace(-frameduration,frameduration,20);
             histogram(delta,bins);%
-            title(['mean = ' num2str(nanmean(delta))])
+            title(['median = ' num2str(nanmedian(delta))])
             xlabel 'Delta (ms)'
             ylabel '#drops'
             

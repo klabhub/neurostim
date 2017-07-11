@@ -2,6 +2,8 @@
  * File: BasicGaborShader.frag.txt
  * Shader for drawing of xyL Gabor patches.
  * Adapted from PTB.
+ * All variables are in radians (conversion takes place in vert.txt; 
+ * the m-code is in degrees.
  * BK  April 2014
  */
 

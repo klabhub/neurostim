@@ -30,9 +30,7 @@ classdef hold < neurostim.plugins.behavior
             
             %Check that the MCC plugin is added.
             o.mcc = pluginsByClass(o.cic,'mcc');
-            if numel(o.mcc)==1
-                o.mcc = o.mcc{1};
-            else
+            if numel(o.mcc)~=1                
                 o.cic.error('STOPEXPERIMENT','The hold plugin requires an MCC plug-in. None (or more than one) detected)');
             end
             

@@ -54,8 +54,9 @@ classdef parameter < handle & matlab.mixin.Copyable
         cntr=0; % Counter to store where in the log we are.
         capacity=0; % Capacity to store in log
         
-        noLog@logical; % Set this to true to skip logging
+        noLog; % Set this to true to skip logging
         fun =[];        % Function to allow across parameter dependencies
+        funPrms;
         funStr = '';    % The neurostim function string
         validate =[];    % Validation function
         plg@neurostim.plugin; % Handle to the plugin that this belongs to.
@@ -110,12 +111,6 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Install two callback functions that will be called for
             % getting and setting of the dynprop
             o.hDynProp.SetMethod =  @o.setValue;
-            % Previously we had @(plgn) (o.value) here: this should not work, but does: (o.value should be evaluated
-            % here, but for some reason it is evaluated  when the
-            % GetMethod is called so that it does return the correct value
-            % at call time). That method was slightly faster 0.01 ms per
-            % call less, but future fixes in Matlab that fix this (presumed) parse bug
-            % could cause havoc here so we use a function call.
             o.hDynProp.GetMethod =  @o.getValue;
         end
         
@@ -131,15 +126,17 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function storeInLog(o,v)
             % Store and Log the new value for this parm
-            % Previously we checked if the value had not changed and logged
-            % only the changes. This turns out to be much slower. So we
-            % store every set now (At the cost of some memory/disk space).
-            if o.noLog
-                %Not loggin this
+            
+            % Check if the value changed and log only the changes. 
+            %(at some point this seemed to be slower than just logging everything. 
+            % but tests on July 1st 2017 showed that this was (no longer)
+            % correct. 
+            
+            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value)) || (ischar(v) && strcmp(v,o.value)) || o.noLog 
+                % No change, no logging.
                 return;
             end
-            
-            
+                                   
             % For non-function parns this is the value that will be
             % returned  to the next getValue
             o.value = v;
@@ -157,63 +154,56 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function v = getValue(o,~)
-            % This function is called for dynprops that don't have a
-            % function associated with them
-            v = o.value;
-        end
-        
-        
-        function [v,ok] = getFunctionValue(o,~)
-            % This function is called before a function dynprop is used somewhere in the code.
-            % It is installed by setValue when it detects a neurostim function.
-            if o.plg.cic.stage >o.plg.cic.SETUP
-                % We've passed SETUP phase, function evaluaton should be
-                % possible.
-                v=o.fun(o.plg); % Evaluate the neurostim function
+            % The dynamic property uses this as its GetMethod
+            if isempty(o.fun)
+                v = o.value;           
+            else
+                 % The dynamic property defined with a function uses this as its GetMethod
+                v=o.fun(o.funPrms);
+                %The value might have changed, so allow it to be logged if need be
                 storeInLog(o,v);
-                ok = true;
-            else  %  not all objects have been setup so
-                % function evaluation may not work yet. Evaluate to NaN for now
-                v = NaN;
-                ok = false;
             end
         end
         
-        
         function setValue(o,~,v)
-            % Assign a new value to a parameter
-            ok = true; % Normally ok; only function evals can be not ok.
+           
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % The dynprop was set to a neurostim function
-                % Parse the specified function and make it into an anonymous
-                % function.
+                % Parse the specified function and make it into an anonymous function.
                 o.funStr = v; % store this to be able to restore it later.
-                v = neurostim.utils.str2fun(v);
-                o.fun = v;
-                % Install a GetMethod that evaluates this function
-                o.hDynProp.GetMethod =  @o.getFunctionValue;
-                % Evaluate the function to get current value
-                [v,ok]= getFunctionValue(o); %ok will be false if the function could not be evaluated yet (still in SETUP phase).
+
+                %If we are still at setup (i.e. not run-time), don't build the function b/c referenced objects might not exist yet.
+                %It will happen once c.run() starts using o.funStr
+                if o.plg.cic.stage >o.plg.cic.SETUP
+                    %Construct the anonymous function (f(args), where args are neurostim.parameter handles)
+                    %If still in setup, the function properties will just return the function string
+                    [o.fun,o.funPrms] = neurostim.utils.str2fun(v,o.plg.cic);
+
+                    % Evaluate the function to get current value
+                    v= getValue(o);                    
+                else
+                    %Add it to the list of functions to be made at runtime.
+                    addFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name)
+                end
             elseif ~isempty(o.fun)
                 % This is currently a function, and someone is overriding
                 % the parameter with a non-function value. Remove the fun.
                 o.fun = [];
                 o.funStr = '';
-                % Change the getMethod to a simple value return
-                o.hDynProp.GetMethod =  @o.getValue;
+                o.funPrms = [];
+                delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);                
             end
             
-            if ok
-                % validate
-                if ~isempty(o.validate)
-                    o.validate(v);
-                end
-                % Log the new value
-                storeInLog(o,v);
+            % validate
+            if ~isempty(o.validate)
+                o.validate(v);
             end
+            % Log the new value
+            storeInLog(o,v);
         end
-        
+  
+                
         % Called before saving an object to clean out the empty elements in
         % the log.
         function pruneLog(o)
@@ -258,14 +248,19 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         %% Functions to extract parm values from the log. use this to analyze the data
         function [data,trial,trialTime,time,block] = get(o,varargin)
-            % For any parameter, returns up to five  vectors specifying
-            % the values of the parameter during the experiment
+            % Usage example:
+            %     [data,trial,trialTime,time,block] = get(c.dots.prms.Y,'atTrialTime',Inf)
+            %
+            % For any parameter, returns up to five vectors specifying
+            % the values of the parameter during the experiment:
+            %
             % data = values
-            % trial = trial in whcih that value occurred
+            % trial = trial in which that value occurred
             % trialTime = Time relative to start of the trial
             % time  = time relative to start of the experiment
             % block = the block in which this trial occurred.
             %
+            %   Optional input arguments as param/value pairs:
             %
             % 'atTrialTime'   - returns exactly one value for each trial
             % that corresponds to the value of the parameter at that time in

@@ -22,6 +22,7 @@ classdef fixate < neurostim.plugins.behavior
            o.addProperty('Z',0,'validate',@isnumeric);
            o.addProperty('tolerance',1,'validate',@isnumeric);
            o.continuous = true;
+           o.sampleEvent = '';
            if isfield(c,'eye')
                warning(c,'No eye data in CIC. This behavior control is unlikely to work');
            end

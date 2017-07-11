@@ -53,7 +53,7 @@ classdef (Abstract) adaptive < neurostim.plugin
                 error('Not sure this works... one adaptive parm belongs to two designs?');
             end
             o.design = dsgn;
-            o.conditions = cat(1,o.conditions,cond);
+            o.conditions = unique(cat(1,o.conditions,cond));
         end
         
         function o= duplicate(o1,nm)
@@ -87,6 +87,9 @@ classdef (Abstract) adaptive < neurostim.plugin
                 % Only update if this adaptive object is assigned to the
                 % current condition. Call the derived class function to update it                
                 correct = o.trialOutcome; % Evaluate the function that the user provided.
+                if numel(correct)>1 
+                    error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
+                end
                 update(o,correct); % Pass it to the derived class to update                
             end
         end 

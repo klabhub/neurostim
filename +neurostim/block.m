@@ -20,26 +20,33 @@ classdef block < dynamicprops
     %       wherein the weights correspond to the equivalent design (i.e. a factorial or set of conditions).
     %
     %   myBlock.beforeMessage - a string containing a message which will
-    %       write to screen before the block begins, and wait for a keypress.
+    %       write to screen before the block begins.
     %       myBlock.afterMessage - a string containing a message which will write
     %       to screen after the block ends. (and wait for keypress)
     %
     %   myBlock.beforeFunction - function handle to a function to run before the block.
     %       e.g.:
     %       out=myFunction(c)
-    %           Output: true or false, whether run() should wait for a keypress
-    %               before continuing
+    %           Output: ignored. 
     %           Input: cic - use to reference other properties as required.
     %
     %   myBlock.afterFunction - same format as beforeFunction.
     %
+    %   myBlock.beforeKeyPress = logical; whether to wait after showing the
+    %   before message and/or executing the before function.
+    %   
+    %   myBlock.afterKeyPress = same as beforeKeyPress.
+    % 
+    % Note that the function is evaluated and the message is written to the
+    % screen first, and then cic will wait until the user presses a key (if
+    % requested).
     %
     
     properties        
         randomization='SEQUENTIAL';
         weights=1;
         nrRepeats=1;
-        beforeMessage='';
+        beforeMessage=''; %String to display before the start of a block (can be a function, f(cic), that returns a string)
         afterMessage='';
         beforeFunction; % function handle which takes cic as first arg
         afterFunction;
@@ -87,10 +94,9 @@ classdef block < dynamicprops
         end
         
         function set.beforeMessage(o,fun)
+            %Function must accept cic as the sole input argument and return a string
             if isa(fun,'function_handle')
                 o.beforeMessage = fun;
-            elseif ischar(fun) && strncmp(fun,'@',1)
-                o.beforeMessage = neurostim.utils.str2fun(fun);
             elseif ischar(fun)
                 o.beforeMessage = fun;
             else
@@ -98,10 +104,9 @@ classdef block < dynamicprops
             end
         end
         function set.afterMessage(o,fun)
+            %Function must accept cic as the sole input argument and return a string
             if isa(fun,'function_handle')
                 o.afterMessage = fun;
-            elseif ischar(fun) && strncmp(fun,'@',1)
-                o.afterMessage = neurostim.utils.str2fun(fun);
             elseif ischar(fun)
                 o.afterMessage = fun;
             else
@@ -109,10 +114,9 @@ classdef block < dynamicprops
             end
         end
         function set.beforeFunction(o,fun)
+            %Function must accept cic as the sole input argument.
             if isa(fun,'function_handle')
                 o.beforeFunction = fun;
-            elseif ischar(fun) && strncmp(fun,'@',1)
-                o.beforeFunction = neurostim.utils.str2fun(fun); 
             elseif isempty(fun)
                 o.beforeFunction = [];
             else
@@ -121,10 +125,9 @@ classdef block < dynamicprops
         end
         
         function set.afterFunction(o,fun)
+            %Function must accept cic as the sole input argument.
             if isa(fun,'function_handle')
                 o.afterFunction = fun;
-            elseif ischar(fun) && strncmp(fun,'@',1)
-                o.afterFunction = neurostim.utils.str2fun(fun);
             elseif isempty(fun)
                 o.afterFunction = [];
             else
@@ -170,7 +173,7 @@ classdef block < dynamicprops
                 end
             end
             
-            c.condition = o.condition; % Log the condition change
+            c.condition = o.condition; % Log the condition change (this is a linear index, specific to the current design)
             spcs = specs(o.design); % Retrieve the specs from the design            
             %% Now apply the values to the parms in the plugins.
             nrParms = size(spcs,1);
