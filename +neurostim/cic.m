@@ -754,7 +754,7 @@ classdef cic < neurostim.plugin
                         
             FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
             if c.timing.vsyncMode==0
-                ITSAMISS =  0.9*FRAMEDURATION; 
+                ITSAMISS =  0.15*FRAMEDURATION; %Allow up to 15% overshoot in frame flip time.
             else
                 ITSAMISS = c.timing.frameSlack*FRAMEDURATION;
             end
@@ -881,7 +881,7 @@ classdef cic < neurostim.plugin
                             c.flipTime=0;
                         else
                             if missed>ITSAMISS
-                                c.frameDrop = [c.frame missed]; % Log frame and delta
+                                c.frameDrop = [c.frame-1 missed]; % Log frame and delta
                                 if c.guiOn
                                     c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
                                 end
