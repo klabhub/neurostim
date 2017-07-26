@@ -1,98 +1,97 @@
-% Wrapper around the Eyelink Toolbox.
 classdef viewpoint < neurostim.plugins.eyetracker
-    % New properties:
-    %   keepExperimentSetup - 1 or 0.
-    %                         1: keep Eyelink functions using the same colour
-    %                               setup as the experiment (i.e. background, foreground).
-    %                         0: get Eyelink colour setup from parameters
-    %                               below.
-    %
-    %   getSamples - if true, stores eye position/sample validity on every frame.
-    %   getEvents - if true, stores eye event data in eyeEvts.
-    %   eyeEvts - saves eyelink data in its original structure format.
-    %
-    %   doTrackerSetup - true or false, setup before experiment.
-    %   doDriftCorrect - true or false, setup before experiment.
-    
+    % neurostim plugin for the Arrington Research (http://arringtonresearch.com/)
+    % Viewpoint Eye Tracker.
     
     properties
         vp@struct;
-        eye='LEFT'; %LEFT,RIGHT, or BOTH
+        eye = 'LEFT'; % LEFT, RIGHT or BOTH
+
         valid;
-        %eyelink commands commands = {'link_sample_data = LEFT,RIGHT,GAZE,GAZERES,AREA,VELOCITY'};
-        edfFile@char = 'test.edf';
-        getSamples@logical=true;
-        getEvents@logical=false;
+        
+        % default viewpoint config commands...
+        %
+        % maybe something like:
+        % 'vpx_ConnectToViewPoint('192.168.1.2',5000)' and/or 'videoMirror H'?
+        %
+        % note: 'smoothingPoints = 1' uses no smoothing (that is probably what we want?)
+        %       'GazeSpace_MouseAction Simulation' for debugging?
+        commands = {'dataFile_includeRawData Yes','datafile_includeEvents Yes','smoothingPoints 1'};
+        
+        vpxFile@char = 'test.vpx';
+        
+        getSamples@logical = true;
+        getEvents@logical = false;
     end
     
     properties
-        doTrackerSetup@logical  = true;  % Do it before the next trial
-        doDriftCorrect@logical  = false;  % Do it before the next trial
+        doTrackerSetup@logical = true; % do setup/calibration before the next trial
+        doDriftCorrect@logical = false; % correct calibration before the next trial
     end
     
     properties (Dependent)
+        isConnected@double; % FIXME: double?
         isRecording@logical;
-        isConnected@double;
     end
     
-    methods%needs attention
+    methods % get/set methods
         function v = get.isRecording(~)
-            %             v =Eyelink('CheckRecording');%returns 0 if connected.
-            %             v = v==0;
-            [v]=vpx_GetStatus(3) && ~vpx_GetStatus(4); %checks if viewpoint data file is open and data file is not paused
+            % check if viewpoint data file is open and *not* paused
+            v = vpx_GetStatus(3) && ~vpx_GetStatus(4);
         end
         
         function v = get.isConnected(~)
-            % Can return el.dummyconnected too
-            %v = Eyelink('isconnected');
-            [v]=vpx_GetStatus(1); %checks if viewpoint is running, returns 1 if running
+            % check if viewpoint is running
+            
+            % FIXME: see p.25 of the toolbox documenttion. what are the possible return values...?
+
+            v = vpx_GetStatus(1);
         end
     end
     
     
-    methods
+    methods % public methods
         function o = viewpoint(c)
-            assert(exist('ViewPoint_EyeTracker_Toolbox','file')==7,'The Viewpoint toolbox is not available?'); % Check that the ViewpointToolBox is available.
+            % confirm that the ViewpointToolBox is available...
+            assert(exist('ViewPoint_EyeTracker_Toolbox','file')==7, ...
+                   'The Viewpoint toolbox is not available?');
             
             o = o@neurostim.plugins.eyetracker(c);
-            o.addKey('F9','DriftCorrect');
             o.addKey('F8','EyelinkSetup');
+            o.addKey('F9','DriftCorrect');
             
             o.addProperty('eyeEvts',struct);
-            o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
+            o.addProperty('clbTargetInnerSize',[]); % inner diameter (?) of annulus
         end
         
         function beforeExperiment(o)
             if ~o.useMouse
-                vpx_Initialize;
-                %warning should be given in vpx_Initialize
+                vpx_Initialize(); % warning should be given in vpx_Initialize
             end
             
             
             %o.cic.mainWindow
-            %                                                                                                                                                                                                                                                                                                                                                                       
-            %Initalise default Viewpoint vp structure and set some values.
-            % first call it with the mainWindow
-            o.vp=ViewpointInitDefaults(o.cic.mainWindow);
-            %give vp the screen number,width and height
+
+            % initalise default Viewpoint parameters in the vp structure
+            o.vp = ViewpointInitDefaults(o.cic.mainWindow);
+            
+            %  overide the screen number, screen width and screen height
             o.vp.ScrNum=o.cic.screen.number;
             o.vp.Pwidth=o.cic.screen.width;
             o.vp.Pheight=o.cic.screen.height;
             %
-            %o.vp.window=Screen('OpenWindow',1);
-            %
+            % o.vp.window = Screen('OpenWindow',1);
+
+            % overide default calibration parameters
             o.vp.calibrationtargetcolour = o.clbTargetColor;
             o.vp.msgfontcolour = o.cic.screen.color.text;
-            o.vp.calibrationtargetsize = o.clbTargetSize./o.cic.screen.width*100; %Eyelink sizes are percentages of screen
+            o.vp.calibrationtargetsize = 100*o.clbTargetSize./o.cic.screen.width; % Viewpoint sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
-                o.vp.calibrationtargetwidth = o.clbTargetSize/2/o.cic.screen.width*100; %default to half radius
+                o.vp.calibrationtargetwidth = 100*o.clbTargetSize/2/o.cic.screen.width; % default: half radius
             else
-                o.vp.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
+                o.vp.calibrationtargetwidth = 100*o.clbTargetInnerSize/o.cic.screen.width;
             end
             
             %Initialise connection to viewpoint toolbox
-
-  
             
             %Tell Eyelink about the pixel coordinates
             %             rect=Screen(o.window,'Rect');
@@ -100,68 +99,53 @@ classdef viewpoint < neurostim.plugins.eyetracker
             
             
             % setup sample rate
-            %             if any(o.sampleRate==[250, 500, 1000])
-            %                 o.command(horzcat('sample_rate = ', num2str(o.sampleRate)))
-            %             else
-            %                 c.error('STOPEXPERIMENT','Requested eyelink sample rate is invalid');
-            %             end
-            %
-            
+%             if ~any(o.sampleRate == [220])
+%                 c.error('STOPEXPERIMENT','Requested sample rate for the Viewpoint eye tracker is invalid');
+%             end
             
             % open file to record data to (will be renamed on copy)
             [~,tmpFile] = fileparts(tempname);
-            o.edfFile= [tmpFile(end-7:end) '.vpx']; %8 character limit
-            %             Eyelink('Openfile', o.edfFile);
-            vpx_SendCommandString( 'dataFile_UnPauseUponClose 0' ); % so that next date file starts paused
+            o.vpxFile = [tmpFile '.vpx'];
 
-            x=sprintf('dataFile_NewName "C:\\Users\\andreww\\Documents\\MATLAB\\ViewPoint\\Data\\%s"',o.edfFile);
-            vpx_SendCommandString('dataFile_Pause 1'); %pauses file
+            vpx_SendCommandString('dataFile_UnPauseUponClose 0'); % recording is paused by default
+            vpx_SendCommandString('dataFile_Pause 1');
             vpx_SendCommandString('datafile_includeEvents 1');
-            vpx_SendCommandString(x);
+            
+            fname = fullfile(o.cic.fullPath,o.vpxFile);
+            vpx_SendCommandString(sprintf('dataFile_NewName "%s"',fname));
             
             switch upper(o.eye)
                 case 'LEFT'
-                    %                     Eyelink('Command','binocular_enabled=NO');
-                    %                     Eyelink('Command','active_eye=LEFT');
-                    %                     Eyelink('Message','%s', 'EYE_USED 0');
-                    vpx_SendCommandString('dataFile_InsertString "EYE_USED 0 " ' );
+                    vpx_SendCommandString('dataFile_InsertString "EYE_USED 0"');
                 case 'RIGHT'
-                    %                     Eyelink('Command','binocular_enabled=NO');
-                    %                     Eyelink('Command','active_eye=RIGHT');
-                    %                     Eyelink('Message','%s', 'EYE_USED 1');
-                    vpx_SendCommandString('dataFile_InsertString "EYE_USED 1 " ' );
+                    vpx_SendCommandString('dataFile_InsertString "EYE_USED 1"');
                 case {'BOTH','BINOCULAR'}
-                    %                     Eyelink('Command','binocular_enabled=YES');
-                    %                     Eyelink('Command','active_eye=LEFT,RIGHT');
-                    %                     Eyelink('Message','%s', 'EYE_USED 2');
-                    vpx_SendCommandString('dataFile_InsertString "EYE_USED 2 " ' );
+                    vpx_SendCommandString('dataFile_InsertString "EYE_USED 2"');                    
             end
             
-            %             %Pass all commands to Eyelink
-            %             for i=1:length(o.commands)
-            %                result = Eyelink('Command', o.commands{i}); %TODO: handle results
-            %             end
+            % send any other commands to Viewpoint
+            for ii = 1:length(o.commands)
+                result = vpx_SendCommandString(o.commands{ii}); % TODO: handle results
+            end
             
             %Can do later ch 19.19
-                        if o.keepExperimentSetup
-                            restoreExperimentSetup(o);
-                        else
-                            viewpointSetup(o);
-                        end
-            %
+            if o.keepExperimentSetup
+                restoreExperimentSetup(o);
+            else
+                viewpointSetup(o);
+            end
+            
             %             Eyelink('Command','add_file_preamble_text',['RECORDED BY ' o.cic.experiment]);
             %             Eyelink('Command','add_file_preamble_text',['NEUROSTIM FILE ' o.cic.fullFile]);
             
             %             Eyelink('Message','DISPLAY_COORDS %d %d %d %d',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
             %             Eyelink('Message','%s',['DISPLAY_SIZE ' num2str(o.cic.screen.width) ' ' num2str(o.cic.screen.height)]);
             %             Eyelink('Message','%s', ['FRAMERATE ' num2str(o.cic.screen.frameRate) ' Hz.']);
-            msg1=sprintf('dataFile_InsertString "DISPLAY_COORDS %d %d %d %d"',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
-            msg2=sprintf('dataFile_InsertString "DISPLAY_SIZE %.2f %.2f"',o.cic.screen.width,o.cic.screen.height);
-            msg3=sprintf('dataFile_InsertString "FRAMERATE %d Hz."',o.cic.screen.frameRate);
-            vpx_SendCommandString(msg1)
-            vpx_SendCommandString(msg2)
-            vpx_SendCommandString(msg3)
-            
+            msg = { ...
+                sprintf('dataFile_InsertString "DISPLAY_COORDS %d %d %d %d"',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
+                sprintf('dataFile_InsertString "DISPLAY_SIZE %.2f %.2f"',o.cic.screen.width,o.cic.screen.height);
+                sprintf('dataFile_InsertString "FRAMERATE %d Hz."',o.cic.screen.frameRate);
+            vpx_SendCommandString(strjoin(msg,';'));
         end
         
         function afterExperiment(o)
@@ -246,39 +230,44 @@ classdef viewpoint < neurostim.plugins.eyetracker
             end
             
             if o.getSamples
-                % Continuous samples requested
-                %if Eyelink('NewFloatSampleAvailable') > 0
-                    % get the sample in the form of an event structure
-                    [xV,yV]=vpx_GetGazePoint();
-                    o.x=xV;
-                    o.y=yV;
-                    %ViewToNeuro(o,xV,yV)
-                   sprintf('xV:%.4f  yV:%.4f\n',xV,yV) 
-                   sprintf('%.4f  %.4f\n',o.x,o.y)
+                % continuous samples requested
+%                 if Eyelink('NewFloatSampleAvailable') > 0
+                    % sample the eye position 
+                    [xV,yV] = vpx_GetGazePoint();
 
-                    o.pupilSize = vpx_GetPupilSize;
-                    o.valid = isnumeric(o.x) && isnumeric(o.y) && o.pupilSize >0;
-                %end %
+%                     ViewToNeuro(o,xV,yV)
+                    
+                    o.x = xV;
+                    o.y = yV;
+                    
+%                     sprintf('xV: %.4f yV: %.4f\n',xV,yV)
+%                     sprintf('xN: %.4f yN: %.4f\n',o.x,o.y)
+
+                    o.pupilSize = vpx_GetPupilSize();
+%                     o.valid = isnumeric(o.x) && isnumeric(o.y) && o.pupilSize >0; % FIXME: only if configured to measure pupil size...
+                    o.valid = isnumeric(o.x) && isnumeric(o.y);
+%                 end
             end
-%             if o.getEvents    % viewpoint dcan save events to the data file or to a seprarate file but does not have these function
-%                 % Only events requested
-%                 switch  o.isConnected
-%                     case o.el.connected
-%                         evtype=Eyelink('getnextdatatype');
-%                         if any(ismember(evtype,[o.el.ENDSACC, o.el.ENDFIX, o.el.STARTBLINK,...
+            
+            % TODO: figure out how we should configure/handle Viewpoint events...
+%             if o.getEvents
+%                 % only events requested
+%                 switch o.isConnected
+%                     case o.vp.connected
+%                         evtype = Eyelink('getnextdatatype');
+%                         if any(ismember(evtype, ...
+%                                [o.el.ENDSACC, o.el.ENDFIX, o.el.STARTBLINK,...
 %                                 o.el.ENDBLINK,o.el.STARTSACC,o.el.STARTFIX,...
 %                                 o.el.FIXUPDATE, o.el.INPUTEVENT,o.el.MESSAGEEVENT,...
 %                                 o.el.BUTTONEVENT, o.el.STARTPARSE, o.el.ENDPARSE]))
-%                             o.eyeEvts = Eyelink('GetFloatData', evtype);
+%                             o.eyeEvts = Eyelink('GetFloatData',evtype);
 %                         else
-%                             %                             o.cic.error('STOPEXPERIMENT','Eyelink is not connected');
+%%                            o.cic.error('STOPEXPERIMENT','Eyelink is not connected');
 %                         end
 %                 end
 %                 % x and y
-%                 
 %             end
         end
-        
 
         
         function keyboard(o,key,~)
@@ -293,39 +282,36 @@ classdef viewpoint < neurostim.plugins.eyetracker
     end
     
     methods (Access=protected)
-        
-        
         function restoreExperimentSetup(o)
-            % function restoreExperimentSetup(o)
-            % restores the original experiment background/foreground
-            % colours.
+            % restores neurostim background/foreground colours
             o.vp.backgroundcolour = o.cic.screen.color.background;
             o.vp.foregroundcolour = o.cic.screen.color.text;
             
-            %PsychViewpointDispatchCallback(o.vp);
+%             PsychViewpointDispatchCallback(o.vp);
             ViewpointClearCalDisplay(o.vp);
             
+            % TODO: see 'settingsFile_Load filename'/'settingsFile_Save filename'
         end
         
         function viewpointSetup(o)
-            % function eyelinkSetup(o)
-            % sets up Eyelink functions with background/foreground colours
-            % as specified.
+            % sets up Viewpoint background/foreground colours
             o.vp.backgroundcolour = o.backgroundColor;
             o.vp.foregroundcolour = o.foregroundColor;
-            %PsychViewpointDispatchCallback(o.vp);
-
-
+%             PsychViewpointDispatchCallback(o.vp);
         end
-
 
         function ViewToNeuro(o,xV,yV)
-            
-            o.x=xV*o.cic.screen.width-0.5*o.cic.screen.width;
-            o.y=-1*o.cic.screen.height*(yV-0.5);
-            
-           
-            
+            % convert Viewpoint normalized coords to neurostim coords
+%             o.x = o.cic.screen.width*(vX-0.5);
+%             o.y =-1*o.cic.screen.height*(yV-0.5);
+            [o.x,o.y] = vp2ns(o,xV,yV);
         end
+        
+        function [xN,yN] = vp2ns(o,xV,yV)
+            % convert Viewpoint normalized coords to neurostim coords
+            xN = o.cic.screen.width*(vX-0.5);
+            yN =-1*o.cic.screen.height*(yV-0.5);
+        end
+
     end
 end
