@@ -1281,6 +1281,15 @@ classdef cic < neurostim.plugin
                     % create correct identity cluts.
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
+                case 'DISPLAY++'
+                    % The CRS Display++
+%                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
+                    PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
+%                     [Scr.w, rect] = PsychImaging('OpenWindow', screenNumber, 0.5, [], 32, 2);
+                    Screen('Preference', 'VisualDebuglevel', 3); % 3 show a black screen instead of white flash
+
+%                   Stim.highTime = 1.0; % time to be high in the beginning of the frame (in 100 us steps = 0.1 ms steps)
+%                   Stim.lowTime = 24.8-Stim.highTime; % followed by x msec low (enough to fill the rest of the frame high + low = 24.8 ms)
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1326,7 +1335,7 @@ classdef cic < neurostim.plugin
             
             %% Perform initialization that requires an open window
             switch upper(c.screen.type)
-                case 'GENERIC'
+                case {'GENERIC','DISPLAY++'}
                     % nothing to do
                 case 'VPIXX-M16'
                     c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
