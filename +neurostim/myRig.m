@@ -20,6 +20,12 @@ end
 c.dirs.output = tempdir; % Output files will be stored here.
 
 switch computerName
+    case 'MU00122376'
+        % AwesomeLab stimulus computer - Display++
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',70.0,'frameRate',120,'screenNumber',max(Screen('screens')));
+        c.screen.type = 'DISPLAY++';
+        c.screen.colorMode = 'RGB';
+        c.dirs.output = 'D:\Data';
     case 'MU00101417X'
         % Shaun's MacBook Pro
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',2560,'ypixels',1600,'screenWidth',28.6,'frameRate',60,'screenNumber',max(Screen('screens')),'keyboardNumber',max(GetKeyboardIndices()));
