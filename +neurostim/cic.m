@@ -808,13 +808,11 @@ classdef cic < neurostim.plugin
                     
                     
                     %ITI - wait
-                    if c.trial == 1
-                        nFramesToWait = c.ms2frames(c.iti); % c.trialStopTime is [], so wait the full iti?
-                    else
+                    if c.trial > 1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
-                    end
-                    for i=1:nFramesToWait
-                        Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                        for i=1:nFramesToWait
+                            Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                        end
                     end
                     
                     c.frame=0;
@@ -1287,12 +1285,8 @@ classdef cic < neurostim.plugin
                     % The CRS Display++
 %                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
                     PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
-                    setDisplayToMonoPPMode;
-%                     [Scr.w, rect] = PsychImaging('OpenWindow', screenNumber, 0.5, [], 32, 2);
+                    setDisplayToMonoPPMode; % FIXME: weird fix for the Windows 10 machine in Yan's lab
                     Screen('Preference', 'VisualDebuglevel', 3); % 3 show a black screen instead of white flash
-
-%                   Stim.highTime = 1.0; % time to be high in the beginning of the frame (in 100 us steps = 0.1 ms steps)
-%                   Stim.lowTime = 24.8-Stim.highTime; % followed by x msec low (enough to fill the rest of the frame high + low = 24.8 ms)
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1338,7 +1332,7 @@ classdef cic < neurostim.plugin
             
             %% Perform initialization that requires an open window
             switch upper(c.screen.type)
-                case {'GENERIC','DISPLAY++'}
+                case 'GENERIC'
                     % nothing to do
                 case 'VPIXX-M16'
                     c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
@@ -1353,6 +1347,8 @@ classdef cic < neurostim.plugin
                     % indices (assuming the bg is not max white)
                     c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
                     Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
+                case 'DISPLAY++'
+                    % nothing to do
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
