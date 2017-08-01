@@ -47,7 +47,7 @@ end
 d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
 d.X = 0;                 %Parameters can be set to arbitrary, dynamic functions using this string format. To refer to other stimuli/plugins, use their name (here "fix" is the fixation point).
 d.Y = 0;                 %Here, wherever the fixation point goes, so too will the dots, even if it changes in real-time.       
-d.on = 0;     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
+d.on = 100;     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
 d.duration = 1000;
 d.color = [1 1 1];
 d.size = 2;
@@ -61,8 +61,8 @@ d.noiseWidth = 0;
 b = plugins.blackrock(c);
 b.useMCC = false;
 
-c.iti = d.duration; % milliseconds
-c.trialDuration = 2000; % milliseconds
+c.iti = '@rand*100+450';%500; %d.duration; % milliseconds
+c.trialDuration = d.duration+d.on; % milliseconds
 
 % define conditions and blocks
 d = neurostim.design('ori16');
