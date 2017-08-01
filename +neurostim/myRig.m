@@ -22,7 +22,7 @@ c.dirs.output = tempdir; % Output files will be stored here.
 switch computerName
     case 'MU00101417X'
         % Shaun's MacBook Pro
-        c = rig(c,'eyelink',false,'mcc',false,'xpixels',2560,'ypixels',1600,'screenWidth',28.6,'frameRate',60,'screenNumber',max(Screen('screens')),'keyboardNumber',max(GetKeyboardIndices()));
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',2560,'ypixels',1600,'screenWidth',28.6,'frameRate',60,'screenNumber',max(Screen('screens'))); %,'keyboardNumber',max(GetKeyboardIndices()));
         smallWindow = true;
         
     case 'MU00043185'
@@ -117,6 +117,8 @@ end
 if smallWindow
     c.screen.xpixels = c.screen.xpixels/2;
     c.screen.ypixels = c.screen.ypixels/2;
+    c.screen.xorigin = c.screen.xpixels/2;
+    c.screen.yorigin = c.screen.ypixels/2;
 end
 
 c.screen.color.background = [0.25 0.25 0.25];
