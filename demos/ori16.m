@@ -10,24 +10,23 @@ import neurostim.*
 c = myRig;                            
 
 % register our eScript(s) with cic
-c.addScript('BeforeTrial',@beforeTrial);
+% c.addScript('BeforeTrial',@beforeTrial);
 c.addScript('BeforeFrame',@beforeFrame);
 
 % define our eScript function(s)...
 function beforeTrial(c)
-  c.writeToFeed('Send ''trial start'' trigger...\n');
   data = [ones(1,10),zeros(1,248-10)]; % Bit 0
   BitsPlusPlus('DIOCommand',c.mainWindow,1,255,data,0);
-  
-%   txt = sprintf('dir=%.1f',c.dots.direction);
-%   cbmex('comment',128,0,txt);
 end
 
 function beforeFrame(c)
   if c.dots.frame == 0
-    c.writeToFeed('Send ''dots on'' trigger...\n');
     data = [ones(1,10),zeros(1,248-10)]*2; % Bit 1
     BitsPlusPlus('DIOCommand',c.mainWindow,1,255,data,0);
+    
+    % log some stuff...? 
+    txt = sprintf('dir=%.1f',c.dots.direction);
+    cbmex('comment',128,0,txt);
   end
 end
 
