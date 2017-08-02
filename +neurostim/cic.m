@@ -1063,6 +1063,7 @@ classdef cic < neurostim.plugin
             pin.addParameter('eyelinkCommands',[]);
             pin.addParameter('outputDir',[]);
             pin.addParameter('mcc',false);
+            pin.addParameter('blackrock',false);
             pin.addParameter('colorMode','RGB');
             pin.parse(varargin{:});
             
@@ -1115,6 +1116,10 @@ classdef cic < neurostim.plugin
             end
             if pin.Results.mcc
                 neurostim.plugins.mcc(c);
+            end
+            
+            if pin.Results.blackrock
+                neurostim.plugins.blackrock(c);
             end
             
             c.screen.xorigin = pin.Results.xorigin;
