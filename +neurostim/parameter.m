@@ -132,7 +132,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % but tests on July 1st 2017 showed that this was (no longer)
             % correct. 
             
-            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value)) || (ischar(v) && strcmp(v,o.value)) || o.noLog 
+            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value)) || (ischar(v) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end
@@ -140,6 +140,11 @@ classdef parameter < handle & matlab.mixin.Copyable
             % For non-function parns this is the value that will be
             % returned  to the next getValue
             o.value = v;
+            
+            if o.noLog 
+               return 
+            end
+            
             % Keep a timed log.
             o.cntr=o.cntr+1;
             % Allocate space if needed
