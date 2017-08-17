@@ -1,17 +1,21 @@
 function c=behaviorDemo
-%Two-alternative forced choice (2AFC) motion task.
+%Two-alternative forced choice (2AFC) motion task:
+%       
+%       "Is the motion up or down?"
 %
-%This demo shows how to use:
+%   This demo shows how to use:
 %       - Visual stimuli
-%       - Fixation control using (virtual or real) eye tracking.
+%       - Specification of experimental design (factorial design, blocks, trial randomization)
+%       - Fixation control using eye tracking (uses the mouse if no eye tracker attached).
 %       - Gaze-contingent stimulus presentation.
-%       - Subject feedback/reward.
-%       - Specification of experiemntal design (factorials, blocks, trial randomization)
+%       - Subject feedback/reward for correct/incorrect behaviors.
 %
-%The task:
+%   The task:
 %
-%       - "Fixate" on the fixation point to start the trial by moving the mouse and clicking on it
-%       - Is the motion upward (press "a") or downward (press "z")? Respond only once motion disappears.
+%       (1) "Fixate" on the fixation point to start the trial by clicking on it with the mouse
+%       (2) Respond by pressing "a" for upward motion or "z" for downward motion (once motion disappears).
+%
+%   *********** Press "Esc" twice to exit a running experiment ************
 
 import neurostim.*
 commandwindow;
@@ -82,8 +86,8 @@ s.add('waveform','incorrect.wav','when','afterFrame','criterion','@choice.succes
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
 
 %Specify experimental conditions
-myDesign=design('myFac');                       %Type "help neurostim/design" for more options.
-myDesign.fac1.fix.X=   [-10 0 10];                %Three different fixation positions along horizontal meridian
+myDesign=design('myFac');                      %Type "help neurostim/design" for more options.
+myDesign.fac1.fix.X=   [-10 0 10];             %Three different fixation positions along horizontal meridian
 myDesign.fac2.dots.direction=[-90 90];         %Two dot directions
 % Jitter the Y position in all conditions of the 2-factor design (you have
 % to explicitly specify two ':' to represent the two factors, a single (:) is interpreted as a single factor and will fail.)

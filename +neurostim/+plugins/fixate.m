@@ -32,9 +32,16 @@ classdef fixate < neurostim.plugins.behavior
    
    methods (Access=protected)
        function inProgress = validate(o)
-           % validate returns true when eye position is within
-           % tolerance of (X,Y).
-           inProgress = sqrt((o.cic.eye.x-o.X)^2+(o.cic.eye.y-o.Y)^2)<=o.tolerance;
+           % validate returns true when eye position is within tolerance of (X,Y).
+           %
+           %This code just evalutes this: sqrt((o.cic.eye.x-o.X)^2+(o.cic.eye.y-o.Y)^2)<=o.tolerance
+           %but it checks X first because it's faster than evaluating o.cic.Y too if not needed
+           inProgress = false;
+           tol = o.tolerance;
+           dx = o.cic.eye.x-o.X; 
+           if dx < tol
+               inProgress = sqrt(dx^2+(o.cic.eye.y-o.Y)^2)<=tol;
+           end
        end
    end
     

@@ -270,19 +270,6 @@ classdef stimulus < neurostim.plugin
             % duplicate access to member properties and dynprops in
             % particular
             locWindow =s.window; 
-            %Apply stimulus transform
-            sX =s.X;sY=s.Y;sZ=s.Z;            
-            if  any([sX sY sZ]~=0)
-                Screen('glTranslate',locWindow,sX,sY,sZ);
-            end
-            sScale = s.scale;
-            if any(sScale~=1)
-                Screen('glScale',locWindow,sScale(1),sScale(2),sScale(3));
-            end
-            sAngle= s.angle;
-            if  sAngle ~=0
-                Screen('glRotate',locWindow,sAngle,s.rx,s.ry,s.rz);
-            end
             
             %Should the stimulus be drawn on this frame?
             % This partially duplicates get.onFrame get.offFrame
@@ -325,6 +312,21 @@ classdef stimulus < neurostim.plugin
             
             %If the stimulus should be drawn on this frame:
             if s.flags.on
+                
+                %Apply stimulus transform
+                sX =s.X;sY=s.Y;sZ=s.Z;
+                if  any([sX sY sZ]~=0)
+                    Screen('glTranslate',locWindow,sX,sY,sZ);
+                end
+                sScale = s.scale;
+                if any(sScale~=1)
+                    Screen('glScale',locWindow,sScale(1),sScale(2),sScale(3));
+                end
+                sAngle= s.angle;
+                if  sAngle ~=0
+                    Screen('glRotate',locWindow,sAngle,s.rx,s.ry,s.rz);
+                end
+            
                 %If this is the first frame that the stimulus will be drawn, register that it has started.
                 if ~s.stimstart
                     s.stimstart = true;
