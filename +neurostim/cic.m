@@ -1137,11 +1137,49 @@ classdef cic < neurostim.plugin
             %Remove the specified funProp. Someone must have changesd their mind before run-time.
             isMatch = arrayfun(@(x) strcmpi(x.plugin,plugin)&&strcmpi(x.prop,prop),c.funPropsToMake);
             c.funPropsToMake(isMatch) = [];
-        end     
+        end
+        
+        % Update the CLUT for the overlay. Specify [N 3] clut entries and
+        % the location in the CLUT where they should be placed. 
+        function updateOverlay(c,clut,index)
+            if nargin<3
+                index = 2:size(clut,1);
+                if nargin <2
+                    clut = [];
+                end
+            end
+            [nrRows,nrCols] = size(c.screen.overlayClut);
+            if nrCols ~=3
+                error('The overlay CLUT should have 3 columns (RGB)');
+            end
+            if nrRows ~=256
+                 % Add white for missing clut entries to show error
+                  % indices (assuming the bg is not max white)
+                 % 0 = transparent.  
+                c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
+            end
+            
+            if any(index<1 | index >255)
+                error('CLUT entries can only be defined for index =1:255');
+            end
+            
+            if ~isempty(clut)  && (numel(index) ~=size(clut,1) || size(clut,2) ~=3)
+                error('The CLUT update must by [N 3] and with N index values');
+            end            
+            % Update with the new values in the appropriate location
+            % (index)
+            if ~isempty(index)
+                c.screen.overlayClut(index+1,:) = clut; % index +1 becuase the first entry (index =0) is always transparent
+            end
+            
+            Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
+        end
+            
     end
     
     
     methods (Access=public)
+        
         
         %% Keyboard handling routines(protected). Basically light wrappers
         % around the PTB core functions
@@ -1330,17 +1368,7 @@ classdef cic < neurostim.plugin
                     % nothing to do
                 case 'VPIXX-M16'
                     c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
-                    [nrRows,nrCols] = size(c.screen.overlayClut);
-                    if nrCols>0 && nrCols~=3
-                        error('The overlay clut should have 3 columns...');
-                    end
-                    if nrRows>255
-                        error('The overlay clut can have only 255 entries (index 0 is transparent)');
-                    end
-                    % Add white for missing clut entries to show error
-                    % indices (assuming the bg is not max white)
-                    c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
-                    Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
+                    updateOverlay(c,c.overlayClut);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
