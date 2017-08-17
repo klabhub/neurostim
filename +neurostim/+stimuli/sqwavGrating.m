@@ -65,20 +65,20 @@ classdef sqwavGrating < neurostim.stimulus
             % choose phase of grating to draw (0 or 180)
             if o.phase == 0 % first bar of each visual cycle has face color
                 Screen('FillRect',o.window, o.color, faceBorders);
-%                 Screen('FillRect',o.window, 1, bgBorders);
+                Screen('FillRect',o.window, 1, bgBorders);
             elseif o.phase == 180 % second bar of each visual cycle has face color
                 Screen('FillRect',o.window, o.color, bgBorders);
-%                 Screen('FillRect',o.window, 1, faceBorders);
+                Screen('FillRect',o.window, 1, faceBorders);
             end
         end
         
         
-        function afterFrame(o)
-            % clear screen before drawing new stimulus
-             Screen('FillRect',o.window,1,[-26 -26 26 26]);
-% Screen('FillRect',o.window,[0.33 0.33 0],[-26 -26 26 26]);
-        end
-        
+%         function afterFrame(o)
+%             % clear screen before drawing new stimulus
+%              Screen('FillRect',o.window,1,[-26 -26 26 26]);
+% % Screen('FillRect',o.window,[0.33 0.33 0],[-26 -26 26 26]);
+%         end
+%         
                 
     end
         
