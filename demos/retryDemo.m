@@ -62,12 +62,19 @@ c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC r
 
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.
-myDesign.fac1.dots.direction=[-90 90 0 180];         %Two dot directions
-myDesign.retry = 'RANDOM';
+myDesign.fac1.dots.direction=[-90 90];         %Two dot directions
+
+% By default, an incorrect answer is simply ignored (i.e. the condition is not repeatd).
+% This corresponds to myDesign.retry ='IGNORE';
+% To repeat a condition immediately if the answer is wrong (e.g. during trainig) , specify
+% myDesign.retry = 'IMMEDIATE' 
+% You can also repeate the condition at a later random point in the block, using the 'RANDOM' mode.
+myDesign.retry = 'IMMEDIATE';
+myDesign.maxRetry = 3;
 
 %Specify a block of trials
 myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
-myBlock.nrRepeats=5;
+myBlock.nrRepeats=1;
 
 
 
