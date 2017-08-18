@@ -789,17 +789,16 @@ classdef cic < neurostim.plugin
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
-                
+                % We'll need these to check trial success after the trial
                 %% Start the trials in the block
                 c.blockTrial =0;
-                while ~c.blocks(c.block).done
+                while ~c.blocks(c.block).done  
                     c.trial = c.trial+1;
-                    
+                   
                     % Restore default values
                     setDefaultParmsToCurrent(c.pluginOrder);
                     
-                    
-                    nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
+                    beforeTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
                     c.blockTrial = c.blockTrial+1;  % For logging and gui only
                     beforeTrial(c);
                     
@@ -895,6 +894,7 @@ classdef cic < neurostim.plugin
                         end                        
                         
                     end % Trial running
+                                        
                     Priority(0);
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
@@ -902,7 +902,8 @@ classdef cic < neurostim.plugin
                     c.trialStopTime = ptbStimOn*1000;
                     c.frame = c.frame+1;
                     base(c.pluginOrder,neurostim.stages.AFTERTRIAL,c);
-                    afterTrial(c);
+                    afterTrial(c.blocks(c.block),c); % Assesses 'success' and updates design
+                    afterTrial(c);                                        
                 end %conditions in block
                 
                 Screen('glLoadIdentity', c.mainWindow);

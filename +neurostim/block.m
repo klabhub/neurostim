@@ -155,14 +155,20 @@ classdef block < dynamicprops
             o.weights = ones(1,o.nrDesigns);
         end
         
+        function afterTrial(o,c)
+              behaviors  = c.pluginsByClass('behavior');
+              success = true;
+              for i=1:numel(behaviors)
+                success = success && behaviors(i).success;
+              end    
+              afterTrial(o.design,success); % Update the design object
+        end
         
-        function nextTrial(o,c)
+        function beforeTrial(o,c)
             %Retrieve the plugin/parameter/value specs for the current condition
-            % and apply to each of the plugins
-            
-            
+            % and apply to each of the plugins            
             %% Check whether we need to go to the next design in this block
-            if o.designIx ==0 ||  ~nextTrial(o.design) % Move the design to the next trial            
+            if o.designIx ==0 ||  ~beforeTrial(o.design)% Move the design to the next trial            
                 % This design is done, move to the next one
                 o.designIx = o.designIx +1;
                 if o.designIx > numel(o.list)

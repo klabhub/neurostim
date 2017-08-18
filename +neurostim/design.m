@@ -85,7 +85,9 @@ classdef design <handle & matlab.mixin.Copyable
 
     properties  (SetAccess =public, GetAccess=public)
         randomization='RANDOMWITHOUTREPLACEMENT';
+        retry = 'IGNORE'; %IGNORE,IMMEDIATE,RANDOM
         weights@double=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
+        maxRetry = Inf;
     end
     
     properties         (SetAccess =protected, GetAccess=public)
@@ -94,6 +96,7 @@ classdef design <handle & matlab.mixin.Copyable
         conditionSpecs@cell ={};         % Conditions specifications that deviate from the full factorial
         list@double;                    % The order in which conditions will be run.
         currentTrialIx =0;                   % The condition that will be run in this trial (index in to .list)
+        retryCounter = [];
     end
     
     properties (Dependent)
@@ -296,9 +299,35 @@ classdef design <handle & matlab.mixin.Copyable
             o2.name = nm;            
         end     
                  
-        function ok = nextTrial(o)
+        function afterTrial(o,success)
+            if success || strcmpi(o.retry,'IGNORE') ||   o.retryCounter(o.condition) >= o.maxRetry
+                return; % Nothing do do.
+            end
+            
+            switch upper(o.retry)
+                    case 'IMMEDIATE'
+                        insertIx = o.currentTrialIx +1 ;                        
+                    case 'RANDOM'
+                        % Add the current to a random position in the list
+                        % (past tbe current), then go to the next in the
+                        % list.
+                        insertIx= randi([o.currentTrialIx+1 numel(o.list)+1]);                        
+                    otherwise
+                        error(['Unknown retry mode: ' o.retry]);
+            end
+                
+            o.list = cat(1,o.list(1:insertIx-1),o.list(o.currentTrialIx),o.list(insertIx:end));   
+            o.retryCounter(o.condition) = o.retryCounter(o.condition) +1;                
+            
+            o.currentTrialIx
+            o.list
+            o.list(o.currentTrialIx+1:end)
+            o.retryCounter            
+        end
+        
+        function ok = beforeTrial(o)           
             % Move the index to the next condition in the trial list.
-            % Returns false if this is not possible (i.e. the design has been run completely).
+            % Returns false if this is not possible (i.e. the design has been run completely).            
             if o.currentTrialIx == numel(o.list)
                 ok = false; % No next trial possible. Caller will have to shuffle the design or pick a new one.
             else
@@ -321,6 +350,7 @@ classdef design <handle & matlab.mixin.Copyable
                 case 'RANDOMWITHOUTREPLACEMENT'
                     o.list=Shuffle(weighted);
             end
+            o.retryCounter = zeros(o.nrConditions,1);
             o.currentTrialIx =1; % Reset the index to start at the first entry
         end
         
