@@ -971,7 +971,7 @@ classdef cic < neurostim.plugin
             else
                 c.kbInfo.keys(end+1)  = key;
                 c.kbInfo.help{end+1} = keyHelp;
-                c.kbInfo.plugin{end+1} = plg; % Handle to plugin to call keyboard()
+                c.kbInfo.plugin{end+1} = plg; % Handle to plugin to call keyboard() 
                 c.kbInfo.isSubject(end+1) = isSubject;
                 c.kbInfo.fun{end+1} = fun;
             end
@@ -1368,7 +1368,7 @@ classdef cic < neurostim.plugin
                     % nothing to do
                 case 'VPIXX-M16'
                     c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
-                    updateOverlay(c,c.overlayClut);
+                    updateOverlay(c,c.screen.overlayClut);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
