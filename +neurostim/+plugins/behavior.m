@@ -8,6 +8,7 @@ classdef behavior < neurostim.plugin
     properties (Access=public)
         failEndsTrial = true;             %Does violating behaviour end trial?
         successEndsTrial = false;         % Does completing the behavior successfully end the trial?
+        required = true;                  % Is success on this behavior required for overall success in a trial?
         sampleEvent = 'AFTERFRAME';       %On which event(s) should the behavioral data be sampled? (string or cell of strings)
         validateEvent = 'AFTERFRAME';     %On which event(s) should the behavioral data be validated? (i.e. is subject doing the right thing?)
     end

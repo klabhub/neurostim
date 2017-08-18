@@ -162,7 +162,7 @@ classdef stimulus < neurostim.plugin
             %If at the start of a new element, move the design to the
             % next "trial"
             if itemFrame==0
-                ok = nextTrial(s.rsvp.design);
+                ok = beforeTrial(s.rsvp.design);
                 if ~ok
                     % Ran out of "trials"
                     s.rsvp.design.shuffle; % Reshuffle the list

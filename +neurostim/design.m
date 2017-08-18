@@ -16,6 +16,13 @@ classdef design <handle & matlab.mixin.Copyable
     % o.fac1..o.facN
     % o.weights
     % o.conditions
+    % 
+    % To specify what happens if a trial is unsuccessful (i.e. wrong answer
+    % or a fixation break, or any required 'behavior' that is not
+    % successfully completed), use the retry parameter.
+    % 
+    % o.retry  ['IGNORE'] ('IGNORE': ignore unsucessful trials ,'RANDOM' : retry the trial at a random later point in the block,'IMMEDIATE': retry the trial in the next trial)
+    % o.maxRetry : [INF] - Specify a maximum number of retries. 
     %
     % Examples :
     % Factors are specified as :
@@ -107,6 +114,7 @@ classdef design <handle & matlab.mixin.Copyable
         done;                           % True after all conditions have been run
         levels;                         % Vector subscript (factors) for the current condition
         condition;                  % Linear index of the current condition
+        nrRetried;                      % The total number of trials that have been retried.
     end
     
     properties (Constant)
@@ -131,8 +139,12 @@ classdef design <handle & matlab.mixin.Copyable
         
         function v=get.nrTrials(o)
             % Total number of trial in this design (this includes the
-            % effect of weighting)
-            v = numel(o.list);
+            % effect of weighting, but not the retried-trials)
+            v = numel(o.list)-o.nrRetried;
+        end
+        
+        function v = get.nrRetried(o)
+            v = sum(o.retryCounter);
         end
         
         function v= get.nrFactors(o)
@@ -299,9 +311,12 @@ classdef design <handle & matlab.mixin.Copyable
             o2.name = nm;            
         end     
                  
+        % Called from block/afterTrial with information ont he success of
+        % the previous trial. If success is false, the trial can be repeated
+        % at a later time. 
         function afterTrial(o,success)
             if success || strcmpi(o.retry,'IGNORE') ||   o.retryCounter(o.condition) >= o.maxRetry
-                return; % Nothing do do.
+                return; % Nothing do do: either we don't want to retry, or we've retried the max already.
             end
             
             switch upper(o.retry)
@@ -315,14 +330,9 @@ classdef design <handle & matlab.mixin.Copyable
                     otherwise
                         error(['Unknown retry mode: ' o.retry]);
             end
-                
+            % Put a new item in the list.
             o.list = cat(1,o.list(1:insertIx-1),o.list(o.currentTrialIx),o.list(insertIx:end));   
-            o.retryCounter(o.condition) = o.retryCounter(o.condition) +1;                
-            
-            o.currentTrialIx
-            o.list
-            o.list(o.currentTrialIx+1:end)
-            o.retryCounter            
+            o.retryCounter(o.condition) = o.retryCounter(o.condition) +1;  % Count the retries              
         end
         
         function ok = beforeTrial(o)           

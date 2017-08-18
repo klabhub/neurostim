@@ -5,7 +5,7 @@ function c=behaviorDemo
 %
 %   This demo shows how to use:
 %       - Subject feedback/reward for correct/incorrect behaviors and
-%       different options to retry failed trials
+%       different options to retry failed trials. 
 %
 %   The task:
 %
@@ -27,7 +27,7 @@ d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
 d.X = 0;
 d.Y = 0;
 d.on = 0;
-d.duration = 1000;
+d.duration = 500;
 d.color = [1 1 1];
 d.size = 2;
 d.nrDots = 200;
@@ -40,13 +40,10 @@ d.noiseMode = 1;
 %Subject's 2AFC response
 k = plugins.nafcResponse(c,'choice');
 k.on = '@dots.on + dots.duration';
-k.deadline = '@choice.on + 2000';                   %Maximum allowable RT is 2000ms
+k.deadline = '@choice.on + 1000';                    %Maximum allowable RT is 1000ms
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
 k.keyLabels = {'up', 'down'};
 k.correctKey = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
-
-
-
 
 %% ========== Specify feedback/rewards ========= 
 % Play a correct/incorrect sound for the 2AFC task
@@ -59,24 +56,15 @@ s.add('waveform','incorrect.wav','when','afterTrial','criterion','@ ~choice.corr
 
 %% Experimental design
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
-
+c.addPropsToInform('choice.correct')
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.
 myDesign.fac1.dots.direction=[-90 90];         %Two dot directions
+myDesign.retry = 'IMMEDIATE';                   % Try 'IGNORE','RANDOM', and 'IMMEDIATE'
+myDesign.maxRetry = 3;                          % Each condition is retried 3 times at most (per repeat in a block).
 
-% By default, an incorrect answer is simply ignored (i.e. the condition is not repeatd).
-% This corresponds to myDesign.retry ='IGNORE';
-% To repeat a condition immediately if the answer is wrong (e.g. during trainig) , specify
-% myDesign.retry = 'IMMEDIATE' 
-% You can also repeate the condition at a later random point in the block, using the 'RANDOM' mode.
-myDesign.retry = 'IMMEDIATE';
-myDesign.maxRetry = 3;
-
-%Specify a block of trials
 myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
-myBlock.nrRepeats=1;
-
-
+myBlock.nrRepeats=1;  % Becuase a block has 1 repeat of 2 conditions, each of which can be repeated 3 times, the block will at most have 8 trials (if every answer is wrong).
 
 
 %% Run the experiment.

@@ -9,6 +9,9 @@ function c=behaviorDemo
 %       - Fixation control using eye tracking (uses the mouse if no eye tracker attached).
 %       - Gaze-contingent stimulus presentation.
 %       - Subject feedback/reward for correct/incorrect behaviors.
+%       - Different options to retry failed trials (see myDesign.retry
+%       below).  Here we retry any trial in which the eye 
+%       moves out of the fixation window. 
 %
 %   The task:
 %
@@ -24,6 +27,7 @@ commandwindow;
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
 c = myRig;
+c.addPropsToInform('choice.correct','f1.success'); % Show this value on the command prompt after each trial (i.e. whether the answer was correct and whether fixation was successful).
 
 %Make sure there is an eye tracker (or at least a virtual one)
 if isempty(c.pluginsByClass('eyetracker'))
@@ -63,6 +67,7 @@ k.deadline = '@choice.on + 2000';                   %Maximum allowable RT is 200
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
 k.keyLabels = {'up', 'down'};
 k.correctKey = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
+k.required = false; %   This means that even if this behavior is not successful (i.e. the wrong answer is given), the trial will not be repeated.
 
 %Maintain gaze on the fixation point until the dots disappear
 g = plugins.fixate(c,'f1');
@@ -71,7 +76,7 @@ g.to = '@dots.stopTime';
 g.X = '@fix.X';
 g.Y = '@fix.Y';
 g.tolerance = 3;
-
+g.required = true; % This is a required behavior. Any trial in which fixation is not maintained throughout will be retried. (See myDesign.retry below)
 
 %% ========== Specify feedback/rewards ========= 
 % Play a correct/incorrect sound for the 2AFC task
@@ -92,6 +97,15 @@ myDesign.fac2.dots.direction=[-90 90];         %Two dot directions
 % Jitter the Y position in all conditions of the 2-factor design (you have
 % to explicitly specify two ':' to represent the two factors, a single (:) is interpreted as a single factor and will fail.)
 myDesign.conditions(:,:).fix.Y =  plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
+% By default, an incorrect answer is simply ignored (i.e. the condition is not repeated).
+% This corresponds to myDesign.retry ='IGNORE';
+% To repeat a condition immediately if the behavioral requiremnts are not met (e.g. during trainig) , specify
+% myDesign.retry = 'IMMEDIATE' 
+% You can also repeate the condition at a later random point in the block, using the 'RANDOM' mode.
+myDesign.retry = 'IMMEDIATE';
+myDesign.maxRetry = 20;  % Each condition will be retried up to 20 times. 
+% Note that because we made the nafcResponse choice not required, a trial with the wrong
+% answer will not be retried, only trials with a fixation break.
 
 %Specify a block of trials
 myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
