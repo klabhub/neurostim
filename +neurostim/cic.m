@@ -1367,6 +1367,14 @@ classdef cic < neurostim.plugin
                 case 'GENERIC'
                     % nothing to do
                 case 'VPIXX-M16'
+                    if (all(round(c.screen.color.background) == c.screen.color.background))
+                        % The BitsPlusPlus code thinks that any luminance
+                        % above 1 that is an integer is a 0-255 lut entry.
+                        % The warning is wrong; with the new graphics
+                        % pipeline setup it works fine as a calibrated
+                        % luminance. 
+                        disp(['****You can safely ignore the message about '' clearcolor'' that just appeared***']);
+                    end
                     c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
                     updateOverlay(c,c.screen.overlayClut);
                 otherwise
