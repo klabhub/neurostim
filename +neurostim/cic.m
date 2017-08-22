@@ -93,7 +93,7 @@ classdef cic < neurostim.plugin
          
         EscPressedTime;
         lastFrameDrop=1;
-        propsToInform={'file','paradigm','startTimeStr','blockName','nrConditions','trial/nrTrials','trial/nrTrialsTotal'};
+        propsToInform={'blockName','condition/nrConditions','trial/nrTrialsTotal'};
         
         profile=struct('cic',struct('FRAMELOOP',[],'FLIPTIME',[],'cntr',0));
         
@@ -652,18 +652,32 @@ classdef cic < neurostim.plugin
         end
         
         function beforeTrial(c)
+           % Restore default values
+           setDefaultParmsToCurrent(c.pluginOrder);
            
+           % Call before trial on the current block.
+           % This sets up all condition dependent stimulus properties (i.e. those in the design object that is currently active in the block)  
+           beforeTrial(c.blocks(c.block),c);                  
+           c.blockTrial = c.blockTrial+1;  % For logging and gui only
+           % Calls before trial on all plugins, in pluginOrder.
+           base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);                                        
         end
         
         
         function afterTrial(c)
-            if ~c.guiOn
+            % Calls after trial on all the plugins
+            base(c.pluginOrder,neurostim.stages.AFTERTRIAL,c);
+           % Calls afterTrial on the current block/design.
+           % This assesses 'success' of the behavior and updates the design
+           % if needed (i.e. retrying failed trials)
+           afterTrial(c.blocks(c.block),c); 
+           
+           
+           if ~c.guiOn
                 message=collectPropMessage(c);
                 c.writeToFeed(message);
-            end
-            
-            c.collectFrameDrops;
-             
+           end            
+           c.collectFrameDrops;             
         end
         
         
@@ -789,23 +803,12 @@ classdef cic < neurostim.plugin
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
-                
                 %% Start the trials in the block
                 c.blockTrial =0;
-                while ~c.blocks(c.block).done
+                while ~c.blocks(c.block).done  
                     c.trial = c.trial+1;
                     
-                    % Restore default values
-                    setDefaultParmsToCurrent(c.pluginOrder);
-                    
-                    
-                    nextTrial(c.blocks(c.block),c);% This sets up all condition dependent stimulus properties (i.e. those in the factorial definition)
-                    c.blockTrial = c.blockTrial+1;  % For logging and gui only
-                    beforeTrial(c);
-                    
-                    
-                    base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
-                    
+                    beforeTrial(c); % Get all plugins ready for the next trial
                     
                     %ITI - wait
                     if c.trial>1
@@ -887,23 +890,23 @@ classdef cic < neurostim.plugin
                                 end
                             end
                         end
-                        
-                        
+                                                
                         if c.getFlipTime
                             c.flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;% Used by stimuli to log their onset
                             c.getFlipTime=false;
                         end                        
                         
                     end % Trial running
+                                        
                     Priority(0);
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
                     c.frame = c.frame+1;
-                    base(c.pluginOrder,neurostim.stages.AFTERTRIAL,c);
-                    afterTrial(c);
-                end %conditions in block
+                    
+                    afterTrial(c);                                        
+                end % one block
                 
                 Screen('glLoadIdentity', c.mainWindow);
                 if ~c.flags.experiment;break;end                

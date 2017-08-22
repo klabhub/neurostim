@@ -1,13 +1,14 @@
 classdef behavior < neurostim.plugin
     % Generic behavior class (inc. function wrappers) for subclasses.
-    % 
+    %
     % Simple behavioral class which adds properties, event listeners and function wrappers
     % for all behavioral subclasses.
     
     
     properties (Access=public)
         failEndsTrial = true;             %Does violating behaviour end trial?
-        successEndsTrial = false;         % Does completing the behavior successfully end the trial?  
+        successEndsTrial = false;         % Does completing the behavior successfully end the trial?
+        required = true;                  % Is success on this behavior required for overall success in a trial?
         sampleEvent = 'AFTERFRAME';       %On which event(s) should the behavioral data be sampled? (string or cell of strings)
         validateEvent = 'AFTERFRAME';     %On which event(s) should the behavioral data be validated? (i.e. is subject doing the right thing?)
     end
@@ -21,15 +22,44 @@ classdef behavior < neurostim.plugin
     
     properties (Dependent)
         enabled
+        success
     end
     
     methods
         function set.sampleEvent(o,val)
-            o.sampleEvent = checkEventArgs(o,val);
+            o.sampleEvent = neurostim.plugins.behavior.checkEventArgs(val);
         end
         function set.validateEvent(o,val)
-            o.validateEvent = checkEventArgs(o,val);
-        end       
+            o.validateEvent = neurostim.plugins.behavior.checkEventArgs(val);
+        end
+        
+        function v = get.success(o)
+            v = o.state;
+        end
+        
+        
+        function set.success(o,itsASuccess)
+            o.state = itsASuccess;
+            
+            o.stopTime = o.cic.trialTime;
+            o.done = true;
+            if (itsASuccess)
+                % Success :-)
+                if o.successEndsTrial
+                    o.cic.endTrial;
+                end
+            else
+                % Failure :-(
+                if o.failEndsTrial
+                    o.cic.endTrial;
+                end
+            end
+            
+            if ~itsASuccess
+                o.writeToFeed(o.outcome);
+            end
+        end
+        
         function v= get.enabled(o)
             if o.done
                 v = false;
@@ -53,10 +83,10 @@ classdef behavior < neurostim.plugin
             o.addProperty('to',Inf,'validate',@isnumeric);              %The time to which the behaviour *must* continue to be satisfied (for continuous).
             o.addProperty('deadline',Inf,'validate',@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
             
-            %Internal use only       
+            %Internal use only
             o.addProperty('startTime',Inf);      %The time at which the behaviour was initiated (i.e. in progress).
             o.addProperty('stopTime',Inf);        %The time at which a result was achieved (good or bad).
-            o.addProperty('success',false);     %Set to true if the behavior was completed correctly
+            o.addProperty('state',false);         % Logs changes in success. Dont assign to this, use .success instead.
             o.addProperty('outcome',false);     %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
             
             
@@ -69,7 +99,7 @@ classdef behavior < neurostim.plugin
             o.startTime = Inf;
             o.stopTime = Inf;
             o.started = false;
-            o.success = false;
+            o.state  = false;
         end
         
         function afterFrame(o)
@@ -84,15 +114,15 @@ classdef behavior < neurostim.plugin
             end
             if ~o.done && o.started
                 %The trial ended before the behaviour could be completed. Treat this as a completion.
-                result(o,true,'COMPLETE',false);
-                o.stopTime = o.cic.trialTime;
+                o.outcome  = 'COMPLETE';
+                o.success = true;
             end
-        end 
+        end
     end
     
     methods (Access=protected)
         function update(o,c,curEvent)
-
+            
             %Collect relevant data from a device (e.g. keyboard, eye tracker, touchbar)
             if any(strcmp(o.sampleEvent, curEvent))
                 sample(o,c);
@@ -105,14 +135,14 @@ classdef behavior < neurostim.plugin
             
         end
         
-        function sample(o,c)
+        function sample(o,c) %#ok<INUSD>
             % wrapper for sampleBehavior function, to be overloaded in
             % subclasses. This should store some value(s) of the
             % requested behaviour (i.e. eye position, mouse position)
             % to be later checked by validate(o).
         end
         
-        function on = validate(o)
+        function on = validate(o) %#ok<STOUT,MANU>
             % wrapper for checkBehavior function, to be overloaded in
             % subclasses. Should return true if behavior is currently satisfied and false if not.
         end
@@ -136,58 +166,44 @@ classdef behavior < neurostim.plugin
                 %If behaviour completed
                 if o.inProgress && (c.trialTime>=o.to)
                     %Hooray!
-                    o.result(true,'COMPLETE',o.successEndsTrial);
+                    o.outcome = 'COMPLETE';
+                    o.success = true;
                     return;
                 end
                 
                 %if the FROM deadline is reached without commencement of behavior
                 if ~o.started && (c.trialTime >=o.from)
                     %Violation! Should have started by now.
-                    o.result(false,'FAILEDTOSTART',o.failEndsTrial);
+                    o.outcome = 'FAILEDTOSTART';
+                    o.success = false;
                     return;
                 end
                 
                 %if behaviour commenced, but has been interrupted
                 if ~o.inProgress && o.started
                     %Violation!
-                    o.result(false,'PREMATUREEND',o.failEndsTrial);
+                    o.outcome = 'PREMATUREEND';
+                    o.success = false;
                     return;
                 end
             else
                 % if behaviour is discrete (one-shot)
                 if o.inProgress
-                    o.started = true;
-                    o.result(true,'COMPLETE',o.successEndsTrial);
+                    % A one-shot behavior that is in progress should
+                    % set its success variable to true or false. This can end the trial
+                    % or stay "inProgress"
                 elseif c.trialTime >= o.deadline
-                    o.result(false,'FAILEDTOSTART',o.failEndsTrial);
+                    o.outcome = 'FAILEDTOSTART';
+                    o.success = false;
                 end
             end
             
         end
         
-        function result(o,success,outcome,endTrial)
-            
-            %Register that an outcome has been reached
-            o.stopTime = o.cic.trialTime;
-            o.done = true;
-            
-            %Set a flag indicating success or failure.
-            o.success = success;
-            
-            %Log the outcome as a string (event)
-            o.outcome = outcome;
-            
-            %If requested, set the flag to end the trial
-            if endTrial
-                o.cic.endTrial;
-            end
-            
-            if ~o.success
-                o.writeToFeed(o.outcome);
-            end
-        end
-        
-        function val = checkEventArgs(o,val)
+    end
+    
+    methods (Static)
+        function val = checkEventArgs(val)
             %Make sure that the request is an actual event
             allGood = true;
             
@@ -212,5 +228,5 @@ classdef behavior < neurostim.plugin
                 error('Behavior sampleEvent/validateEvent must be one or more (cell) of ''AFTERFRAME'', ''AFTERTRIAL''');
             end
         end
-    end   
+    end
 end
