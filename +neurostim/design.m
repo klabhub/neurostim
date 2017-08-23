@@ -16,6 +16,13 @@ classdef design <handle & matlab.mixin.Copyable
     % o.fac1..o.facN
     % o.weights
     % o.conditions
+    % 
+    % To specify what happens if a trial is unsuccessful (i.e. wrong answer
+    % or a fixation break, or any required 'behavior' that is not
+    % successfully completed), use the retry parameter.
+    % 
+    % o.retry  ['IGNORE'] ('IGNORE': ignore unsucessful trials ,'RANDOM' : retry the trial at a random later point in the block,'IMMEDIATE': retry the trial in the next trial)
+    % o.maxRetry : [INF] - Specify a maximum number of retries. 
     %
     % Examples :
     % Factors are specified as :
@@ -85,7 +92,9 @@ classdef design <handle & matlab.mixin.Copyable
 
     properties  (SetAccess =public, GetAccess=public)
         randomization='RANDOMWITHOUTREPLACEMENT';
+        retry = 'IGNORE'; %IGNORE,IMMEDIATE,RANDOM
         weights@double=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
+        maxRetry = Inf;
     end
     
     properties         (SetAccess =protected, GetAccess=public)
@@ -94,6 +103,7 @@ classdef design <handle & matlab.mixin.Copyable
         conditionSpecs@cell ={};         % Conditions specifications that deviate from the full factorial
         list@double;                    % The order in which conditions will be run.
         currentTrialIx =0;                   % The condition that will be run in this trial (index in to .list)
+        retryCounter = [];
     end
     
     properties (Dependent)
@@ -104,6 +114,7 @@ classdef design <handle & matlab.mixin.Copyable
         done;                           % True after all conditions have been run
         levels;                         % Vector subscript (factors) for the current condition
         condition;                  % Linear index of the current condition
+        nrRetried;                      % The total number of trials that have been retried.
     end
     
     properties (Constant)
@@ -128,8 +139,12 @@ classdef design <handle & matlab.mixin.Copyable
         
         function v=get.nrTrials(o)
             % Total number of trial in this design (this includes the
-            % effect of weighting)
-            v = numel(o.list);
+            % effect of weighting, but not the retried-trials)
+            v = numel(o.list)-o.nrRetried;
+        end
+        
+        function v = get.nrRetried(o)
+            v = sum(o.retryCounter);
         end
         
         function v= get.nrFactors(o)
@@ -296,9 +311,33 @@ classdef design <handle & matlab.mixin.Copyable
             o2.name = nm;            
         end     
                  
-        function ok = nextTrial(o)
+        % Called from block/afterTrial with information ont he success of
+        % the previous trial. If success is false, the trial can be repeated
+        % at a later time. 
+        function afterTrial(o,success)
+            if success || strcmpi(o.retry,'IGNORE') ||   o.retryCounter(o.condition) >= o.maxRetry
+                return; % Nothing do do: either we don't want to retry, or we've retried the max already.
+            end
+            
+            switch upper(o.retry)
+                    case 'IMMEDIATE'
+                        insertIx = o.currentTrialIx +1 ;                        
+                    case 'RANDOM'
+                        % Add the current to a random position in the list
+                        % (past tbe current), then go to the next in the
+                        % list.
+                        insertIx= randi([o.currentTrialIx+1 numel(o.list)+1]);                        
+                    otherwise
+                        error(['Unknown retry mode: ' o.retry]);
+            end
+            % Put a new item in the list.
+            o.list = cat(1,o.list(1:insertIx-1),o.list(o.currentTrialIx),o.list(insertIx:end));   
+            o.retryCounter(o.condition) = o.retryCounter(o.condition) +1;  % Count the retries              
+        end
+        
+        function ok = beforeTrial(o)           
             % Move the index to the next condition in the trial list.
-            % Returns false if this is not possible (i.e. the design has been run completely).
+            % Returns false if this is not possible (i.e. the design has been run completely).            
             if o.currentTrialIx == numel(o.list)
                 ok = false; % No next trial possible. Caller will have to shuffle the design or pick a new one.
             else
@@ -321,6 +360,7 @@ classdef design <handle & matlab.mixin.Copyable
                 case 'RANDOMWITHOUTREPLACEMENT'
                     o.list=Shuffle(weighted);
             end
+            o.retryCounter = zeros(o.nrConditions,1);
             o.currentTrialIx =1; % Reset the index to start at the first entry
         end
         

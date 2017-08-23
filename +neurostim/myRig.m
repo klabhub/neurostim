@@ -70,7 +70,7 @@ switch computerName
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
-       % smallWindow = true;
+        smallWindow = true;
         c.dirs.output= 'c:/temp';
     case '2014B'
         scrNr = 2;

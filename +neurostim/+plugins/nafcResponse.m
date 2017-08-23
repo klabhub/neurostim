@@ -25,6 +25,7 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('pressedKey',[]);
             o.addProperty('oncePerTrial',false);
             
+            
        end
        
        function beforeTrial(o)            
@@ -67,7 +68,11 @@ classdef nafcResponse < neurostim.plugins.behavior
                %Set flag so that behaviour class detects completion next frame
                o.inProgress = true;   
                o.responded = true;
+               % Two things to set in the parent behavior class:
+               o.outcome = 'COMPLETE';
+               o.success = o.correct; % This 
            end
+           
        end
        
    end
