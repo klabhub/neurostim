@@ -4,6 +4,7 @@ function c = myRig(varargin)
 %Feel free to add your PC/rig to the list
 pin = inputParser;
 pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
+pin.addParameter('eyelink',false);
 pin.parse(varargin{:});
 smallWindow = pin.Results.smallWindow;
 
@@ -85,13 +86,14 @@ switch computerName
         Screen('Preference', 'SkipSyncTests', 2);
     case 'PTB-P'
         Screen('Preference', 'SkipSyncTests', 0);
-        c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
+        c = rig(c,'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         c.screen.colorMode = 'RGB';            
+        c.screen.type  = 'GENERIC';
         smallWindow = false;
         c.timing.vsyncMode =0;
         c.timing.frameSlack = 0.1;
    case 'PTB-P-UBUNTU'
-        c = rig(c,'keyboardNumber',[],'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
+        c = rig(c,'keyboardNumber',[],'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         
         c.screen.colorMode = 'RGB';            
         smallWindow = false;                    
@@ -110,7 +112,7 @@ switch computerName
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        c = rig(c,'eyelink',pin.Results.eyelink,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
         smallWindow = true;
 end
 

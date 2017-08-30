@@ -1146,13 +1146,13 @@ classdef cic < neurostim.plugin
         % the location in the CLUT where they should be placed. 
         function updateOverlay(c,clut,index)
             if nargin<3
-                index = 2:size(clut,1);
+                index = 1:size(clut,1);
                 if nargin <2
                     clut = [];
                 end
             end
             [nrRows,nrCols] = size(c.screen.overlayClut);
-            if nrCols ~=3
+            if ~ismember(nrCols,[0 3])
                 error('The overlay CLUT should have 3 columns (RGB)');
             end
             if nrRows ~=256
@@ -1299,7 +1299,7 @@ classdef cic < neurostim.plugin
         function PsychImaging(c)
             InitializeMatlabOpenGL;
             AssertOpenGL;
-            
+            sca;
             
             c.setupScreen;
             colorOk = loadCalibration(c);
