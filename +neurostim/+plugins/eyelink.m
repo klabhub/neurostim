@@ -25,7 +25,12 @@ classdef eyelink < neurostim.plugins.eyetracker
     %                   'validation_samples = 9',...
     %                   'validation_sequence = 0,1,2,3,4,5,6,7,8',...
     %                   ['validation_targets =' xy]};
-    % Keys:
+    %
+    % The Commands cell array is also the way to change what is sent along
+    % the TCP link from eyelink to neurostim or to change other Eyelink
+    % settings. 
+    % 
+    % Interactive Keys:
     %       F8: Do tracker setup before the next trial starts.
     %       F9: Start a drift correction immediately (assume the subject is
     %       fixating (0,0). Confirm correct fixation by pressing the space
@@ -34,12 +39,14 @@ classdef eyelink < neurostim.plugins.eyetracker
     %       F10: Start drift correction before the next trial. (Eyelink
     %       will draw a target).
     % 
+    % See demos/gazeContingent 
+    %    
     % TK, BK,  2016,2017
     properties
         el@struct;  % Information structure to communicate with Eyelink host
         eye='LEFT'; %LEFT,RIGHT, or BOTH
         valid;
-        commands = {'link_sample_data = LEFT,RIGHT,GAZE,GAZERES,AREA,VELOCITY'};
+        commands = {'link_sample_data = GAZE'};
         edfFile@char = 'test.edf';
         getSamples@logical=true;
         getEvents@logical=false;
@@ -115,16 +122,10 @@ classdef eyelink < neurostim.plugins.eyetracker
             PsychEyelinkDispatchCallback(o.el);
              
             %Tell Eyelink about the pixel coordinates
+
             rect=Screen(o.window,'Rect');
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
             Eyelink('Command', 'calibration_type = HV9');
-            
-            % setup sample rate
-            if any(o.sampleRate==[250, 500, 1000])
-                o.command(horzcat('sample_rate = ', num2str(o.sampleRate)))
-            else
-                c.error('STOPEXPERIMENT','Requested eyelink sample rate is invalid');
-            end
             
             
             
@@ -150,9 +151,9 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             %Pass all commands to Eyelink
             for i=1:length(o.commands)
-                result = Eyelink('Command', o.commands{i}); %TODO: handle results
+                result = Eyelink('Command', o.commands{i});
                 if result ~=0
-                     writeToFeed(o,['Command' o.commands{i} ' failed!']);
+                     writeToFeed(o,['Eyelink Command: ' o.commands{i} ' failed!']);
                 end
             end
                                   

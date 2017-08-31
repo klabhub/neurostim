@@ -92,11 +92,13 @@ switch computerName
         smallWindow = false;
         c.timing.vsyncMode =0;
         c.timing.frameSlack = 0.1;
+        c.eye.sampleRate  = 250;
    case 'PTB-P-UBUNTU'
         c = rig(c,'keyboardNumber',[],'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         
         c.screen.colorMode = 'RGB';            
-        smallWindow = false;                    
+        smallWindow = false;      
+        c.eye.sampleRate  = 250;
   case 'PC2017A'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
