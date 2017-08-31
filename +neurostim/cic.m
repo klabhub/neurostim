@@ -774,6 +774,8 @@ classdef cic < neurostim.plugin
             end
             locPROFILE      = c.PROFILE;
             frameDeadline   = NaN;
+            locHAVEOVERLAY = ~isempty(c.overlayWindow);
+            locOVERLAYRECT = Screen('Rect',c.overlayWindow)-[c.screen.xpixels/2 c.screen.ypixels/2 c.screen.xpixels/2 c.screen.ypixels/2]; % Need this to clear with FillRect
             %ListenChar(-1);
             nrBlocks = numel(c.blockFlow.list);
             for blockCntr=1:nrBlocks
@@ -856,7 +858,9 @@ classdef cic < neurostim.plugin
                         
                         % Start (or schedule) the flip   
                         [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
-                       
+                        if clr && locHAVEOVERLAY
+                            Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
+                        end
                         
                         if c.timing.vsyncMode==0 
                             % Flip returns correct values                            
@@ -902,6 +906,9 @@ classdef cic < neurostim.plugin
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
+                    if c.itiClear && locHAVEOVERLAY
+                        Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros                        
+                    end
                     c.trialStopTime = ptbStimOn*1000;
                     c.frame = c.frame+1;
                     
@@ -1378,7 +1385,7 @@ classdef cic < neurostim.plugin
                         % luminance. 
                         disp(['****You can safely ignore the message about '' clearcolor'' that just appeared***']);
                     end
-                    c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
+                    c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);                    
                     updateOverlay(c,c.screen.overlayClut);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
