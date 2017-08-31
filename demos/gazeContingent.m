@@ -38,9 +38,9 @@ s.X='@reddot.X+5';
 
 % Setup Eyelink
 if  ~isempty(c.pluginsByClass('eyelink'))
-    % Match eye calibration colors to the experiment
-    c.eye.backgroundColor = c.screen.color.background;
+    % Match eye calibration colors to the experiment    
     c.eye.clbTargetColor  = f.color;
+    c.eye.clbTargetSize = 1;
 end
 
 

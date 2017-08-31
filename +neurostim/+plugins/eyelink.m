@@ -3,6 +3,12 @@ classdef eyelink < neurostim.plugins.eyetracker
     %
     % Plugin to interact with the Eyelink eyetracker.
     % 
+    % Set c.eye.clbTargetSize (in your space units) and c.eye.clbTargetColor 
+    % in the color units that you chose with cic.screen.colorMode) to define 
+    % the size and color of the calbriation targets. If you want a different color background
+    % than the main cic.screen.color.background during calibration 
+    % then set c.eye.backgroundColor.
+    % 
     % Properties
     %   getSamples - if true, stores eye position/sample validity on every frame.
     %   getEvents - if true, stores eye event data in eyeEvts.
@@ -93,9 +99,15 @@ classdef eyelink < neurostim.plugins.eyetracker
             % first call it with the mainWindow
             o.el=EyelinkInitDefaults(o.cic.mainWindow);
             % Careful, Eyelink toolbox uses British spelling...
+            if isempty(o.backgroundColor)
+                % If the user did not set the background for the eyelink
+                % then use screen background
+                o.backgroundColor = o.cic.screen.color.background;
+            end
             o.el.backgroundcolour  = o.backgroundColor; 
             o.el.calibrationtargetcolour = o.clbTargetColor;            
             o.el.msgfontcolour = o.cic.screen.color.text;
+
             o.el.calibrationtargetsize = o.clbTargetSize/o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
                 o.el.calibrationtargetwidth = o.clbTargetSize/2/o.cic.screen.width*100; %default to half radius
