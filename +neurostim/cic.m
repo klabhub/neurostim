@@ -775,7 +775,9 @@ classdef cic < neurostim.plugin
             locPROFILE      = c.PROFILE;
             frameDeadline   = NaN;
             locHAVEOVERLAY = ~isempty(c.overlayWindow);
-            locOVERLAYRECT = Screen('Rect',c.overlayWindow)-[c.screen.xpixels/2 c.screen.ypixels/2 c.screen.xpixels/2 c.screen.ypixels/2]; % Need this to clear with FillRect
+            if locHAVEOVERLAY
+                locOVERLAYRECT = Screen('Rect',c.overlayWindow)-[c.screen.xpixels/2 c.screen.ypixels/2 c.screen.xpixels/2 c.screen.ypixels/2]; % Need this to clear with FillRect
+            end
             %ListenChar(-1);
             nrBlocks = numel(c.blockFlow.list);
             for blockCntr=1:nrBlocks
