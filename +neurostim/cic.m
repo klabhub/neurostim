@@ -16,7 +16,7 @@ classdef cic < neurostim.plugin
     % experiment
     properties (GetAccess=public, SetAccess =public)
         mirrorPixels@double   = []; % Window coordinates.[left top width height].
-        
+        cursor = 'arrow';        % Cursor 'none','arrow'; 
         dirs                    = struct('root','','output','','calibration','')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
         subjectNr@double        = [];
         paradigm@char           = 'test';
@@ -72,7 +72,7 @@ classdef cic < neurostim.plugin
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         
         frame = 0;      % Current frame
-        cursorVisible = false; % Set it through c.cursor =
+        
         
         %% Internal lists to keep track of stimuli, , and blocks.
         stimuli;    % Vector of stimulus  handles.
@@ -113,8 +113,7 @@ classdef cic < neurostim.plugin
         fullFile;       % Target file name including path
         fullPath;       % Target path name
         subject@char;   % Subject
-        startTimeStr@char;  % Start time as a HH:MM:SS string
-        cursor;         % Cursor 'none','arrow'; see ShowCursor
+        startTimeStr@char;  % Start time as a HH:MM:SS string     
         blockName;      % Name of the current block
         trialTime;      % Time elapsed (ms) since the start of the trial
         nrTrialsTotal;   % Number of trials total (all blocks)        
@@ -206,19 +205,6 @@ classdef cic < neurostim.plugin
             end
         end
         
-        
-        function set.cursor(c,value)
-            if ischar(value) && strcmpi(value,'none')
-                value = -1;
-            end
-            if value==-1  % neurostim convention -1 or 'none'
-                HideCursor(c.mainWindow);
-                c.cursorVisible = false;
-            else
-                ShowCursor(value,c.mainWindow);
-                c.cursorVisible = true;
-            end
-        end
         
         function setupScreen(c,value)
             if isempty(c.screen.number)
@@ -369,6 +355,17 @@ classdef cic < neurostim.plugin
             
             
             
+        end
+        
+        function showCursor(c,name)
+            if nargin <2
+                name =c.cursor;
+            end
+            if strcmpi(name,'none')
+                HideCursor(c.mainWindow);
+            else
+                ShowCursor(name,c.mainWindow);
+            end
         end
         
         function nextTrial(c)
@@ -526,7 +523,7 @@ classdef cic < neurostim.plugin
             % to be executed in.
             
             
-            defaultOrder = cat(2,{c.stimuli.name},{c.plugins.name});
+            defaultOrder = cat(2,{c.plugins.name},{c.stimuli.name});
             if nargin==1
                 newOrder = defaultOrder;
             else
@@ -759,6 +756,7 @@ classdef cic < neurostim.plugin
             
             %% Start preparation in all plugins.
             c.window = c.mainWindow; % Allows plugins to use .window 
+            showCursor(c);
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
             DrawFormattedText(c.mainWindow, 'Press any key to start...', c.center(1), 'center', c.screen.color.text);
@@ -768,7 +766,20 @@ classdef cic < neurostim.plugin
                         
             FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
             if c.timing.vsyncMode==0
-                ITSAMISS =  0.15*FRAMEDURATION; %Allow up to 15% overshoot in frame flip time.
+                % If beamposition queries are working, then the time
+                % between flips will be an exact multiple of the frame
+                % duration. In that case testing whether a frame is late by
+                % 0.1, 0.5 or 0.9 of a frame is all the same. But if
+                % beamposition queries are not working (many windows
+                % systems), then there is slack in the time between vbl
+                % times as returned by Flip; a vlbTime that is 0.5 of a
+                % frame too late, could still have flipped at the right
+                % time... (and then windows went shopping for a bit).
+                % We allow 50% of slack to account for noisy timing. 
+                % If beamposition queries are correct (the startup routine of PTB runs the tests but defaults to not using
+                % them even if they are ok), then use Screen('Preference', 'VBLTimestampingMode',3)
+                % to force their use on windows. 
+                ITSAMISS =  0.5*FRAMEDURATION; % 
             else
                 ITSAMISS = c.timing.frameSlack*FRAMEDURATION;
             end
@@ -778,7 +789,7 @@ classdef cic < neurostim.plugin
             if locHAVEOVERLAY
                 locOVERLAYRECT = Screen('Rect',c.overlayWindow)-[c.screen.xpixels/2 c.screen.ypixels/2 c.screen.xpixels/2 c.screen.ypixels/2]; % Need this to clear with FillRect
             end
-            %ListenChar(-1);
+            ListenChar(-1);
             nrBlocks = numel(c.blockFlow.list);
             for blockCntr=1:nrBlocks
                 c.flags.block = true;
@@ -827,12 +838,13 @@ classdef cic < neurostim.plugin
                     PsychHID('KbQueueFlush');
                     
                     Priority(MaxPriority(c.mainWindow));
+                    %draw = nan(1,1000); % Commented out. See drawingFinished code below
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
                         
                         %% Check for end of trial
-                        if c.frame-1 >= c.ms2frames(c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
+                        if c.frame-1 >= ms2frames(c,c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
                             c.flags.trial=false; % This will be the last frame.
                             clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
                         else
@@ -841,8 +853,11 @@ classdef cic < neurostim.plugin
                         
                         
                         base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
-                        Screen('DrawingFinished',c.mainWindow);
-                        base(c.pluginOrder,neurostim.stages.AFTERFRAME,c);
+                        % This commented out code allows measuring the draw
+                        % times.
+                        %draw(c.frame) = Screen('DrawingFinished',c.mainWindow,1-clr,true);
+                        Screen('DrawingFinished',c.mainWindow,1-clr);
+                        
                         
                         KbQueueCheck(c);
                         
@@ -900,8 +915,12 @@ classdef cic < neurostim.plugin
                         if c.getFlipTime
                             c.flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;% Used by stimuli to log their onset
                             c.getFlipTime=false;
-                        end                        
+                        end
                         
+                        % The current frame has been flipped. Process
+                        % afterFrame functions in all plugins
+                        base(c.pluginOrder,neurostim.stages.AFTERFRAME,c);
+                       
                     end % Trial running
                                         
                     Priority(0);
@@ -948,13 +967,13 @@ classdef cic < neurostim.plugin
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
             c.KbQueueStop;
-            if c.keyAfterExperiment; KbWait(c.kbInfo.pressAnyKey);end
+            if c.keyAfterExperiment; disp('This is the end... Press any key to continue'); KbWait(c.kbInfo.pressAnyKey);end
             
             %Prune the log of all plugins/stimuli and cic itself
             pruneLog([c.pluginOrder c]);
             c.saveData;
             Screen('CloseAll');
-            %ListenChar(0);
+            ListenChar(0);
             if c.PROFILE; report(c);end
         end
         

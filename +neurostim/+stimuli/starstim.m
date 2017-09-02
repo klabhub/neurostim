@@ -1,4 +1,4 @@
-classdef starstim < neurostim.stimulus
+ classdef starstim < neurostim.stimulus
     % A stimulus that can stimulate electrically using the StarStim device from
     % Neurelectrics.
     %
@@ -21,7 +21,7 @@ classdef starstim < neurostim.stimulus
     % protocol. Leaving the step name blank creates cleaner file names
     % (YYYMMDDHHMMSS.subject.edf). This plugin creates a subdirectory with
     % the name of the Neurostim file to store the NIC output files (this
-    % assumes Neurostim runs on the same machine as the NIC).
+    % assumes Neurostim runs on the same machine as the NIC; see below).
     %
     % There are different modes to operate this plugin, with increasing levels of
     % temporal and parameter control.  (.mode)
@@ -61,6 +61,15 @@ classdef starstim < neurostim.stimulus
     % recommended (to ensure that every ITI is 2 s).
     %
     % See startstimDemo for more details and examples
+    % 
+    % PERFORMANCE:
+    %  The NIC software, especially when it is actively stimulating, puts a
+    %  heavy load on the CPU and, if running on the same machine as
+    %  Neurostim, can lead to frequent framedrops (which, becuase it
+    %  depends on stimulation, coudl correlate with an experimental
+    %  design!). So it is highly recommended to run NIC on a separate
+    %  machine, connecting to it via TCP/IP is trivial (just provide the IP
+    %  number of the NIC machine in the constructor)
     %
     % BK - Feb 2016, 2017
     
@@ -265,8 +274,8 @@ classdef starstim < neurostim.stimulus
                 [ret, stts, o.sock] = MatNICConnect(o.host);
                 o.checkRet(ret,['Host:' stts]);
                 o.mustExit = true;
-                [pth,file] = fileparts(o.cic.fullFile);
-                pth = fullfile(pth,file);
+                
+                pth = o.cic.fullFile; % This is without the extension
                 if ~exist(pth,'dir')
                     mkdir(pth);
                 end
