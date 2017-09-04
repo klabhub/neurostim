@@ -967,13 +967,14 @@ classdef cic < neurostim.plugin
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
             c.KbQueueStop;
-            if c.keyAfterExperiment; disp('This is the end... Press any key to continue'); KbWait(c.kbInfo.pressAnyKey);end
-            
             %Prune the log of all plugins/stimuli and cic itself
             pruneLog([c.pluginOrder c]);
             c.saveData;
-            Screen('CloseAll');
             ListenChar(0);
+            if c.keyAfterExperiment; disp('This is the end... Press any key to continue'); KbWait(c.kbInfo.pressAnyKey);end
+            
+            Screen('CloseAll');
+            
             if c.PROFILE; report(c);end
         end
         
