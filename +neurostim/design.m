@@ -330,8 +330,11 @@ classdef design <handle & matlab.mixin.Copyable
                     otherwise
                         error(['Unknown retry mode: ' o.retry]);
             end
-            % Put a new item in the list.
-            o.list = cat(1,o.list(1:insertIx-1),o.list(o.currentTrialIx),o.list(insertIx:end));   
+            % Put a new item in the list.            
+            o.list = cat(1,o.list(1:insertIx-1),o.list(o.currentTrialIx));
+            if insertIx<=numel(o.list)
+                o.list= cat(1,o.list,o.list(insertIx:end));
+            end
             o.retryCounter(o.condition) = o.retryCounter(o.condition) +1;  % Count the retries              
         end
         
