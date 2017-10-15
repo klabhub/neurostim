@@ -12,6 +12,10 @@ uniform int rgbColor;
 uniform vec2 size;
 uniform int mask;
 
+uniform float multiGaborsPhaseOffset[10];
+uniform float multiGaborsOriOffset[10];
+uniform int multiGaborsN;
+
 /* Attributes passed from Screen(): See the ProceduralShadingAPI.m file for infos: */
 attribute vec4 sizeAngleFilterMode;
 attribute vec4 modulateColor;
