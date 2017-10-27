@@ -81,7 +81,7 @@ switch computerName
         smallWindow = false;
     case '2014C'
         % Presentation computer
-       c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',133,'screenHeight',75, 'frameRate',60,'screenNumber',1);
+        c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',133,'screenHeight',75, 'frameRate',60,'screenNumber',1);
         Screen('Preference', 'SkipSyncTests', 2);
     case 'PTB-P'
         Screen('Preference', 'SkipSyncTests', 0);
@@ -95,7 +95,7 @@ switch computerName
         
         c.screen.colorMode = 'RGB';            
         smallWindow = false;                    
-  case 'PC2017A'
+    case 'PC2017A'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
@@ -104,7 +104,16 @@ switch computerName
         smallWindow = true;
     case 'ROOT-PC'
         c = rig(c,'xpixels',1280,'ypixels',1024,'screenWidth',40,'frameRate',85,'screenNumber',max(Screen('screens')));
-        smallWindow = false;    
+        smallWindow = false;
+    case 'ns2'
+        % MBI stimulus machine (Ubuntu 16.04)
+%         c = rig(c,'eyelink',false,'mcc',false,'xpixels',2560,'ypixels',1440,'screenWidth',59.7,'frameRate',60,'screenNumber',max(Screen('screens')),'keyboardNumber',8); % Dell
+%         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',53.1,'frameRate',60,'screenNumber',max(Screen('screens'))); % BenQ
+        scrNr = max(Screen('screens'));
+        fr = Screen('FrameRate',scrNr);
+        rect = Screen('rect',scrNr);
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',53.1,'frameRate',fr,'screenNumber',scrNr); % BenQ XT2411z, 1920x1080 @ 120Hz?
+        smallWindow = false; %true;
     otherwise
         warning('This computer is not recognised. Using default settings.');
         scrNr = max(Screen('screens'));
