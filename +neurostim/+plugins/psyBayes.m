@@ -34,17 +34,24 @@ classdef psyBayes < neurostim.plugins.adaptive
             % settings for a psychometric function for orientation (from
             % the psytest_orientation demo in the psybayes toolbox.
             %
+            % Note that increasing the number of points in any of the three
+            % estimated variables, or the range of the x variable all have
+            % an exponential influence on the time it takes to update the
+            % estimates. This computation adds to the minimum duration of the 
+            % intertrialinterval.
+            %
             
             if exist('psybayes.m','file') ~=2
                 error('Could not find the psybayes toolbox. Clone it from github (https://github.com/lacerbi/psybayes.git) and add it to your path before using neurostim.plugins.psyBayes');
             end
                 
             p = inputParser;
+            p.StructExpand = true;
             p.addParameter('method','ent',@(x) (ischar(x) && ismember(x,{'ent','var'}))); % Use entropy maximization or variance maximization.
             p.addParameter('vars',[1 1 1],@(x) (all(size(x)== [1 3]) && isnumeric(x))); % [1 0 0 ] means estimate mu but not sigma and lambda. [1 1 1] is estimate all.
             p.addParameter('psychofun','@(x,mu,sigma,lambda,gamma) psyfun_yesno(x,mu,sigma,lambda,gamma,@psynormcdf);'); % The psychometric function, as a string
-            p.addParameter('rangeX',(-90:90));        % Stimulus grid in orientation degrees  [lower bound, upper bound, number of points]
-            p.addParameter('rangeMu',[-12 12 31]);    % Range of tested PSE
+            p.addParameter('x',(-90:90));        % Stimulus grid in orientation degrees  
+            p.addParameter('rangeMu',[-12 12 31]);    % Range of tested PSE[lower bound, upper bound, number of points]
             p.addParameter('rangeSigma',[0.5 45 41]); % The range for sigma is automatically converted to log spacing
             p.addParameter('rangeLambda',[0 0.5 21]); % Lapse rate
             p.addParameter('priorsMu',[0 3]);         % mean and sigma of (truncated) Student's t prior over MU
@@ -70,7 +77,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             % Copy the parameter settings to a struct.
             psy = [];
             psy.psychofun = p.Results.psychofun;
-            psy.x = p.Results.rangeX;
+            psy.x = p.Results.x;
             psy.range.mu = p.Results.rangeMu;     % Psychometric function mean
             psy.range.sigma = p.Results.rangeSigma;
             psy.range.lambda = p.Results.rangeLambda;
@@ -106,8 +113,10 @@ classdef psyBayes < neurostim.plugins.adaptive
         
         function plot(o)
             % Call the psybayes_plot function on the current state.
-            figure('name',o.name)
-            psybayes_plot(o.psy);
+            for i=1:numel(o)
+            figure('name',o(i).name)
+            psybayes_plot(o(i).psy);
+            end
         end
         
         function [m,sd,hdr]= posterior(oo,alpha,plotIt)

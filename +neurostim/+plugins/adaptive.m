@@ -60,13 +60,20 @@ classdef (Abstract) adaptive < neurostim.plugin
             % Duplicate an adaptive parm ; requires setting a new unique
             % id. Note that if you ask for more than one duplicate, the
             % first element in the array of duplicates will be the
-            % original, all others are new. If you ask for one duplicate
-            % we'll assume you really want to have a new one.
+            % original, all others are new. 
+            % If you ask for one duplicate, with nm==1,
+            % we'll assume you really just want the one you already have (so no duplicate).
+            % If you really want one copy, call this without the second argument.
+            
             if nargin<2
                 nm = 1;
+                duplicateSingleton = true;
+            else 
+                duplicateSingleton = false;              
             end
-            if prod(nm)>1
+            if prod(nm)>1 || ~duplicateSingleton                
                 o(1) = o1;
+                % Recursive call to create copies
                 for i=2:prod(nm)                
                     o(i) = duplicate(o1) ; %#ok<AGROW> These are copies.                   
                 end
@@ -76,6 +83,7 @@ classdef (Abstract) adaptive < neurostim.plugin
                 newName = strrep(o1.name,num2str(o1.uid),num2str(u));
                 o =duplicate@neurostim.plugin(o1,newName);
                 o.uid = u;
+                o.design = ''; % Not yet associated with a design.
             end
         end
         
