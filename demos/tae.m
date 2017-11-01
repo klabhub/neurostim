@@ -15,6 +15,7 @@
 
 
 import neurostim.*
+simulatedObserver =  true; % Simulate an observer to test the logic of the experiment
 
 %% Setup CIC and the stimuli.
 c = myRig;                   % Create Command and Intelligence Center...
@@ -66,6 +67,10 @@ k.on                = '@testGabor.stopTime';    % Responses are accepted only af
 k.deadline          = Inf;                      % There is no time pressure to give an answer.
 k.keys              = {'a' 'l'};
 k.keyLabels         = {'ccw', 'cw'};
+if simulatedObserver
+    k.simWhen = 1500;% When should the simulated observer press a key.
+    k.simWhat =  '@double(mod(testGabor.orientation,180) < 90)+1'; % Which key should the simulated observer press?  (Perfect observer key==1 for ccw, key==2 for cw) - this observer has no TAE!
+end
 % Trial ends when the choice has been made.
 c.trialDuration = '@choice.stopTime';           % The trial duration ( a cic property) is linked to the end of the choice; once a choice is made, the trial ends. 
 
@@ -123,13 +128,14 @@ end
 
 %% Retrieve parameters and responses from the CIC object.
 [cw,tr]  = get(c.choice.prms.pressedInd,'atTrialTime',inf); % Last value in the trial is the answer
-stayTr = find(~cellfun(@isempty,cw)); % Some could be empty
-cw = [cw{:}]==2; % 2 means CW.
+out =isnan(cw);
+cw = cw(~out)==2; % 2 means CW.
+tr = tr(~out);
 % Get values from the trials where we have key presses. (And values after
 % the start of the stimulus to make sure we get the values that were
 % actually used. 'atTrialTime', inf would work too.
-testOrientation =get(c.testGabor.prms.orientation,'after','startTime','trial',stayTr); 
-adaptOrientation = get(c.adapt.prms.orientation,'after','startTime','trial',stayTr);
+testOrientation =get(c.testGabor.prms.orientation,'after','startTime','trial',tr); 
+adaptOrientation = get(c.adapt.prms.orientation,'after','startTime','trial',tr);
 
 %% Pull adapt and test apart,
 uA = unique(adaptOrientation);
