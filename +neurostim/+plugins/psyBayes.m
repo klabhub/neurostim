@@ -139,6 +139,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             m = nan(3,nrO);
             sd = nan(3,nrO);
             hdr = nan(3,2,nrO);
+            conditionLabel = cell(1,nrO);
             for j=1:nrO
                 try
                 for i=find(oo(j).vars)
@@ -162,7 +163,6 @@ classdef psyBayes < neurostim.plugins.adaptive
                     y = y /sum(y);
                     m(i,j) = sum(y.*x);
                     sd(i,j) = sqrt(sum(y.*((x - m(i,j)).^2)));
-                    
                     if sum(abs(diff(ix)) >2)
                         warning('This HDR is non-contiguous');
                         % Better return nan than the wrong limits..
@@ -177,10 +177,11 @@ classdef psyBayes < neurostim.plugins.adaptive
                     lasterr
                     disp (['Failed to compute posterior on ' oo(j).name])
                 end
+                conditionLabel{j} = [oo(j).design ' (' num2str(oo(j).conditions') ')' ];                 
             end
             
             if plotIt
-                parms = {'\mu','\sigma','\lambda'};
+                parms = {'\mu','\sigma','\lambda'};                
                 for i=1:3
                     subplot(1,3,i);
                     hold on
@@ -188,8 +189,9 @@ classdef psyBayes < neurostim.plugins.adaptive
                     h.FaceColor = 'w';
                     errorbar((1:size(m,2))',m(i,:)',squeeze(hdr(i,1,:))-m(i,:)',squeeze(hdr(i,2,:))-m(i,:)','*')
                     ylabel (parms{i})
-                    xlabel 'Conditions'
-                    set(gca,'XTick',1:size(m,2))
+                    xlabel 'Psy'
+                    
+                    set(gca,'XTick',1:size(m,2),'XTickLabel',conditionLabel)
                 end
             end
         end

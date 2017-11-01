@@ -285,7 +285,7 @@ classdef design <handle & matlab.mixin.Copyable
                             val = num2str(val);
                         elseif isobject(val)
                             val = val.name;
-                        else
+                        elseif ~ischar(val)
                             val = '?';
                         end
                         this = char(this,strcat(spcs{i,j,k}{prm,1},'.',spcs{i,j,k}{prm,2},'=',val));
@@ -295,6 +295,8 @@ classdef design <handle & matlab.mixin.Copyable
                     else
                         this =char(this,['Weight=' num2str(wghts)]);                        
                     end
+                    cndNr = ['Condition: ' num2str(sub2ind([nrY nrX nrZ],i,j,k)) ];
+                    this  = char(this,cndNr);
                     text(j,i,k,this,'HorizontalAlignment','Left','Interpreter','none','VerticalAlignment','middle')
                 end               
             end
