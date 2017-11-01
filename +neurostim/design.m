@@ -109,7 +109,8 @@ classdef design <handle & matlab.mixin.Copyable
     properties (Dependent)
         nrConditions;                   % The total number of conditions in this design
         nrFactors;                      % The number fo factors in the design
-        nrTrials;                       % The total number of trials (takes .weights into account)
+        nrPlannedTrials;                % The total number of planned trials (takes .weights into account)
+        nrTrials;                       % The total number of trials that will be run (includes retries).
         nrLevels;                       % The levels per factor
         done;                           % True after all conditions have been run
         levels;                         % Vector subscript (factors) for the current condition
@@ -137,9 +138,14 @@ classdef design <handle & matlab.mixin.Copyable
             v = ismember(o.currentTrialIx ,[0 o.nrTrials]);
         end
         
-        function v=get.nrTrials(o)
+        function v = get.nrTrials(o)
+            v= numel(o.list); % All trials, including retries
+        end
+        
+        function v=get.nrPlannedTrials(o)
             % Total number of trial in this design (this includes the
-            % effect of weighting, but not the retried-trials)
+            % effect of weighting, but not the retried-trials) (so it
+            % reflects the number of planned trials).
             v = numel(o.list)-o.nrRetried;
         end
         
@@ -314,8 +320,9 @@ classdef design <handle & matlab.mixin.Copyable
         % Called from block/afterTrial with information ont he success of
         % the previous trial. If success is false, the trial can be repeated
         % at a later time. 
-        function afterTrial(o,success)
+        function retry = afterTrial(o,success)
             if success || strcmpi(o.retry,'IGNORE') ||   o.retryCounter(o.condition) >= o.maxRetry
+                retry = 0;
                 return; % Nothing do do: either we don't want to retry, or we've retried the max already.
             end
             
@@ -330,11 +337,13 @@ classdef design <handle & matlab.mixin.Copyable
                     otherwise
                         error(['Unknown retry mode: ' o.retry]);
             end
-            % Put a new item in the list.            
-            o.list = cat(1,o.list(1:insertIx-1),o.list(o.currentTrialIx));
+            % Put a new item in the list.                       
+            newList = cat(1,o.list(1:insertIx-1),o.list(o.currentTrialIx));
             if insertIx<=numel(o.list)
-                o.list= cat(1,o.list,o.list(insertIx:end));
+                newList= cat(1,newList,o.list(insertIx:end));
             end
+            o.list = newList;
+            retry = 1;
             o.retryCounter(o.condition) = o.retryCounter(o.condition) +1;  % Count the retries              
         end
         

@@ -11,6 +11,8 @@ classdef nafcResponse < neurostim.plugins.behavior
     
     properties
         responded@logical=false;
+        
+       
     end
 
    methods (Access = public)
@@ -21,9 +23,11 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('keys',{},'validate',@iscellstr);
             o.addProperty('correctKey',[],'validate',@isnumeric);
             o.addProperty('correct',false);
-            o.addProperty('pressedInd',[]);
-            o.addProperty('pressedKey',[]);
+            o.addProperty('pressedInd',NaN);
+            o.addProperty('pressedKey',NaN);
             o.addProperty('oncePerTrial',false);
+            o.addProperty('simWhen','');
+            o.addProperty('simWhat','');
             
             
        end
@@ -81,6 +85,13 @@ classdef nafcResponse < neurostim.plugins.behavior
        
        function inProgress = validate(o)
           inProgress = o.inProgress;
+          
+          if ~isempty(o.simWhen)
+            if o.cic.trialTime>o.simWhen
+                keyboard(o,o.keys{o.simWhat});
+            end
+          end
+          
        end              
           
    end  

@@ -59,7 +59,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             p.addParameter('priorsLambda',[1 19]);  % alpha and beta parameters of beta pdf over LAMBDA
             p.addParameter('unitsX','deg');         % Units are used only for graphs.
             p.addParameter('unitsMu','deg');
-            p.addParameter('unitsSigma','logDeg');
+            p.addParameter('unitsSigma','deg');
             p.addParameter('unitsLambda','');
             p.addParameter('unitsPsychoFun',{'Normal'});
             
@@ -95,14 +95,14 @@ classdef psyBayes < neurostim.plugins.adaptive
             
         end
         
-        function update(o,correct)
+        function update(o,response)
             % The abstract adaptive parent class requires that we implement this
             % This is called after each trial. Update the internal value. The second arg is the success of the current trial, as determined
             % in the parent class, using the trialResullt function
             % specified by the user when constructing an object of this
             % class.
             parmValue = getValue(o); % This is the value that we used previously
-            [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,correct); % Call to update.
+            [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
         end
         
         function v =getValue(o)

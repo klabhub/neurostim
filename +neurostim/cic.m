@@ -124,7 +124,7 @@ classdef cic < neurostim.plugin
     % set and get methods for dependent properties
     methods
         function v=get.nrTrialsTotal(c)
-            v= sum([c.blocks(c.blockFlow.list).nrTrials]);
+            v= sum([c.blocks(c.blockFlow.list).nrPlannedTrials]) + sum([c.blocks.nrRetried]);
         end
         
         function v= get.nrStimuli(c)

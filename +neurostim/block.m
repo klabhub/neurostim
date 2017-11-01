@@ -52,6 +52,7 @@ classdef block < dynamicprops
         afterFunction;
         beforeKeyPress@logical = true;
         afterKeyPress@logical = true;
+        nrRetried = 0;
     end
     
     properties (GetAccess=public, SetAccess = protected)
@@ -65,6 +66,7 @@ classdef block < dynamicprops
         nrConditions;
         nrDesigns;
         nrTrials;
+        nrPlannedTrials;
         condition;  % Linear index, current condition
         done@logical; % Any trials left in this block?
         design;  % current design
@@ -81,8 +83,12 @@ classdef block < dynamicprops
             v = o.designIx == numel(o.list) && o.design.done;
         end
         
-        function v = get.nrTrials(o)            
-            v = sum([o.designs(o.list).nrTrials]);
+        function v = get.nrPlannedTrials(o)
+            v =sum([o.designs(o.list).nrPlannedTrials]);
+        end
+        
+        function v = get.nrTrials(o)
+            v = o.nrRetried+o.nrPlannedTrials;             
         end
         
         function v = get.condition(o)
@@ -161,7 +167,7 @@ classdef block < dynamicprops
               for i=1:numel(behaviors)
                 success = success && (~behaviors(i).required || behaviors(i).success);
               end    
-              afterTrial(o.design,success); % Update the design object
+              o.nrRetried = o.nrRetried + afterTrial(o.design,success); % Update the design object
         end
         
         function beforeTrial(o,c)
