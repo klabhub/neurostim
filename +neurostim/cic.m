@@ -986,13 +986,11 @@ classdef cic < neurostim.plugin
                 disp('Trying to save the data...');                
                 try                                           
                     c.saveData;
-                    disp('Saved the (partial) data !');
-                    rethrow(me);
+                    disp('Saved the (partial) data !');                    
                 catch me2
-                    disp(['Saving the data failed: ' me2.message]);
-                    
+                    disp(['Saving the data failed: ' me2.message]);                    
                 end     
-                disp('Giving keyboard control to allow you to do something...');                               
+                disp('Giving keyboard control to allow you to do something...');                                
                 keyboard;
             end            
             ListenChar(0);
