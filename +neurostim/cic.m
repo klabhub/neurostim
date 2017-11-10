@@ -561,8 +561,10 @@ classdef cic < neurostim.plugin
         
         function disp(c)
             % Provide basic information about the CIC
-            disp(char(['CIC. Started at ' datestr(c.startTime,'HH:MM:SS') ],...
-                ['Stimuli:' num2str(c.nrStimuli) ' Conditions:' num2str(c.nrConditions) ' Trials:' num2str(c.nrTrials) ]));
+            for i=1:numel(c)
+                disp(char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
+                    ['Stimuli:' num2str(c(i).nrStimuli) ' Conditions:' num2str(c(i).nrConditions) ' Trials:' num2str(c(i).nrTrials) ]));
+            end            
         end
         
         function endTrial(c)
@@ -791,6 +793,10 @@ classdef cic < neurostim.plugin
             end
             ListenChar(-1);
             nrBlocks = numel(c.blockFlow.list);
+            try 
+                % Big try-catch around everything once it starts
+                % running
+            
             for blockCntr=1:nrBlocks
                 c.flags.block = true;
                 c.block = c.blockFlow.list(blockCntr); % Logged.
@@ -819,7 +825,7 @@ classdef cic < neurostim.plugin
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
                 %% Start the trials in the block
-                c.blockTrial =0;
+                  c.blockTrial =0;
                 while ~c.blocks(c.block).done  
                     c.trial = c.trial+1;
                     
@@ -970,11 +976,28 @@ classdef cic < neurostim.plugin
             %Prune the log of all plugins/stimuli and cic itself
             pruneLog([c.pluginOrder c]);
             c.saveData;
+            catch me
+                % Something went wrong before or during saving.
+                % Let's try saving the data
+                ListenChar(0);
+                Screen('CloseAll');        
+                disp('************************************');
+                disp(['Something went wrong during the experiment (' me.message ')']); 
+                disp('Trying to save the data...');                
+                try                                           
+                    c.saveData;
+                    disp('Saved the (partial) data !');
+                    rethrow(me);
+                catch me2
+                    disp(['Saving the data failed: ' me2.message]);
+                    
+                end     
+                disp('Giving keyboard control to allow you to do something...');                               
+                keyboard;
+            end            
             ListenChar(0);
-            if c.keyAfterExperiment; disp('This is the end... Press any key to continue'); KbWait(c.kbInfo.pressAnyKey);end
-            
-            Screen('CloseAll');
-            
+            if c.keyAfterExperiment; disp('This is the end... Press any key to continue'); KbWait(c.kbInfo.pressAnyKey);end            
+            Screen('CloseAll');            
             if c.PROFILE; report(c);end
         end
         
