@@ -337,7 +337,7 @@ classdef cic < neurostim.plugin
             % Keys handled by CIC
             c.addKey('ESCAPE','Quit');
             c.addKey('n','Next Trial');
-            
+            c.addKey('F1','Toggle Cursor');
             
             c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
             c.addProperty('frameDrop',[NaN NaN]);
@@ -362,10 +362,11 @@ classdef cic < neurostim.plugin
                 name =c.cursor;
             end
             if strcmpi(name,'none')
-                HideCursor(c.mainWindow);
+                HideCursor(c.mainWindow);                
             else
                 ShowCursor(name,c.mainWindow);
             end
+            c.cursor = name;
         end
         
         function nextTrial(c)
@@ -489,6 +490,13 @@ classdef cic < neurostim.plugin
                     else
                         c.EscPressedTime=GetSecs;
                     end   
+                case 'F1'
+                    %Toggle the cursor visibility
+                    if strcmpi(c.cursor,'none')
+                        showCursor(c,'arrow');
+                    else
+                        showCursor(c,'none');
+                    end
                 otherwise
                     error(c,'STOPEXPERIMENT',['Unknown key ' key '. Did you forget to specify a callback function (check addKey)?']);
             end
