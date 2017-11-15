@@ -388,15 +388,13 @@ classdef parameter < handle & matlab.mixin.Copyable
             t = o.plg.cic.prms.trial.time;   % Start of the trial            
             t(tr==0) = [];
             t(isnan(t))= []; 
-            assert(numel(t)<=o.plg.cic.nrTrialsTotal);
+            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match then number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(tr));            
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
             trStartT = trialStartTime(o);
             tr = arrayfun(@(t,t0) neurostim.parameter.align(t,trStartT,true),eventTime);%,'UniformOutput',false);
-            assert(~any(tr> o.plg.cic.nrTrialsTotal));
-            
-            
+            assert(~any(tr> o.plg.cic.nrTrialsTotal),'Some trial numbers are larger than the max number of trials (%d)',o.plg.cic.nrTrialsTotal);                        
         end
         
         function trTime= eTime2TrialTime(o,eventTime)
