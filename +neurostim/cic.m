@@ -23,6 +23,7 @@ classdef cic < neurostim.plugin
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         fileOverwrite           = false; % Allow output file overwrite.
+        saveEveryN              = 10;
         keyBeforeExperiment     = true;
         keyAfterExperiment      =true;
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
@@ -684,7 +685,12 @@ classdef cic < neurostim.plugin
                 message=collectPropMessage(c);
                 c.writeToFeed(message);
            end            
-           c.collectFrameDrops;             
+           c.collectFrameDrops;    
+           if rem(c.trial,c.saveEveryN)==0
+               tic
+               c.saveData;
+               toc
+           end
         end
         
         
@@ -1010,7 +1016,7 @@ classdef cic < neurostim.plugin
         function saveData(c)
             filePath = horzcat(c.fullFile,'.mat');
             save(filePath,'c');
-            disp(horzcat('Data saved to ',filePath));
+            disp(horzcat('Data for trials 1:', num2str(c.trial),' saved to ',filePath));
         end
         
         function delete(c) %#ok<INUSD>
