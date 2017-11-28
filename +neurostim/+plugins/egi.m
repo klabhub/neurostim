@@ -86,12 +86,12 @@ classdef egi < neurostim.plugin
     methods (Access=protected)
         % Connect to a named host
         function connect(o)
-            disp(['Trying to connect to EGI-host ' o.host ':' num2str(o.port)]);
+            o.writeToFeed('Trying to connect to EGI-host %s:%d',o.host,o.port);
             [status,err] = NetStation('Connect',o.host,o.port);
             if o.checkStatusOk(status,err)
-                disp(['Connected to EGI-host ' o.host ':' num2str(o.port) ]);
+                o.writeToFeed('Connected to EGI-host %s:%d',o.host,o.port);
             else
-                disp(['Failed to connect. Make sure ECI Events for TCP port ' num2str(o.port) ' is checked in Netstation']);
+                o.writeToFeed('Failed to connect. Make sure ECI Events for TCP port %d is checked in Netstation',o.port);
             end
         end 
         
@@ -99,7 +99,7 @@ classdef egi < neurostim.plugin
         function disconnect(o)
             [status,err] = NetStation('Disconnect');
             if o.checkStatusOk(status,err)
-                disp(['Disconnected from EGI-host ' o.host ':' num2str(o.port) ]);
+                o.writeToFeed('Disconnected from EGI-host %s:%d',o.host,o.port);
             end
         end
         
@@ -115,7 +115,7 @@ classdef egi < neurostim.plugin
             % Now use that mean offset 
             NetStation('RESETCLOCK',(o.cic.clockTime-o.clockOffset-o.fineTuneClockOffset),0);
             if o.checkStatusOk(status,err)
-                disp(['Synchronized with EGI-host  \Delta: ' num2str(o.clockOffset) ', \sigma: ' num2str(o.clockVariability) ]);
+                o.writeToFeed('Synchronized with EGI-host  \Delta: %f \sigma %f', o.clockOffset,o.clockVariability);
             end
         end
 
@@ -124,7 +124,7 @@ classdef egi < neurostim.plugin
             [status(1),err{1}]=NetStation('StartRecording');
             [status(2),err{2}]=NetStation('FlushReadbuffer'); % not sure what this does (JD)
             if o.checkStatusOk(status,err)
-                disp(['Started recording on EGI-host ' o.host ':' num2str(o.port) ]);
+                o.writeToFeed('Started recording on EGI-host %s:%d',o.host,o.port);
             end
         end
         
@@ -133,7 +133,7 @@ classdef egi < neurostim.plugin
             [status(1),err{1}]=NetStation('FlushReadbuffer'); % not sure what this does (JD)
             [status(2),err{2}]=NetStation('StopRecording');
             if o.checkStatusOk(status,err)
-                disp(['Stopped recording on EGI-host ' o.host ':' num2str(o.port) ]);
+                o.writeToFeed('Stopped recording on EGI-host %s:%d',o.host,o.port);
             end
         end
         

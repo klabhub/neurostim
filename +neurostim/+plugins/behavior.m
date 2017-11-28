@@ -89,7 +89,7 @@ classdef behavior < neurostim.plugin
             o.addProperty('state',false);         % Logs changes in success. Dont assign to this, use .success instead.
             o.addProperty('outcome',false);     %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
             
-            
+            o.feedStyle = 'blue';
         end
         
         function beforeTrial(o)

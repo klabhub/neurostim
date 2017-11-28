@@ -281,34 +281,29 @@ classdef cic < neurostim.plugin
         end
         
         
-        
-        function out=collectPropMessage(c)
-            out='\n======================\n';
+        % Collect information about (user specified) properties and display
+        % these on the command line feed.
+        function collectPropMessage(c)
+            msg =cell(1,numel(c.propsToInform));
             for i=1:numel(c.propsToInform)
                 str=strsplit(c.propsToInform{i},'/');
+                val = cell(1,numel(str));
                 for j=1:numel(str)
-                    tmp = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
-                    if isnumeric(tmp)
-                        tmp = num2str(tmp);
-                    elseif islogical(tmp)
-                        if (tmp);tmp = 'true';else tmp='false';end
+                    val{j} = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
+                    if isnumeric(val{j})
+                        val{j} = num2str(val{j});
+                    elseif islogical(val{j})
+                        if (val{j});val{j} = 'true';else val{j}='false';end
                     end
-                    if isa(tmp,'function_handle')
-                        tmp = func2str(tmp);
+                    if isa(val{j},'function_handle')
+                        val{j} = func2str(val{j});
                     end
-                    tmp = tmp(:)';
-                    if numel(str)>1
-                        if j==1
-                            out=[out c.propsToInform{i} ': ' tmp]; %#ok<AGROW>
-                        else
-                            out=[out '/' tmp];%#ok<AGROW>
-                        end
-                    else
-                        out = [out c.propsToInform{i} ': ' tmp]; %#ok<AGROW>
-                    end
+                    val{j} = val{j}(:)';
                 end
-                out=[out '\n']; %#ok<AGROW>
+                msg{i} = sprintf('%s: %s/%s',c.propsToInform{i},val{:});  
+                if strcmpi(msg{i}(end),'/');msg{i}(end) ='';end
             end
+            c.writeToFeed(msg);            
         end
     end
     
@@ -360,7 +355,7 @@ classdef cic < neurostim.plugin
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             
-            c.feedStyle = '[0.5 0.5 0]'; % CIC messages in orange
+            c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
         end
         
@@ -700,13 +695,8 @@ classdef cic < neurostim.plugin
             % This assesses 'success' of the behavior and updates the design
             % if needed (i.e. retrying failed trials)
             afterTrial(c.blocks(c.block),c);
-            
-            
-            if ~c.guiOn
-                message=collectPropMessage(c);
-                c.writeToFeed(message);
-            end
-            c.collectFrameDrops;
+            collectPropMessage(c);            
+            collectFrameDrops(c);
             if rem(c.trial,c.saveEveryN)==0
                 tic
                 c.saveData;
@@ -746,6 +736,7 @@ classdef cic < neurostim.plugin
             % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
+            
             
             %Check input
             if ~(exist('block1','var') && isa(block1,'neurostim.block'))
@@ -996,20 +987,20 @@ classdef cic < neurostim.plugin
                 % Let's try saving the data
                 ListenChar(0);
                 Screen('CloseAll');
-                disp('************************************');
-                disp(['Something went wrong during the experiment (' me.message ')']);
-                disp('Trying to save the data...');
+                neurostim.utils.cprintf('error','%s','************************************');
+                neurostim.utils.cprintf('error','Something went wrong during the experiment (%s)', me.message );
+                neurostim.utils.cprintf('error','Trying to save the data...');
                 try
                     c.saveData;
-                    disp('Saved the (partial) data !');
+                    neurostim.utils.cprintf('green','Saved the (partial) data !');
                 catch me2
-                    disp(['Saving the data failed: ' me2.message]);
+                    neurostim.utils.cprintf('error','Saving the data failed: %s', me2.message);
                 end
-                disp('Giving keyboard control to allow you to do something...');
+                neurostim.utils.cprintf('error','Giving keyboard control to allow you to do something...');
                 keyboard;
             end
             ListenChar(0);
-            if c.keyAfterExperiment; disp('This is the end... Press any key to continue'); KbWait(c.kbInfo.pressAnyKey);end
+            if c.keyAfterExperiment; c.writeToFeed({'','This is the end... Press any key to continue',''}); KbWait(c.kbInfo.pressAnyKey);end
             Screen('CloseAll');
             if c.PROFILE; report(c);end
         end
@@ -1017,7 +1008,7 @@ classdef cic < neurostim.plugin
         function saveData(c)
             filePath = horzcat(c.fullFile,'.mat');
             save(filePath,'c');
-            disp(horzcat('Data for trials 1:', num2str(c.trial),' saved to ',filePath));
+            c.writeToFeed('Data for trials 1:%d saved to %s',c.nrTrialsTotal,filePath);
         end
         
         function delete(c) %#ok<INUSD>
@@ -1092,8 +1083,20 @@ classdef cic < neurostim.plugin
         end
         
         %% GUI Functions
-        function feed(c,style,formatSpecs,varargin)                            
-                cprintf(style,['TR: %d: ' formatSpecs '\n'],num2str(c.trial),varargin{:});            
+        function feed(c,style,formatSpecs,varargin) 
+            if numel(varargin)==2 && iscell(varargin{2}) 
+                % multi line message 
+                maxChars = max(cellfun(@numel,varargin{2}));
+                neurostim.utils.cprintf(style,['TR: %d: %s \n'],c.trial,varargin{1}); % First one is the plugin name            
+                neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
+                for i=1:numel(varargin{2})
+                    neurostim.utils.cprintf(style,'\t %s\n',varargin{end}{i}); % These are the message lines
+                end
+                neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
+            else
+                % single line
+                neurostim.utils.cprintf(style,['TR: %d: ' formatSpecs '\n'],c.trial,varargin{:});            
+            end
         end
         
         function collectFrameDrops(c)

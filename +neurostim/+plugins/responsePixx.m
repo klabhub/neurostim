@@ -92,7 +92,7 @@ classdef responsePixx < neurostim.plugins.behavior
                 if ~isempty(buttonNr) && (isempty(ab) || any(ismember(buttonNr,ab)))
                     if numel(buttonNr)>1
                         % more than one button pressed...
-                        disp('More than one button...')
+                        o.writeToFeed('More than one button...')
                     else
                         o.pressedButton = [buttonNr transitionTimesSecs(tIx)]; % Store button and the time in DPixx time
                     end

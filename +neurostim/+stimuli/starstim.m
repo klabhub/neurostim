@@ -145,7 +145,7 @@ classdef starstim < neurostim.stimulus
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP'});
                 end
                 if o.debug
-                    disp(stts);
+                    o.writeToFeed(stts);
                 end
             end
             
@@ -162,7 +162,7 @@ classdef starstim < neurostim.stimulus
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_PAUSED', 'CODE_STATUS_IDLE'});
                 end
                 if o.debug
-                    disp(stts);
+                    o.writeToFeed(stts);
                 end
             end
         end
