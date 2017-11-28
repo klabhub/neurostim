@@ -709,14 +709,12 @@ classdef cic < neurostim.plugin
         function error(c,command,msg)
             switch (command)
                 case 'STOPEXPERIMENT'
-                    fprintf(2,msg);
-                    fprintf(2,'\n');
+                    neurostim.utils.cprintf('red','\n%s\n',msg);                    
                     c.flags.experiment = false;
                 case 'CONTINUE'
-                    fprintf(2,msg);
-                    fprintf(2,'\n');
+                    neurostim.utils.cprintf('red','\n%s\n',msg);                                    
                 otherwise
-                    error('?');
+                    error(['Rethrowing unhandled cic error: ' msg]);
             end
             
         end
@@ -987,16 +985,16 @@ classdef cic < neurostim.plugin
                 % Let's try saving the data
                 ListenChar(0);
                 Screen('CloseAll');
-                neurostim.utils.cprintf('error','%s','************************************');
-                neurostim.utils.cprintf('error','Something went wrong during the experiment (%s)', me.message );
-                neurostim.utils.cprintf('error','Trying to save the data...');
+                neurostim.utils.cprintf('red','%s','************************************');
+                neurostim.utils.cprintf('red','Something went wrong during the experiment (%s)', me.message );
+                neurostim.utils.cprintf('red','Trying to save the data...');
                 try
                     c.saveData;
                     neurostim.utils.cprintf('green','Saved the (partial) data !');
                 catch me2
-                    neurostim.utils.cprintf('error','Saving the data failed: %s', me2.message);
+                    neurostim.utils.cprintf('red','Saving the data failed: %s', me2.message);
                 end
-                neurostim.utils.cprintf('error','Giving keyboard control to allow you to do something...');
+                neurostim.utils.cprintf('red','Giving keyboard control to allow you to do something...');
                 keyboard;
             end
             ListenChar(0);
@@ -1008,7 +1006,7 @@ classdef cic < neurostim.plugin
         function saveData(c)
             filePath = horzcat(c.fullFile,'.mat');
             save(filePath,'c');
-            c.writeToFeed('Data for trials 1:%d saved to %s',c.nrTrialsTotal,filePath);
+            c.writeToFeed('Data for trials 1:%d saved to %s',c.trial,filePath);
         end
         
         function delete(c) %#ok<INUSD>

@@ -5,6 +5,7 @@ function c = myRig(varargin)
 pin = inputParser;
 pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
 pin.addParameter('eyelink',false);
+pin.addParameter('debug',false);
 pin.parse(varargin{:});
 smallWindow = pin.Results.smallWindow;
 
@@ -51,14 +52,21 @@ switch computerName
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',60,'screenNumber',scrNr);
         smallWindow = false;
         
-    case 'KLAB-U'
-        scrNr = 2;
-        rect = Screen('rect',scrNr);
-        fr = Screen('NominalFramerate',scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',38.3,'frameRate',fr,'screenNumber',scrNr);
+    case 'KLAB-U'        
+         if pin.Results.debug
+            scrNr = 2;
+            rect = Screen('rect',scrNr); 
+            c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',40,'frameRate',60,'screenNumber',scrNr);
+            smallWindow = false;
+             Screen('Preference', 'SkipSyncTests', 2);
+        else
+            scrNr = 1;
+            rect = Screen('rect',scrNr); 
+            c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',60,'frameRate',60,'screenNumber',scrNr);
+            smallWindow = false;        
+             Screen('Preference', 'SkipSyncTests', 0);
+        end
         
-        Screen('Preference', 'SkipSyncTests',2); % Not in production mode; this is just to run without requiring accurate timing.
-        smallWindow = false;
         
     case 'XPS2013'
         scrNr=0;
