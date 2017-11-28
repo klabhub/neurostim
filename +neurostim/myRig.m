@@ -56,7 +56,8 @@ switch computerName
          if pin.Results.debug
             scrNr = 2;
             rect = Screen('rect',scrNr); 
-            c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',40,'frameRate',60,'screenNumber',scrNr);
+            hz=Screen('NominalFrameRate', scrNr);
+            c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',40,'frameRate',hz,'screenNumber',scrNr);
             smallWindow = false;
              Screen('Preference', 'SkipSyncTests', 2);
         else

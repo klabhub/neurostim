@@ -13,9 +13,12 @@ classdef starstim < neurostim.stimulus
     % A protocol (defined in the NIC) specifies which electrodes are
     % connected, which record EEG, and which stimulate. You select a protocol
     % by providing its name (case-sensitive) to the starstim plugin constructor.
-    % In the 'BLOCKED' and 'TRIAL' mode, the protocol as defined in the NIC
-    % interface is run "as is" (i.e. except for starting/pausing/stopping
-    % the protocol, there are no changes to its parameters).
+    %
+    % Note that all stimluation parameters will be set here in
+    % in the starstim matlab stimulus. The (single step) protocol should just set all
+    % **currents to zero**  and chose a very long duration. That way thi
+    % splugin can start the protocol (which will record EEG but stimulate
+    % at 0 currents) and then change stimulation parametrers on the fly.
     %
     % Filenaming convention for NIC output uses the name of the step in the
     % protocol. Leaving the step name blank creates cleaner file names
@@ -23,52 +26,46 @@ classdef starstim < neurostim.stimulus
     % the name of the Neurostim file to store the NIC output files (this
     % assumes Neurostim runs on the same machine as the NIC; see below).
     %
-    % There are different modes to operate this plugin, with increasing levels of
+    % There are different modes to control stimulation, with increasing levels of
     % temporal and parameter control.  (.mode)
     % BLOCKED:
     %    Simplest mode: trigger the start of a named protocol in the first
-    %   trial in which .enabled =true and keep running until a trial is about
-    %   to start that has .enabled =false (or the end of the experiment, whichever
-    %   is earlier).Note that the .transition variable is ignored in this
-    %   mode: the ramp duration in the protocol is used instead.
+    %   trial in a block in which .enabled =true and keep running until the
+    %    last trial in that block.
+    %
     % TRIAL:
-    %   Start the rampup of the protocol before each .enabled=true trial, then
-    %   and ramp it down after each such trial. Because pausing/starting takes
-    %    1-2 s this only works for long trials.
+    %   Start the rampup of the protocol before each .enabled=true trial,
+    %   and ramp it down after each such trial.
     %
     % TIMED:
     %  Here stimulation starts in each .enabled=true trial at starstim.on
-    %  The parameters of stimulation are set here in Neurostim by defining
-    %  .amplitude, .frequency, .phase and a fixed duration. (note that if
-    %  you use a Neurostim function for the duration, it will be evaluated
-    %  before the start of the trial, and not updated during the trial). To
-    %  use this mode, you should define a protocol that identifies all
-    %  electrodes, but has zero current for each. Those values are then
-    %  overruled by Neurostim.
-    %  Ramping up/down is controlled by the .transition parameter which has
-    %  to be at least 100 ms. Ramp up starts at starstim.on time in each
-    %  trial.
+    %  and ends .duration ms later.
     %
-    % In each mode, you can switch NIC protocols by assinging a new value to
-    % .protocol. This switch is done before the trial in which .protocol
-    % gets its new value. The time needed to do this is incorporated into
-    % the ITI.
+    %
+    % Stimulation Type and Parameters
+    %   .transition  - time in ms of the ramp up/down  (at least 100 ms)
+    %   .duration     - duration of stimulation (TIMED mode only)
+    %   .type       - tACS, tDCS,tRNS
+    %
+    %   .amplitude, .frequency, .phase  - tACS only : one value per channel.
+    %   .mean                           - tDCS only : one value per channel
+    %
+    %
+    %
     %
     % In each mode , you can use sham stimulation (.sham =
     % true); this means that the protcol will ramp up and immediately down
-    % again. In BLOCKED and TRIAL mode, the minimum transition time defined in
-    % NIC is 1s, this takes ~2s, so setting the iti in CIC to 2s is
-    % recommended (to ensure that every ITI is 2 s).
+    % again using the .transition duration.
     %
     % See startstimDemo for more details and examples
     %
     % PERFORMANCE:
     %  The NIC software, especially when it is actively stimulating, puts a
     %  heavy load on the CPU and, if running on the same machine as
-    %  Neurostim, can lead to frequent framedrops (which, becuase it
-    %  depends on stimulation, coudl correlate with an experimental
+    %  Neurostim, can lead to frequent framedrops (which, becaese it
+    %  depends on stimulation, could correlate with an experimental
     %  design!). So it is highly recommended to run NIC on a separate
-    %  machine, connecting to it via TCP/IP is trivial (just provide the IP
+    %  machine. Connecting to it via TCP/IP is trivial (just provide the IP
     %  number of the NIC machine in the constructor)
     %
     % BK - Feb 2016, 2017
@@ -230,11 +227,10 @@ classdef starstim < neurostim.stimulus
             end
             
             o.addProperty('host',hst);
-            o.addProperty('protocol',''); % Case Sensitive
+            o.addProperty('protocol',''); % Case Sensitive - must exist on host
             o.addProperty('fake',fake);
             o.addProperty('z',NaN);
             o.addProperty('stimType','');
-            o.addProperty('itiOff',true);
             
             o.addProperty('amplitude',NaN);
             o.addProperty('montage',[]);
@@ -242,7 +238,6 @@ classdef starstim < neurostim.stimulus
             o.addProperty('phase',0);
             o.addProperty('transition',NaN);
             o.addProperty('frequency',NaN);
-            o.addProperty('multiTrialDuration',0);
             o.addProperty('sham',false);
             o.addProperty('enabled',true);
             
@@ -332,8 +327,8 @@ classdef starstim < neurostim.stimulus
                 o.activeProtocol ='';
             end
         end
-
-                
+        
+        
         
         
         function beforeTrial(o)
@@ -454,7 +449,7 @@ classdef starstim < neurostim.stimulus
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
-            end            
+            end
             
             if o.impedanceCheck
                 impedance(o);
@@ -503,24 +498,33 @@ classdef starstim < neurostim.stimulus
                 peakLevelDuration =Inf;
             end
             
-            if o.fake
-                o.writeToFeed('Ramping up in %3.3fms to:',o.nowTransition);
-                tbl = [o.nowAmplitude;o.nowFrequency;o.nowPhase];
-                o.writeToFeed(['\n' sprintf('%3.1fmA \t %3.0fHz \t %3.0f deg\n',tbl)]);
-            else
-                switch upper(o.type)
-                    case 'TACS'
-                        [ret] = MatNICOnlinetACSChange(o.nowAmplitude, o.nowFrequency, o.nowPhase, o.NRCHANNELS, o.nowTransition, o.sock);
-                        tbl = [o.nowAmplitude;o.nowFrequency;o.nowPhase];
-                        checkRet(ret,sprintf('tACS upRamp (Transition: %d) \n %s',o.nowTransition,['\n' sprintf('%3.1fmA \t %3.0fHz \t %3.0f deg\n',tbl)]));
-                    case 'TDCS'
+            switch upper(o.type)
+                case 'TACS'
+                    msg{1} = sprintf('Ramping tACS up in %.0f ms to:',o.nowTransition);
+                    msg{2} = sprintf('\tCh: % 3d   ',1:o.NRCHANNELS);
+                    msg{3} = sprintf('\t%06.3f mA',o.nowAmplitude);
+                    msg{4} = sprintf('\t%06.3f Hz',o.nowFrequency);
+                    msg{5} = sprintf('\t%06.3f o ',o.nowPhase);
+                    if o.fake
+                        o.writeToFeed(msg);
+                    else
+                        [ret] = MatNICOnlinetACSChange(o.nowAmplitude, o.nowFrequency, o.nowPhase, o.NRCHANNELS, o.nowTransition, o.sock);                        
+                        checkRet(ret,msg);
+                    end
+                case 'TDCS'
+                    msg{1} = sprintf('Ramping tDCS up in %.0f ms to:',o.nowTransition);
+                    msg{2} = sprintf('\tCh: % 3d   ',1:o.NRCHANNELS);
+                    msg{3} = sprintf('\t%06.3f mA',o.nowMean);
+                    if o.fake
+                        o.writeToFeed(msg);
+                    else 
                         [ret] = MatNICOnlineAtdcsChange(o.nowMean, o.NRCHANNELS, o.nowTransition, o.sock);
-                        checkRet(ret,sprintf('tDCS upRamp (Transition: %d): %d mA',o.nowTransition,o.nowMean));
-                    case 'TRNS'
-                        checkRet(-1,'tRNS Not implemented yet');
-                    otherwise
-                        error(['Unknown stimulation type : ' o.type]);
-                end
+                        checkRet(ret,msg);
+                    end
+                case 'TRNS'
+                    checkRet(-1,'tRNS Not implemented yet');
+                otherwise
+                    error(['Unknown stimulation type : ' o.type]);
             end
             
             if o.sham
@@ -528,26 +532,30 @@ classdef starstim < neurostim.stimulus
             end
             
             % Schedule the rampDown. Assuming that this line is executed
-            % immediately after 
+            % immediately after
             if isfinite(peakLevelDuration)
-                off  = @(timr,events,obj) (rampDown(obj));
+                off  = @(timr,events,obj,tSchedule) (rampDown(obj,tSchedule));
                 tmr= timer('name','starstim.timer');
-                tmr.StartDelay = (o.nowTransition+peakLevelDuration)/1000; % microseconds
+                tmr.StartDelay = (o.nowTransition+peakLevelDuration)/1000; % seconds
                 tmr.ExecutionMode='SingleShot';
-                tmr.TimerFcn = {off,o};
+                tmr.TimerFcn = {off,o,GetSecs};
                 start(tmr);
             end
-              
+            
         end
         
         
-        function rampDown(o)
+        function rampDown(o,tScheduled)
             if o.fake
-                o.writeToFeed('Ramping down to zero in %d ms',o.nowTransition);
+                if nargin ==2
+                    o.writeToFeed('Shamp ramping %s down to zero after %.0f (Planned: %.0f ms)',o.type, 1000*(GetSecs-tScheduled),o.nowTransition);
+                else
+                    o.writeToFeed('Ramping %s down to zero in %.0f ms',o.type, o.nowTransition);
+                end
             else
                 switch upper(o.type)
                     case 'TACS'
-                        [ret] = MatNICOnlinetACSChange(zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.nowTransition, o.sock);                        
+                        [ret] = MatNICOnlinetACSChange(zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.nowTransition, o.sock);
                         checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.nowTransition));
                     case 'TDCS'
                         [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.nowTransition, o.sock);
@@ -635,7 +643,8 @@ classdef starstim < neurostim.stimulus
             % wrong.
             if ret<0
                 onExit(o)
-                o.cic.error('STOPEXPERIMENT',['StarStim failed: Status ' o.status ':  ' num2str(ret) ' ' msg]);
+                o.writeToFeed(msg);
+                o.cic.error('STOPEXPERIMENT',['StarStim failed: Status ' o.status ':  ' num2str(ret)]);
             end
         end
         

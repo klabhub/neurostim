@@ -1085,7 +1085,7 @@ classdef cic < neurostim.plugin
             if numel(varargin)==2 && iscell(varargin{2}) 
                 % multi line message 
                 maxChars = max(cellfun(@numel,varargin{2}));
-                neurostim.utils.cprintf(style,['TR: %d: %s \n'],c.trial,varargin{1}); % First one is the plugin name            
+                neurostim.utils.cprintf(style,['TR: %d: (T: %.0f) %s \n'],c.trial,c.trialTime,varargin{1}); % First one is the plugin name            
                 neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
                 for i=1:numel(varargin{2})
                     neurostim.utils.cprintf(style,'\t %s\n',varargin{end}{i}); % These are the message lines
@@ -1093,7 +1093,7 @@ classdef cic < neurostim.plugin
                 neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
             else
                 % single line
-                neurostim.utils.cprintf(style,['TR: %d: ' formatSpecs '\n'],c.trial,varargin{:});            
+                neurostim.utils.cprintf(style,['TR: %d (T: %.0f): ' formatSpecs '\n'],c.trial,c.trialTime,varargin{:});            
             end
         end
         
