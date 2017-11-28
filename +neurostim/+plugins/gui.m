@@ -132,7 +132,7 @@ classdef gui <neurostim.plugin
             o.feedBox = [slack o.feedY-slack o.cic.mirrorPixels(3)-slack o.cic.mirrorPixels(4)-(4*slack)];
             o.eyetrackers=o.cic.pluginsByClass('eyetracker');
             o.behaviours=o.cic.pluginsByClass('behavior');
-            o.cic.writeToFeed('Started Experiment');
+            o.writeToFeed('Started Experiment');
             
             
             

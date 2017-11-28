@@ -109,6 +109,8 @@ classdef stimulus < neurostim.plugin
             
             s.rngSeed=GetSecs;
             rng(s.rngSeed);
+            
+            s.feedStyle = '[0 0.75 0]'; % Stimuli show feed messages in light green.
         end
     end
     

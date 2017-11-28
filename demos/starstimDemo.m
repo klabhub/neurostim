@@ -24,7 +24,9 @@ ptch.color        = [1 1 0];
 ptch.on           = 0;
 
 stm = stimuli.starstim(c,'localhost');
-
+stm.fake = true;
+stm.protocol ='AboutNothing';
+stm.enabled = true;
 %% Example BLOCKED Mode
 % Load a protocol, start the ramp up phase in the first trial for which .enabeled=true
 % and start that trial as soon as ramp-up is complete. The protocol keeps
@@ -45,21 +47,23 @@ stm = stimuli.starstim(c,'localhost');
 % next trial in which .sham=false (in which the protocol is ramped up again
 % and then continues).
 %
-% d =design('d1');
-% d.conditions(1).starstim.protocol = 'Neurostim.StimTest.Trigger';
-% d.conditions(1).starstim.mode= 'BLOCKED';
-% d.conditions(1).starstim.enabled = true; 
-% blck=block('dummyBlock',d); 
-% blck.nrRepeats  = 2;
-% %   c.run(blck);  % Jusr running this block would start the protocol before trial 1
-% % and stop it at the end of the experiment.
-% % Create a duplicate of the design, but change the protocol
-% d2 =duplicate(d,'d2');
-% d2.conditions(1).starstim.protocol = 'Neurostim.StimTest.Trial';
-% blck2=block('dummyBlock2',d2); 
-% blck2.nrRepeats  = 2;
-% c.addPropsToInform('starstim.enabled','starstim.sham')
-% c.run(blck,blck2,'nrRepeats',2,'randomization','sequential'); % Run sequentially. The .Trial protocol will be loaded before the first trial of the second block.
+stm.mode = 'BLOCKED';
+stm.frequency = 10;
+stm.phase = [0 180 zeros(1,6)];
+stm.amplitude = [1 1 zeros(1,6)];
+stm.transition = 500;
+
+d =design('d1');
+d.conditions(1).starstim.sham = false; 
+blck=block('dummyBlock',d); 
+blck.nrRepeats  = 1;
+
+d2 =duplicate(d,'d2');
+d2.conditions(1).starstim.sham= true;
+blck2=block('dummyBlock2',d2); 
+blck2.nrRepeats  = 1;
+c.addPropsToInform('starstim.enabled','starstim.sham')
+c.run(blck,blck2,'nrRepeats',2,'randomization','sequential'); % Run sequentially. The .Trial protocol will be loaded before the first trial of the second block.
 
 
 
@@ -117,29 +121,29 @@ stm = stimuli.starstim(c,'localhost');
 % = 50, the ramp up will start at t=50 ms (and therefore the earliest time
 % it is at full amplitude will be t=150ms, assuming that .transition is
 % set to 100.
-
-d =design('DUMMY'); 
-stm.transition = 100; % time to transition from zero to full stim and from full stim to zero.
-stm.stimType = 'AC';
-stm.enabled  =true;
-inout = [1 1/3 1/3 1/3 0 0 0 0];  % #1 = stim, #2-4 = return, each at 1/3.
-stm.phase = [0    180 180 180 0 0 0 0]; % Anti-phase for return to conserve power.
-stm.protocol = 'Neurostim.StimTest.Timed';
-stm.mode = 'TIMED'; 
-
-d.fac1.starstim.frequency = [1 2 5 10 20 40];
-d.fac2.starstim.duration  = [1000 2000];
-d.fac3.starstim.amplitude = {1500*inout, 500*inout, 2000*inout};
-d.randomization = 'RANDOMWITHREPLACEMENT';
-blck=block('dummyBlock',d); 
-blck.nrRepeats  = 15;
-c.trialDuration = 3000; 
-c.iti= 2000;
-c.addPropsToInform('starstim.amplitude','starstim.frequency','starstim.duration')
-c.run(blck); 
-
-
-
-
+% 
+% d =design('DUMMY'); 
+% stm.transition = 100; % time to transition from zero to full stim and from full stim to zero.
+% stm.stimType = 'AC';
+% stm.enabled  =true;
+% inout = [1 1/3 1/3 1/3 0 0 0 0];  % #1 = stim, #2-4 = return, each at 1/3.
+% stm.phase = [0    180 180 180 0 0 0 0]; % Anti-phase for return to conserve power.
+% stm.protocol = 'Neurostim.StimTest.Timed';
+% stm.mode = 'TIMED'; 
+% 
+% d.fac1.starstim.frequency = [1 2 5 10 20 40];
+% d.fac2.starstim.duration  = [1000 2000];
+% d.fac3.starstim.amplitude = {1500*inout, 500*inout, 2000*inout};
+% d.randomization = 'RANDOMWITHREPLACEMENT';
+% blck=block('dummyBlock',d); 
+% blck.nrRepeats  = 15;
+% c.trialDuration = 3000; 
+% c.iti= 2000;
+% c.addPropsToInform('starstim.amplitude','starstim.frequency','starstim.duration')
+% c.run(blck); 
+% 
+% 
+% 
+% 
 
 

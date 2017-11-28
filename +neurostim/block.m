@@ -27,22 +27,22 @@ classdef block < dynamicprops
     %   myBlock.beforeFunction - function handle to a function to run before the block.
     %       e.g.:
     %       out=myFunction(c)
-    %           Output: ignored. 
+    %           Output: ignored.
     %           Input: cic - use to reference other properties as required.
     %
     %   myBlock.afterFunction - same format as beforeFunction.
     %
     %   myBlock.beforeKeyPress = logical; whether to wait after showing the
     %   before message and/or executing the before function.
-    %   
+    %
     %   myBlock.afterKeyPress = same as beforeKeyPress.
-    % 
+    %
     % Note that the function is evaluated and the message is written to the
     % screen first, and then cic will wait until the user presses a key (if
     % requested).
     %
     
-    properties        
+    properties
         randomization='SEQUENTIAL';
         weights=1;
         nrRepeats=1;
@@ -88,7 +88,7 @@ classdef block < dynamicprops
         end
         
         function v = get.nrTrials(o)
-            v = o.nrRetried+o.nrPlannedTrials;             
+            v = o.nrRetried+o.nrPlannedTrials;
         end
         
         function v = get.condition(o)
@@ -162,19 +162,19 @@ classdef block < dynamicprops
         end
         
         function afterTrial(o,c)
-              behaviors  = c.pluginsByClass('behavior');
-              success = true;
-              for i=1:numel(behaviors)
+            behaviors  = c.pluginsByClass('behavior');
+            success = true;
+            for i=1:numel(behaviors)
                 success = success && (~behaviors(i).required || behaviors(i).success);
-              end    
-              o.nrRetried = o.nrRetried + afterTrial(o.design,success); % Update the design object
+            end
+            o.nrRetried = o.nrRetried + afterTrial(o.design,success); % Update the design object
         end
         
         function beforeTrial(o,c)
             %Retrieve the plugin/parameter/value specs for the current condition
-            % and apply to each of the plugins            
+            % and apply to each of the plugins
             %% Check whether we need to go to the next design in this block
-            if o.designIx ==0 ||  ~beforeTrial(o.design)% Move the design to the next trial            
+            if o.designIx ==0 ||  ~beforeTrial(o.design)% Move the design to the next trial
                 % This design is done, move to the next one
                 o.designIx = o.designIx +1;
                 if o.designIx > numel(o.list)
@@ -186,25 +186,25 @@ classdef block < dynamicprops
             end
             
             c.condition = o.condition; % Log the condition change (this is a linear index, specific to the current design)
-            spcs = specs(o.design); % Retrieve the specs from the design            
+            spcs = specs(o.design); % Retrieve the specs from the design
             %% Now apply the values to the parms in the plugins.
             nrParms = size(spcs,1);
             for p =1:nrParms
                 plgName =spcs{p,1};
-                varName = spcs{p,2};                
+                varName = spcs{p,2};
                 if isa( spcs{p,3},'neurostim.plugins.adaptive')
-                    value = getValue(spcs{p,3});                   
+                    value = getValue(spcs{p,3});
                 else
                     value =  spcs{p,3};
                 end
                 c.(plgName).(varName) = value;
-            end 
+            end
             
         end
         
         % Parse the designs to setup a single 2xN list of
         % N design/condition pairs, one for each trial
-        function beforeBlock(o)
+        function [msg,waitForKey] = beforeBlock(o,c)
             % build the list of designs..
             o.list = repelem(repmat(1:o.nrDesigns,[1 o.nrRepeats]),repmat(o.weights,[1 o.nrRepeats]));
             % randomize order of factorials
@@ -217,6 +217,21 @@ classdef block < dynamicprops
                     o.list= datasample(o.list,numel(o.list));
             end
             o.designIx =0;
+            
+            %% User interaction if requested
+            % Show a beforeBlock message, and execute a beforeBlock
+            % function (if requested).            
+            if isa(o.beforeMessage,'function_handle')
+                msg = o.beforeMessage(c);
+            else
+                msg = o.beforeMessage;
+            end            
+            if ~isempty(o.beforeFunction)
+                o.beforeFunction(c);                
+            end            
+            % Wait for a key only if requested andif the beforeFun or
+            % message has content. 
+            waitForKey = o.beforeKeyPress && (~isempty(msg) || ~isempty(o.beforeFunction));
         end
         
     end % methods

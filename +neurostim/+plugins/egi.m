@@ -49,7 +49,7 @@ classdef egi < neurostim.plugin
             o.eventCode = code; % Log the generation of the event here.
             o.checkStatusOk(status,err);
 %             if ~o.cic.guiOn
-%                 o.cic.writeToFeed(['NetStation: ' code ]);
+%                 o.writeToFeed(['NetStation: ' code ]);
 %             end
         end
         
