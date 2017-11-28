@@ -509,7 +509,7 @@ classdef starstim < neurostim.stimulus
                         o.writeToFeed(msg);
                     else
                         [ret] = MatNICOnlinetACSChange(o.nowAmplitude, o.nowFrequency, o.nowPhase, o.NRCHANNELS, o.nowTransition, o.sock);                        
-                        checkRet(ret,msg);
+                        o.checkRet(ret,msg);
                     end
                 case 'TDCS'
                     msg{1} = sprintf('Ramping tDCS up in %.0f ms to:',o.nowTransition);
@@ -519,10 +519,10 @@ classdef starstim < neurostim.stimulus
                         o.writeToFeed(msg);
                     else 
                         [ret] = MatNICOnlineAtdcsChange(o.nowMean, o.NRCHANNELS, o.nowTransition, o.sock);
-                        checkRet(ret,msg);
+                        o.checkRet(ret,msg);
                     end
                 case 'TRNS'
-                    checkRet(-1,'tRNS Not implemented yet');
+                    o.checkRet(-1,'tRNS Not implemented yet');
                 otherwise
                     error(['Unknown stimulation type : ' o.type]);
             end
@@ -556,12 +556,12 @@ classdef starstim < neurostim.stimulus
                 switch upper(o.type)
                     case 'TACS'
                         [ret] = MatNICOnlinetACSChange(zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.nowTransition, o.sock);
-                        checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.nowTransition));
+                        o.checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.nowTransition));
                     case 'TDCS'
                         [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.nowTransition, o.sock);
-                        checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.nowTransition));
+                        o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.nowTransition));
                     case 'TRNS'
-                        checkRet(-1,'tRNS Not implemented yet');
+                        o.checkRet(-1,'tRNS Not implemented yet');
                     otherwise
                         error(['Unknown stimulation type : ' o.type]);
                 end

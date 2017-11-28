@@ -1437,7 +1437,7 @@ classdef cic < neurostim.plugin
                         % The warning is wrong; with the new graphics
                         % pipeline setup it works fine as a calibrated
                         % luminance.
-                        o.writeToFeed(['****You can safely ignore the message about '' clearcolor'' that just appeared***']);
+                        c.writeToFeed(['****You can safely ignore the message about '' clearcolor'' that just appeared***']);
                     end
                     c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
                     updateOverlay(c,c.screen.overlayClut);
