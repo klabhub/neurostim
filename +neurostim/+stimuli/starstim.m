@@ -97,6 +97,7 @@ classdef starstim < neurostim.stimulus
         isShamOn@logical = false;
         
         activeProtocol@char='';
+        tmr; % A timer
     end
     
     
@@ -258,13 +259,16 @@ classdef starstim < neurostim.stimulus
                 o.writeToFeed('Deleting timer stragglers.... last experiment not terminated propertly?');
                 delete(timrs)
             end
+            o.tmr= timer('name','starstim.timer');
             
             %% Connect to host - check some prerequisites/setup
             if o.fake
                 o.writeToFeed(['Starstim connected to ' o.host]);
             else
                 [ret, stts, o.sock] = MatNICConnect(o.host);
-                o.checkRet(ret,['Host:' stts]);
+                if ret<0
+                    o.cic.error('STOPEXPERIMENT',['Could not connect to ',o.host]);
+                end                                    
                 o.mustExit = true;
                 
                 pth = o.cic.fullFile; % This is without the extension
@@ -276,7 +280,7 @@ classdef starstim < neurostim.stimulus
                 % File format : % YYYYMMDD_[subject].edf
                 % Always generate .easy file, and edf file (NIC requires
                 % it), and generate .stim when stimulating.
-                ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,false,true,true,false,o.sock);
+                 ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,false,true,true,false,o.sock);
                 o.checkRet(ret,'FileNameAndTypes');
                 [ret,o.markerStream] = MatNICMarkerConnectLSL('Neurostim');
                 o.checkRet(ret,'Please enable the Neurostim Marker Stream in NIC');
@@ -352,6 +356,8 @@ classdef starstim < neurostim.stimulus
                         rampUp(o);
                     end
                 case 'TIMED'
+                    
+                        
                     %                     if o.enabled
                     %                         start(o);
                     %                         waitFor(o,'CODE_STATUS_STIMULATION_FULL');
@@ -380,36 +386,24 @@ classdef starstim < neurostim.stimulus
                 case {'BLOCKED','TRIAL'}
                     % These modes do not change stimulation within a
                     % trial/block - nothing to do.
-                case 'TIMED'
-                    %                     % Single shot start
-                    %                     ret =0;
-                    %                     if ~o.isTimedStarted
-                    %                         waitFor(o,'CODE_STATUS_STIMULATION_FULL');
-                    %                         switch (o.nowType)
-                    %                             case 'DC'
-                    %                                 ret = MatNICOnlineAtdcsChange(o.nowMean, o.NRCHANNELS, o.nowTransition, o.sock);
-                    %                             case 'AC'
-                    %                                 if o.duration>=10000
-                    %                                     %% Use a timer in matlab
-                    %                                     off  = @(timr,events,obj) (timerOff(obj));
-                    %                                     tmr= timer('name','starstim.timer');
-                    %                                     tmr.StartDelay = (o.duration-o.nowTransition)/1000;
-                    %                                     tmr.ExecutionMode='SingleShot';
-                    %                                     tmr.TimerFcn = {off,o};
-                    %                                     ret = MatNICOnlineAtacsChange(o.nowAmplitude,o.NRCHANNELS,o.nowTransition,o.sock);
-                    %                                     start(tmr);
-                    %                                 else
-                    %                                     ret = MatNICOnlineAtacsPeak(o.nowAmplitude,o.NRCHANNELS,o.nowTransition,o.duration,o.nowTransition,o.sock);
-                    %                                 end
-                    %                             case 'RNS'
-                    %                                 disp('RNS Not implemented yet');
-                    %                                 ret = -1;
-                    %                         end
-                    %                         o.isTimedStarted = true;
-                    %                     end
-                    %                      if ret<0
-                    %                         o.checkRet(ret,[ o.nowType  ' parameter change failed']);
-                    %                     end
+                case 'TIMED'                                       
+                    % Single shot start
+%                     ret =0;
+                    if o.isTimedStarted 
+                        % Started this trial. Nothing to do.
+                    elseif strcmpi(o.tmr.Running,'On')
+                        % Not started this trial but still running from a
+                        % previous start. Deal with this by stopping the
+                        % old one, waiting until it is zero, then starting
+                        % the new one.  all in a busy wait...?
+                        o.writeToFeed('Oh Oh Stim commands overlap... ');                        
+                    else                        
+                        rampUp(o,o.duration);
+                        o.isTimedStarted = true;
+                    end
+%                      if ret<0
+%                         o.checkRet(ret,[ o.nowType  ' parameter change failed']);
+%                     end
                 otherwise
                     o.cic.error(['Unknown starstim mode :' o.mode]);
             end
@@ -428,8 +422,7 @@ classdef starstim < neurostim.stimulus
                         rampDown(o);
                     end
                 case 'TIMED'
-                    %                     o.isTimedStarted =false;
-                    %waitFor(o,'CODE_STATUS_IDLE');
+                    o.isTimedStarted =false;                   
                 otherwise
                     o.cic.error(['Unknown starstim mode :' o.mode]);
             end
@@ -441,10 +434,7 @@ classdef starstim < neurostim.stimulus
         function afterExperiment(o)
             
             
-            timrs = timerfind('name','starstim.timer');
-            if ~isempty(timrs)
-                delete(timrs)
-            end
+            o.tmr.stop; % Stop the timer
             
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
@@ -507,7 +497,7 @@ classdef starstim < neurostim.stimulus
                     msg{5} = sprintf('\t%06.3f o ',o.nowPhase);
                     if o.fake
                         o.writeToFeed(msg);
-                    else
+                    else                       
                         [ret] = MatNICOnlinetACSChange(o.nowAmplitude, o.nowFrequency, o.nowPhase, o.NRCHANNELS, o.nowTransition, o.sock);                        
                         o.checkRet(ret,msg);
                     end
@@ -534,12 +524,11 @@ classdef starstim < neurostim.stimulus
             % Schedule the rampDown. Assuming that this line is executed
             % immediately after
             if isfinite(peakLevelDuration)
-                off  = @(timr,events,obj,tSchedule) (rampDown(obj,tSchedule));
-                tmr= timer('name','starstim.timer');
-                tmr.StartDelay = (o.nowTransition+peakLevelDuration)/1000; % seconds
-                tmr.ExecutionMode='SingleShot';
-                tmr.TimerFcn = {off,o,GetSecs};
-                start(tmr);
+                off  = @(timr,events,obj,tSchedule) (rampDown(obj,tSchedule));                
+                o.tmr.StartDelay = (o.nowTransition+peakLevelDuration)/1000; % seconds
+                o.tmr.ExecutionMode='SingleShot';
+                o.tmr.TimerFcn = {off,o,GetSecs};
+                start(o.tmr);
             end
             
         end
@@ -553,6 +542,7 @@ classdef starstim < neurostim.stimulus
                     o.writeToFeed('Ramping %s down to zero in %.0f ms',o.type, o.nowTransition);
                 end
             else
+                waitFor(o,'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE');
                 switch upper(o.type)
                     case 'TACS'
                         [ret] = MatNICOnlinetACSChange(zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.nowTransition, o.sock);

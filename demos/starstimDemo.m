@@ -5,7 +5,7 @@ c = myRig('debug',true);
 c.screen.colorMode = 'RGB'; % Allow specification of RGB luminance as color
 c.screen.color.text = [1 0 0];  % Red text 
 c.screen.color.background = [0.5 0.5 0.5]; % A high luminance background that looks "white" (same luminance for each gun)
-c.dirs.output = 'c:/temp/';
+c.dirs.output = 'z:/klab/';
 
 c.screen.type = 'GENERIC';
 c.trialDuration = 4000;
@@ -23,8 +23,8 @@ ptch.filled       = true;
 ptch.color        = [1 1 0];
 ptch.on           = 0;
 
-stm = stimuli.starstim(c,'localhost');
-stm.fake = true;   % Set to false if you're connected to a machine with NIC running
+stm = stimuli.starstim(c,'starstim');
+stm.fake = false;   % Set to false if you're connected to a machine with NIC running
 stm.protocol ='AboutNothing';  % This is a protocol that exists on the host (it has a long duration and it generates zero currents.)
 stm.enabled = true;            
 %% Example BLOCKED Mode
@@ -86,23 +86,22 @@ stm.enabled = true;
 % in the ITI and will make that ITI longer than an ITI withotu sham. Again,
 % setting the ITI to a longer time should solve this. 
 % %
-d =design('DUMMY'); 
-d.fac1.starstim.enabled = [ false true];
-d.fac2.starstim.sham    = [ false true];
-d.fac1.patch.color  =  {[0 1 0],[1 0 0]}; %Green patch is disabled, red patch stim enabled.
-
-stm.mode = 'TRIAL';
-stm.type = 'tDCS';
-stm.mean = [1 1 1 1 -1 -1 -1 -1]; % 1mA in through first four, and out through second four electrodes
-stm.transition = 100;
-d.conditions(:).starstim.mode = 'TRIAL';
-d.randomization = 'RANDOMWITHREPLACEMENT';
-blck=block('dummyBlock',d); 
-blck.nrRepeats  = 15;
-c.trialDuration = 2000; 
-c.iti = 1000;
-c.addPropsToInform('starstim.enabled','starstim.sham')
-c.run(blck); 
+% d =design('DUMMY'); 
+% d.fac1.starstim.sham = [ false true];
+% d.fac1.patch.color  =  {[0 1 0],[1 0 0]}; %Green patch is Sham, red patch Stim.
+% stm.enabled = true;
+% stm.mode = 'TRIAL';
+% stm.type = 'tDCS';
+% stm.mean = [1000 -333 -333 -334 0 0 0 0 ]; % 1mA in through first , and out through second to fourth electrode. You can use the other electrodes for EEG.
+% stm.transition = 500;  % Ramp up/down time
+% d.conditions(:).starstim.mode = 'TRIAL';
+% d.randomization = 'RANDOMWITHREPLACEMENT';
+% blck=block('dummyBlock',d); 
+% blck.nrRepeats  = 15;
+% c.trialDuration = 2000; 
+% c.iti = 1000;
+% c.addPropsToInform('starstim.enabled','starstim.sham')
+% c.run(blck); 
 
 
 
@@ -122,25 +121,25 @@ c.run(blck);
 % it is at full amplitude will be t=150ms, assuming that .transition is
 % set to 100.
 % 
-% d =design('DUMMY'); 
-% stm.transition = 100; % time to transition from zero to full stim and from full stim to zero.
-% stm.stimType = 'AC';
-% stm.enabled  =true;
-% inout = [1 1/3 1/3 1/3 0 0 0 0];  % #1 = stim, #2-4 = return, each at 1/3.
-% stm.phase = [0    180 180 180 0 0 0 0]; % Anti-phase for return to conserve power.
-% stm.protocol = 'Neurostim.StimTest.Timed';
-% stm.mode = 'TIMED'; 
-% 
-% d.fac1.starstim.frequency = [1 2 5 10 20 40];
-% d.fac2.starstim.duration  = [1000 2000];
-% d.fac3.starstim.amplitude = {1500*inout, 500*inout, 2000*inout};
-% d.randomization = 'RANDOMWITHREPLACEMENT';
-% blck=block('dummyBlock',d); 
-% blck.nrRepeats  = 15;
-% c.trialDuration = 3000; 
-% c.iti= 2000;
-% c.addPropsToInform('starstim.amplitude','starstim.frequency','starstim.duration')
-% c.run(blck); 
+d =design('DUMMY'); 
+stm.transition = 100; % time to transition from zero to full stim and from full stim to zero.
+stm.stimType = 'tACS';
+stm.enabled  =true;
+inout = [1 .33 .33 .34 0 0 0 0];  % #1 = stim, #2-4 = return, each at 1/3.
+stm.phase = [0 180 180 180 0 0 0 0]; % Anti-phase for return to conserve power.
+stm.protocol = 'AboutNothing';
+stm.mode = 'TIMED'; 
+stm.amplitude = 1000*inout;
+d.fac1.starstim.frequency = [5 40];
+d.fac2.starstim.duration  = [1000 2000];
+d.fac3.starstim.amplitude = {500*inout, 2000*inout};
+d.randomization = 'RANDOMWITHREPLACEMENT';
+blck=block('dummyBlock',d); 
+blck.nrRepeats  = 15;
+c.trialDuration = 3000; 
+c.iti= 1000;
+c.addPropsToInform('starstim.nowAmplitude','starstim.frequency','starstim.duration')
+c.run(blck); 
 % 
 % 
 % 
