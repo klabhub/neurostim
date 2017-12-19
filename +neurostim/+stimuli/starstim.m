@@ -242,6 +242,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('enabled',true);
             
             
+            o.addProperty('marker',''); % Used to log markers sent to NIC
             
             % Define  marker events to store in the NIC data file
             o.code('trialStart') = 1;
@@ -477,6 +478,7 @@ classdef starstim < neurostim.stimulus
                 writeToFeed(o,[m ' marker delivered']);
             else
                 ret = MatNICMarkerSendLSL(o.code(m),o.markerStream);
+                o.marker = o.code(m); % Log it
                 if ret<0
                     o.checkRet(ret,[m ' marker not delivered']);
                 end
