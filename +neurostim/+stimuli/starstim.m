@@ -217,9 +217,12 @@ classdef starstim < neurostim.stimulus
             
             % Define  marker events to store in the NIC data file
             o.code('trialStart') = 1;
-            o.code('stimStart') = 2;
-            o.code('stimStop') = 3;
+            o.code('rampUp') = 2;
+            o.code('rampDown') = 3;            
             o.code('trialStop') = 4;
+            o.code('returnFromNIC') = 5; % confirming online change return from function call.
+            o.code('startProtocol') = 6;
+            o.code('stopProtocol') = 7;
         end
         
         function beforeExperiment(o)
@@ -310,6 +313,7 @@ classdef starstim < neurostim.stimulus
         
         
         function beforeTrial(o)
+            
             %% Load the protocol if it has changed
             if ~strcmpi(o.protocol,o.activeProtocol)
                 stop(o);
@@ -321,6 +325,9 @@ classdef starstim < neurostim.stimulus
             if ~hasValidParameters(o)
                 return;
             end
+            
+            
+            sendMarker(o,'trialStart'); % Mark in Starstim data file
             
             
             %% Depending on the mode, do something
@@ -342,8 +349,7 @@ classdef starstim < neurostim.stimulus
                     o.cic.error(['Unknown starstim mode :' o.mode]);
             end
             
-            sendMarker(o,'trialStart'); % Mark in Starstim data file
-            
+          
         end
         
         function beforeFrame(o)
@@ -428,6 +434,7 @@ classdef starstim < neurostim.stimulus
         function sendMarker(o,m)
             if o.fake
                 writeToFeed(o,[m ' marker delivered']);
+                o.marker = o.code(m); % Log it
             else
                 ret = MatNICMarkerSendLSL(o.code(m),o.markerStream);
                 o.marker = o.code(m); % Log it
@@ -452,6 +459,7 @@ classdef starstim < neurostim.stimulus
                 peakLevelDuration =Inf;
             end
             
+            sendMarker(o,'rampUp');
             switch upper(o.type)
                 case 'TACS'
                     msg{1} = sprintf('Ramping tACS up in %d ms to:',o.transition);
@@ -461,7 +469,7 @@ classdef starstim < neurostim.stimulus
                     msg{5} = sprintf('\t%d o ',o.phase);
                     if o.fake
                         o.writeToFeed(msg);
-                    else                       
+                    else                                                 
                         [ret] = MatNICOnlinetACSChange(perChannel(o,o.amplitude), perChannel(o,o.frequency), perChannel(o,o.phase), o.NRCHANNELS, o.transition, o.sock);                        
                         o.checkRet(ret,msg);
                     end
@@ -479,7 +487,8 @@ classdef starstim < neurostim.stimulus
                     o.checkRet(-1,'tRNS Not implemented yet');
                 otherwise
                     error(['Unknown stimulation type : ' o.type]);
-            end
+            end            
+            sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
             
             if o.sham
                 peakLevelDuration =0;
@@ -499,6 +508,7 @@ classdef starstim < neurostim.stimulus
         
         
         function rampDown(o,tScheduled)
+            sendMarker(o,'rampDown');
             if o.fake
                 if nargin ==2
                     o.writeToFeed('Ramping %s down to zero in %d ms after %.0f ms )',o.type, o.transition,1000*(GetSecs-tScheduled));
@@ -520,6 +530,8 @@ classdef starstim < neurostim.stimulus
                         error(['Unknown stimulation type : ' o.type]);
                 end
             end
+            sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
+        
         end
         
         
@@ -528,6 +540,8 @@ classdef starstim < neurostim.stimulus
         % is started once and stopped at the end fo the experiment.
         function start(o)
             % Start the current protocol.
+            
+            sendMarker(o,'startProtocol');          
             if o.fake
                 o.writeToFeed(['Started' o.protocol ' protocol' ]);
             elseif ~o.isProtocolOn
@@ -541,14 +555,17 @@ classdef starstim < neurostim.stimulus
                 % This waitFor is slow, and adds at least 1s to
                 % the startup, but at least we're in a defined
                 % state after the wait.
-                % else already started
+                % else already started           
             end
+            sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
+        
         end
         
         
         
         function stop(o)
             % Stop the current protocol
+            sendMarker(o,'stopProtocol');                  
             if o.fake
                 o.writeToFeed(['Stopped ' o.protocol ' protocol']);
             elseif o.isProtocolOn
@@ -562,6 +579,8 @@ classdef starstim < neurostim.stimulus
                 %else -  already stopped
                 waitFor(o,{'CODE_STATUS_PROTOCOL_ABORTED','CODE_STATUS_IDLE'});% Either of these is fine
             end
+            sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
+       
         end
         
         function pause(o)
