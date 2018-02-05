@@ -516,7 +516,7 @@ classdef starstim < neurostim.stimulus
                     o.writeToFeed('Ramping %s down to zero in %d ms',o.type, o.transition);
                 end
             else
-                waitFor(o,'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE');
+                waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
                 switch upper(o.type)
                     case 'TACS'
                         [ret] = MatNICOnlinetACSChange(zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
@@ -629,6 +629,7 @@ classdef starstim < neurostim.stimulus
             end
             unloadProtocol(o);
             close(o.sock);
+            o.mustExit = false;
         end
         
         function waitFor(o,varargin)
