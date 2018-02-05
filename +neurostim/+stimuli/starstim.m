@@ -419,6 +419,7 @@ classdef starstim < neurostim.stimulus
                 o.writeToFeed('Closing Markerstream');
             else
                 MatNICMarkerCloseLSL(o.markerStream);
+                o.markerStream = [];
                 close(o.sock);
             end
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
@@ -436,10 +437,14 @@ classdef starstim < neurostim.stimulus
                 writeToFeed(o,[m ' marker delivered']);
                 o.marker = o.code(m); % Log it
             else
-                ret = MatNICMarkerSendLSL(o.code(m),o.markerStream);
-                o.marker = o.code(m); % Log it
-                if ret<0
-                    o.checkRet(ret,[m ' marker not delivered']);
+                if ~isempty(o.markerStream)
+                    ret = MatNICMarkerSendLSL(o.code(m),o.markerStream);
+                    o.marker = o.code(m); % Log it
+                    if ret<0
+                        o.checkRet(ret,[m ' marker not delivered']);
+                    end
+                else
+                    o.writeToFeed('No marker stream to send markers');
                 end
             end
         end
