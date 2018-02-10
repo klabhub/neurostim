@@ -76,8 +76,6 @@ classdef starstim < neurostim.stimulus
     properties (SetAccess =public, GetAccess=public)
         stim@logical =false;
         impedanceType@char = 'DC'; % Set to DC or AC to measure impedance at DC or xx Hz AC.
-        type = 'tACS'; %tACS, tDCS, tRNS
-        mode@char = 'BLOCKED'; % 'BLOCKED','TRIAL','TIMED'
         NRCHANNELS = 8;  % nrChannels in your device.
         debug = false;
     end
@@ -202,7 +200,9 @@ classdef starstim < neurostim.stimulus
             o.addProperty('protocol',''); % Case Sensitive - must exist on host
             o.addProperty('fake',fake);
             o.addProperty('z',NaN);
-            o.addProperty('stimType','');
+            o.addProperty('type','tACS');%tACS, tDCS, tRNS
+            o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED'
+   
             
             o.addProperty('amplitude',NaN);            
             o.addProperty('mean',NaN);
@@ -221,7 +221,7 @@ classdef starstim < neurostim.stimulus
             o.code('rampDown') = 3;            
             o.code('trialStop') = 4;
             o.code('returnFromNIC') = 5; % confirming online change return from function call.
-            o.code('startProtocol') = 6;
+            o.code('protocolStarted') = 6;
             o.code('stopProtocol') = 7;
         end
         
@@ -239,7 +239,7 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 o.writeToFeed(['Starstim connected to ' o.host]);
             else
-                [ret, stts, o.sock] = MatNICConnect(o.host);
+                [ret, ~, o.sock] = MatNICConnect(o.host);
                 if ret<0
                     o.cic.error('STOPEXPERIMENT',['Could not connect to ',o.host]);
                 end                                    
@@ -404,7 +404,7 @@ classdef starstim < neurostim.stimulus
             
             
             o.tmr.stop; % Stop the timer
-            
+            rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
@@ -444,7 +444,7 @@ classdef starstim < neurostim.stimulus
                         o.checkRet(ret,[m ' marker not delivered']);
                     end
                 else
-                    o.writeToFeed('No marker stream to send markers');
+                    %o.writeToFeed('No marker stream to send markers');
                 end
             end
         end
@@ -546,7 +546,6 @@ classdef starstim < neurostim.stimulus
         function start(o)
             % Start the current protocol.
             
-            sendMarker(o,'startProtocol');          
             if o.fake
                 o.writeToFeed(['Started' o.protocol ' protocol' ]);
             elseif ~o.isProtocolOn
@@ -562,8 +561,8 @@ classdef starstim < neurostim.stimulus
                 % state after the wait.
                 % else already started           
             end
-            sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
-        
+            sendMarker(o,'protocolStarted');                  
+            
         end
         
         
@@ -584,7 +583,7 @@ classdef starstim < neurostim.stimulus
                 %else -  already stopped
                 waitFor(o,{'CODE_STATUS_PROTOCOL_ABORTED','CODE_STATUS_IDLE'});% Either of these is fine
             end
-            sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
+           
        
         end
         

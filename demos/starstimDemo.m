@@ -119,7 +119,7 @@ stm.enabled = true;
 % % 
 d =design('DUMMY'); 
 stm.transition = 100; % time to transition from zero to full stim and from full stim to zero.
-stm.stimType = 'tACS';
+stm.type = 'tACS';
 stm.enabled  =true;
 inout = [1 .33 .33 .34 0 0 0 0];  % #1 = stim, #2-4 = return, each at 1/3.
 stm.phase = [0 180 180 180 0 0 0 0]; % Anti-phase for return to conserve power.
