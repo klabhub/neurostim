@@ -16,9 +16,12 @@ varying vec4  color;
 varying float meanLuminance; 
 varying float sigma1;
 varying float sigma2;
+varying float flickerPhase;
+
 
 uniform int colorMode;
 uniform int mask;
+uniform int flickerMode;
 
 uniform float multiGaborsPhaseOffset[10];
 uniform float multiGaborsOriOffset[10];
@@ -65,9 +68,24 @@ void main()
         alpha = 1.0;
     }
 
-  
+    /* Temporal envelope */
+    float tev;
+    if (flickerMode==1){
+        /*none */
+        tev =1.0;
+    }else if (flickerMode ==2){   
+        /*sinusoidal */
+        tev = sin(flickerPhase);
+    }else if (flickerMode==3){
+        /* square wave */
+        tev = sign(sin(flickerPhase));
+    }else{
+        /*throw an error - not a valid mode */
+        tev =1.0;
+    }
+
     float factor;
-    factor =  1.0 +contrast * ev * sv;
+    factor =  1.0 +contrast * ev * sv * tev;
     if (colorMode==1 || colorMode==3){
         /*  RGB or LUM */
         gl_FragColor[0] = color[0] * factor;

@@ -107,7 +107,8 @@ classdef cic < neurostim.plugin
     properties (Dependent)
         nrStimuli;      % The number of stimuli currently in CIC
         nrPlugins;      % The number of plugins (Excluding stimuli) currently inCIC
-        nrConditions;   % The number of conditions in this experiment
+        nrConditions;   % The number of conditions in this block
+        nrBlocks;       % The number of blocks in this experiment
         nrTrials;       % The number of trials in the current block
         center;         % Where is the center of the display window.
         file;           % Target file name
@@ -142,6 +143,10 @@ classdef cic < neurostim.plugin
             v= length(c.plugins);
         end
         
+        function v= get.nrBlocks(c)
+            v = numel(c.blocks);
+        end
+        
         function v= get.nrTrials(c)
             if c.block
                 v= c.blocks(c.block).nrTrials;
@@ -150,7 +155,11 @@ classdef cic < neurostim.plugin
             end
         end
         function v= get.nrConditions(c)
-            v = sum([c.blocks.nrConditions]);
+            if c.block
+                v= c.blocks(c.block).nrConditions;
+            else
+                v=0;
+            end;
         end
         function v = get.center(c)
             [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
@@ -573,7 +582,8 @@ classdef cic < neurostim.plugin
             % Provide basic information about the CIC
             for i=1:numel(c)
                 disp(char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
-                    ['Stimuli:' num2str(c(i).nrStimuli) ' Conditions:' num2str(c(i).nrConditions) ' Trials:' num2str(c(i).nrTrials) ]));
+                    ['Stimuli:' num2str(c(i).nrStimuli) ' Blocks: ' num2str(c(i).nrBlocks) ' Conditions: [' num2str([c(i).blocks.nrConditions]) '] Trials: [' num2str([c(i).blocks.nrTrials]) ']' ],...
+                    ['File: ' c.fullFile '.mat']));
             end
         end
         
@@ -620,15 +630,21 @@ classdef cic < neurostim.plugin
             % Creates an experimental session
             % Inputs:
             % blocks - input blocks directly created from block('name')
-            % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
+            % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT',
+            % 'ORDERED' ( a specific ordering provided by the caller) or
+            % 'LATINSQUARES' - uses a balanced latin square design, (even
+            % number of blocks only). The row number can be provide as the
+            % 'latinSquareRow' argument. If not, the user is prompted to enter
+            % the number. 
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
             % 'blockOrder' - the ordering of blocks
             p=inputParser;
-            p.addParameter('randomization','SEQUENTIAL',@(x)any(strcmpi(x,{'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT','ORDERED'})));
+            p.addParameter('randomization','SEQUENTIAL',@(x)any(strcmpi(x,{'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT','ORDERED','LATINSQUARES'})));
             p.addParameter('blockOrder',[],@isnumeric); %  A specific order of blocks
             p.addParameter('nrRepeats',1,@isnumeric);
             p.addParameter('weights',[],@isnumeric);
+            p.addParameter('latinSquareRow',[],@isnumeric); % The latin square row number
             
             %% First create the blocks and blockFlow
             isblock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
@@ -642,14 +658,37 @@ classdef cic < neurostim.plugin
             else
                 c.blockFlow.weights = p.Results.weights;
             end
+            
+            if strcmpi(p.Results.randomization,'LATINSQUARES')
+                nrBlocks = numel(c.blocks);
+                if ~iseven(nrBlocks)
+                    error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrBlocks)]);                    
+                end
+                allLS = neurostim.utils.ballatsq(nrBlocks);
+                 
+                if isempty(p.Results.latinSquareRow)                
+                    lsNr = input(['Latin square group number (1-' num2str(size(allLS,1)) ')'],'s');
+                    lsNr = str2double(lsNr);
+                else
+                    lsNr = p.Results.latinSquareRow;
+                end
+                if isnan(lsNr)  || lsNr>size(allLS,1) || lsNr <1
+                    error(['The Latin Square group ' num2str(lsNr) ' does not exist for ' num2str(nrBlocks) ' conditions/blocks']);
+                end
+                blockOrder = allLS(lsNr,:);
+                c.blockFlow.latinSquareRow = lsNr;
+            else
+                blockOrder = p.Results.blockOrder;
+                c.blockFlow.latinSquareRow = NaN;
+            end
+                
             c.blockFlow.randomization = p.Results.randomization;
             singleRepeatList = repelem((1:numel(c.blocks)),c.blockFlow.weights);
             c.blockFlow.list =[];
             for i=1:p.Results.nrRepeats
                 switch upper(c.blockFlow.randomization)
-                    case 'ORDERED'
-                        c.blockFlow.list = cat(2,c.blockFlow.list,p.Results.blockOrder);
-                        c.blockFlow.randomization = 'SEQUENTIAL';
+                    case {'ORDERED','LATINSQUARES'}
+                        c.blockFlow.list = cat(2,c.blockFlow.list,blockOrder);                       
                     case 'SEQUENTIAL'
                         c.blockFlow.list = cat(2,c.blockFlow.list,singleRepeatList);
                     case 'RANDOMWITHREPLACEMENT'
@@ -700,7 +739,9 @@ classdef cic < neurostim.plugin
             if rem(c.trial,c.saveEveryN)==0
                 tic
                 c.saveData;
-                toc
+                tmpT = toc;
+                c.writeToFeed('Saving the file took %f s',tmpT); 
+                
             end
         end
         

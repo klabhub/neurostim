@@ -86,7 +86,11 @@ classdef nafcResponse < neurostim.plugins.behavior
        function inProgress = validate(o)
           inProgress = o.inProgress;
           
-          if ~isempty(o.simWhen)
+          % A simulated observer (useful to test paradigms and develop
+          % analysis code). The simulator can only reponse when the
+          % behavior is enabled (i.e. after .on), just like the real
+          % observer.          
+          if o.enabled && ~isempty(o.simWhen)
             if o.cic.trialTime>o.simWhen
                 keyboard(o,o.keys{o.simWhat});
             end

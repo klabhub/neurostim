@@ -7,10 +7,12 @@
  * BK - April 2014	 
  */
 
+
 /* Set from Matlab when texture is created */
 uniform int rgbColor;
 uniform vec2 size;
 uniform int mask;
+uniform int flickerMode;
 
 uniform float multiGaborsPhaseOffset[10];
 uniform float multiGaborsOriOffset[10];
@@ -30,6 +32,8 @@ varying float freqTwoPi;
 varying vec4 color; 
 varying float sigma1;
 varying float sigma2;
+varying float flickerPhase;
+
 void main()
 {
     /* Apply standard geometric transformations to patch: */
@@ -39,13 +43,15 @@ void main()
     gl_TexCoord[0] = gl_MultiTexCoord0 -vec4(size/2.0,0,0) ;
 
     /* auxParameters0   = [o.phase, o.frequency, o.sigma, ]
-       auxParameters1   = o.peakLuminance 0 0 0 ] */
+       auxParameters1   = o.peakLuminance o.flickerPhase 0 0] */
 
     phase               = radians(auxParameters0[0]);
     freqTwoPi           = auxParameters0[1] * 2.0 * 3.141592654;
     sigma1              = auxParameters0[2];
     sigma2              = auxParameters0[3];    
     contrast            = auxParameters1[0];
+    flickerPhase        = auxParameters1[1];
+    
     orientation         = radians(90-sizeAngleFilterMode.z);
     color               = modulateColor;
     

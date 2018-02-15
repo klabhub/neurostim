@@ -184,21 +184,16 @@ classdef starstim < neurostim.stimulus
         % Constructor. Provide a handle to CIC, the Starstim hostname.
         % You can fake a NIC by specifying 'fake' as the hostname
         function [o] = starstim(c,hst)
-            
-            v = which('MatNICVersion');
-            if isempty(v)
-                error('The MatNIC library is not on your Matlab path');
-            end
-            
+               
+           
             o=o@neurostim.stimulus(c,'starstim');
-            fake = strcmpi(hst,'fake');
             if nargin <2
                 hst = 'localhost';
-            end
+            end           
             
             o.addProperty('host',hst);
             o.addProperty('protocol',''); % Case Sensitive - must exist on host
-            o.addProperty('fake',fake);
+            o.addProperty('fake',false);
             o.addProperty('z',NaN);
             o.addProperty('type','tACS');%tACS, tDCS, tRNS
             o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED'
@@ -223,9 +218,16 @@ classdef starstim < neurostim.stimulus
             o.code('returnFromNIC') = 5; % confirming online change return from function call.
             o.code('protocolStarted') = 6;
             o.code('stopProtocol') = 7;
+            
+            
         end
         
         function beforeExperiment(o)
+            
+            v = which('MatNICVersion');
+            if isempty(v) && ~o.fake
+                error('The MatNIC library is not on your Matlab path');
+            end
             
             %% Remove straggling timers
             timrs = timerfind('name','starstim.timer');

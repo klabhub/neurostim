@@ -23,6 +23,7 @@ classdef gabor < neurostim.stimulus
 
     properties (Constant)
         maskTypes = {'GAUSS','CIRCLE','ANNULUS'};
+        flickerTypes = {'NONE','SINE','SQUARE'};
     end
     properties (Access=private)
         texture;
@@ -51,6 +52,12 @@ classdef gabor < neurostim.stimulus
             
             %% Motion
             o.addProperty('phaseSpeed',0);
+            
+            %% Flicker 
+            o.addProperty('flickerMode','NONE','validate',@(x)(ismember(neurostim.stimuli.gabor.flickerTypes,upper(x))));
+            o.addProperty('flickerPhase',0,'validate',@isnumeric);
+            o.addProperty('flickerFrequency',0,'validate',@isnumeric);
+            o.addProperty('flickerPhaseOffset',0,'validate',@isnumeric);
             
             %% Special use
             % Set o.multiGaborsN to n>1 to create a sum of Gabors masking stimulus
@@ -96,6 +103,7 @@ classdef gabor < neurostim.stimulus
             % shader.
             glUseProgram(o.shader);
             glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
+            glUniform1i(glGetUniformLocation(o.shader, 'flickerMode'),find(ismember(o.flickerTypes,upper(o.flickerMode))));           
             glUniform1i(glGetUniformLocation(o.shader, 'multiGaborsN'),max(1,o.multiGaborsN)); % At least 1 so that a single Gabor is drawn
             glUniform1fv(glGetUniformLocation(o.shader, 'multiGaborsPhaseOffset'),numel(o.multiGaborsPhaseOffset),o.multiGaborsPhaseOffset);
             glUniform1fv(glGetUniformLocation(o.shader, 'multiGaborsOriOffset'),numel(o.multiGaborsOriOffset),o.multiGaborsOriOffset);
@@ -120,7 +128,7 @@ classdef gabor < neurostim.stimulus
             
                                             
             % Draw the Gabor using the GLSL shader            
-            aux = [o.phase, o.frequency, oSigma; o.contrast 0 0 0]';    
+            aux = [o.phase, o.frequency, oSigma; o.contrast o.flickerPhase 0 0]';    
             Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, o.orientation, filterMode, globalAlpha, [oColor, o.alpha] , textureShader,specialFlags, aux);            
 
         end
@@ -131,8 +139,11 @@ classdef gabor < neurostim.stimulus
             if oPhaseSpeed ~=0
                 o.phase = o.phase + oPhaseSpeed;
             end
+            oFlickerFrequency = o.flickerFrequency;
+            if  oFlickerFrequency~=0
+                   o.flickerPhase = mod(o.flickerPhaseOffset + (o.time -0)*2*pi*oFlickerFrequency/1000,2*pi);
+            end
         end
-        
     end
     
     methods (Access=private)
@@ -157,7 +168,9 @@ classdef gabor < neurostim.stimulus
                 error(['Gabor does not know how to deal with colormode ' o.cic.screen.colorMode]);
             end
             glUniform1i(glGetUniformLocation(o.shader , 'colorMode'), colorMode);
+            
             glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
+            
             % Setup done:
             glUseProgram(0);
             
