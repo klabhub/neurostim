@@ -309,10 +309,10 @@ classdef cic < neurostim.plugin
                     end
                     val{j} = val{j}(:)';
                 end
-                msg{i} = sprintf('%s: %s/%s',c.propsToInform{i},val{:});  
+                msg{i} = sprintf('%s: %s/%s',c.propsToInform{i},val{:});
                 if strcmpi(msg{i}(end),'/');msg{i}(end) ='';end
             end
-            c.writeToFeed(msg);            
+            c.writeToFeed(msg);
         end
     end
     
@@ -635,7 +635,7 @@ classdef cic < neurostim.plugin
             % 'LATINSQUARES' - uses a balanced latin square design, (even
             % number of blocks only). The row number can be provide as the
             % 'latinSquareRow' argument. If not, the user is prompted to enter
-            % the number. 
+            % the number.
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
             % 'blockOrder' - the ordering of blocks
@@ -662,11 +662,11 @@ classdef cic < neurostim.plugin
             if strcmpi(p.Results.randomization,'LATINSQUARES')
                 nrBlocks = numel(c.blocks);
                 if ~iseven(nrBlocks)
-                    error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrBlocks)]);                    
+                    error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrBlocks)]);
                 end
                 allLS = neurostim.utils.ballatsq(nrBlocks);
-                 
-                if isempty(p.Results.latinSquareRow)                
+                
+                if isempty(p.Results.latinSquareRow)
                     lsNr = input(['Latin square group number (1-' num2str(size(allLS,1)) ')'],'s');
                     lsNr = str2double(lsNr);
                 else
@@ -681,14 +681,14 @@ classdef cic < neurostim.plugin
                 blockOrder = p.Results.blockOrder;
                 c.blockFlow.latinSquareRow = NaN;
             end
-                
+            
             c.blockFlow.randomization = p.Results.randomization;
             singleRepeatList = repelem((1:numel(c.blocks)),c.blockFlow.weights);
             c.blockFlow.list =[];
             for i=1:p.Results.nrRepeats
                 switch upper(c.blockFlow.randomization)
                     case {'ORDERED','LATINSQUARES'}
-                        c.blockFlow.list = cat(2,c.blockFlow.list,blockOrder);                       
+                        c.blockFlow.list = cat(2,c.blockFlow.list,blockOrder);
                     case 'SEQUENTIAL'
                         c.blockFlow.list = cat(2,c.blockFlow.list,singleRepeatList);
                     case 'RANDOMWITHREPLACEMENT'
@@ -734,13 +734,13 @@ classdef cic < neurostim.plugin
             % This assesses 'success' of the behavior and updates the design
             % if needed (i.e. retrying failed trials)
             afterTrial(c.blocks(c.block),c);
-            collectPropMessage(c);            
+            collectPropMessage(c);
             collectFrameDrops(c);
             if rem(c.trial,c.saveEveryN)==0
                 tic
                 c.saveData;
                 tmpT = toc;
-                c.writeToFeed('Saving the file took %f s',tmpT); 
+                c.writeToFeed('Saving the file took %f s',tmpT);
                 
             end
         end
@@ -750,10 +750,10 @@ classdef cic < neurostim.plugin
         function error(c,command,msg)
             switch (command)
                 case 'STOPEXPERIMENT'
-                    neurostim.utils.cprintf('red','\n%s\n',msg);                    
+                    neurostim.utils.cprintf('red','\n%s\n',msg);
                     c.flags.experiment = false;
                 case 'CONTINUE'
-                    neurostim.utils.cprintf('red','\n%s\n',msg);                                    
+                    neurostim.utils.cprintf('red','\n%s\n',msg);
                 otherwise
                     error(['Rethrowing unhandled cic error: ' msg]);
             end
@@ -857,187 +857,166 @@ classdef cic < neurostim.plugin
                 locOVERLAYRECT = Screen('Rect',c.overlayWindow)-[c.screen.xpixels/2 c.screen.ypixels/2 c.screen.xpixels/2 c.screen.ypixels/2]; % Need this to clear with FillRect
             end
             %ListenChar(-1);
-            nrBlocks = numel(c.blockFlow.list);
-            try
-                % Big try-catch around everything once it starts
-                % running
+            for blockCntr=1:c.nrBlocks
+                c.flags.block = true;
+                c.block = c.blockFlow.list(blockCntr); % Logged.
+                c.blockCntr= blockCntr;
                 
-                for blockCntr=1:nrBlocks
-                    c.flags.block = true;
-                    c.block = c.blockFlow.list(blockCntr); % Logged.
-                    c.blockCntr= blockCntr;
+                beforeBlock(c);
+                
+                %% Start the trials in the block
+                c.blockTrial =0;
+                while ~c.blocks(c.block).done
+                    c.trial = c.trial+1;
                     
-                    beforeBlock(c);
+                    beforeTrial(c); % Get all plugins ready for the next trial
                     
-                    %% Start the trials in the block
-                    c.blockTrial =0;
-                    while ~c.blocks(c.block).done
-                        c.trial = c.trial+1;
-                        
-                        beforeTrial(c); % Get all plugins ready for the next trial
-                        
-                        %ITI - wait
-                        if c.trial>1
-                            nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
-                            for i=1:nFramesToWait
-                                Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
-                            end
+                    %ITI - wait
+                    if c.trial>1
+                        nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
+                        for i=1:nFramesToWait
+                            Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                         end
-                        
-                        c.frame=0;
-                        c.flags.trial = true;
-                        PsychHID('KbQueueFlush');
-                        
-                        Priority(MaxPriority(c.mainWindow));
-                        %draw = nan(1,1000); % Commented out. See drawingFinished code below
-                        while (c.flags.trial && c.flags.experiment)
-                            %%  Trial runnning -
-                            c.frame = c.frame+1;
-                            
-                            %% Check for end of trial
-                            if c.frame-1 >= ms2frames(c,c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
-                                c.flags.trial=false; % This will be the last frame.
-                                clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
-                            else
-                                clr = c.clear;
-                            end
-                            
-                            
-                            base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
-                            % This commented out code allows measuring the draw
-                            % times.
-                            %draw(c.frame) = Screen('DrawingFinished',c.mainWindow,1-clr,true);
-                            Screen('DrawingFinished',c.mainWindow,1-clr);
-                            
-                            
-                            KbQueueCheck(c);
-                            
-                            
-                            startFlipTime = GetSecs; % Avoid function call to clocktime
-                            
-                            % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
-                            % stimOn: An estimate of Stimulus-onset time
-                            % flip: timestamp taken at the end of Flip's execution
-                            % missed: indicates if the requested presentation deadline for your stimulus has
-                            %           been missed. A negative value means that dead- lines have been satisfied.
-                            %            Positive values indicate a
-                            %            deadline-miss.
-                            % beampos: position of the monitor scanning beam when the time measurement was taken
-                            
-                            % Start (or schedule) the flip
-                            [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
-                            if clr && locHAVEOVERLAY
-                                Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
-                            end
-                            
-                            if c.timing.vsyncMode==0
-                                % Flip returns correct values
-                            else
-                                % Flip's return arguments are not meaningful.
-                                % It is now difficult to estimate when exactly
-                                % the flip occurred.
-                                ptbVbl = GetSecs;
-                                ptbStimOn = ptbVbl;
-                            end
-                            missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
-                            
-                            if c.frame > 1 && locPROFILE
-                                addProfile(c,'FRAMELOOP','cic',c.toc);
-                                tic(c)
-                                addProfile(c,'FLIPTIME','cic',1000*(GetSecs-startFlipTime));
-                            end
-                            
-                            
-                            % Predict next frame and check frame drops
-                            frameDeadline = ptbVbl+ FRAMEDURATION;
-                            if c.frame == 1
-                                locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
-                                c.firstFrame = locFIRSTFRAMETIME;% log it
-                                c.flipTime=0;
-                            else
-                                if missed>ITSAMISS
-                                    c.frameDrop = [c.frame-1 missed]; % Log frame and delta
-                                    if c.guiOn
-                                        c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
-                                    end
-                                end
-                            end
-                            
-                            if c.getFlipTime
-                                c.flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;% Used by stimuli to log their onset
-                                c.getFlipTime=false;
-                            end
-                            
-                            % The current frame has been flipped. Process
-                            % afterFrame functions in all plugins
-                            base(c.pluginOrder,neurostim.stages.AFTERFRAME,c);
-                            
-                        end % Trial running
-                        
-                        Priority(0);
-                        if ~c.flags.experiment || ~ c.flags.block ;break;end
-                        
-                        [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
-                        if c.itiClear && locHAVEOVERLAY
-                            Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
-                        end
-                        c.trialStopTime = ptbStimOn*1000;
+                    end
+                    
+                    c.frame=0;
+                    c.flags.trial = true;
+                    PsychHID('KbQueueFlush');
+                    
+                    Priority(MaxPriority(c.mainWindow));
+                    %draw = nan(1,1000); % Commented out. See drawingFinished code below
+                    while (c.flags.trial && c.flags.experiment)
+                        %%  Trial runnning -
                         c.frame = c.frame+1;
                         
-                        afterTrial(c);
-                    end % one block
+                        %% Check for end of trial
+                        if c.frame-1 >= ms2frames(c,c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
+                            c.flags.trial=false; % This will be the last frame.
+                            clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
+                        else
+                            clr = c.clear;
+                        end
+                        
+                        
+                        base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
+                        % This commented out code allows measuring the draw
+                        % times.
+                        %draw(c.frame) = Screen('DrawingFinished',c.mainWindow,1-clr,true);
+                        Screen('DrawingFinished',c.mainWindow,1-clr);
+                        
+                        
+                        KbQueueCheck(c);
+                        
+                        
+                        startFlipTime = GetSecs; % Avoid function call to clocktime
+                        
+                        % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
+                        % stimOn: An estimate of Stimulus-onset time
+                        % flip: timestamp taken at the end of Flip's execution
+                        % missed: indicates if the requested presentation deadline for your stimulus has
+                        %           been missed. A negative value means that dead- lines have been satisfied.
+                        %            Positive values indicate a
+                        %            deadline-miss.
+                        % beampos: position of the monitor scanning beam when the time measurement was taken
+                        
+                        % Start (or schedule) the flip
+                        [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
+                        if clr && locHAVEOVERLAY
+                            Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
+                        end
+                        
+                        if c.timing.vsyncMode==0
+                            % Flip returns correct values
+                        else
+                            % Flip's return arguments are not meaningful.
+                            % It is now difficult to estimate when exactly
+                            % the flip occurred.
+                            ptbVbl = GetSecs;
+                            ptbStimOn = ptbVbl;
+                        end
+                        missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
+                        
+                        if c.frame > 1 && locPROFILE
+                            addProfile(c,'FRAMELOOP','cic',c.toc);
+                            tic(c)
+                            addProfile(c,'FLIPTIME','cic',1000*(GetSecs-startFlipTime));
+                        end
+                        
+                        
+                        % Predict next frame and check frame drops
+                        frameDeadline = ptbVbl+ FRAMEDURATION;
+                        if c.frame == 1
+                            locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
+                            c.firstFrame = locFIRSTFRAMETIME;% log it
+                            c.flipTime=0;
+                        else
+                            if missed>ITSAMISS
+                                c.frameDrop = [c.frame-1 missed]; % Log frame and delta
+                                if c.guiOn
+                                    c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
+                                end
+                            end
+                        end
+                        
+                        if c.getFlipTime
+                            c.flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;% Used by stimuli to log their onset
+                            c.getFlipTime=false;
+                        end
+                        
+                        % The current frame has been flipped. Process
+                        % afterFrame functions in all plugins
+                        base(c.pluginOrder,neurostim.stages.AFTERFRAME,c);
+                        
+                    end % Trial running
                     
-                    Screen('glLoadIdentity', c.mainWindow);
-                    if ~c.flags.experiment;break;end
+                    Priority(0);
+                    if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
-                    %% Perform afterBlock message/function
-                    waitforkey = false;
-                    if isa(c.blocks(c.block).afterMessage,'function_handle')
-                        msg = c.blocks(c.block).afterMessage(c);
-                    else
-                        msg = c.blocks(c.block).afterMessage;
+                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
+                    if c.itiClear && locHAVEOVERLAY
+                        Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
                     end
-                    if ~isempty(msg)
-                        DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
-                        waitforkey=c.blocks(c.block).afterKeyPress;
-                    end
-                    if ~isempty(c.blocks(c.block).afterFunction)
-                        c.blocks(c.block).afterFunction(c);
-                        waitforkey=c.blocks(c.block).afterKeyPress;
-                    end
-                    Screen('Flip',c.mainWindow);
-                    if waitforkey
-                        KbWait(c.kbInfo.pressAnyKey,2);
-                    end
-                end %blocks
-                c.trialStopTime = c.clockTime;
-                c.stopTime = now;
+                    c.trialStopTime = ptbStimOn*1000;
+                    c.frame = c.frame+1;
+                    
+                    afterTrial(c);
+                end % one block
                 
-                DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
-                Screen('Flip', c.mainWindow);
+                Screen('glLoadIdentity', c.mainWindow);
+                if ~c.flags.experiment;break;end
                 
-                base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
-                c.KbQueueStop;
-                %Prune the log of all plugins/stimuli and cic itself
-                pruneLog([c.pluginOrder c]);
-                c.saveData;
-            catch me
-                % Something went wrong before or during saving.
-                % Let's try saving the data
-                ListenChar(0);
-                Screen('CloseAll');
-                neurostim.utils.cprintf('red','%s','************************************');
-                neurostim.utils.cprintf('red','Something went wrong during the experiment (%s)', me.message );
-                neurostim.utils.cprintf('red','Trying to save the data...');
-                try
-                    c.saveData;
-                    neurostim.utils.cprintf('green','Saved the (partial) data !');
-                catch me2
-                    neurostim.utils.cprintf('red','Saving the data failed: %s', me2.message);
+                %% Perform afterBlock message/function
+                waitforkey = false;
+                if isa(c.blocks(c.block).afterMessage,'function_handle')
+                    msg = c.blocks(c.block).afterMessage(c);
+                else
+                    msg = c.blocks(c.block).afterMessage;
                 end
-                neurostim.utils.cprintf('red','Giving keyboard control to allow you to do something...');
-                keyboard;
-            end
+                if ~isempty(msg)
+                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
+                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end
+                if ~isempty(c.blocks(c.block).afterFunction)
+                    c.blocks(c.block).afterFunction(c);
+                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end
+                Screen('Flip',c.mainWindow);
+                if waitforkey
+                    KbWait(c.kbInfo.pressAnyKey,2);
+                end
+            end %blocks
+            c.trialStopTime = c.clockTime;
+            c.stopTime = now;
+            
+            DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
+            Screen('Flip', c.mainWindow);
+            
+            base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
+            c.KbQueueStop;
+            %Prune the log of all plugins/stimuli and cic itself
+            pruneLog([c.pluginOrder c]);
+            c.saveData;
+            
             ListenChar(0);
             if c.keyAfterExperiment; c.writeToFeed({'','This is the end... Press any key to continue',''}); KbWait(c.kbInfo.pressAnyKey);end
             Screen('CloseAll');
@@ -1122,17 +1101,17 @@ classdef cic < neurostim.plugin
         end
         
         %% GUI Functions
-        function feed(c,style,formatSpecs,varargin) 
-            if numel(varargin)==2 && iscell(varargin{2}) 
-                % multi line message 
+        function feed(c,style,formatSpecs,varargin)
+            if numel(varargin)==2 && iscell(varargin{2})
+                % multi line message
                 maxChars = max(cellfun(@numel,varargin{2}));
                 if c.flags.trial
-                    % in trial .. 
+                    % in trial ..
                     phaseStr = '';
                 else
                     phaseStr = '(ITI)';
                 end
-                neurostim.utils.cprintf(style,'TR: %d: (T: %.0f %s) %s \n',c.trial,c.trialTime,phaseStr,varargin{1}); % First one is the plugin name                            
+                neurostim.utils.cprintf(style,'TR: %d: (T: %.0f %s) %s \n',c.trial,c.trialTime,phaseStr,varargin{1}); % First one is the plugin name
                 neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
                 for i=1:numel(varargin{2})
                     neurostim.utils.cprintf(style,'\t %s\n',varargin{end}{i}); % These are the message lines
@@ -1140,7 +1119,7 @@ classdef cic < neurostim.plugin
                 neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
             else
                 % single line
-                neurostim.utils.cprintf(style,['TR: %d (T: %.0f): ' formatSpecs '\n'],c.trial,c.trialTime,varargin{:});            
+                neurostim.utils.cprintf(style,['TR: %d (T: %.0f): ' formatSpecs '\n'],c.trial,c.trialTime,varargin{:});
             end
         end
         
