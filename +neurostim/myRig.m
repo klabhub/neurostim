@@ -53,20 +53,20 @@ switch computerName
         smallWindow = false;
         
     case 'KLAB-U'        
-         if pin.Results.debug
+         %if pin.Results.debug
             scrNr = 2;
             rect = Screen('rect',scrNr); 
             hz=Screen('NominalFrameRate', scrNr);
             c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',40,'frameRate',hz,'screenNumber',scrNr);
             smallWindow = false;
              Screen('Preference', 'SkipSyncTests', 2);
-        else
-            scrNr = 1;
-            rect = Screen('rect',scrNr); 
-            c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',60,'frameRate',60,'screenNumber',scrNr);
-            smallWindow = false;        
-             Screen('Preference', 'SkipSyncTests', 0);
-        end
+%         else
+%             scrNr = 1;
+%             rect = Screen('rect',scrNr); 
+%             c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',60,'frameRate',60,'screenNumber',scrNr);
+%             smallWindow = false;        
+%              Screen('Preference', 'SkipSyncTests', 0);
+%         end
         
         
     case 'XPS2013'
