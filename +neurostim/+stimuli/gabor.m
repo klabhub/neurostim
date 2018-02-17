@@ -8,7 +8,8 @@ classdef gabor < neurostim.stimulus
     % 	frequency - gabor's spatial frequency in cycles per pixel
     % 	sigma - spatial constant of gaussian hull function of gabor
     % 	width, height - maximum size of the gabor.
-    % 	mask - one of 'GAUSS','CIRCLE','ANNULUS'
+    % 	mask - one of 'GAUSS','CIRCLE','ANNULUS', 'GAUSS3' (truncated at 3
+    % 	sigma)
     %
     %  This stimulus can also draw the sum of multiple gabors. You can
     %  choose the number and whether to randomize the phase. 
@@ -22,7 +23,7 @@ classdef gabor < neurostim.stimulus
     %
 
     properties (Constant)
-        maskTypes = {'GAUSS','CIRCLE','ANNULUS'};
+        maskTypes = {'GAUSS','CIRCLE','ANNULUS','GAUSS3'};
         flickerTypes = {'NONE','SINE','SQUARE'};
     end
     properties (Access=private)

@@ -47,7 +47,7 @@ void main()
     }
 
     /* Compute exponential hull for the gabor: */
-    float ev;float alpha;
+    float ev;float alpha;float tmp;
     if (mask==1){
         /* Gabor mask : Sigma = [stdev */
         ev = exp(-0.5 *dot(pos, pos) / (sigma1 * sigma1));
@@ -62,6 +62,17 @@ void main()
         tmp = sqrt(dot(pos,pos));
         ev  = float((tmp>=sigma1) && (tmp<=sigma2)); 
         alpha = ev; /* This makes the part of the texture outside the circle completely transparent */        
+    }else if (mask==4){
+        /* Gabor truncated at 3 sigma. */
+        tmp = dot(pos, pos) / (sigma1 * sigma1);        
+        if (tmp>9){
+            /* Truncate at 3 sigma and make transparent */
+            alpha = 0; 
+            ev =0;
+        }else{
+            ev = exp(-0.5*tmp);
+            alpha =1.0;
+        }
     }else{
         /* Throw an error; this is not a valid mask... */
         ev =1.0;

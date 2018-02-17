@@ -37,20 +37,20 @@ classdef psyBayes < neurostim.plugins.adaptive
             % Note that increasing the number of points in any of the three
             % estimated variables, or the range of the x variable all have
             % an exponential influence on the time it takes to update the
-            % estimates. This computation adds to the minimum duration of the 
+            % estimates. This computation adds to the minimum duration of the
             % intertrialinterval.
             %
             
             if exist('psybayes.m','file') ~=2
                 error('Could not find the psybayes toolbox. Clone it from github (https://github.com/lacerbi/psybayes.git) and add it to your path before using neurostim.plugins.psyBayes');
             end
-                
+            
             p = inputParser;
             p.StructExpand = true;
             p.addParameter('method','ent',@(x) (ischar(x) && ismember(x,{'ent','var'}))); % Use entropy maximization or variance maximization.
             p.addParameter('vars',[1 1 1],@(x) (all(size(x)== [1 3]) && isnumeric(x))); % [1 0 0 ] means estimate mu but not sigma and lambda. [1 1 1] is estimate all.
             p.addParameter('psychofun','@(x,mu,sigma,lambda,gamma) psyfun_yesno(x,mu,sigma,lambda,gamma,@psynormcdf);'); % The psychometric function, as a string
-            p.addParameter('x',(-90:90));        % Stimulus grid in orientation degrees  
+            p.addParameter('x',(-90:90));        % Stimulus grid in orientation degrees
             p.addParameter('rangeMu',[-12 12 31]);    % Range of tested PSE[lower bound, upper bound, number of points]
             p.addParameter('rangeSigma',[0.5 45 41]); % The range for sigma is automatically converted to log spacing
             p.addParameter('rangeLambda',[0 0.5 21]); % Lapse rate
@@ -101,8 +101,10 @@ classdef psyBayes < neurostim.plugins.adaptive
             % in the parent class, using the trialResullt function
             % specified by the user when constructing an object of this
             % class.
+            tic;
             parmValue = getValue(o); % This is the value that we used previously
             [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
+            toc
         end
         
         function v =getValue(o)
@@ -114,20 +116,25 @@ classdef psyBayes < neurostim.plugins.adaptive
         function plot(o)
             % Call the psybayes_plot function on the current state.
             for i=1:numel(o)
-            figure('name',o(i).name)
-            psybayes_plot(o(i).psy);
+                figure('name',o(i).name)
+                psybayes_plot(o(i).psy);
             end
         end
         
-        function [m,sd,hdr]= posterior(oo,alpha,plotIt)
+        function [m,sd,hdr,threshold]= posterior(oo,alpha,plotIt,theta)
             % function [m,sd,hdr]= posterior(oo,alpha,plotIt)
             % alpha = Level for high density interval [0.25]
             % plotIt = Show a graph [false]
+            % theta = compute the threshold at this level. [0.75]
             %
             % Return the estimated parameters for psybayes
             % m = maximum likely  posterior estimate
             % sd = standard deviation of the posterior estimate
             % hdi = High density region at the alpha level. [low high]
+            % threshold = Th value of 'x' at the level theta; the threshold .
+            if nargin <4
+                theta = 0.75;
+            end
             if nargin<2
                 alpha = 0.25;
             end
@@ -135,53 +142,62 @@ classdef psyBayes < neurostim.plugins.adaptive
                 plotIt = false;
             end
             
-            nrO = numel(oo);            
+            nrO = numel(oo);
             m = nan(3,nrO);
             sd = nan(3,nrO);
+            threshold = nan(1,nrO);
             hdr = nan(3,2,nrO);
             conditionLabel = cell(1,nrO);
             for j=1:nrO
                 try
-                for i=find(oo(j).vars)
-                    other = setdiff(1:3,i);
-                    y = neurostim.plugins.psyBayes.marginalpost(oo(j).psy.post,oo(j).psy.psychopost,other);
-                    N=100;
-                    f = linspace(0,max(y),N);
-                    Y = repmat(y(:),[1 N]);
-                    R = Y>repmat(f,[numel(y), 1]);
-                    P = sum(Y.*R); 
-                    fAlpha = f(find(P>(1-alpha),1,'last'));
-                    ix = y>fAlpha;
-                    switch i
-                        case 1
-                            x = oo(j).psy.mu;
-                        case 2
-                            x = oo(j).psy.sigma;
-                        case 3
-                            x = oo(j).psy.lambda;
+                    for i=find(oo(j).vars)
+                        other = setdiff(1:3,i);
+                        y = neurostim.plugins.psyBayes.marginalpost(oo(j).psy.post,oo(j).psy.psychopost,other);
+                        N=100;
+                        f = linspace(0,max(y),N);
+                        Y = repmat(y(:),[1 N]);
+                        R = Y>repmat(f,[numel(y), 1]);
+                        P = sum(Y.*R);
+                        fAlpha = f(find(P>(1-alpha),1,'last'));
+                        ix = y>fAlpha;
+                        switch i
+                            case 1
+                                x = oo(j).psy.mu;
+                            case 2
+                                x = oo(j).psy.sigma;
+                            case 3
+                                x = oo(j).psy.lambda;
+                        end
+                        y = y /sum(y);
+                        m(i,j) = sum(y.*x);
+                        sd(i,j) = sqrt(sum(y.*((x - m(i,j)).^2)));
+                        if sum(abs(diff(ix)) >2)
+                            warning('This HDR is non-contiguous');
+                            % Better return nan than the wrong limits..
+                            hdr(i,1,j) = NaN;
+                            hdr(i,2,j) = NaN;
+                        else % Contiguous HDR
+                            hdr(i,1,j) = x(find(ix==1,1,'first'));
+                            hdr(i,2,j) = x(find(ix==1,1,'last'));
+                        end
+                        
+                      
                     end
-                    y = y /sum(y);
-                    m(i,j) = sum(y.*x);
-                    sd(i,j) = sqrt(sum(y.*((x - m(i,j)).^2)));
-                    if sum(abs(diff(ix)) >2)
-                        warning('This HDR is non-contiguous');
-                        % Better return nan than the wrong limits..
-                        hdr(i,1,j) = NaN;
-                        hdr(i,2,j) = NaN;
-                    else % Contiguous HDR
-                        hdr(i,1,j) = x(find(ix==1,1,'first')); 
-                        hdr(i,2,j) = x(find(ix==1,1,'last'));
+                    if nargout >3 && ~isempty(strfind(oo(j).psy.psychofun,'psyfun_yesno')) && ~isempty(strfind(oo(j).psy.psychofun,'psynormcdf'))
+                            % Yes no function uses the cumulative normal, which we can
+                            % invert to find the threshold at an arbitrary level:
+                            thresholdFun = @(theta,mu,sigma,lambda)(mu+sqrt(2)*sigma*erfinv(2*(theta-lambda/2)/(1-lambda)-1));
+                            threshold(1,j) = thresholdFun(theta,m(1,j),m(2,j),m(3,j));
                     end
-                end
                 catch
                     lasterr
                     disp (['Failed to compute posterior on ' oo(j).name])
                 end
-                conditionLabel{j} = [oo(j).design ' (' num2str(oo(j).conditions') ')' ];                 
+                conditionLabel{j} = [oo(j).design ' (' num2str(oo(j).conditions') ')' ];
             end
             
             if plotIt
-                parms = {'\mu','\sigma','\lambda'};                
+                parms = {'\mu','\sigma','\lambda'};
                 for i=1:3
                     subplot(1,3,i);
                     hold on
@@ -194,6 +210,8 @@ classdef psyBayes < neurostim.plugins.adaptive
                     set(gca,'XTick',1:size(m,2),'XTickLabel',conditionLabel)
                 end
             end
+            
+            
         end
         
         function afterExperiment(o)
@@ -202,19 +220,19 @@ classdef psyBayes < neurostim.plugins.adaptive
     end
     
     methods (Static)
-            % copied from psybayes_plot
-            function y = marginalpost(post,w,idx)
-                %MARGINALPOST Compute marginal posterior
-                
-                Nfuns = numel(post);
-                for k = 1:Nfuns
-                    for j = idx
-                        post{k} = sum(post{k},j);
-                    end
+        % copied from psybayes_plot
+        function y = marginalpost(post,w,idx)
+            %MARGINALPOST Compute marginal posterior
+            
+            Nfuns = numel(post);
+            for k = 1:Nfuns
+                for j = idx
+                    post{k} = sum(post{k},j);
                 end
-                y = zeros(size(post{1}));
-                for k = 1:Nfuns; y = y + w(k)*post{k}; end
             end
+            y = zeros(size(post{1}));
+            for k = 1:Nfuns; y = y + w(k)*post{k}; end
+        end
     end
     
 end
