@@ -145,7 +145,7 @@ classdef cic < neurostim.plugin
         end
         
         function v= get.nrBlocks(c)
-            v = numel(c.blocks);
+            v = numel(c.blockFlow.list);
         end
         
         function v= get.nrTrials(c)
@@ -160,7 +160,7 @@ classdef cic < neurostim.plugin
                 v= c.blocks(c.block).nrConditions;
             else
                 v=0;
-            end;
+            end
         end
         function v = get.center(c)
             [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
@@ -661,11 +661,11 @@ classdef cic < neurostim.plugin
             end
             
             if strcmpi(p.Results.randomization,'LATINSQUARES')
-                nrBlocks = numel(c.blocks);
-                if ~iseven(nrBlocks)
+                nrUBlocks = numel(c.blocks);
+                if ~iseven(nrUBlocks)
                     error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrBlocks)]);
                 end
-                allLS = neurostim.utils.ballatsq(nrBlocks);
+                allLS = neurostim.utils.ballatsq(nrUBlocks);
                 
                 if isempty(p.Results.latinSquareRow)
                     lsNr = input(['Latin square group number (1-' num2str(size(allLS,1)) ')'],'s');
@@ -674,7 +674,7 @@ classdef cic < neurostim.plugin
                     lsNr = p.Results.latinSquareRow;
                 end
                 if isnan(lsNr)  || lsNr>size(allLS,1) || lsNr <1
-                    error(['The Latin Square group ' num2str(lsNr) ' does not exist for ' num2str(nrBlocks) ' conditions/blocks']);
+                    error(['The Latin Square group ' num2str(lsNr) ' does not exist for ' num2str(nrUBlocks) ' conditions/blocks']);
                 end
                 blockOrder = allLS(lsNr,:);
                 c.blockFlow.latinSquareRow = lsNr;
@@ -1018,7 +1018,7 @@ classdef cic < neurostim.plugin
                 
                 %% Perform afterBlock message/function
                 
-               afterBlock(c)
+               afterBlock(c);
             end %blocks
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
