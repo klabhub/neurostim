@@ -24,6 +24,7 @@ classdef cic < neurostim.plugin
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         fileOverwrite           = false; % Allow output file overwrite.
         saveEveryN              = 10;
+        saveEveryBlock          = false;
         keyBeforeExperiment     = true;
         keyAfterExperiment      =true;
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
@@ -714,6 +715,36 @@ classdef cic < neurostim.plugin
             end
         end
         
+        function afterBlock(c)
+             
+                waitforkey = false;
+                if isa(c.blocks(c.block).afterMessage,'function_handle')
+                    msg = c.blocks(c.block).afterMessage(c);
+                else
+                    msg = c.blocks(c.block).afterMessage;
+                end
+                if ~isempty(msg)
+                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
+                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end
+                if ~isempty(c.blocks(c.block).afterFunction)
+                    c.blocks(c.block).afterFunction(c);
+                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end
+                Screen('Flip',c.mainWindow);
+                % 
+                if c.saveEveryBlock
+                    tic
+                    c.saveData;
+                    tmpT = toc;
+                    c.writeToFeed('Saving the file took %f s',tmpT);
+                end                
+                if waitforkey
+                    KbWait(c.kbInfo.pressAnyKey,2);
+                end
+            
+        end
+        
         function beforeTrial(c)
             % Restore default values
             setDefaultParmsToCurrent(c.pluginOrder);
@@ -986,24 +1017,8 @@ classdef cic < neurostim.plugin
                 if ~c.flags.experiment;break;end
                 
                 %% Perform afterBlock message/function
-                waitforkey = false;
-                if isa(c.blocks(c.block).afterMessage,'function_handle')
-                    msg = c.blocks(c.block).afterMessage(c);
-                else
-                    msg = c.blocks(c.block).afterMessage;
-                end
-                if ~isempty(msg)
-                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
-                    waitforkey=c.blocks(c.block).afterKeyPress;
-                end
-                if ~isempty(c.blocks(c.block).afterFunction)
-                    c.blocks(c.block).afterFunction(c);
-                    waitforkey=c.blocks(c.block).afterKeyPress;
-                end
-                Screen('Flip',c.mainWindow);
-                if waitforkey
-                    KbWait(c.kbInfo.pressAnyKey,2);
-                end
+                
+               afterBlock(c)
             end %blocks
             c.trialStopTime = c.clockTime;
             c.stopTime = now;

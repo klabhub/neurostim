@@ -259,7 +259,7 @@ classdef starstim < neurostim.stimulus
                 % File format : % YYYYMMDD_[subject].edf
                 % Always generate .easy file, and edf file (NIC requires
                 % it), and generate .stim when stimulating.
-                ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,false,true,true,false,o.sock);
+                ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,true,true,true,false,o.sock);
                 o.checkRet(ret,'FileNameAndTypes');
                 [ret,o.markerStream] = MatNICMarkerConnectLSL('Neurostim');
                 o.checkRet(ret,'Please enable the Neurostim Marker Stream in NIC');
@@ -689,7 +689,9 @@ classdef starstim < neurostim.stimulus
 
             
             %% Check current conservation.
-            t = repmat((0:0.1:(1/min(o.frequency)))',[1 o.NRCHANNELS]); % One cycle for all.
+            
+            minF = max(o.frequency,0.01); % Lowest frequency 0.01Hz.
+            t = repmat((0:0.1:(1/minF))',[1 o.NRCHANNELS]); % One cycle for all.                            
             nrT = size(t,1);
             acCurrent = repmat(o.amplitude,[nrT 1]).*sin(pi/180*repmat(perChannel(o,o.phase),[nrT 1]) + 2*pi*t.*repmat(perChannel(o,o.frequency),[nrT,1]));
             currentThreshold = 1;% 1 muA excess is probably an error
@@ -697,6 +699,7 @@ classdef starstim < neurostim.stimulus
                 o.cic.error('STOPEXPERIMENT','AC Current not conserved. Please check stastim.amplitude , .frequency , and .phase numbers');
                 ok = false;
             end
+            
             dcCurrent = sum(perChannel(o,o.mean));
             if dcCurrent> currentThreshold
                 o.cic.error('STOPEXPERIMENT','DC Current not conserved. Please check starstim.mean');
