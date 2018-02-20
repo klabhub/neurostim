@@ -474,28 +474,29 @@ classdef starstim < neurostim.stimulus
                     msg{3} = sprintf('\t%d mA',o.amplitude);
                     msg{4} = sprintf('\t%d Hz',o.frequency);
                     msg{5} = sprintf('\t%d o ',o.phase);
-                    if o.fake
-                        o.writeToFeed(msg);
-                    else                                                 
+                    if ~o.fake                                                                         
                         [ret] = MatNICOnlinetACSChange(perChannel(o,o.amplitude), perChannel(o,o.frequency), perChannel(o,o.phase), o.NRCHANNELS, o.transition, o.sock);                        
                         o.checkRet(ret,msg);
-                    end
+                    end                                                           
                 case 'TDCS'
                     msg{1} = sprintf('Ramping tDCS up in %d ms to:',o.transition);
                     msg{2} = sprintf('\tCh#%d',1:o.NRCHANNELS);
                     msg{3} = sprintf('\t%d mA',o.mean);
-                    if o.fake
-                        o.writeToFeed(msg);
-                    else 
+                    if ~o.fake                         
                         [ret] = MatNICOnlineAtdcsChange(perChannel(o,o.mean), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,msg);
-                    end
+                    end                                        
                 case 'TRNS'
+                    msg{1} = '??? tRNS not implemented yet';
                     o.checkRet(-1,'tRNS Not implemented yet');
                 otherwise
                     error(['Unknown stimulation type : ' o.type]);
             end            
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
+            
+            if o.fake || o.debug
+                o.writeToFeed(msg);
+            end
             
             if o.sham
                 peakLevelDuration =0;
@@ -516,13 +517,7 @@ classdef starstim < neurostim.stimulus
         
         function rampDown(o,tScheduled)
             sendMarker(o,'rampDown');
-            if o.fake
-                if nargin ==2
-                    o.writeToFeed('Ramping %s down to zero in %d ms after %.0f ms )',o.type, o.transition,1000*(GetSecs-tScheduled));
-                else
-                    o.writeToFeed('Ramping %s down to zero in %d ms',o.type, o.transition);
-                end
-            else
+            if ~o.fake                
                 waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
                 switch upper(o.type)
                     case 'TACS'
@@ -539,6 +534,13 @@ classdef starstim < neurostim.stimulus
             end
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
         
+            if o.fake || o.debug
+                if nargin ==2
+                    o.writeToFeed('Ramping %s down to zero in %d ms after %.0f ms )',o.type, o.transition,1000*(GetSecs-tScheduled));
+                else
+                    o.writeToFeed('Ramping %s down to zero in %d ms',o.type, o.transition);
+                end
+            end
         end
         
         
