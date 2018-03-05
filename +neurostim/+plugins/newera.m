@@ -1,17 +1,17 @@
 % wrapper class for New Era syringe pumps
 
-% 25-06-2016 - Shaun L. Cloherty <s.cloherty@ieee.org>
+% 2016-06-25 - Shaun L. Cloherty <s.cloherty@ieee.org>
 
-classdef newera < marmoview.liquid
+classdef newera <  neurostim.plugins.feedback
   % Wrapper class for New Era syringe pumps (see http://syringepump.com/).
   %
   % To see the public properties of this class, type
   %
-  %   properties(marmoview.newera)
+  %   properties(neurostim.plugins.newera)
   %
   % To see a list of methods, type
   %
-  %   methods(marmoview.newera)
+  %   methods(neurostim.plugins.newera)
   %
   % The class constructor can be called with a range of arguments:
   %
@@ -21,6 +21,8 @@ classdef newera < marmoview.liquid
   %   diameter - syringe diameter (mm)
   %   volume   - dispensing volume (ml)
   %   rate     - dispensing rate (ml per minute)
+
+  % note: ported from my marmoview class of the same name
   
   properties (SetAccess = private, GetAccess = public)
     dev@serial; % the serial port object - PRIVATE?
@@ -40,11 +42,11 @@ classdef newera < marmoview.liquid
 
   methods % set/get dependent properties
     % dependent property set methods
-    function o = set.diameter(o,value),
+    function o = set.diameter(o,value)
         o.setdia(value);
     end
 
-    function o = set.volume(o,value),
+    function o = set.volume(o,value)
         % note: value is in ml, however, if diameter > 14.0mm, the pump
         %       is expecting volume in microliters (unless the default units
         %       have been over-riden).
@@ -54,19 +56,19 @@ classdef newera < marmoview.liquid
         o.setvol(value);
     end
 
-    function o = set.rate(o,value),
+    function o = set.rate(o,value)
         o.setrate(value);
     end
 
     % dependent property get methods
-    function value = get.diameter(o),
+    function value = get.diameter(o)
         [err,status,msg] = o.sndcmd('DIA');
         assert(err == 0);
 
         value = str2num(msg);
     end
 
-    function value = get.volume(o),
+    function value = get.volume(o)
       [err,status,msg] = o.sndcmd('VOL');
       assert(err == 0);
 
@@ -84,11 +86,11 @@ classdef newera < marmoview.liquid
         case 'UL', % microliters
           value = value/1e3; % milliliters
         otherwise,
-          warning('MARMOVIEW:NEWERA','Unknown volume units ''%s''.', tokens.units);
+          warning('NEUROSTIM:NEWERA','Unknown volume units ''%s''.', tokens.units);
       end
     end
 
-    function value = get.rate(o),
+    function value = get.rate(o)
       [err,status,msg] = o.sndcmd('RAT');
       assert(err == 0);
 
@@ -107,16 +109,16 @@ classdef newera < marmoview.liquid
         case 'UH', % microliters per hour
           value = value/(60*1e3); % milliliters per minute
         otherwise,
-          warning('MARMOVIEW:NEWERA','Unknown rate units ''%s''.', tokens.units);
+          warning('NEUROSTIM:NEWERA','Unknown rate units ''%s''.', tokens.units);
       end 
     end
   end
 
   methods
-    function o = newera(h,varargin), % h is the handle for the marmoview gui
-%       fprintf(1,'marmoview.newera()\n');
+    function o = newera(c,name,varargin) % c is the neurostim cic
+//      fprintf(1,'neurostim.plugins.newera()\n');
 
-      o = o@marmoview.liquid(h,varargin{:}); % call parent constructor
+      o = o@neurostim.plugins.feedback(c,name); % call parent constructor
 
       % initialise input parser
       args = varargin;
@@ -148,10 +150,10 @@ classdef newera < marmoview.liquid
       o.dev = serial(o.port,'BaudRate',o.baud,'DataBits',8,'Parity','none', ...
                             'StopBits',1,'Terminator',13,'InputBufferSize',4096); % CR = 13
 
-      try,
+      try
         [err,status] = o.open();
-      catch,
-        error('MARMOVIEW:NEWERA','Could not connect to New Era syringe pump on %s!',o.port);
+      catch
+        error('NEUROSTIM:NEWERA','Could not connect to New Era syringe pump on %s!',o.port);
       end
 
       % configure the pump...
@@ -168,38 +170,29 @@ classdef newera < marmoview.liquid
 %       o.clrvol(1);
     end
 
-    function [err,status] = open(o),
-      fopen(o.dev);
-
-      % query the pump
-      [err,status,~] = o.sndcmd(''); % send a CR... no command
-      assert(err == 0);
-      
-      % beep once so we know the pump is alive...
-      err = o.beep(1);
-      assert(err == 0);
+    function beforeExperiment(o)
+        % check that theh pump is present, 
+        try
+            o.open();
+        catch
+            o.cic.error('CONTINUE','Liquid reward added but the NewEra plugin isn''t responding.');
+        end
     end
-
-    function close(o),
-      [~,status,~] = o.sndcmd(''); % send a CR... no command
-
-      if status ~= 0, % 0 = stopped
-        o.stop(); % stop the pump...
-      end
-      
-      fclose(o.dev);
-    end
-
-    function delete(o),
-      try,
-        o.close(); % fails if o.dev is invalid or is already closed
-      catch
-      end
-      delete(o.dev);
+       
+    function afterExperiment(o)
+        % close the pump
+%         o.close();
+        o.delete();
     end
     
-    function err = deliver(o,varargin),
-%       fprintf(1,'marmoview.newera.deliver()\n');
+    function chAdd(o,varargin)
+       p = inputParser;
+       p.StructExpand = true; % The parent class passes as a struct
+       p.parse(varargin{:});      
+    end
+          
+    function deliver(o,item)
+%       fprintf(1,'neurostim.plugins.newera.deliver()\n');
 
       % too slow, this calls the sndcmd() method which involves both a
       % synchronous write operation *and* a synchronous read operation
@@ -212,58 +205,96 @@ classdef newera < marmoview.liquid
       err = 0;
 %       fprintf(o.dev,'00 RUN','async');
       fprintf(o.dev,'00 RUN');
+      
+      o.nrDelivered = o.nrDelivered + 1;
+      o.totalDelivered = o.totalDelivered + o.volume; % ml
+    end
+    
+    function report(o)
+       % report back to the gui?
+       
+%        fprintf(1,'neurostim.plugins.newera.report()\n');
+
+       o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total volume: ', num2str(o.totalDelivered)));
+    end
+    
+    % low(er) level pump intervace...
+    
+    function [err,status] = open(o)
+      fopen(o.dev);
+
+      % query the pump
+      [err,status,~] = o.sndcmd(''); % send a CR... no command
+      assert(err == 0);
+      
+      % beep once so we know the pump is alive...
+      err = o.beep(1);
+      assert(err == 0);
     end
 
-    function r = report(o),
-%       fprintf(1,'marmoview.newera.report()\n');
-      r.totalVolume = o.qryvol();
+    function close(o)
+      [~,status,~] = o.sndcmd(''); % send a CR... no command
+
+      if status ~= 0, % 0 = stopped
+        o.stop(); % stop the pump...
+      end
+      
+      fclose(o.dev);
+    end
+
+    function delete(o)
+      try
+        o.close(); % fails if o.dev is invalid or is already closed
+      catch
+      end
+      delete(o.dev);
     end
   end % methods
 
   methods (Access = private)
-    function err = setdia(o,d), % set syringe diameter
+    function err = setdia(o,d) % set syringe diameter
       err = o.sndcmd(sprintf('DIA %5g',d));
     end
 
-    function err = setvol(o,d), % set dispensing volume
+    function err = setvol(o,d) % set dispensing volume
       err = o.sndcmd(sprintf('VOL %5g',d));
     end
 
-    function err = setrate(o,d), % set dispensing rate
+    function err = setrate(o,d) % set dispensing rate
       err = o.sndcmd(sprintf('RAT I %5g MM',d)); % 'I' set rate for infusion ONLY!
     end
 
-    function err = setdir(o,d), % set pump direction
+    function err = setdir(o,d) % set pump direction
       switch d,
         case 0, % infuse
           err = o.sndcmd('DIR INF');
 %         case 1, % withdraw
 %           err = o.sndcmd('DIR WDR');
         otherwise,
-          warning('MARMOVIEW:NEWERA','Invalid pump direction %i.',d);
+          warning('NEUROSTIM:NEWERA','Invalid pump direction %i.',d);
       end
     end
     
-    function err = run(o), % start the pump
+    function err = run(o) % start the pump
       err = o.sndcmd('RUN');
     end
     
-    function err = stop(o), % stop the pump
+    function err = stop(o) % stop the pump
       err = o.sndcmd('STP');
     end   
     
-    function err = clrvol(o,d), % clear dispensed/withdrawn volume
+    function err = clrvol(o,d) % clear dispensed/withdrawn volume
       switch d,
         case 0, % clear infused volume
           err = o.sndcmd('CLD INF');
         case 1, % clear withdrawn volume
           err = o.sndcmd('CLD WDR');
         otherwise,
-          warning('MARMOVIEW:NEWERA','Invalid pump direction %i.', d);
+          warning('NEUROSTIM:NEWERA','Invalid pump direction %i.', d);
       end
     end
     
-    function [infu,wdrn] = qryvol(o), % query dispensed/withdrawn volume
+    function [infu,wdrn] = qryvol(o) % query dispensed/withdrawn volume
       [err,status,msg] = o.sndcmd('DIS');
       assert(err == 0);
 
@@ -285,18 +316,18 @@ classdef newera < marmoview.liquid
           infu = str2num(tokens.infu)/1e3; % milliliters
           wdrn = str2num(tokens.wdrn)/1e3;
         otherwise,
-          warning('MARMOVIEW:NEWERA','Unknown volume units ''%s''.', units);
+          warning('NEUROSTIM:NEWERA','Unknown volume units ''%s''.', units);
       end
     end
     
-    function err = beep(o,n), % sound the buzzer
+    function err = beep(o,n) % sound the buzzer
       if nargin < 2,
         n = 1;
       end
       err = o.sndcmd(sprintf('BUZ 1 %i',n));
     end
     
-    function [err,status,msg] = sndcmd(o,cmd), % send command to the pump
+    function [err,status,msg] = sndcmd(o,cmd) % send command to the pump
       % note: the deliver() method above performs an asynchronous write
       %       operation and doesn't wait around to read the response from
       %       the pump. The pump response(s) therefore remain in the input
@@ -364,17 +395,17 @@ classdef newera < marmoview.liquid
         case 'P', % paused
           status = 3;
         case 'A', % alarm, msg contains the alarm code
-          warning('MARMOVIEW:NEWERA','Pump alarm code: %s!\nCheck diameter, rate and volume...',tokens.msg);
+          warning('NEUROSTIM:NEWERA','Pump alarm code: %s!\nCheck diameter, rate and volume...',tokens.msg);
           o.sndcmd('AL0'); % clear the alarm?
           status = 4;
         otherwise,
-          warning('MARMOVIEW:NEWERA','Unknown prompt ''%s'' returned by the New Era syringe pump.',tokens.prmpt);
+          warning('NEUROSTIM:NEWERA','Unknown prompt ''%s'' returned by the New Era syringe pump.',tokens.prmpt);
       end
 
       msg = tokens.msg;
     end
     
-    function flushin(o),
+    function flushin(o)
       % read and discard the contents of the serial port input buffer...
       while o.dev.BytesAvailable > 0,
         fread(o.dev,o.dev.BytesAvailable);
