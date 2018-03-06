@@ -31,6 +31,8 @@ classdef newera <  neurostim.plugins.feedback
     baud;
     
     address@double; % pump address (0-99)
+    
+    mcc; % (optional) we'll use the MCC if available
   end % properties
 
   % dependent properties, calculated on the fly...
@@ -115,11 +117,11 @@ classdef newera <  neurostim.plugins.feedback
   end
 
   methods
-    function o = newera(c,name,varargin) % c is the neurostim cic
-//      fprintf(1,'neurostim.plugins.newera()\n');
+    function o = newera(c,varargin) % c is the neurostim cic
+%       fprintf(1,'neurostim.plugins.newera()\n');
 
-      o = o@neurostim.plugins.feedback(c,name); % call parent constructor
-
+      o = o@neurostim.plugins.feedback(c,'newera'); % call parent constructor
+     
       % initialise input parser
       args = varargin;
       p = inputParser;
@@ -131,7 +133,7 @@ classdef newera <  neurostim.plugins.feedback
       p.addParamValue('address',0,@(x) isreal);
       
       p.addParamValue('diameter',20.0,@isreal); % mm
-      p.addParamValue('volume',0.010,@isreal); % ml
+%      p.addParamValue('volume',0.010,@isreal); % ml
       p.addParamValue('rate',10.0,@isreal); % ml per minute
 
       p.parse(varargin{:});
@@ -143,6 +145,8 @@ classdef newera <  neurostim.plugins.feedback
 
       o.address = args.address;
 
+      o.addProperty('mccChannel',9);
+      
       % now try and connect to the New Era syringe pump...
       %
       %   data frame: 8N1 (8 data bits, no parity, 1 stop bit)
@@ -171,12 +175,21 @@ classdef newera <  neurostim.plugins.feedback
     end
 
     function beforeExperiment(o)
-        % check that theh pump is present, 
+        % check that the pump is present, 
         try
             o.open();
         catch
             o.cic.error('CONTINUE','Liquid reward added but the NewEra plugin isn''t responding.');
         end
+        
+         % look for the MCC plugin...
+         o.mcc = pluginsByClass(o.cic,'mcc');
+         if numel(o.mcc)==1
+             %Iniatilise the bit low
+             o.mcc.digitalOut(o.mccChannel,false);
+         else
+             o.cic.error('CONTINUE','Liquid reward added but no MCC plugin added (or, more than one added - currently not supported)');
+         end
     end
        
     function afterExperiment(o)
@@ -184,7 +197,9 @@ classdef newera <  neurostim.plugins.feedback
 %         o.close();
         o.delete();
     end
-    
+  end
+  
+  methods (Access = protected)
     function chAdd(o,varargin)
        p = inputParser;
        p.StructExpand = true; % The parent class passes as a struct
@@ -217,9 +232,12 @@ classdef newera <  neurostim.plugins.feedback
 
        o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total volume: ', num2str(o.totalDelivered)));
     end
-    
-    % low(er) level pump intervace...
-    
+  end % protected methods
+  
+  %
+  % low(er) level pump intervace...
+  %
+  methods (Access = public)
     function [err,status] = open(o)
       fopen(o.dev);
 
@@ -249,7 +267,7 @@ classdef newera <  neurostim.plugins.feedback
       end
       delete(o.dev);
     end
-  end % methods
+  end % public methods
 
   methods (Access = private)
     function err = setdia(o,d) % set syringe diameter
@@ -343,7 +361,7 @@ classdef newera <  neurostim.plugins.feedback
         return
       end
 
-      pause(0.100); % <-- FIXME: need to figure out how to remove the need for this
+      pause(0.500); % <-- FIXME: need to figure out how to remove the need for this
       
       % the response from the pump looks like this:
       %
