@@ -24,6 +24,7 @@ classdef cic < neurostim.plugin
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         fileOverwrite           = false; % Allow output file overwrite.
         saveEveryN              = 10;
+        saveEveryBlock          = false;
         keyBeforeExperiment     = true;
         keyAfterExperiment      =true;
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
@@ -144,7 +145,7 @@ classdef cic < neurostim.plugin
         end
         
         function v= get.nrBlocks(c)
-            v = numel(c.blocks);
+            v = numel(c.blockFlow.list);
         end
         
         function v= get.nrTrials(c)
@@ -159,7 +160,7 @@ classdef cic < neurostim.plugin
                 v= c.blocks(c.block).nrConditions;
             else
                 v=0;
-            end;
+            end
         end
         function v = get.center(c)
             [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
@@ -660,11 +661,11 @@ classdef cic < neurostim.plugin
             end
             
             if strcmpi(p.Results.randomization,'LATINSQUARES')
-                nrBlocks = numel(c.blocks);
-                if ~iseven(nrBlocks)
+                nrUBlocks = numel(c.blocks);
+                if ~iseven(nrUBlocks)
                     error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrBlocks)]);
                 end
-                allLS = neurostim.utils.ballatsq(nrBlocks);
+                allLS = neurostim.utils.ballatsq(nrUBlocks);
                 
                 if isempty(p.Results.latinSquareRow)
                     lsNr = input(['Latin square group number (1-' num2str(size(allLS,1)) ')'],'s');
@@ -673,7 +674,7 @@ classdef cic < neurostim.plugin
                     lsNr = p.Results.latinSquareRow;
                 end
                 if isnan(lsNr)  || lsNr>size(allLS,1) || lsNr <1
-                    error(['The Latin Square group ' num2str(lsNr) ' does not exist for ' num2str(nrBlocks) ' conditions/blocks']);
+                    error(['The Latin Square group ' num2str(lsNr) ' does not exist for ' num2str(nrUBlocks) ' conditions/blocks']);
                 end
                 blockOrder = allLS(lsNr,:);
                 c.blockFlow.latinSquareRow = lsNr;
@@ -712,6 +713,36 @@ classdef cic < neurostim.plugin
             if waitForKey
                 KbWait(c.kbInfo.pressAnyKey,2);
             end
+        end
+        
+        function afterBlock(c)
+             
+                waitforkey = false;
+                if isa(c.blocks(c.block).afterMessage,'function_handle')
+                    msg = c.blocks(c.block).afterMessage(c);
+                else
+                    msg = c.blocks(c.block).afterMessage;
+                end
+                if ~isempty(msg)
+                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
+                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end
+                if ~isempty(c.blocks(c.block).afterFunction)
+                    c.blocks(c.block).afterFunction(c);
+                    waitforkey=c.blocks(c.block).afterKeyPress;
+                end
+                Screen('Flip',c.mainWindow);
+                % 
+                if c.saveEveryBlock
+                    tic
+                    c.saveData;
+                    tmpT = toc;
+                    c.writeToFeed('Saving the file took %f s',tmpT);
+                end                
+                if waitforkey
+                    KbWait(c.kbInfo.pressAnyKey,2);
+                end
+            
         end
         
         function beforeTrial(c)
@@ -986,24 +1017,8 @@ classdef cic < neurostim.plugin
                 if ~c.flags.experiment;break;end
                 
                 %% Perform afterBlock message/function
-                waitforkey = false;
-                if isa(c.blocks(c.block).afterMessage,'function_handle')
-                    msg = c.blocks(c.block).afterMessage(c);
-                else
-                    msg = c.blocks(c.block).afterMessage;
-                end
-                if ~isempty(msg)
-                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
-                    waitforkey=c.blocks(c.block).afterKeyPress;
-                end
-                if ~isempty(c.blocks(c.block).afterFunction)
-                    c.blocks(c.block).afterFunction(c);
-                    waitforkey=c.blocks(c.block).afterKeyPress;
-                end
-                Screen('Flip',c.mainWindow);
-                if waitforkey
-                    KbWait(c.kbInfo.pressAnyKey,2);
-                end
+                
+               afterBlock(c);
             end %blocks
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
