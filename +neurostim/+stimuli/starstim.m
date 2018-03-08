@@ -694,7 +694,7 @@ classdef starstim < neurostim.stimulus
             acCurrent = repmat(o.amplitude,[nrT 1]).*sin(pi/180*repmat(perChannel(o,o.phase),[nrT 1]) + 2*pi*t.*repmat(perChannel(o,o.frequency),[nrT,1]));
             currentThreshold = 1;% 1 muA excess is probably an error
             if any(abs(sum(acCurrent,2))>currentThreshold)
-                o.cic.error('STOPEXPERIMENT','AC Current not conserved. Please check stastim.amplitude , .frequency , and .phase numbers');
+                o.cic.error('STOPEXPERIMENT','AC Current not conserved. Please check starstim.amplitude , .frequency , and .phase numbers');
                 ok = false;
             end
             dcCurrent = sum(perChannel(o,o.mean));

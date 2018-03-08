@@ -151,14 +151,23 @@ classdef block < dynamicprops
     
     methods
         
-        % Constructor
+        % Constructor.
+        % 
         function o = block(name,varargin)
             assert(nargin > 1,'NEUROSTIM:block:notEnoughInputs', ...
                 'Not enough input arguments.');
-            assert(all(cellfun(@(x) isa(x,'neurostim.design'),varargin)),'Block construction requires designs only')
+            isDesign = cellfun(@(x) isa(x,'neurostim.design'),varargin);
+            if ~any(isDesign)
+                error('block construction needs at least one design');
+            end
             o.name = name;
-            o.designs = [varargin{:}];
+            o.designs = [varargin{isDesign}];
             o.weights = ones(1,o.nrDesigns);
+            % The remaining args are parameter/value pairs
+            pv = varargin(~isDesign);
+            for i=1:2:numel(pv)
+                o.(pv{i}) = pv{i+1};
+            end
         end
         
         function afterTrial(o,c)

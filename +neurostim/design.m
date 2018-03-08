@@ -435,13 +435,23 @@ classdef design <handle & matlab.mixin.Copyable
                         % Allow users to use singleton or vectors to specify
                         % levels (if the parameter value of a single level is a
                         % vector, put it in a cell array).
+                        
+                        lvls = o.nrLevels;
+                        
                         if ischar(V) || (~iscell(V) && isscalar(V))
                             V = {V};
                         elseif ~iscell(V)
-                            V = neurostim.utils.vec2cell(V);
+                            if ndims(V) == ndims(lvls) && all(size(V)==lvls)
+                                % This is a matrix where each element is
+                                % intended as a level for a factor. 
+                                V = neurostim.utils.vec2cell(V);
+                            else
+                                % This is a matrix that we're
+                                % assigning to each level
+                                V = {V};
+                            end
                         end
                         
-                        lvls = o.nrLevels;
                         for f=1:o.nrFactors
                             if strcmpi(ix{f},':')
                                 % Replace : with  1:end
