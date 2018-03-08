@@ -320,17 +320,17 @@ classdef stimulus < neurostim.plugin
             if s.flags.on
                 
                 %Apply stimulus transform
-                sX =s.X;sY=s.Y;sZ=s.Z;
+                sX =+s.X;sY=+s.Y;sZ=+s.Z; % USe + operator to force the use of values if s.X is an adaptive parameter.
                 if  any([sX sY sZ]~=0)
                     Screen('glTranslate',locWindow,sX,sY,sZ);
                 end
-                sScale = s.scale;
+                sScale = +s.scale;
                 if any(sScale~=1)
                     Screen('glScale',locWindow,sScale(1),sScale(2),sScale(3));
                 end
-                sAngle= s.angle;
+                sAngle= +s.angle;
                 if  sAngle ~=0
-                    Screen('glRotate',locWindow,sAngle,s.rx,s.ry,s.rz);
+                    Screen('glRotate',locWindow,sAngle,+s.rx,+s.ry,+s.rz);
                 end
                 
                 %If this is the first frame that the stimulus will be drawn, register that it has started.
@@ -348,7 +348,7 @@ classdef stimulus < neurostim.plugin
                 beforeFrame(s);
                 
                 if s.diode.on
-                    Screen('FillRect',locWindow,s.diode.color,s.diodePosition);
+                    Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);
                 end
             elseif s.stimstart && (cFrame==sOffFrame)% if the stimulus will not be shown,
                 % get the next screen flip for stopTime

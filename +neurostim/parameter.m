@@ -154,6 +154,9 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.capacity = numel(o.log);
             end
             %% Fill the log.
+            if isa(v,'neurostim.plugins.adaptive')
+                v = getValue(v);
+            end
             o.log{o.cntr}  = v;
             o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime
         end
@@ -322,6 +325,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 trial = 1:maxTrial; % The trial where the event set came from is trial(ix);
                 time = time(ix);
                 trialTime = trialTime(ix);
+                block = block(ix);
                 
                 if any(out)
                     data(out)=[];

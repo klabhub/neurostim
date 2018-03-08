@@ -37,7 +37,15 @@ g=stimuli.gabor(c,'grating');
 g.color            = [0.5 0.5 0.5];
 g.contrast         = 0.25;
 g.Y                = 0;
-g.X                = 0;
+
+% The simplest adaptive parameter is used to jitter
+% parameters across trials. Use the jitter class for this. 
+% Becuase the same jitter object can be used for all conditions, we assign it
+% to the parameter directly. 
+g.X                = plugins.jitter(c,{10,-10},'distribution','1ofN'); % Jitter the location of the grating on each trial: either 10 or -10 
+% If you'd want to use a different jitter (maybe drawn from a different
+% distribution in different conditions) for each condition, then you specify 
+% the jitter as part of the design (see below)
 g.sigma            = 3;
 g.phaseSpeed       = 0;
 g.orientation      = 0;
@@ -65,14 +73,7 @@ nrLevels = d.nrLevels;
 % We also want to change some parameters
 % in an "adaptive" way. You do this by assigning values
 % to the .conditions field of the design object .
-%
-% The simplest adaptive parameter is used to jitter
-% parameters across trials. Use the jitter class for this. The
-% .conditions(:) means that the jitter is applied to all levels of the
-% first factor. (Using .conditions(:,1) would work too.
-% In this case there is a single jitter object that will be used in all
-% conditions.
-d.conditions(:).grating.X= plugins.jitter(c,{10,-10},'distribution','1ofN'); % Jitter the location of the grating on each trial: either 10 or -10 
+
 
 if strcmpi(method,'QUEST')
     % To estimate threshold adaptively, the Quest method can be used. We need
@@ -91,7 +92,7 @@ if strcmpi(method,'QUEST')
     % An important difference with the Jitter parameter above is that we
     % want to have a separate quest for the two orientations. To achieve
     % that we could explicitly create two Quest plugins and assign those to the
-    % conditions(:,1).grating.contrast = { quest1,quest2}, but in the current example both Quests have
+    % conditions(:,1).grat ing.contrast = { quest1,quest2}, but in the current example both Quests have
     % identical parameters, so it is easier to duplicate them using the duplicate function.
     %
     % Please note that you should not use repmat for this purpose as it will repmat the
@@ -120,6 +121,15 @@ elseif strcmpi(method,'STAIRCASE')
         c.trialDuration = 150;
     end
 end
+
+% If you;d want to assign a different jitter object per condition (i.e. the
+% different jitters are part of the design) you'd use something like this
+% (the first level of the first factor (-45) jitters between 10 and -10,
+% while the +45 orientation jitters between -15 and +15). If you use this,
+% there is no need to assign the jitter to the g.X above , so comment that
+% out.
+% d.conditions(1,1).grating.X =  plugins.jitter(c,{10,-10},'distribution','1ofN'); 
+% d.conditions(2,1).grating.X =  plugins.jitter(c,{15,-15},'distribution','1ofN'); 
 
 % Create a block for this design and specify the repeats per design
 myBlock=block('myBlock',d);
