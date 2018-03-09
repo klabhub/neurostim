@@ -14,7 +14,7 @@ c = cic;
 c.cursor = 'arrow';
 computerName = getenv('COMPUTERNAME');
 if isempty(computerName)
-    [~,computerName] =system('hostname');
+    [~,computerName] = system('hostname');
     computerName = deblank(computerName);
 end
 c.dirs.output = tempdir; % Output files will be stored here.
@@ -22,11 +22,15 @@ c.dirs.output = tempdir; % Output files will be stored here.
 switch computerName
     case 'MU00122376'
         % AwesomeLab stimulus computer - Display++
-        c = rig(c,'blackrock',true,'xpixels',1920,'ypixels',1080,'screenWidth',70.0,'frameRate',120,'screenNumber',max(Screen('screens')));
+        c = rig(c,'blackrock',true,'xpixels',1920,'ypixels',1080,'screenWidth',71.0,'frameRate',120,'screenNumber',max(Screen('screens')));
         c.screen.type = 'DISPLAY++';
         c.screen.colorMode = 'RGB';
         c.blackrock.useMCC = false;
         c.dirs.output = 'D:\Data';
+        
+%         % log min and max luminance values... valid as at 2017-08-xx
+%         c.addProperty('minLum',0.0);
+%         c.addProperty('maxLum',0.0);
     case 'MU00101417X'
         % Shaun's MacBook Pro
         c = rig(c,'xpixels',2560,'ypixels',1600,'screenWidth',28.6,'frameRate',60,'screenNumber',max(Screen('screens'))); %,'keyboardNumber',max(GetKeyboardIndices()));
