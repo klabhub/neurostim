@@ -35,13 +35,7 @@ classdef blackrock < neurostim.plugin
            o.open = true;
            
            %Give Central the filename for saving neural data
-%            cbmex('fileconfig',o.cic.fullFile,'',0);
-
-           % FIXME: the cbmex 'fileconfig' commands (here and below) fail.
-           %        I don't know why. For now, we record c.file as a
-           %        comment in the blackrock datafile so we can match up
-           %        the neurostim and blackrock files if things go awry...
-           cbmex('comment',128,0,o.cic.file);
+           cbmex('fileconfig',o.cic.fullFile,'',0);
            
            %Check that the mcc plugin is enabled
            if o.useMCC
@@ -55,7 +49,7 @@ classdef blackrock < neurostim.plugin
            end
            
            %Start recording.
-%            cbmex('fileconfig', o.cic.fullFile, o.comments,1);
+           cbmex('fileconfig', o.cic.fullFile, o.comments,1);
            
            %Ensure no data is being cached to Neurostim
            cbmex('trialconfig', 0);
@@ -71,7 +65,7 @@ classdef blackrock < neurostim.plugin
        function closeSession(o)
      
           %Stop recording.
-%           cbmex('fileconfig', o.cic.fullFile,' ',0);
+          cbmex('fileconfig', o.cic.fullFile,' ',0);
           
           %Close down cbmex connection
           cbmex('close');
