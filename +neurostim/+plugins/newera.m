@@ -4,36 +4,20 @@
 
 classdef newera <  neurostim.plugins.feedback
   % Wrapper class for New Era syringe pumps (see http://syringepump.com/).
-  %
-  
+  %  
   % usage:
   %
-  %   r = plugins.newera();
-  %   r.add('volume',100,'when','afterFrame','criterion','@fixation1.success');
-  %   r.add('volume',500,'when','afterTrial','criterion','@fixation2.success');
+  %   r = plugins.newera(c); % c being a neurostim cic object
+  %   r.add('volume',0.010,'when','afterFrame','criterion','@fixation1.success');
+  %   r.add('volume',0.040,'when','afterTrial','criterion','@fixation2.success');
   %
-  
-  % To see the public properties of this class, type
-  %
-  %   properties(neurostim.plugins.newera)
-  %
-  % To see a list of methods, type
-  %
-  %   methods(neurostim.plugins.newera)
-  %
-  % The class constructor can be called with a range of arguments:
-  %
-  %   port     - serial interface (e.g., COM1)
-  %   baud     - baud rate (default: 19200)
-  %   address  - pump address (0-99)
-  %   diameter - syringe diameter (mm)
-  %   volume   - dispensing volume (ml)
-  %   rate     - dispensing rate (ml per minute)
 
-  % note: ported from my marmoview class of the same name
+  % note: ported from my marmoview class of the same name.
+  
+  % 2018-03-12 - Shaun L. Cloherty <s.cloherty@ieee.org>
   
   properties (SetAccess = private, GetAccess = public)
-    dev@serial; % the serial port object - PRIVATE?
+    dev@serial; % the serial port object
 
 %     port; % port for serial communications ('COM1','COM2', etc.)
 %     baud;
@@ -41,13 +25,13 @@ classdef newera <  neurostim.plugins.feedback
 %     address@double; % pump address (0-99)
     
     mcc; % (boolean) set to TRUE if the mcc is available
-    
-    % fot the gui...
+
+    % for the gui...
     nrDelivered = 0;
     totalDelivered = 0;
   end % properties
 
-  % dependent properties, calculated on the fly...
+%   % dependent properties, calculated on the fly...
 %   properties (Dependent, SetAccess = public, GetAccess = public)
 %     diameter@double; % diameter of the syringe (mm)
 %     volume@double;   % dispensing volume (mL)
@@ -130,33 +114,17 @@ classdef newera <  neurostim.plugins.feedback
 
   methods
     function o = newera(c,varargin) % c is the neurostim cic
-%       fprintf(1,'neurostim.plugins.newera()\n');
-
       o = o@neurostim.plugins.feedback(c,'newera'); % call parent constructor
      
-%       % initialise input parser
-%       args = varargin;
-%       p = inputParser;
-%       p.KeepUnmatched = true;
-%       p.StructExpand = true;
-%       p.addParamValue('port','COM1',@ischar); % default to COM1?
-%       p.addParamValue('baud',19200,@(x) any(ismember(x,[300, 1200, 2400, 9600, 19200])));
-% 
-%       p.addParamValue('address',0,@(x) isreal);
-%       
-%       p.addParamValue('diameter',20.0,@isreal); % mm
-% %      p.addParamValue('volume',0.010,@isreal); % ml
-%       p.addParamValue('rate',10.0,@isreal); % ml per minute
-% 
-%       p.parse(varargin{:});
-% 
-%       args = p.Results;
-% 
-%       o.port = args.port;
-%       o.baud = args.baud;
-% 
-%       o.address = args.address;
-
+      % add properties (these are logged!):
+      %
+      %   port     - serial interface (e.g., COM1)
+      %   baud     - baud rate (default: 19200)
+      %   address  - pump address (0-99)
+      %   diameter - syringe diameter (mm)
+      %   rate     - dispensing rate (ml per minute)
+      %
+      %   channel  - mcc channel (if mcc is available)
       o.addProperty('port','COM1','validate',@ischar); % or something like '/dev/ttyUSB0' on linux
       o.addProperty('baud',19200,'validate',@(x) any(ismember(x,[300, 1200, 2400, 9600, 19200])));
       o.addProperty('address',0,'validate',@isreal);
@@ -165,36 +133,7 @@ classdef newera <  neurostim.plugins.feedback
 %      o.addProperty('volume',0.010,'validate',@isreal); % ml
       o.addProperty('rate',10.0,'validate',@isreal); % ml per minute
 
-      o.addProperty('mccChannel',9,'validate',@isreal);
-      
-      % now try and connect to the New Era syringe pump...
-      %
-      %   data frame: 8N1 (8 data bits, no parity, 1 stop bit)
-      %   terminator: CR (0x0D)
-%       o.dev = serial(o.port,'BaudRate',o.baud,'DataBits',8,'Parity','none', ...
-%                             'StopBits',1,'Terminator',13,'InputBufferSize',4096); % CR = 13
-% 
-%       try
-%         [err,status] = o.open();
-%       catch
-%         error('NEUROSTIM:NEWERA','Could not connect to New Era syringe pump on %s!',o.port);
-%       end
-% 
-%       % configure the pump...
-%       if status ~= 0, % 0 = stopped
-%         o.stop();
-%       end
-% 
-% %       o.diameter = args.diameter;
-% %       o.volume = args.volume;
-% %       o.rate = args.rate;
-%        o.setdia(o.diameter);
-% %        o.setvol(o.volume);
-%        o.setrate(o.rate);
-% 
-%       o.setdir(0); % 0 = infusion, 1 = withdrawal
-%       o.clrvol(0); % 0 = infused volume, 1 = withdrawn volume
-% %       o.clrvol(1);
+      o.addProperty('mccChannel',9,'validate',@isreal); % mcc channel
     end
 
     function beforeExperiment(o)
@@ -213,13 +152,10 @@ classdef newera <  neurostim.plugins.feedback
       end
 
       % configure the pump...
-      if status ~= 0, % 0 = stopped
+      if status ~= 0 % 0 = stopped
         o.stop();
       end
 
-% %       o.diameter = args.diameter;
-% %       o.volume = args.volume;
-% %       o.rate = args.rate;
       o.setdia(o.diameter);
 %       o.setvol(o.volume);
       o.setrate(o.rate);
@@ -228,38 +164,39 @@ classdef newera <  neurostim.plugins.feedback
       o.clrvol(0); % 0 = infused volume, 1 = withdrawn volume
 %       o.clrvol(1);
         
-%         % look for the MCC plugin...
-%         o.mcc = pluginsByClass(o.cic,'mcc');
-%         if numel(o.mcc)==1
-%             %Iniatilise the bit low
-%             o.mcc.digitalOut(o.mccChannel,false);
-%         else
-%             o.cic.error('CONTINUE','Liquid reward added but no MCC plugin added (or, more than one added - currently not supported)');
-%         end
+      % look for the MCC plugin...
+      o.mcc = pluginsByClass(o.cic,'mcc');
+      if numel(o.mcc) == 1
+        % initialise the bit low
+        o.mcc.digitalOut(o.mccChannel,false);
+      else
+        o.cic.error('CONTINUE','Liquid reward added but no MCC plugin present (or, more than one present!!)');
+      end
     end
        
     function afterExperiment(o)
-        % close the pump
-%         o.close();
-        o.delete();
+      % close the pump
+%       o.close();
+      o.delete();
     end
   end
   
   methods (Access = protected)
     function chAdd(o,varargin)
-       p = inputParser;
-       p.StructExpand = true; % The parent class passes as a struct
-       p.addParamValue('volume',0.0,@isreal); % ml
-       p.parse(varargin{:});
+      % available arguments:
+      %
+      %   volume - dispensing volume (ml)
+      p = inputParser;
+      p.StructExpand = true; % parent class passes args as a struct
+      p.addParamValue('volume',0.0,@isreal); % ml
+      p.parse(varargin{:});
        
-       args = p.Results;
+      args = p.Results;
        
-       o.addProperty(['item', num2str(o.nItems), 'volume'],args.volume);
+      o.addProperty(['item', num2str(o.nItems), 'volume'],args.volume);
     end
           
     function deliver(o,item)
-%       fprintf(1,'neurostim.plugins.newera.deliver()\n');
-
       volume = o.(['item', num2str(item) 'volume']);
       o.setvol(volume);
       
@@ -275,17 +212,25 @@ classdef newera <  neurostim.plugins.feedback
 %       fprintf(o.dev,'00 RUN','async');
       fprintf(o.dev,'00 RUN');
       
+      % use the MCC if we have it... should be faster
+      if ~isempty(o.mcc)
+        o.mcc.digitalOut(o.mccChannel,true);
+                
+        %Keep track of how much has been delivered.
+        o.nrDelivered = o.nrDelivered + 1;
+        o.totalDelivered = o.totalDelivered + duration;
+      else
+        o.writeToFeed(['No MCC detected for liquid reward (' num2str(duration) 'ms)']);
+        return
+      end
+      
+      % keep track of what we've 'delivered'...
       o.nrDelivered = o.nrDelivered + 1;
       o.totalDelivered = o.totalDelivered + volume; % ml
-      
-      % TODO: user the MCC if we have it... should be faster
     end
     
     function report(o)
        % report back to the gui?
-       
-%        fprintf(1,'neurostim.plugins.newera.report()\n');
-
        o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total volume: ', num2str(o.totalDelivered)));
     end
   end % protected methods
@@ -456,23 +401,23 @@ classdef newera <  neurostim.plugins.feedback
       tokens = regexp(msg,pat,'names');
       
       err = 0;
-      if any(tokens.msg == '?'), % test for error
+      if any(tokens.msg == '?') % test for error
         err = 1;
       end
 
       status = -1;
-      switch tokens.prmpt,
-        case 'S', % stopped
+      switch tokens.prmpt
+        case 'S' % stopped
           status = 0;
-        case 'I', % infusing
+        case 'I' % infusing
           status = 1;
-        case 'P', % paused
+        case 'P' % paused
           status = 3;
-        case 'A', % alarm, msg contains the alarm code
+        case 'A' % alarm, msg contains the alarm code
           warning('NEUROSTIM:NEWERA','Pump alarm code: %s!\nCheck diameter, rate and volume...',tokens.msg);
           o.sndcmd('AL0'); % clear the alarm?
           status = 4;
-        otherwise,
+        otherwise
           warning('NEUROSTIM:NEWERA','Unknown prompt ''%s'' returned by the New Era syringe pump.',tokens.prmpt);
       end
 
@@ -481,7 +426,7 @@ classdef newera <  neurostim.plugins.feedback
     
     function flushin(o)
       % read and discard the contents of the serial port input buffer...
-      while o.dev.BytesAvailable > 0,
+      while o.dev.BytesAvailable > 0
         fread(o.dev,o.dev.BytesAvailable);
         pause(0.050); % <-- urgh!
       end
