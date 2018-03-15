@@ -4,13 +4,11 @@ classdef mcc < neurostim.plugin
     % that your Measurement Computing hardware is working and accessible.
     %
     % AM: I had to configure the ports as "output" for digitalOut() to
-    % work, e.g.
-    %       err=DaqDConfigPort(c.mcc.daq,0,0); % port A as output
- 
+    %     work, e.g.
+    %       err = DaqDConfigPort(c.mcc.daq,0,0); % port A as output
+    % SC: added test to identify the correct HID interface on Linux
     
     properties (Constant)
-%         AFTERFRAME=1;
-%         AFTERTRIAL=2;
         ANALOG=0;
         DIGITAL=1;
     end
@@ -28,41 +26,45 @@ classdef mcc < neurostim.plugin
     end
     
     methods
-        function v= get.product(o)
+        function v = get.product(o)
             v = o.devices(o.daq).product;
         end
         
-        function v= get.status(o)
+        function v = get.status(o)
             v = DaqGetStatus(o.daq);
         end
     end
     methods
-        function o =mcc(c)
+        function o = mcc(c)
             o  = o@neurostim.plugin(c,'mcc');
             
-            
-            
-            % Check what is there.
+            % check what is there...
             o.devices = PsychHID('Devices');
             
-            %Find the main MCC Interface.
-            o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0'), o.devices));    %DaqDeviceIndex
+            % find the main MCC interface...
+            if isunix()
+              o.daq = find(arrayfun(@(device) strcmpi(device.manufacturer,'MCC'), o.devices) & ...
+                           arrayfun(@(device) device.interfaceID == 0, o.devices),1);
+            else
+              % windows... the above should work on Windows also, but for
+              % backwards compatability we keep this for now
+              o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0'), o.devices));    %DaqDeviceIndex
+            end
             
             if isempty(o.daq)
                error('MCC plugin added but no device could be found.'); 
             end
             
-            err=DaqDConfigPort(o.daq,0,1); % configure digital port A for input
-            err=DaqDConfigPort(o.daq,1,0); % configure digital port B for output
+            err = DaqDConfigPort(o.daq,0,1); % configure digital port A for input
+            err = DaqDConfigPort(o.daq,1,0); % configure digital port B for output
             
             o.mapList.type = [];
             o.mapList.channel =[];
             o.mapList.prop = {};
             o.mapList.when = [];
-            
-            
         end
-        function map(o,type,channel,prop, when)
+        
+        function map(o,type,channel,prop,when)
             % Map a channel to a named dynamic property.
             % INPUT
             %   type = 'ANALOG' or 'DIGITAL'
@@ -78,7 +80,6 @@ classdef mcc < neurostim.plugin
             o.mapList.channel   = cat(2,o.mapList.channel,channel);
             o.mapList.prop      = cat(2,o.mapList.prop,prop);
             o.mapList.when      = cat(2,o.mapList.when,upper(when));
-
         end
         
         
@@ -112,12 +113,12 @@ classdef mcc < neurostim.plugin
         end
         
         % Read the digital channel now
-        function v= digitalIn(o,channel)
+        function v = digitalIn(o,channel)
             % data(1) is the 8-bit value read from port A.
             % data(2) is the 8-bit value read from port B.
             data = DaqDIn(o.daq);
             % Extract the bit of the channel
-            if channel<9
+            if channel < 9
                 v = bitget(data(1),channel);
             else
                 v = bitget(data(2),channel-8);
@@ -130,14 +131,14 @@ classdef mcc < neurostim.plugin
             % outputToggle(o,channel,value)
             % togges the output back to its previous value once time has
             % been reached
-            port = (channel>8)+1;
+            port = (channel > 8)+1;
             DaqDOut(o.daq,port-1,value);
         end
     end
     
     methods
         % Read the specified analog channel now
-        function v= analogIn(o,channel)
+        function v = analogIn(o,channel)
             % range scales differential recordings. Not using for
             % now.
             range = 0;
@@ -178,7 +179,6 @@ classdef mcc < neurostim.plugin
                 o.(o.mapList.prop{i}) = v;
             end
         end
-        
         
     end
     
