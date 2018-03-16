@@ -35,7 +35,20 @@ classdef mcc < neurostim.plugin
         end
     end
     methods
-        function o = mcc(c)
+        function o = mcc(c,varargin)
+            % Be default we use the first (often the only) available MCC
+            % device.
+            %
+            % On Linux (but not Windows?), we can handle multiple MCCs by
+            % explicitly passing the serial number of the device as a
+            % string, e.g.,
+            %
+            %   m = plugins.mcc(c,'serialNumber','01BE9719')
+            p = inputParser();
+            p.addParameter('serialNumber','');
+            p.parse(varargin{:})
+            args = p.Results;
+            
             o  = o@neurostim.plugin(c,'mcc');
             
             % check what is there...
@@ -43,8 +56,14 @@ classdef mcc < neurostim.plugin
             
             % find the main MCC interface...
             if isunix()
-              o.daq = find(arrayfun(@(device) strcmpi(device.manufacturer,'MCC'), o.devices) & ...
-                           arrayfun(@(device) device.interfaceID == 0, o.devices),1);
+              idx = true(size(o.devices));
+              if ~isempty(args.serialNumber)
+                idx = arrayfun(@(device) strcmpi(device.serialNumber),args.serialNumber,o.devices);
+              end
+
+              o.daq = find(idx & ...
+                           arrayfun(@(device) strcmpi(device.manufacturer,'MCC'), o.devices) & ...
+                           arrayfun(@(device) device.interfaceID == 0, o.devices));
             else
               % windows... the above should work on Windows also, but for
               % backwards compatability we keep this for now
