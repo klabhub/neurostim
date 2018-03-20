@@ -2,7 +2,7 @@
 
 % 2016-06-25 - Shaun L. Cloherty <s.cloherty@ieee.org>
 
-classdef newera <  neurostim.plugins.feedback
+classdef newera <  neurostim.plugins.liquid
   % Wrapper class for New Era syringe pumps (see http://syringepump.com/).
   %  
   % usage:
@@ -10,11 +10,10 @@ classdef newera <  neurostim.plugins.feedback
   %   r = plugins.newera(c); % c being a neurostim cic object
   %   r.add('volume',0.010,'when','afterFrame','criterion','@fixation1.success');
   %   r.add('volume',0.040,'when','afterTrial','criterion','@fixation2.success');
-  %
 
-  % note: ported from my marmoview class of the same name.
-  
   % 2018-03-12 - Shaun L. Cloherty <s.cloherty@ieee.org>
+  %
+  % note: ported from my marmoview class of the same name.
   
   properties (SetAccess = private, GetAccess = public)
     dev@serial; % the serial port object
@@ -24,11 +23,11 @@ classdef newera <  neurostim.plugins.feedback
 %     
 %     address@double; % pump address (0-99)
     
-    mcc; % (boolean) set to TRUE if the mcc is available
-
-    % for the gui...
-    nrDelivered = 0;
-    totalDelivered = 0;
+%     mcc; % (boolean) set to TRUE if the mcc is available
+% 
+%     % for the gui...
+%     nrDelivered = 0;
+%     totalDelivered = 0;
   end % properties
 
 %   % dependent properties, calculated on the fly...
@@ -114,7 +113,7 @@ classdef newera <  neurostim.plugins.feedback
 
   methods
     function o = newera(c,varargin) % c is the neurostim cic
-      o = o@neurostim.plugins.feedback(c,'newera'); % call parent constructor
+      o = o@neurostim.plugins.liquid(c,'newera'); % call parent constructor
      
       % add properties (these are logged!):
       %
@@ -132,8 +131,8 @@ classdef newera <  neurostim.plugins.feedback
       o.addProperty('diameter',20.0,'validate',@isreal); % mm
 %      o.addProperty('volume',0.010,'validate',@isreal); % ml
       o.addProperty('rate',10.0,'validate',@isreal); % ml per minute
-
-      o.addProperty('mccChannel',9,'validate',@isreal); % mcc channel
+% 
+%       o.addProperty('mccChannel',9,'validate',@isreal); % mcc channel
     end
 
     function beforeExperiment(o)
@@ -164,14 +163,15 @@ classdef newera <  neurostim.plugins.feedback
       o.clrvol(0); % 0 = infused volume, 1 = withdrawn volume
 %       o.clrvol(1);
         
-      % look for the MCC plugin...
-      o.mcc = pluginsByClass(o.cic,'mcc');
-      if numel(o.mcc) == 1
-        % initialise the bit low
-        o.mcc.digitalOut(o.mccChannel,false);
-      else
-        o.cic.error('CONTINUE','Liquid reward added but no MCC plugin present (or, more than one present!!)');
-      end
+%       % look for the MCC plugin...
+%       o.mcc = pluginsByClass(o.cic,'mcc');
+%       if numel(o.mcc) == 1
+%         % initialise the bit low
+%         o.mcc.digitalOut(o.mccChannel,false);
+%       else
+%         o.cic.error('CONTINUE','Liquid reward added but no MCC plugin present (or, more than one present!!)');
+%       end
+      o.beforeExperiment@neurostim.plugins.liquid()
     end
        
     function afterExperiment(o)
@@ -186,17 +186,34 @@ classdef newera <  neurostim.plugins.feedback
       % available arguments:
       %
       %   volume - dispensing volume (ml)
+      %
+      % see also: @liquid
       p = inputParser;
-      p.StructExpand = true; % parent class passes args as a struct
+      p.StructExpand = true; % @feedback passes args as a struct
+      p.KeepUnmatched = true;
       p.addParamValue('volume',0.0,@isreal); % ml
       p.parse(varargin{:});
-       
+
+      o.chAdd@neurostim.plugins.liquid(p.Unmatched); % adds o.itemNduration
+      
       args = p.Results;
-       
+            
       o.addProperty(['item', num2str(o.nItems), 'volume'],args.volume);
+      
+      % setting a volume overides any specified duration...?
+      duration = (60*1e3)*args.volume/o.rate; % ml / (ml/min) --> converted milliseconds
+
+      o.(['item', num2str(o.nItems), 'duration']) = duration;
     end
           
     function deliver(o,item)
+      if o.mcc
+        o.deliver@neurostim.plugins.liquid();
+        return
+      end
+      
+      % if we don't have an MCC device we use the serial connection
+      
       volume = o.(['item', num2str(item) 'volume']);
       o.setvol(volume);
       
@@ -211,19 +228,7 @@ classdef newera <  neurostim.plugins.feedback
       err = 0;
 %       fprintf(o.dev,'00 RUN','async');
       fprintf(o.dev,'00 RUN');
-      
-      % use the MCC if we have it... should be faster
-      if ~isempty(o.mcc)
-        o.mcc.digitalOut(o.mccChannel,true);
-                
-        %Keep track of how much has been delivered.
-        o.nrDelivered = o.nrDelivered + 1;
-        o.totalDelivered = o.totalDelivered + duration;
-      else
-        o.writeToFeed(['No MCC detected for liquid reward (' num2str(duration) 'ms)']);
-        return
-      end
-      
+            
       % keep track of what we've 'delivered'...
       o.nrDelivered = o.nrDelivered + 1;
       o.totalDelivered = o.totalDelivered + volume; % ml
@@ -231,12 +236,15 @@ classdef newera <  neurostim.plugins.feedback
     
     function report(o)
        % report back to the gui?
-       o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total volume: ', num2str(o.totalDelivered)));
+       volume = o.qryvol();
+       
+       msg = sprintf('Delivered: %i (%i per trial); Total volume: %.2f', o.nrDelivered),round(o.nrDelivered./o.cic.trial,1),volume);
+       o.writeToFeed(msg);
     end
   end % protected methods
   
   %
-  % low(er) level pump intervace...
+  % low(er) level pump interface...
   %
   methods (Access = public)
     function [err,status] = open(o)
@@ -267,6 +275,10 @@ classdef newera <  neurostim.plugins.feedback
       catch
       end
       delete(o.dev);
+    end
+    
+    function ms = ml2ms(o,ml)
+      return (1e3*60)*ml/o.rate;
     end
   end % public methods
 
