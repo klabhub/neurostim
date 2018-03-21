@@ -201,14 +201,15 @@ classdef newera <  neurostim.plugins.liquid
       o.addProperty(['item', num2str(o.nItems), 'volume'],args.volume);
       
       % setting a volume overides any specified duration...?
-      duration = (60*1e3)*args.volume/o.rate; % ml / (ml/min) --> converted milliseconds
+%       duration = (60*1e3)*args.volume/o.rate; % ml / (ml/min) --> converted milliseconds
+      duration = o.ml2ms(args.volume); % ml / (ml/min) --> converted milliseconds
 
       o.(['item', num2str(o.nItems), 'duration']) = duration;
     end
           
     function deliver(o,item)
       if o.mcc
-        o.deliver@neurostim.plugins.liquid();
+%         o.deliver@neurostim.plugins.liquid();
         return
       end
       
@@ -238,7 +239,7 @@ classdef newera <  neurostim.plugins.liquid
        % report back to the gui?
        volume = o.qryvol();
        
-       msg = sprintf('Delivered: %i (%i per trial); Total volume: %.2f', o.nrDelivered),round(o.nrDelivered./o.cic.trial,1),volume);
+       msg = sprintf('Delivered: %i (%i per trial); Total volume: %.2f', o.nrDelivered,round(o.nrDelivered./o.cic.trial,1),volume);
        o.writeToFeed(msg);
     end
   end % protected methods
@@ -278,7 +279,7 @@ classdef newera <  neurostim.plugins.liquid
     end
     
     function ms = ml2ms(o,ml)
-      return (1e3*60)*ml/o.rate;
+      ms = 1e3*60*ml/o.rate;
     end
   end % public methods
 
