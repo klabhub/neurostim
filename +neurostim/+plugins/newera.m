@@ -99,7 +99,7 @@ classdef newera <  neurostim.plugins.liquid
 %       switch upper(tokens.units),
 %         case 'MM', % milliliters per minute
 %           value = value;
-%         case 'MH', % millimeters per hour
+%         case 'MH', % milliliters per hour
 %           value = value/60.0; % milliliters per minute
 %         case 'UM', % microliters per minute
 %           value = value/1e3; % milliliters per minute
@@ -208,7 +208,7 @@ classdef newera <  neurostim.plugins.liquid
     end
           
     function deliver(o,item)
-      if o.mcc
+      if numel(o.mcc) == 1
 %         o.deliver@neurostim.plugins.liquid();
         return
       end
@@ -375,7 +375,7 @@ classdef newera <  neurostim.plugins.liquid
         return
       end
 
-      pause(0.500); % <-- FIXME: need to figure out how to remove the need for this
+      pause(0.100); % <-- FIXME: need to figure out how to remove the need for this
       
       % the response from the pump looks like this:
       %
