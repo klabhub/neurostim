@@ -176,8 +176,7 @@ classdef newera <  neurostim.plugins.liquid
        
     function afterExperiment(o)
       % close the pump
-%       o.close();
-      o.delete();
+      o.close();
     end
   end
   
@@ -209,7 +208,7 @@ classdef newera <  neurostim.plugins.liquid
           
     function deliver(o,item)
       if numel(o.mcc) == 1
-%         o.deliver@neurostim.plugins.liquid();
+        o.deliver@neurostim.plugins.liquid();
         return
       end
       
@@ -239,7 +238,7 @@ classdef newera <  neurostim.plugins.liquid
        % report back to the gui?
        volume = o.qryvol();
        
-       msg = sprintf('Delivered: %i (%i per trial); Total volume: %.2f', o.nrDelivered,round(o.nrDelivered./o.cic.trial,1),volume);
+       msg = sprintf('Delivered: %i (%.1f per trial); Total volume: %.2f', o.nrDelivered,round(o.nrDelivered./o.cic.trial,1),volume);
        o.writeToFeed(msg);
     end
   end % protected methods
