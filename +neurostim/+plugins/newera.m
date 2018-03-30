@@ -10,7 +10,15 @@ classdef newera <  neurostim.plugins.liquid
   %   r = plugins.newera(c); % c being a neurostim cic object
   %   r.add('volume',0.010,'when','afterFrame','criterion','@fixation1.success');
   %   r.add('volume',0.040,'when','afterTrial','criterion','@fixation2.success');
-
+  %
+  % you can optionally add a keyboard hotkey to manually deiver the reward,
+  % e.g.,
+  %
+  %   r.add('volume',0.020,'key',char(32),...);
+  %
+  % allows you to trigger the reward by pressing the space bar (i.e.,
+  % char(32)).
+  
   % 2018-03-12 - Shaun L. Cloherty <s.cloherty@ieee.org>
   %
   % note: ported from my marmoview class of the same name.
@@ -18,98 +26,8 @@ classdef newera <  neurostim.plugins.liquid
   properties (SetAccess = private, GetAccess = public)
     dev@serial; % the serial port object
 
-%     port; % port for serial communications ('COM1','COM2', etc.)
-%     baud;
-%     
-%     address@double; % pump address (0-99)
-    
-%     mcc; % (boolean) set to TRUE if the mcc is available
-% 
-%     % for the gui...
-%     nrDelivered = 0;
-%     totalDelivered = 0;
+    keys@cellstr;
   end % properties
-
-%   % dependent properties, calculated on the fly...
-%   properties (Dependent, SetAccess = public, GetAccess = public)
-%     diameter@double; % diameter of the syringe (mm)
-%     volume@double;   % dispensing volume (mL)
-%     rate@double;     % dispensing rate (mL per minute)
-%   end
-% 
-%   methods % set/get dependent properties
-%     % dependent property set methods
-%     function o = set.diameter(o,value)
-%         o.setdia(value);
-%     end
-% 
-%     function o = set.volume(o,value)
-%         % note: value is in ml, however, if diameter > 14.0mm, the pump
-%         %       is expecting volume in microliters (unless the default units
-%         %       have been over-riden).
-%         if o.diameter <= 14.0,
-%           value = value*1e3; % microliters
-%         end
-%         o.setvol(value);
-%     end
-% 
-%     function o = set.rate(o,value)
-%         o.setrate(value);
-%     end
-% 
-%     % dependent property get methods
-%     function value = get.diameter(o)
-%         [err,status,msg] = o.sndcmd('DIA');
-%         assert(err == 0);
-% 
-%         value = str2num(msg);
-%     end
-% 
-%     function value = get.volume(o)
-%       [err,status,msg] = o.sndcmd('VOL');
-%       assert(err == 0);
-% 
-%       pat = '(?<value>[\d\.]{5})\s*(?<units>[A-Z]{2})';
-%       tokens = regexp(msg,pat,'names');
-%         
-%       value = str2num(tokens.value);        
-% 
-%       % note: value should be returned in ml, however, if diameter <= 14.0mm,
-%       %       the pump returns the volume in microliters (unless the default
-%       %       units have been over-riden).
-%       switch upper(tokens.units),
-%         case 'ML', % milliliters
-%           value = value;
-%         case 'UL', % microliters
-%           value = value/1e3; % milliliters
-%         otherwise,
-%           warning('NEUROSTIM:NEWERA','Unknown volume units ''%s''.', tokens.units);
-%       end
-%     end
-% 
-%     function value = get.rate(o)
-%       [err,status,msg] = o.sndcmd('RAT');
-%       assert(err == 0);
-% 
-%       pat = '(?<value>[\d\.]{5})\s*(?<units>[A-Z]{2})';
-%       tokens = regexp(msg,pat,'names');
-%         
-%       value = str2num(tokens.value);
-%       
-%       switch upper(tokens.units),
-%         case 'MM', % milliliters per minute
-%           value = value;
-%         case 'MH', % milliliters per hour
-%           value = value/60.0; % milliliters per minute
-%         case 'UM', % microliters per minute
-%           value = value/1e3; % milliliters per minute
-%         case 'UH', % microliters per hour
-%           value = value/(60*1e3); % milliliters per minute
-%         otherwise,
-%           warning('NEUROSTIM:NEWERA','Unknown rate units ''%s''.', tokens.units);
-%       end 
-%     end
-%   end
 
   methods
     function o = newera(c,varargin) % c is the neurostim cic
@@ -117,22 +35,18 @@ classdef newera <  neurostim.plugins.liquid
      
       % add properties (these are logged!):
       %
-      %   port     - serial interface (e.g., COM1)
-      %   baud     - baud rate (default: 19200)
-      %   address  - pump address (0-99)
-      %   diameter - syringe diameter (mm)
-      %   rate     - dispensing rate (ml per minute)
-      %
-      %   channel  - mcc channel (if mcc is available)
-      o.addProperty('port','COM1','validate',@ischar); % or something like '/dev/ttyUSB0' on linux
+      %   port     - serial interface (e.g., 'COM1' or '/dev/ttyUSB0' etc.)
+      %   baud     - baud rate (300, 1200, 2400, 9600 or 19200; default: 19200)
+      %   address  - pump address (0-99; default: 0)
+      %   diameter - syringe diameter (mm; default: 20.0)
+      %   rate     - dispensing rate (ml per minute; default: 10.0)
+      o.addProperty('port','COM1','validate',@ischar);
       o.addProperty('baud',19200,'validate',@(x) any(ismember(x,[300, 1200, 2400, 9600, 19200])));
       o.addProperty('address',0,'validate',@isreal);
        
       o.addProperty('diameter',20.0,'validate',@isreal); % mm
 %      o.addProperty('volume',0.010,'validate',@isreal); % ml
       o.addProperty('rate',10.0,'validate',@isreal); % ml per minute
-% 
-%       o.addProperty('mccChannel',9,'validate',@isreal); % mcc channel
     end
 
     function beforeExperiment(o)
@@ -163,14 +77,6 @@ classdef newera <  neurostim.plugins.liquid
       o.clrvol(0); % 0 = infused volume, 1 = withdrawn volume
 %       o.clrvol(1);
         
-%       % look for the MCC plugin...
-%       o.mcc = pluginsByClass(o.cic,'mcc');
-%       if numel(o.mcc) == 1
-%         % initialise the bit low
-%         o.mcc.digitalOut(o.mccChannel,false);
-%       else
-%         o.cic.error('CONTINUE','Liquid reward added but no MCC plugin present (or, more than one present!!)');
-%       end
       o.beforeExperiment@neurostim.plugins.liquid()
     end
        
@@ -185,12 +91,14 @@ classdef newera <  neurostim.plugins.liquid
       % available arguments:
       %
       %   volume - dispensing volume (ml)
+      %   key    - optional keyboard hotkey
       %
       % see also: @liquid
       p = inputParser;
       p.StructExpand = true; % @feedback passes args as a struct
       p.KeepUnmatched = true;
       p.addParamValue('volume',0.0,@isreal); % ml
+      p.addParamValue('key','',@(x) isempty(x) || (ischar(x) && numel(x) == 1));
       p.parse(varargin{:});
 
       o.chAdd@neurostim.plugins.liquid(p.Unmatched); % adds o.itemNduration
@@ -204,15 +112,21 @@ classdef newera <  neurostim.plugins.liquid
       duration = o.ml2ms(args.volume); % ml / (ml/min) --> converted milliseconds
 
       o.(['item', num2str(o.nItems), 'duration']) = duration;
+      
+      % add keyboard hotkey
+      if ~isempty(args.key)
+        o.keys{o.nItems} = args.key;
+        addKey(o,args.key);
+      end      
     end
           
     function deliver(o,item)
       if numel(o.mcc) == 1
-        o.deliver@neurostim.plugins.liquid();
+        o.deliver@neurostim.plugins.liquid(item);
         return
       end
       
-      % if we don't have an MCC device we use the serial connection
+      % if we don't have an MCC device we use the serial interface
       
       volume = o.(['item', num2str(item) 'volume']);
       o.setvol(volume);
@@ -232,6 +146,15 @@ classdef newera <  neurostim.plugins.liquid
       % keep track of what we've 'delivered'...
       o.nrDelivered = o.nrDelivered + 1;
       o.totalDelivered = o.totalDelivered + volume; % ml
+    end
+    
+    function keyboard(o,key)
+      % manual reward... via keyboard hotkey
+
+      % which key was pressed?
+      item = find(strcmpi(key,o.keys));
+               
+      o.deliver(item);
     end
     
     function report(o)
@@ -283,14 +206,73 @@ classdef newera <  neurostim.plugins.liquid
   end % public methods
 
   methods (Access = private)
+    function value = getdia(o) % get syringe diameter
+      [err,~,msg] = o.sndcmd('DIA');
+      assert(err == 0);
+
+      value = str2num(msg);
+    end
+
     function err = setdia(o,d) % set syringe diameter
       err = o.sndcmd(sprintf('DIA %5g',d));
     end
 
+    function value = getvol(o) % get dispensing volume
+      [err,~,msg] = o.sndcmd('VOL');
+      assert(err == 0);
+
+      pat = '(?<value>[\d\.]{5})\s*(?<units>[A-Z]{2})';
+      tokens = regexp(msg,pat,'names');
+        
+      value = str2num(tokens.value);        
+
+      % note: value should be returned in ml, however, if diameter <= 14.0mm,
+      %       the pump returns the volume in microliters (unless the default
+      %       units have been over-riden).
+      switch upper(tokens.units),
+        case 'ML', % milliliters
+          value = value;
+        case 'UL', % microliters
+          value = value/1e3; % milliliters
+        otherwise,
+          warning('NEUROSTIM:NEWERA','Unknown volume units ''%s''.', tokens.units);
+      end
+    end
+ 
     function err = setvol(o,d) % set dispensing volume
+      % note: d is in ml, however, if diameter > 14.0mm, the pump
+      %       is expecting volume in microliters (unless the default
+      %       units have been over-riden).
+      if o.diameter <= 14.0
+        d = d*1e3; % microliters
+      end
+        
       err = o.sndcmd(sprintf('VOL %5g',d));
     end
 
+    function value = getrate(o) % get dispensing rate
+      [err,~,msg] = o.sndcmd('RAT');
+      assert(err == 0);
+
+      pat = '(?<value>[\d\.]{5})\s*(?<units>[A-Z]{2})';
+      tokens = regexp(msg,pat,'names');
+        
+      value = str2num(tokens.value);
+      
+      switch upper(tokens.units),
+        case 'MM', % milliliters per minute
+          value = value;
+        case 'MH', % milliliters per hour
+          value = value/60.0; % milliliters per minute
+        case 'UM', % microliters per minute
+          value = value/1e3; % milliliters per minute
+        case 'UH', % microliters per hour
+          value = value/(60*1e3); % milliliters per minute
+        otherwise,
+          warning('NEUROSTIM:NEWERA','Unknown rate units ''%s''.', tokens.units);
+      end
+    end
+    
     function err = setrate(o,d) % set dispensing rate
       err = o.sndcmd(sprintf('RAT I %5g MM',d)); % 'I' set rate for infusion ONLY!
     end
