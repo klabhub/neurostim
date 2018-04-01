@@ -47,6 +47,8 @@ classdef newera <  neurostim.plugins.liquid
       o.addProperty('diameter',20.0,'validate',@isreal); % mm
 %      o.addProperty('volume',0.010,'validate',@isreal); % ml
       o.addProperty('rate',10.0,'validate',@isreal); % ml per minute
+      
+      o.addProperty('trigger','OF','validate',@(x) validatestring(x,{'OF','LE'}));
     end
 
     function beforeExperiment(o)
@@ -78,6 +80,11 @@ classdef newera <  neurostim.plugins.liquid
 %       o.clrvol(1);
         
       o.beforeExperiment@neurostim.plugins.liquid()
+      
+      if ~isempty(o.mcc)
+        o.trigger = 'LE'; % level trigger
+      end
+      o.settrg(o.trigger);
     end
        
     function afterExperiment(o)
@@ -286,6 +293,29 @@ classdef newera <  neurostim.plugins.liquid
         otherwise,
           warning('NEUROSTIM:NEWERA','Invalid pump direction %i.',d);
       end
+    end
+    
+    function mode = gettrg(o) % get trigger mode
+      [err,~,msg] = o.sndcmd('TRG');
+      assert(err == 0);
+
+      pat = '(?<mode>[A-Z,0-9]{2})';
+      tokens = regexp(msg,pat,'names');
+        
+      mode = tokens.mode;
+    end
+    
+    function err = settrg(o,varargin) % get trigger mode
+      % trigger modes:
+      %
+      %   OF - trigger off (disabled; default)
+      %   LE - level trigger (rising edge start, falling edge stop)
+      mode = 'OF';
+      if nargin > 2
+        mode = varargin{1};
+      end
+      
+      err = o.sndcmd(sprintf('TRG %s',mode));      
     end
     
     function err = run(o) % start the pump
