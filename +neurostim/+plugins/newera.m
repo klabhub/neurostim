@@ -14,11 +14,11 @@ classdef newera <  neurostim.plugins.liquid
   % you can optionally add a keyboard hotkey to manually deiver the reward,
   % e.g.,
   %
-  %   r.add('volume',0.020,'key',char(32),...);
+  %   r.add('volume',0.020,'key','space',...);
   %
-  % allows you to trigger the reward by pressing the space bar (i.e.,
-  % char(32)).
-  
+  % allows you to trigger the reward by pressing the space bar (see 'help KbName'
+  % for a list of key names on your platform).
+
   % 2018-03-12 - Shaun L. Cloherty <s.cloherty@ieee.org>
   %
   % note: ported from my marmoview class of the same name.
@@ -26,7 +26,7 @@ classdef newera <  neurostim.plugins.liquid
   properties (SetAccess = private, GetAccess = public)
     dev@serial; % the serial port object
 
-    keys@cellstr;
+    keys@cell;
   end % properties
 
   methods
@@ -105,7 +105,7 @@ classdef newera <  neurostim.plugins.liquid
       p.StructExpand = true; % @feedback passes args as a struct
       p.KeepUnmatched = true;
       p.addParamValue('volume',0.0,@isreal); % ml
-      p.addParamValue('key','',@(x) isempty(x) || (ischar(x) && numel(x) == 1));
+      p.addParamValue('key','',@(x) isempty(x) || ischar(x));
       p.parse(varargin{:});
 
       o.chAdd@neurostim.plugins.liquid(p.Unmatched); % adds o.itemNduration
@@ -155,14 +155,14 @@ classdef newera <  neurostim.plugins.liquid
       o.totalDelivered = o.totalDelivered + volume; % ml
     end
     
-    function keyboard(o,key)
-      % manual reward... via keyboard hotkey
-
-      % which key was pressed?
-      item = find(strcmpi(key,o.keys));
-               
-      o.deliver(item);
-    end
+%     function keyboard(o,key)
+%       % manual reward... via keyboard hotkey
+% 
+%       % which key was pressed?
+%       item = find(strcmpi(key,o.keys));
+%                
+%       o.deliver(item);
+%     end
     
     function report(o)
        % report back to the gui?
@@ -209,6 +209,15 @@ classdef newera <  neurostim.plugins.liquid
     
     function ms = ml2ms(o,ml)
       ms = 1e3*60*ml/o.rate;
+    end
+    
+    function keyboard(o,key)
+      % manual reward... via keyboard hotkey
+
+      % which key was pressed?
+      item = find(strcmpi(key,o.keys));
+               
+      o.deliver(item);
     end
   end % public methods
 
