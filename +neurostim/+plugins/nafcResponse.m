@@ -11,6 +11,8 @@ classdef nafcResponse < neurostim.plugins.behavior
     
     properties
         responded@logical=false;
+        
+       
     end
 
    methods (Access = public)
@@ -21,9 +23,12 @@ classdef nafcResponse < neurostim.plugins.behavior
             o.addProperty('keys',{},'validate',@iscellstr);
             o.addProperty('correctKey',[],'validate',@isnumeric);
             o.addProperty('correct',false);
-            o.addProperty('pressedInd',[]);
-            o.addProperty('pressedKey',[]);
+            o.addProperty('pressedInd',NaN);
+            o.addProperty('pressedKey',NaN);
             o.addProperty('oncePerTrial',false);
+            o.addProperty('simWhen','');
+            o.addProperty('simWhat','');
+            
             
        end
        
@@ -67,7 +72,11 @@ classdef nafcResponse < neurostim.plugins.behavior
                %Set flag so that behaviour class detects completion next frame
                o.inProgress = true;   
                o.responded = true;
+               % Two things to set in the parent behavior class:
+               o.outcome = 'COMPLETE';
+               o.success = o.correct; % This 
            end
+           
        end
        
    end
@@ -76,6 +85,17 @@ classdef nafcResponse < neurostim.plugins.behavior
        
        function inProgress = validate(o)
           inProgress = o.inProgress;
+          
+          % A simulated observer (useful to test paradigms and develop
+          % analysis code). The simulator can only reponse when the
+          % behavior is enabled (i.e. after .on), just like the real
+          % observer.          
+          if o.enabled && ~isempty(o.simWhen)
+            if o.cic.trialTime>o.simWhen
+                keyboard(o,o.keys{o.simWhat});
+            end
+          end
+          
        end              
           
    end  

@@ -132,7 +132,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % but tests on July 1st 2017 showed that this was (no longer)
             % correct. 
             
-            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value)) || (ischar(v) && strcmp(v,o.value)) || o.noLog 
+            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value)) || (ischar(v) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end
@@ -140,6 +140,11 @@ classdef parameter < handle & matlab.mixin.Copyable
             % For non-function parns this is the value that will be
             % returned  to the next getValue
             o.value = v;
+            
+            if o.noLog 
+               return 
+            end
+            
             % Keep a timed log.
             o.cntr=o.cntr+1;
             % Allocate space if needed
@@ -149,6 +154,9 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.capacity = numel(o.log);
             end
             %% Fill the log.
+            if isa(v,'neurostim.plugins.adaptive')
+                v = getValue(v);
+            end
             o.log{o.cntr}  = v;
             o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime
         end
@@ -317,6 +325,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 trial = 1:maxTrial; % The trial where the event set came from is trial(ix);
                 time = time(ix);
                 trialTime = trialTime(ix);
+                block = block(ix);
                 
                 if any(out)
                     data(out)=[];
@@ -383,15 +392,13 @@ classdef parameter < handle & matlab.mixin.Copyable
             t = o.plg.cic.prms.trial.time;   % Start of the trial            
             t(tr==0) = [];
             t(isnan(t))= []; 
-            assert(numel(t)<=o.plg.cic.nrTrialsTotal);
+            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match then number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(tr));            
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
             trStartT = trialStartTime(o);
             tr = arrayfun(@(t,t0) neurostim.parameter.align(t,trStartT,true),eventTime);%,'UniformOutput',false);
-            assert(~any(tr> o.plg.cic.nrTrialsTotal));
-            
-            
+            assert(~any(tr> o.plg.cic.nrTrialsTotal),'Some trial numbers are larger than the max number of trials (%d)',o.plg.cic.nrTrialsTotal);                        
         end
         
         function trTime= eTime2TrialTime(o,eventTime)

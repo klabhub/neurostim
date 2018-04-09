@@ -5,6 +5,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         cic;  % Pointer to CIC    
         overlay@logical=false; % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
         window;    
+        feedStyle = '[0 0.5 0]'; % Command line color for writeToFeed messages.
     end
     
     
@@ -68,8 +69,23 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         %% GUI Functions
-        function writeToFeed(o,message)
-            o.cic.writeToFeed(horzcat(o.name, ': ', message));
+        % writeToFeed(o,messageAsString)
+        % writeToFeed(o,formatSpec, variables)  (as in sprintf)
+        % Note that the style of the feed can be adjusted per plugin by
+        % specifying the o.feedStyle: see styles defined in cprintf.
+        function writeToFeed(o,varargin)
+            nin =nargin;
+            if nin==1                
+                formatSpec ='%s';
+                args = {o.name};
+            elseif nin==2
+                formatSpec ='%s: %s';
+                args = {o.name,varargin{1}};                
+            elseif nargin>2
+                formatSpec = ['%s: ' varargin{1}];
+                args = cat(2,{o.name},varargin(2:end));
+            end            
+            o.cic.feed(o.feedStyle,formatSpec, args{:});            
         end
         
         % Needed by str2fun
@@ -173,16 +189,22 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             end            
             beforeExperiment(o);
         end
+        
+        function baseBeforeBlock(o)
+            beforeBlock(o);
+        end
+        
         function baseBeforeTrial(o)
             beforeTrial(o);
         end
         function baseBeforeFrame(o)
             %             if o.cic.clockTime-o.cic.frameStart>(1000/o.cic.screen.frameRate - o.cic.timing.pluginSlack)
-            %                          o.cic.writeToFeed(['Did not run plugin ' o.name ' beforeFrame in frame ' num2str(o.cic.frame) '.']);
+            %                          o.writeToFeed(['Did not run plugin ' o.name ' beforeFrame in frame ' num2str(o.cic.frame) '.']);
             %                          return;
             %             end
             beforeFrame(o);
         end
+        
         function baseAfterFrame(o)
             afterFrame(o);
         end
@@ -191,19 +213,30 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             afterTrial(o);
         end
         
+        function baseAfterBlock(o)
+            afterBlock(o);
+        end
+        
         function baseAfterExperiment(o)
             afterExperiment(o);
         end
         
         function beforeExperiment(~)
             %NOP
+        end        
+        
+        function beforeBlock(~)
+            %NOP
         end
+        
         function beforeTrial(~)
             %NOP
         end
+        
         function beforeFrame(~)
             %NOP
         end
+        
         function afterFrame(~)
             %NOP
         end
@@ -212,6 +245,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %NOP
         end
         
+        function afterBlock(~)
+            %NOP
+        end        
         function afterExperiment(~)
             %NOP
         end
@@ -237,6 +273,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     % All plugins BEFOREEXPERIMENT functions have been processed,
                     % store the current parameter values as the defaults.
                     setCurrentParmsToDefault(oList);
+                case neurostim.stages.BEFOREBLOCK
+                     for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        baseBeforeBlock(o);
+                        if c.PROFILE; addProfile(c,'BEFOREBLOCK',o.name,c.clockTime-ticTime);end;
+                    end
                 case neurostim.stages.BEFORETRIAL
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
@@ -265,6 +307,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseAfterTrial(o);
                         if c.PROFILE; addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
+                    end
+                case neurostim.stages.AFTERBLOCK
+                     for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        baseAfterBlock(o);
+                        if c.PROFILE; addProfile(c,'AFTERBLOCK',o.name,c.clockTime-ticTime);end;
                     end
                 case neurostim.stages.AFTEREXPERIMENT
                     for o= oList

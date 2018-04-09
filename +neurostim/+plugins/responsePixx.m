@@ -89,16 +89,16 @@ classdef responsePixx < neurostim.plugins.behavior
                 [buttonStates, transitionTimesSecs, ~] = ResponsePixx('GetLoggedResponses');
                 [tIx,buttonNr] = find(buttonStates);
                 ab =o.allowedButtons;
-                if ~isempty(buttonNr) && (isempty(ab) || ismember(buttonNr,ab))
+                if ~isempty(buttonNr) && (isempty(ab) || any(ismember(buttonNr,ab)))
                     if numel(buttonNr)>1
                         % more than one button pressed...
-                        disp('More than one button...')
+                        o.writeToFeed('More than one button...')
                     else
                         o.pressedButton = [buttonNr transitionTimesSecs(tIx)]; % Store button and the time in DPixx time
                     end
                     cb = o.correctButtons;
                     if ~isempty(cb)
-                        o.correct = ismember(buttonNr,cb);
+                        o.correct = any(ismember(buttonNr,cb));
                     else
                         %No correctness function specified. Probably using as subjective measurement (e.g. PSE)
                         o.correct = true;
@@ -106,6 +106,9 @@ classdef responsePixx < neurostim.plugins.behavior
                     %Set flag so that behaviour class detects completion next frame
                     o.inProgress = true;
                     o.responded = true;
+                    % Set two thigns in parent class.
+                    o.outcome = 'COMPLETE';
+                    o.success = o.correct; % This 
                 end
             end
         end

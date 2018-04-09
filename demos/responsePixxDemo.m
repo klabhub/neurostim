@@ -6,7 +6,7 @@ import neurostim.*
 
 %% Setup CIC and the stimuli.
 c = myRig;   
-c.trialDuration = Inf;%'@vpixxResponse.stopTime'; 
+c.trialDuration = '@responsePixx.stopTime'; 
 c.screen.color.background = 0.5*ones(1,3);
 
 % Add a Gabor stimulus . 
@@ -19,12 +19,12 @@ g.orientation = 0;
 g.mask ='GAUSS';
 g.duration = 250;
 
-v = neurostim.plugins.responsePixx(c);
+v = neurostim.plugins.responsePixx(c,'responsePixx');
 v.on = 0;
 v.off= Inf;
 v.successEndsTrial = true;
 
-c.addPropsToInform('responsePixx.correct','responsePixx.pressedButton')
+c.addPropsToInform('responsePixx.correct','responsePixx.pressedButton','responsePixx.stopTime')
 %% Define conditions and blocks, then run. 
 % One simple button press block; press the button that lights up...
 d = design('press');

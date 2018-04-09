@@ -112,12 +112,12 @@ classdef feedback < neurostim.plugin
             %Which feedback items should be delivered now?            
             for i=queue                
                 %Check that it hasn't already been delivered
-                if o.(['item' num2str(i) 'delivered']),
+                if o.(['item' num2str(i) 'delivered'])
                   continue;
                 end
                 
                 % ... and that the criterion is satisfied.
-                if o.(['item' num2str(i) 'criterion']),
+                if o.(['item' num2str(i) 'criterion'])
                   o.deliver(i);
                   o.(['item' num2str(i) 'delivered']) = true;
                 end                
@@ -138,7 +138,7 @@ classdef feedback < neurostim.plugin
     
     
     methods (Access=protected)        
-        function chAdd(o,varargin)
+        function chAdd(o,varargin) %#ok<INUSD>
             % to be overloaded in child classes. The user calls o.add(), which adds
             % a new feedback item in the parent class. Remaining arguments are passed
             % to chAdd() in the child class.
@@ -147,10 +147,10 @@ classdef feedback < neurostim.plugin
         function deliver(o,item)
             %Function that should be overloaded in derived class to deliver the feedback.
             %e.g. deliver juice, or present a feedback screen to a subject.            
-            disp(['Feedback delivered for ' num2str(o.(['item' num2str(item) 'duration'])) 'ms'])
+            o.writeToFeed('Feedback delivered for %d ms', o.(['item' num2str(item) 'duration']));
         end
         
-        function report(o)
+        function report(o) %#ok<MANU>
             %Overload in child class. Called at the end of the trial to
             %provide some info to the GUI. e.g. number of rewards,
             %proportion correct etc.

@@ -25,8 +25,81 @@ classdef (Abstract) adaptive < neurostim.plugin
     end
     
     methods
+        %% Operators to allow easy use of adaptive parameters in functions
+                
+        function v = plus(x1,x2)            
+            if isa(x1,'neurostim.plugins.adaptive')
+                x1 = getValue(x1);
+            end
+            if isa(x2,'neurostim.plugins.adaptive')
+                x2 = getValue(x2);
+            end
+            v =x1+x2;
+        end
+        
+        function v = uplus(x1)
+            x1 = getValue(x1);
+            v = +x1;
+        end
         
        
+        function v = minus(x1,x2)
+            if isa(x1,'neurostim.plugins.adaptive')
+                x1 = getValue(x1);
+            end
+            if isa(x2,'neurostim.plugins.adaptive')
+                x2 = getValue(x2);
+            end
+            v =minus(x1,x2);
+        end
+        
+        function v = uminus(x1)
+            x1 = getValue(x1);
+            v = -x1;
+        end
+        
+        function v = times(x1,x2)
+            if isa(x1,'neurostim.plugins.adaptive')
+                x1 = getValue(x1);
+            end
+            if isa(x2,'neurostim.plugins.adaptive')
+                x2 = getValue(x2);
+            end
+            v =times(x1,x2);
+        end
+        
+        
+        function v = mtimes(x1,x2)
+            if isa(x1,'neurostim.plugins.adaptive')
+                x1 = getValue(x1);
+            end
+            if isa(x2,'neurostim.plugins.adaptive')
+                x2 = getValue(x2);
+            end
+            v =mtimes(x1,x2);
+        end
+        
+        
+        function v = rdivide(x1,x2)
+            if isa(x1,'neurostim.plugins.adaptive')
+                x1 = getValue(x1);
+            end
+            if isa(x2,'neurostim.plugins.adaptive')
+                x2 = getValue(x2);
+            end
+            v =rdivide(x1,x2);
+        end
+        
+%         function v = horzcat(varargin)
+%           Not possible becuase of the Sealed method in heterogeneous
+%         end
+        
+    end
+    
+    
+    methods
+
+        
         function o = adaptive(c,funStr)
             % c= handle to CIC
             % fun = function string that evaluates to the outcome of the
@@ -60,13 +133,20 @@ classdef (Abstract) adaptive < neurostim.plugin
             % Duplicate an adaptive parm ; requires setting a new unique
             % id. Note that if you ask for more than one duplicate, the
             % first element in the array of duplicates will be the
-            % original, all others are new. If you ask for one duplicate
-            % we'll assume you really want to have a new one.
+            % original, all others are new. 
+            % If you ask for one duplicate, with nm==1,
+            % we'll assume you really just want the one you already have (so no duplicate).
+            % If you really want one copy, call this without the second argument.
+            
             if nargin<2
                 nm = 1;
+                duplicateSingleton = true;
+            else 
+                duplicateSingleton = false;              
             end
-            if prod(nm)>1
+            if prod(nm)>1 || ~duplicateSingleton                
                 o(1) = o1;
+                % Recursive call to create copies
                 for i=2:prod(nm)                
                     o(i) = duplicate(o1) ; %#ok<AGROW> These are copies.                   
                 end
@@ -76,21 +156,28 @@ classdef (Abstract) adaptive < neurostim.plugin
                 newName = strrep(o1.name,num2str(o1.uid),num2str(u));
                 o =duplicate@neurostim.plugin(o1,newName);
                 o.uid = u;
+                o.design = ''; % Not yet associated with a design.
             end
         end
         
         
         function afterTrial(o)
             % This is called after cic sends the AFTERTRIAL event
-            % (in cic.run)            
-             if strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions)% Check that this adaptive belongs to the current condition
-                % Only update if this adaptive object is assigned to the
-                % current condition. Call the derived class function to update it                
+            % (in cic.run)  
+            % An emply o.design means that the adaptive parameter was
+            % assigned directly to a plugin property (probably a jitter)
+            % and not part of a design. These get updated after every
+            % trial, irrespective of the current condition/design. 
+            % Adaptive parameters defined as part of a design only get
+            % updated when "their" condition/design is the currently active
+            % one.
+            if isempty(o.design) || (strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions))% Check that this adaptive belongs to the current condition
+                % Call the derived class function to update it                
                 correct = o.trialOutcome; % Evaluate the function that the user provided.
                 if numel(correct)>1 
                     error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
                 end
-                update(o,correct); % Pass it to the derived class to update                
+                update(o,correct); % Pass it to the derived class to update                                        
             end
         end 
     end
