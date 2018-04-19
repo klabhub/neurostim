@@ -49,11 +49,12 @@ classdef viewpoint < neurostim.plugins.eyetracker
 
     valid;
         
-    % default viewpoint config commands...
+    % custom viewpoint config commands...
     %
-    % note: 'smoothingPoints = 1' uses no smoothing (that is probably what we want?)
-    %       'GazeSpace_MouseAction Simulation' for debugging?
-    commands = {'dataFile_includeRawData Yes','datafile_includeEvents Yes','smoothingPoints 1'};
+    % e.g., 'calibration_RealRect 0.2 0.2 0.8 0.8'
+    %       'gazeSpace_MouseAction Simulation' for debugging?
+    %       'setPath DATA: c:\some\path\to\save\data\to\'
+    commands = {};
         
     vpxFile@char = 'test.vpx';
         
@@ -76,8 +77,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
   methods % get/set methods
     function v = get.isRecording(~)
       % check if viewpoint data file is open and *not* paused
-%       v = vpx_GetStatus(3) && ~vpx_GetStatus(4);
-      v = Viewpoint('CheckRecording');
+      v = Viewpoint('checkRecording');
     end
         
     function v = get.isConnected(~)
@@ -85,8 +85,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
             
       % FIXME: see p.25 of the viewpoint toolbox documenttion. what are the possible return values...?
 
-%       v = vpx_GetStatus(1);
-      v = Viewpoint('IsConnected');
+      v = Viewpoint('isConnected');
     end
   end
   
@@ -117,7 +116,6 @@ classdef viewpoint < neurostim.plugins.eyetracker
       % overide default calibration parameters
       o.vp.backgroundcolour = o.backgroundColor;
       o.vp.calibrationtargetcolour = o.clbTargetColor;
-      o.vp.msgfontcolour = o.cic.screen.color.text;
 
       o.vp.calibrationtargetsize = 100*o.clbTargetSize./o.cic.screen.width; % percentage of screen width
       if isempty(o.clbTargetInnerSize)
@@ -125,31 +123,18 @@ classdef viewpoint < neurostim.plugins.eyetracker
         o.clbTargetInnerSize = o.clbTargetSize/2;
       end
       o.vp.calibrationtargetwidth = 100*o.clbTargetInnerSize/o.cic.screen.width;
-      
-      % NEEDED? 2018-04-12 - these are being used in [vpx_]Calibration() - FIXME
-      %  overide the screen number, screen width and screen height
-      o.vp.ScrNum = o.cic.screen.number;
-      o.vp.Pwidth = o.cic.screen.width;
-      o.vp.Pheight = o.cic.screen.height;
-            
-      % initialise connection to viewpoint toolbox
-%       if ~o.useMouse
-%         vpx_Initialize(); % warning should be given in vpx_Initialize
-%       end
+                  
+      % initialise connection to viewpoint server
       if ~o.useMouse
-%         vpx_Initialize(); % warning should be given in vpx_Initialize
         Viewpoint('setAddress',o.ipAddress,o.port);
         Viewpoint('initialize');
       end      
 
-      % tell Eyelink about the pixel coordinates
-%     rect = Screen(o.window,'Rect');
-%     Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
-
-      % setup sample rate
-      if ~any(o.sampleRate == [220])
+      % set sample rate
+      if ~any(o.sampleRate == [90,220])
         c.error('STOPEXPERIMENT','Requested sample rate is invalid.');
       end
+      % FIXME: set the sample rate, i.e., 'eyeA:videoMode 90' or 'eyeA:videoMode 220'
             
       % open file to record data (will be renamed on copy?)
       [~,tmpFile] = fileparts(tempname);
@@ -158,22 +143,19 @@ classdef viewpoint < neurostim.plugins.eyetracker
       Viewpoint('command','dataFile_UnPauseUponClose 0'); % recording is paused by default
       Viewpoint('command','dataFile_Pause 1');
       Viewpoint('command','datafile_includeEvents 1');
-      Viewpoint('command','dataFile_includeRawData Yes');
+      Viewpoint('command','dataFile_includeRawData 1');
+      Viewpoint('command','dataFile_AsynchStringData 1'); % for Viewpoint('message',...)
+      
+      Viewpoint('command','smoothingPoints 1'); % 1 = no smoothing
 
-      Viewpoint('command','smoothingPoints 1');
-
-%       Viewpoint('command',sprintf('dataFile_NewName "%s"',o.vpxFile));
-      Viewpoint('openFile',sprintf('c:\\Users\\shaunc\\Documents\\%s',o.vpxFile));
+      Viewpoint('openFile',o.vpxFile);
       
       switch upper(o.eye)
         case 'LEFT'
-%           vpx_SendCommandString('dataFile_InsertString "EYE_USED 0"');
           Viewpoint('message','"EYE_USED 0"');
         case 'RIGHT'
-%           vpx_SendCommandString('dataFile_InsertString "EYE_USED 1"');
           Viewpoint('message','"EYE_USED 1"');
         case {'BOTH','BINOCULAR'}
-%           vpx_SendCommandString('dataFile_InsertString "EYE_USED 2"');
           Viewpoint('message','"EYE_USED 2"');
       end
                   
@@ -181,7 +163,6 @@ classdef viewpoint < neurostim.plugins.eyetracker
       
       % send any custom commands to Viewpoint
       for ii = 1:length(o.commands)
-%         result = vpx_SendCommandString(o.commands{ii}); % TODO: handle results
         try
           Viewpoint('command',o.commands{ii});
         catch
@@ -189,89 +170,49 @@ classdef viewpoint < neurostim.plugins.eyetracker
         end
       end
       
-      % can do later ch 19.19
-%       if o.keepExperimentSetup
-%         restoreExperimentSetup(o);
-%       else
-%         viewpointSetup(o);
-%       end
-            
-%       msg = { ...
-%         sprintf('dataFile_InsertString "RECORDED BY %s"',o.cic.experiment);
-%         sprintf('dataFile_InsertString "NEUROSTIM FILE %s"',o.cic.fullFile);
-%         sprintf('dataFile_InsertString "DISPLAY_COORDS %d %d %d %d"',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
-%         sprintf('dataFile_InsertString "DISPLAY_SIZE %.2f %.2f"',o.cic.screen.width,o.cic.screen.height);
-%         sprintf('dataFile_InsertString "FRAMERATE %d Hz."',o.cic.screen.frameRate) };
-%       vpx_SendCommandString(strjoin(msg,';'));
       Viewpoint('message','RECORDED BY %s',o.cic.experiment);
       Viewpoint('message','NEUROSTIM FILE %s',o.cic.fullFile);
       Viewpoint('message','DISPLAY_COORDS %d %d %d %d',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
       Viewpoint('message','DISPLAY_SIZE %.2f %.2f',o.cic.screen.width,o.cic.screen.height);
-      Viewpoint('message','FRAMERATE %d Hz.',o.cic.screen.frameRate);
-     
-     end
+      Viewpoint('message','FRAMERATE %d Hz.',o.cic.screen.frameRate);     
+    end
         
-    function afterExperiment(o)
-            
-%       vpx_SendCommandString('dataFile_Pause 1'); % stop recording
-%       vpx_SendCommandString('DataFile_Close'); % close data File
+    function afterExperiment(o)            
       Viewpoint('stopRecording');
       Viewpoint('closeFile');
-
-%             try  %for viewpoint just say in 'beforeexperiment' where data
-%                  %should be saved
-%                 writeToFeed(o,'Attempting to receive Viewpoint edf file');
-%                 newFileName = [o.cic.fullFile '.edf'];
-%                 status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
-%                 if status>0
-%                     o.edfFile = newFileName;
-%                     writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
-%                 else
-%                     writeToFeed(o,['Fail: EDF file did not transfer ' num2str(status)]);
-%                 end
-%             catch
-%                 error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
-%             end
-
-%       vpx_Unload;
       Viewpoint('shutdown');
     end
         
     function beforeTrial(o)
-      %o.trackedEye; %This doesn't currently do anything for Eyelink??
-      %update trial number so that correct coordinate system is used
-      %in Calibration.m
-      o.vp.trialnum = o.cic.trial; % FIXME
-            
-      % Do re-calibration if requested
+      % do re-calibration if requested
       if ~o.useMouse && (o.doTrackerSetup || o.doDriftCorrect)
-%         if ~o.keepExperimentSetup
-%           viewpointSetup(o);
-%         end
+        % temporarily undo neurostim's transformations so viewpoint-ptb
+        % can draw its targets in pixels...
+        Screen('glPushMatrix',o.cic.window);
+        Screen('glLoadIdentity',o.cic.window);
 
         if o.doTrackerSetup
-          ViewpointDoTrackerSetup(o.vp); % FIXME: need to modify to allow ns to control the background RGB/lum CIE etc.
+          ViewpointDoTrackerSetup(o.vp);
           o.doTrackerSetup = false;
-%           restoreExperimentSetup(o);
         end
         
         if o.doDriftCorrect
-%           o.vp.TERMINATE_KEY = o.vp.ESC_KEY;  % quit using ESC
-          ViewpointDoDriftCorrection(o.vp); % actually using slip correction ch 8.9 in User Guide
+          ViewpointDoDriftCorrect(o.vp); % note: uses Viewpoint's gazeNudge
           o.doDriftCorrect = false;
-%           restoreExperimentSetup(o);
         end
         
-        ViewpointClearCalDisplay(o.vp);           
+        ViewpointClearCalDisplay(o.vp);
+        
+        % restore neurostim's transformations
+        Screen('glPopMatrix',o.cic.window);
       end            
             
       if ~o.isRecording
-%         vpx_SendCommandString('dataFile_Resume'); % start recording
         Viewpoint('startRecording');
         
-        available = Viewpoint('EyeAvailable'); % returns vp.LEFT_EYE, vp.RIGHT_EYE or vp.BINOCULAR
-        if available == o.vp.BINOCULAR
-          o.eye = o.vp.LEFT_EYE; % EyeA?
+        available = Viewpoint('eyeAvailable'); % returns vp.EYE_A, vp.EYE_B or vp.BOTH
+        if available == o.vp.BOTH
+          o.eye = o.vp.EYE_A; % left eye?
         else
           o.eye = available;
         end
@@ -279,18 +220,14 @@ classdef viewpoint < neurostim.plugins.eyetracker
             
 %       Eyelink('Command','record_status_message %s%s%s',o.cic.paradigm, '_TRIAL:',num2str(o.cic.trial));
       
-%       vpx_SendCommandString(sprintf('dataFile_InsertString "TR:%d"',o.cic.trial));
       Viewpoint('message','TR:%d',o.cic.trial); % used to align clocks later
             
-%       vpx_SendCommandString(sprintf('dataFile_InsertString "TRIALID %d-%d"',o.cic.condition,o.cic.trial));
       Viewpoint('message','TRIALID %d-%d',o.cic.condition,o.cic.trial);
 
-%       o.eyeClockTime = vpx_GetDataTime(0);
       o.eyeClockTime = Viewpoint('trackerTime'); % note: time since library initialized...
     end
         
     function afterFrame(o)
-            
       if ~o.isRecording
         o.cic.error('STOPEXPERIMENT','Viewpoint is not recording...');
         return;
@@ -298,16 +235,16 @@ classdef viewpoint < neurostim.plugins.eyetracker
             
       if o.getSamples
         % continuous samples requested
-%         if Viewpoint('NewFloatSampleAvailable') > 0
+%         if Viewpoint('newFloatSampleAvailable')
           % get the most recent sample...
           sample = Viewpoint('newestFloatSample');
           
-%         [o.x,o.y] = ViewToNeuro(o,sample.gx(o.eye+1),sample.gy(o.eye+1));
-          o.x = sample.gx(o.eye+1);
-          o.y = sample.gy(o.eye+1);
+          % note: Viepoint returns gaze position in normalized screen
+          %       coordinates... convert to neurostim's physical coordinates
+          [o.x,o.y] = o.cic.pixel2Physical( ...
+            sample.gx(o.eye+1)*o.cic.screen.xpixels, ...
+            sample.gy(o.eye+1)*o.cic.screen.ypixels); % +1 as accessing MATLAB array
           
-%           sprintf('x: %.4f y: %.4f\n',o.x,o.y);
-
           o.pupilSize = sample.pa(o.eye+1);  
 
           o.valid = isnumeric(o.x) && isnumeric(o.y) && o.pupilSize >0; % FIXME: only if configured to measure pupil size...
@@ -321,7 +258,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
     end
        
     function command(o,cmd)
-      % add a command to be sent to Viewpoint before the experiment starts. 
+      % add a command to be sent to Viewpoint before the experiment starts
       if o.cic.trial > 0
         o.cic.error('STOPEXPERIMENT','Viewpoint commands can only be set before the experiment starts.');
       end
@@ -350,15 +287,13 @@ classdef viewpoint < neurostim.plugins.eyetracker
           o.doTrackerSetup = true;
         case 'F9'
           % do drift correct right now
-%           vpx_SendCommandString('dataFile_Pause 1');
           Viewpoint('StopRecording');
      
           [tx,ty] = o.cic.physical2Pixel(0,0);
           draw = 0; % assume neurostim has drawn a target
           allowSetup = 0; % if it fails it fails..(we just press on, we dont want to mess up the flow)
-          ViewpointDoDriftCorrect(o.vp,tx,ty,draw,allowSetup);
+          ViewpointDoDriftCorrect(o.vp,tx/o.cic.screen.xpixels,ty/o.cic.screen.ypixels,draw,allowSetup);
 
-%           vpx_SendCommandString('dataFile_Resume');
           Viewpoint('StartRecording');
         case 'F10'
           % do drift correct before next trial
@@ -368,37 +303,4 @@ classdef viewpoint < neurostim.plugins.eyetracker
         
   end % public methods
     
-%   methods (Access=protected)
-%     function restoreExperimentSetup(o)
-%       % restores neurostim background/foreground colours
-%       o.vp.backgroundcolour = o.cic.screen.color.background;
-%       o.vp.foregroundcolour = o.cic.screen.color.text;
-%             
-% %       PsychViewpointDispatchCallback(o.vp);
-%       ViewpointClearCalDisplay(o.vp);
-%             
-%       % TODO: see 'settingsFile_Load filename'/'settingsFile_Save filename'
-%     end
-%         
-%     function viewpointSetup(o)
-%       % sets up Viewpoint background/foreground colours
-%       o.vp.backgroundcolour = o.backgroundColor;
-%       o.vp.foregroundcolour = o.foregroundColor;
-%  %      PsychViewpointDispatchCallback(o.vp);
-%     end
-% 
-%     function ViewToNeuro(o,xV,yV)
-%       % convert Viewpoint normalized coords to neurostim coords
-% %       o.x = o.cic.screen.width*(vX-0.5);
-% %       o.y =-1*o.cic.screen.height*(yV-0.5);
-%       [o.x,o.y] = vp2ns(o,xV,yV);
-%     end
-%         
-%     function [xN,yN] = vp2ns(o,xV,yV)
-%       % convert Viewpoint normalized coords to neurostim coords
-%       xN =    o.cic.screen.width*(xV-0.5);
-%       yN = -1*o.cic.screen.height*(yV-0.5);
-%     end  
-%   end % protected methods
-  
 end % classdef
