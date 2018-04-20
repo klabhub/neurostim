@@ -4,11 +4,20 @@ clear all
 clear classes
 clc 
 
-this = neurostim.plugins.openEphys('tcp://101.188.50.26:5556'); 
-% for i = 1:3
-    this = this.beforeExperiment('createnewdir', 1,'recdir', 'C:\OpenEphysRecordings', 'prependtext', 'hello', ...
-        'appendtext', 'bye','StartMessage', 'So it begins...');    
-    pause(5);
-    this = this.afterExperiment('StopMessage', 'So it ends...'); 
-    
-% end 
+import neurostim.* 
+
+c = myRig; %call function myRig which constructs cic object 
+
+%url = zeroMQrr('StartConnectThread', 'tcp://101.188.50.26:5556')
+o = neurostim.plugins.openEphys(c,'tcp://101.188.50.26:5556'); 
+
+o.startMsg = 'Begin';
+o.stopMsg = 'End';
+
+ %for i = 1:3
+    o = o.beforeExperiment('prependtext', 'integrate', ...
+        'appendtext', 'neurostim');    
+    pause(5)
+    o = o.afterExperiment; 
+    pause(5)
+ %end 

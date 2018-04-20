@@ -32,7 +32,7 @@ classdef blackrock < neurostim.plugin
            
            %Try to initialise cbmex connection to Blackrock Central
            cbmex('open');
-           o.open = true;
+           o.connectionStatus = true;
            
            %Give Central the filename for saving neural data
            cbmex('fileconfig',o.cic.fullFile,'',0);
@@ -69,14 +69,14 @@ classdef blackrock < neurostim.plugin
           
           %Close down cbmex connection
           cbmex('close');
-          o.open = false;
+          o.connectionStatus = false;
           
        end
        
        function beforeTrial(o)
-           
+           beforeTrial@neurostim.plugins.ePhys(o)
            %Send a network comment to flag the start of the trial. Could be used for timing alignment.
-           cbmex('comment', 255, 0, ['Start_T' num2str(o.cic.trial) '_C' num2str(o.cic.condition)]);
+           cbmex('comment', 255, 0, o.trialInfo);
            
            %Send a second trial marker, through digital I/O box (Measurement Computing)
            if o.useMCC
@@ -86,9 +86,9 @@ classdef blackrock < neurostim.plugin
        
        
        function afterTrial(o)
-           
+           afterTrial@neurostim.plugins.ePhys(o)
            %Send a network comment to flag the end of the trial. Could be used for timing alignment.
-           cbmex('comment', 127, 0, 'Stop');
+           cbmex('comment', 127, 0, o.trialInfo);
            
            %Send a second trial marker, through digital I/O box (Measurement Computing)
            if o.useMCC
