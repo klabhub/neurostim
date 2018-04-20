@@ -1414,12 +1414,8 @@ classdef cic < neurostim.plugin
             
             %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
             switch upper(c.screen.type)
-%                 case 'GENERIC',
-%                     % Generic monitor.
-                case {'GENERIC','MAGICK'}
-                    % magick dual lookup stereo mode thing...
-                    % prevent splash screen
-                    Screen('Preference','VisualDebugLevel',3);
+                case 'GENERIC'
+                    % Generic monitor.
                 case 'VPIXX-M16'
                     % The VPIXX monitor in Monochrome 16 bit mode.
                     % Set up your vpixx once, using
@@ -1468,7 +1464,7 @@ classdef cic < neurostim.plugin
                 PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'CheckOnly');
             end
             %% Open the window
-            c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],4,[],kPsychNeedFastOffscreenWindows);
+            c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             
             
             %% Perform initialization that requires an open window
