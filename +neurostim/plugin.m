@@ -182,7 +182,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % Check whether this plugin should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
             % avoid the overhead of calling this every draw.
-            if strcmpi(o.cic.screen.type,'VPIXX-M16') && o.overlay
+            if any(strcmpi(o.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && o.overlay
                 o.window = o.cic.overlayWindow;
             else
                 o.window = o.cic.mainWindow;
