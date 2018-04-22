@@ -1046,6 +1046,12 @@ classdef cic < neurostim.plugin
         
         function delete(c) %#ok<INUSD>
             %Destructor. Release all resources. Maybe more to add here?
+            
+            % clean up CLUT textures (used by SOFTWARE-OVERLAY)
+            if isfield(c.screen,'overlayClutTex') && ~isempty(c.screen.overlayClutTex)
+                glDeleteTextures(numel(c.screen.overlayClutTex),c.screen.overlayClutTex(1));
+            end
+            
             %Screen('CloseAll');
         end
         
@@ -1244,40 +1250,136 @@ classdef cic < neurostim.plugin
             c.funPropsToMake(isMatch) = [];
         end
         
-        % Update the CLUT for the overlay. Specify [N 3] clut entries and
-        % the location in the CLUT where they should be placed.
+        % Update the CLUT for the overlay. Optionally specify [N 3] CLUT
+        % entries and a vector of indicies into the CLUT where they should
+        % be placed.
         function updateOverlay(c,clut,index)
-            if nargin<3
-                index = 1:size(clut,1);
-                if nargin <2
-                    clut = [];
-                end
+            if nargin < 2
+                clut = [];
             end
             [nrRows,nrCols] = size(c.screen.overlayClut);
             if ~ismember(nrCols,[0 3])
                 error('The overlay CLUT should have 3 columns (RGB)');
             end
-            if nrRows ~=256
-                % Add white for missing clut entries to show error
-                % indices (assuming the bg is not max white)
-                % 0 = transparent.
-                c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
-            end
+          
+            switch upper(c.screen.type)
+                case 'VPIXX-M16'
+                    if nargin < 3
+                      index = 1:size(clut,1);
+                    end
+              
+                    if nrRows ~=256
+                      % Add white for missing clut entries to show error
+                      % indices (assuming the bg is not max white)
+                      % 0 = transparent.
+                      c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
+                    end
+                    
+                    if any(index<1 | index >255)
+                        error('CLUT entries can only be defined for index =1:255');
+                    end
+              
+                    if ~isempty(clut)  && (numel(index) ~=size(clut,1) || size(clut,2) ~=3)
+                        error('The CLUT update must by [N 3] and with N index values');
+                    end
+                    % Update with the new values in the appropriate location
+                    % (index)
+                    if ~isempty(index)
+                        c.screen.overlayClut(index+1,:) = clut; % index +1 becuase the first entry (index =0) is always transparent
+                    end
             
-            if any(index<1 | index >255)
-                error('CLUT entries can only be defined for index =1:255');
-            end
+                    Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
             
-            if ~isempty(clut)  && (numel(index) ~=size(clut,1) || size(clut,2) ~=3)
-                error('The CLUT update must by [N 3] and with N index values');
-            end
-            % Update with the new values in the appropriate location
-            % (index)
-            if ~isempty(index)
-                c.screen.overlayClut(index+1,:) = clut; % index +1 becuase the first entry (index =0) is always transparent
-            end
+                case 'SOFTWARE-OVERLAY'
+                    % here we build a combined CLUT: indicies 1-255 are applied to
+                    % the main (subject) display and indicies 257-511 are applied
+                    % to the console (experimenter) display.
+                    %
+                    % This gives us independent control over the visibility of the
+                    % contents of the overlay on the subject and experimenter displays.
+                    if nrRows ~= 512
+                        % generate default combined CLUT (all transparent?)
+                        locClut = cat(1,zeros(1,3),repmat(c.screen.color.background,255,1));
+                        locClut = repmat(locClut,2,1); % 512 x 3
+                        
+                        % poke in the entries from c.screen.overlayClut
+                        [idx,id] = ind2sub([nrRows/2,2],1:nrRows);
+                        idx = idx + (id-1)*256;
+                        
+                        locClut(idx+1,:) = c.screen.overlayClut; % +1 because the first entry in each CLUT is *always* transparent
+                        c.screen.overlayClut = locClut;
+                    end
+                    
+                    % poke in any updates from clut...
+                    [nrRows,nrCols] = size(clut);
+                    
+                    if nargin < 3
+                        % no indicies provided.. assume clut contains an equal
+                        % number of corresponding entries for each CLUT and
+                        % generate index appropriately
+                        [idx,id] = ind2sub([nrRows/2,2],1:nrRows);
+                        index = idx + (id-1)*256;
+                    end
+                    
+                    if any(index <= 0 | index == 256 | index >= 512)
+                        error('The CLUT update contains invalid indicies.');
+                    end
             
-            Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
+                    if ~isempty(clut)  && (numel(index) ~= nrRows || nrCols ~= 3)
+                        error('The CLUT update must by [N 3], with N index values (optional).');
+                    end
+              
+                    c.screen.overlayClut(index+1,:) = clut; % +1 because the first entry in each CLUT is *always* transparent
+                        
+                    % now we assign the CLUTs to the lookup textures...
+                    locClut = c.screen.overlayClut;
+                    [nrRows,nrCols] = size(locClut);
+                    
+                    info = Screen('GetWindowInfo', c.mainWindow);
+                    InitializeMatlabOpenGL(0,0); % defines GL.xxx constants etc.
+                    if info.GLSupportsTexturesUpToBpc >= 32
+                        % full 32 bit single precision float textures
+                        info.internalFormat = GL.LUMINANCE_FLOAT32_APPLE;
+                    elseif info.GLSupportsTexturesUpToBpc >= 16
+                        % no float32 textures... use 16 bit float textures
+                        info.internalFormat = GL.LUMINANCE_FLOAT16_APPLE;
+                    else
+                        % no support for >8 bit textures at all and/or no need for
+                        % more than 8 bit precision or range... use 8 bit texture
+                        info.internalFormat = GL.LUMINANCE;
+                    end
+          
+                    % assign CLUT texture for the main/subject display...
+                    glBindTexture(GL.TEXTURE_RECTANGLE_EXT, c.screen.overlayClutTex(1));
+                    % setup the filters
+                    %
+                    % 1. nearest neighbour (i.e., no filtering), linear filtering/interpolation
+                    % is done in the ICM shader so we get accelerated linear interpolation
+                    % on all GPU's (even if they're old)
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
+                    % 2. clamp-to-edge, to saturate at minimum and maximum values and
+                    % to make sure that a pure-luminance (1 column) CLUT is "replicated"
+                    % to all three color channels in rgb modes
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+             
+                    glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, info.internalFormat, nrRows/2, nrCols, 0, GL.LUMINANCE, GL.FLOAT, single(locClut(1:nrRows/2,:)));
+                    glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
+                    
+                    % assign CLUT texture for the console/experimenter display...
+                    glBindTexture(GL.TEXTURE_RECTANGLE_EXT, c.screen.overlayClutTex(2));
+                    % setup the filters...
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+                    
+                    glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, info.internalFormat, nrRows/2, nrCols, 0, GL.LUMINANCE, GL.FLOAT, single(locClut((nrRows/2+1):nrRows,:)));
+                    glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
+                otherwise
+                    error('No overlay for screen type : %s',c.screen.type);
+            end
         end
         
     end
@@ -1424,6 +1526,10 @@ classdef cic < neurostim.plugin
                     % create correct identity cluts.
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
+                case 'SOFTWARE-OVERLAY'
+                    % Magic software overlay... replicates (in software) the
+                    % dual CLUT overlay of the VPixx M16 mode. See below
+                    % for more details.
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1481,6 +1587,106 @@ classdef cic < neurostim.plugin
                         c.writeToFeed(['****You can safely ignore the message about '' clearcolor'' that just appeared***']);
                     end
                     c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
+                    updateOverlay(c,c.screen.overlayClut);
+                case 'SOFTWARE-OVERLAY'
+                    % With this display type you draw your stimuli on the
+                    % left half of c.mainWindow and it is mirrored on the right
+                    % half. You can optionally also draw to an overlay
+                    % window, c.overlayWindow. The contents of the overlay
+                    % are drawn over the top of your stimulus, optionally
+                    % using different CLUTs for the left and right half of
+                    % the screen.
+                    %
+                    % This is most useful when c.screen.number spans two
+                    % physical displays, one for the subject (the main display)
+                    % and one for the experimenter (the console display).
+                    % Using separate overlay CLUTs for each allows you to
+                    % independently control the content of the overlay
+                    % visible to the subject and experimenter. You can for
+                    % example show eye position on the console display
+                    % without it being visible to the subject.
+                    
+                    % halve the screen width so that drawing of stimuli works as expected
+                    c.screen.xpixels = c.screen.xpixels/2;
+                    
+                    % Create a custom shader for overlay texel fetch:
+                    %
+                    % Our gpu panel scaler might be active, so the size of the
+                    % virtual window - and thereby our overlay window - can be
+                    % different from the output framebuffer size. As the sampling
+                    % position for the overlay is always provided in framebuffer
+                    % coordinates, we need to subsample in the overlay fetch.
+                    %
+                    % Calculate proper scaling factor, based on virtual and real
+                    % framebuffer size:
+                    [wC, hC] = Screen('WindowSize', c.mainWindow);
+                    [wF, hF] = Screen('WindowSize', c.mainWindow, 1);
+                    sampleX = wC / wF;
+                    sampleY = hC / hF;
+    
+                    % string definition of overlay panel-filter index shader
+                    % (solution for dealing with retina resolution displays carried over from BitsPlusPlus.m)
+                    shSrc = sprintf('uniform sampler2DRect overlayImage; float getMonoOverlayIndex(vec2 pos) { return(texture2DRect(overlayImage, pos * vec2(%f, %f)).r); }', sampleX, sampleY);
+
+                    % temporarily set the color range (this will be inherited by the offscreen overlay window)
+                    colorRange = Screen('ColorRange', c.mainWindow, 255);
+                    % create the overlay window, note: the window size (c.screen.xpixels) is assumed to have been halved above...
+                    c.overlayWindow = Screen('OpenOffscreenWindow', c.mainWindow, 0, [0 0 c.screen.xpixels c.screen.ypixels], 8, 32);
+                    % restore the color range setting
+                    Screen('ColorRange', c.mainWindow, colorRange);
+                      
+                    % retrieve low-level OpenGl texture handle for the overlay window
+                    overlayTexture = Screen('GetOpenGLTexture', c.mainWindow, c.overlayWindow);
+  
+                    % disable bilinear filtering on this texture... always use nearest neighbour
+                    % sampling to avoid interpolation artifacts
+                    glBindTexture(GL.TEXTURE_RECTANGLE_EXT, overlayTexture);
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
+                    glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+                    glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
+  
+                    % get information on current processing chain
+                    debuglevel = 1;
+                    [icmShaders, icmIdString, icmConfig] = PsychColorCorrection('GetCompiledShaders', c.mainWindow, debuglevel);
+  
+                    % build panel-filter compatible shader from source
+                    overlayShader = glCreateShader(GL.FRAGMENT_SHADER);
+                    glShaderSource(overlayShader, shSrc); % shSrc is the src string from above
+                    glCompileShader(overlayShader);
+  
+                    % append to list of shaders
+                    icmShaders(end+1) = overlayShader;
+  
+                    shader = LoadGLSLProgramFromFiles(fullfile(c.dirs.root,'+neurostim','overlay_shader.frag'), debuglevel, icmShaders);
+  
+                    % create textures for overlay CLUTs
+                    c.screen.overlayClutTex = glGenTextures(2);
+                    
+                    % set variables in the shader
+                    glUseProgram(shader);
+                    glUniform1i(glGetUniformLocation(shader, 'lookup1'), 3);
+                    glUniform1i(glGetUniformLocation(shader, 'lookup2'), 4);
+                    glUniform2f(glGetUniformLocation(shader, 'res'), c.screen.xpixels*(1/sampleX), c.screen.ypixels);  % [partially] corrects overlay width & position on retina displays
+                    glUniform3f(glGetUniformLocation(shader, 'transparencycolor'), c.screen.color.background(1), c.screen.color.background(2), c.screen.color.background(3));
+                    glUniform1i(glGetUniformLocation(shader, 'overlayImage'), 1);
+                    glUniform1i(glGetUniformLocation(shader, 'Image'), 0);
+                    glUseProgram(0);
+  
+                    % assign the overlay texture as the input 1 ('overlayImage' as set above)
+                    % It gets passed to the HookFunction call.
+                    % Input 0 is the main pointer by default.
+                    pString = sprintf('TEXTURERECT2D(1)=%i ', overlayTexture);
+                    pString = [pString sprintf('TEXTURERECT2D(3)=%i ', c.screen.overlayClutTex(1))];
+                    pString = [pString sprintf('TEXTURERECT2D(4)=%i ', c.screen.overlayClutTex(2))];
+  
+                    % add information to the current processing chain
+                    idString = sprintf('Overlay Shader : %s', icmIdString);
+                    pString  = [ pString icmConfig ];
+                    Screen('HookFunction', c.mainWindow, 'Reset', 'FinalOutputFormattingBlit');
+                    Screen('HookFunction', c.mainWindow, 'AppendShader', 'FinalOutputFormattingBlit', idString, shader, pString);
+                    PsychColorCorrection('ApplyPostGLSLLinkSetup', c.mainWindow, 'FinalFormatting');
+                    
+                    % setup CLUTs...
                     updateOverlay(c,c.screen.overlayClut);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
