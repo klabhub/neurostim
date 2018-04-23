@@ -118,19 +118,19 @@ classdef gabor < neurostim.stimulus
             sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
             
             %aux parameters need to have 4xn with n<=8 size
-            oSigma  = o.sigma;
+            oSigma  = +o.sigma;
             if numel(oSigma)==1
                 oSigma =[oSigma 0];
             end
-            oColor = o.color;
+            oColor = +o.color;
             if numel(oColor) ==1
                 oColor = [oColor 0 0];% Luminance only spec (probably M16 mode)
             end
             
                                             
             % Draw the Gabor using the GLSL shader            
-            aux = [o.phase, o.frequency, oSigma; o.contrast o.flickerPhase 0 0]';    
-            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, o.orientation, filterMode, globalAlpha, [oColor, o.alpha] , textureShader,specialFlags, aux);            
+            aux = [+o.phase, +o.frequency, oSigma; +o.contrast +o.flickerPhase 0 0]';    
+            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, +o.orientation, filterMode, globalAlpha, [oColor, +o.alpha] , textureShader,specialFlags, aux);            
 
         end
         

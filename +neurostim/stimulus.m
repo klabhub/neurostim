@@ -12,7 +12,6 @@ classdef stimulus < neurostim.plugin
     %   rx, ry, rz - rotation of the stimulus
     %   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
     %       details)
-    %   rngSeed - seed of the RNG.
     %   diode.on,diode.color,diode.location,diode.size - a square box of
     %       specified color in the corner of the screen specified ('nw','sw', etc.),
     %   for use with a photodiode recording.
@@ -92,7 +91,6 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             s.addProperty('disabled',false);
             
-            s.addProperty('rngSeed',[],'validate',@isnumeric);
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
@@ -108,8 +106,7 @@ classdef stimulus < neurostim.plugin
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
             
-            s.rngSeed=GetSecs;
-            rng(s.rngSeed);
+         
             
             s.feedStyle = '[0 0.75 0]'; % Stimuli show feed messages in light green.
         end

@@ -82,7 +82,7 @@ classdef cic < neurostim.plugin
         pluginOrder; % Vector of plugin handles, sorted by execution order
         
         blocks@neurostim.block;     % Struct array with .nrRepeats .randomization .conditions
-        blockFlow;
+        blockFlow =struct('list',[],'weights',[],'randomization','','latinSquareRow',[]);
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
