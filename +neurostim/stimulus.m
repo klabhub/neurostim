@@ -14,7 +14,7 @@ classdef stimulus < neurostim.plugin
     %       details)
     %   diode.on,diode.color,diode.location,diode.size - a square box of
     %       specified color in the corner of the screen specified ('nw','sw', etc.),
-    %   for use with a photodiode recording.
+    %       for use with a photodiode recording.
     %   mccChannel - a linked MCC Channel to output alongside a stimulus.
     %
     %
@@ -342,16 +342,20 @@ classdef stimulus < neurostim.plugin
                 end
                 
                 %Pass control to the child class and any other listeners
-                beforeFrame(s);
-                
-                if s.diode.on
-                    Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);
-                end
+                beforeFrame(s);                
             elseif s.stimstart && (cFrame==sOffFrame)% if the stimulus will not be shown,
                 % get the next screen flip for stopTime
                 s.cic.getFlipTime=true;
             end
             Screen('glLoadIdentity', locWindow);
+            
+            % diode size/position is in pixels and we don't really want it
+            % changing even if we change the physical screen size (e.g., 
+            % when changing viewing distance) or being distorted by the
+            % transforms above...
+            if s.flags.on && s.diode.on
+              Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);
+            end
             
         end
         
