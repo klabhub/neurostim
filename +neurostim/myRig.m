@@ -4,10 +4,12 @@ function c = myRig(varargin)
 %Feel free to add your PC/rig to the list
 pin = inputParser;
 pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
+pin.addParameter('bgColor',[0.25,0.25,0.25]);
 pin.addParameter('eyelink',false);
 pin.addParameter('debug',false);
 pin.parse(varargin{:});
 smallWindow = pin.Results.smallWindow;
+bgColor = pin.Results.bgColor;
 
 import neurostim.*
 
@@ -102,13 +104,13 @@ switch computerName
         c.timing.vsyncMode =0;
         c.timing.frameSlack = 0.1;
         c.eye.sampleRate  = 250;
-   case 'PTB-P-UBUNTU'
+    case 'PTB-P-UBUNTU'
         c = rig(c,'keyboardNumber',[],'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         
         c.screen.colorMode = 'RGB';            
         smallWindow = false;      
         c.eye.sampleRate  = 250;
-  case 'PC2017A'
+    case 'PC2017A'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
@@ -118,6 +120,47 @@ switch computerName
     case 'ROOT-PC'
         c = rig(c,'xpixels',1280,'ypixels',1024,'screenWidth',40,'frameRate',85,'screenNumber',max(Screen('screens')));
         smallWindow = false;    
+    case 'ns2'
+        % marmolab rig #1
+        c = rig(c,'mcc',false,'xpixels',1920*2,'ypixels',1080,'screenWidth',40,'screenHeight',22.5,'frameRate',60,'screenNumber',max(Screen('screens'))); %,'keyboardNumber',max(GetKeyboardIndices()));
+        c.screen.type = 'SOFTWARE-OVERLAY';
+        
+        consoleClut = [ ...
+            0.8,  1.0,  0.5;  % cursor   1
+            0.0,  1.0,  1.0;  % eye posn 2
+            1.0,  1.0,  1.0;  % window   3
+            0.75, 0.75, 0.75; % grid     4
+            bgColor;          % diode    5
+        ];
+        
+        subjectClut = repmat(bgColor,5,1);
+        subjectClut(5,:) = [1.0, 1.0, 1.0]; % diode (white) 5
+            
+        c.screen.overlayClut = cat(1,subjectClut,consoleClut);
+        
+        % show eye position on the console display
+        e = stimuli.fixation(c,'eyepos');
+        e.shape = 'CIRC';
+        e.size = 0.5;
+        e.X = '@eye.x';
+        e.Y = '@eye.y';
+        e.overlay = true;
+        e.color = 2; % eye posn
+    
+        % draw the grid on the console display
+        g = stimuli.grid(c,'grid');
+        g.minor = 1;
+        g.major = 5;
+        g.size = 0.05;
+        g.overlay = true;
+        g.color = 4; % 4 = grid, 3 = window (white)
+        
+        % show the diode on the subject's display (only)
+        g.diode.size = 0.025; % fraction of xscreen (pixels)
+        g.diode.on = true;
+        g.diode.color = 5; % white (subject's display only)
+        
+        smallWindow = false;
     otherwise
         warning('This computer is not recognised. Using default settings.');
         scrNr = max(Screen('screens'));
@@ -132,6 +175,6 @@ if smallWindow
     c.screen.ypixels = c.screen.ypixels/2;
 end
 
-c.screen.color.background = [0.25 0.25 0.25];
+c.screen.color.background = bgColor;
 c.iti = 500;
 c.trialDuration = 500;
