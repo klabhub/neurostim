@@ -107,6 +107,19 @@ classdef viewpoint < neurostim.plugins.eyetracker
     function beforeExperiment(o)
       % initalise default Viewpoint parameters in the vp structure
       o.vp = ViewpointInitDefaults(o.cic.mainWindow);
+
+      % note: using Beeper() causes the following:
+      %
+      %   Snd(): Initializing PsychPortAudio driver for sound output.
+      %   Snd(): PsychPortAudio already in use. Using old sound() fallback instead...
+      %
+      % followed by:
+      %
+      %   Audio output device has become unresponsive: 512 sample(s) remain after timeout.
+      %
+      % for now, just disable sound feedback for viewpoint-ptb
+      o.vp.targetbeep = false;
+      o.vp.feedbackbeep = false;
            
       if isempty(o.backgroundColor)
         % no background colour specified... use the screen background
@@ -138,7 +151,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
             
       % open file to record data (will be renamed on copy?)
       [~,tmpFile] = fileparts(tempname);
-      o.vpxFile = [tmpFile '.vpx'];
+      o.vpxFile = ['C:\Users\shaunc\Documents\' tmpFile '.vpx']; % FIXME: Viewpoint doesn;t seem to be honoring setDir DATA:
 
       Viewpoint('command','dataFile_UnPauseUponClose 0'); % recording is paused by default
       Viewpoint('command','dataFile_Pause 1');
@@ -148,17 +161,6 @@ classdef viewpoint < neurostim.plugins.eyetracker
       
       Viewpoint('command','smoothingPoints 1'); % 1 = no smoothing
 
-      Viewpoint('openFile',o.vpxFile);
-      
-      switch upper(o.eye)
-        case 'LEFT'
-          Viewpoint('message','"EYE_USED 0"');
-        case 'RIGHT'
-          Viewpoint('message','"EYE_USED 1"');
-        case {'BOTH','BINOCULAR'}
-          Viewpoint('message','"EYE_USED 2"');
-      end
-                  
       Viewpoint('command','calibration_RealRect 0.0 0.0 1.0 1.0');
       
       % send any custom commands to Viewpoint
@@ -169,7 +171,20 @@ classdef viewpoint < neurostim.plugins.eyetracker
           writeToFeed(o,['Viewpoint Command: ' o.commands{ii} ' failed!']);
         end
       end
+
+      % should be all set up now...
       
+      Viewpoint('openFile',o.vpxFile);
+      
+      switch upper(o.eye)
+        case 'LEFT'
+          Viewpoint('message','EYE_USED 0');
+        case 'RIGHT'
+          Viewpoint('message','EYE_USED 1');
+        case {'BOTH','BINOCULAR'}
+          Viewpoint('message','EYE_USED 2');
+      end
+                        
       Viewpoint('message','RECORDED BY %s',o.cic.experiment);
       Viewpoint('message','NEUROSTIM FILE %s',o.cic.fullFile);
       Viewpoint('message','DISPLAY_COORDS %d %d %d %d',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);

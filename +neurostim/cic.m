@@ -1166,6 +1166,8 @@ classdef cic < neurostim.plugin
             pin.addParameter('experimenterKeyboard',[]);
             pin.addParameter('eyelink',false);
             pin.addParameter('eyelinkCommands',[]);
+            pin.addParameter('viewpoint',false);
+            pin.addParameter('viewpointCommands',[]);
             pin.addParameter('outputDir',[]);
             pin.addParameter('mcc',false);
             pin.addParameter('colorMode','RGB');
@@ -1214,8 +1216,15 @@ classdef cic < neurostim.plugin
                         c.eye.command(pin.Results.eyelinkCommands{i});
                     end
                 end
+            elseif pin.Results.viewpoint
+                neurostim.plugins.viewpoint(c);
+                if ~isempty(pin.Results.viewpointCommands)
+                    for ii = 1:numel(pin.Results.viewpointCommands)
+                        c.eye.command(pin.Results.viewpointCommands{ii});
+                    end
+                end
             else
-                e = neurostim.plugins.eyetracker(c);      %If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
+                e = neurostim.plugins.eyetracker(c); % If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
                 e.useMouse = true;
             end
             if pin.Results.mcc
@@ -1224,6 +1233,7 @@ classdef cic < neurostim.plugin
             
             c.screen.xorigin = pin.Results.xorigin;
             c.screen.yorigin = pin.Results.yorigin;
+
             c.screen.colorMode = pin.Results.colorMode;
         end
         
