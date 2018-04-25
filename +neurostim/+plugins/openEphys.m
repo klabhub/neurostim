@@ -3,16 +3,27 @@ classdef openEphys < neurostim.plugins.ePhys
     % Detailed explanation goes here
     
     properties (SetAccess = private, GetAccess = public) 
-        latencyStruct = struct('startAcqLatency', [], 'startMsg', [], 'startRecordLatency', [], 'stopRecordLatency', [], 'stopMsg',[] , 'stopAcqLatency', []);  %structure for storing start/stop latency statistics
-                
+        createNewDir
+        prependText 
+        appendText 
+        latencyStruct = struct('startAcqLatency', [], 'startMsg', [], 'startRecordLatency', [], ...
+            'stopRecordLatency', [], 'stopMsg',[] , 'stopAcqLatency', []);  %structure for storing start/stop latency statistics
+
     end
     
-    methods
-        function o = openEphys(c, hostAddr) 
-            %Constructor - Initialise properties 
-            o = o@neurostim.plugins.ePhys(c); 
-            o.hostAddr = hostAddr; 
+    methods (Access = public)
+        function o = openEphys(c, varargin) 
+            %Class constructor
+            %Inputs: 
+            %HostAddr - TCP address of the machine running Open Ephys. Default is tcp://localhost:5556
+            %StartMsg - String to be sent at the start of the experiment. Default is 'Neurostim experiment.'
+            %StopMsg - String to be sent at the end of the experiment. Default is 'End of experiment.'
+            %CreateNewDir - If true, creates new directory rather than appending data to existing directory. Default is True.
+            %PrependText - Specify prefix for the name of the save directory. Default is blank.
+            %AppendText - Specify suffix for the name of the save directory. Default is blank. 
+            %Example: o = neurostim.plugins.openEphys(c, 'CreateNewDir', 1, 'PrependText', 'someText', 'AppendText', 'someText')
             
+            %Pre-Initialisation
             %Check whether zeroMQrr mex file is on the search path
             switch (computer)
                 case 'PCWIN64' %Windows 64-bit
@@ -30,25 +41,40 @@ classdef openEphys < neurostim.plugins.ePhys
                         throw(fileException)
             end
             
-        end 
-    end 
-    
-    methods
-        function o = beforeExperiment(o, varargin) 
-            %Start data acquisition and recording.
-            %Available function inputs include save file prefix/suffix and an option for creating a new directory.
-            %Default values are used if no inputs are provided.
-            %Example call: this.beforeExperiment('CreateNewDir', 1, 'PrependText', 'someText', 'AppendText', 'someText')
-            
-            %inputParser defines name-value pair inputs accepted by the function
+            %inputParser defines name-value pair inputs accepted by the constructor
             pin = inputParser; 
+            pin.addParameter('HostAddr', 'tcp://localhost:5556', @ischar);
+            pin.addParameter('StartMsg', 'Neurostim experiment', @ischar); 
+            pin.addParameter('StopMsg', 'End of experiment', @ischar); 
             pin.addParameter('CreateNewDir', 1, @(x) assert( x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));
             pin.addParameter('PrependText', '', @ischar); 
             pin.addParameter('AppendText', '', @ischar);  
             pin.parse(varargin{:});
             
-            %Generate string command that initiates recording and specifies save information  
-            request = sprintf('StartRecord CreateNewDir=%i RecDir=%s PrependText=%s AppendText=%s', pin.Results.CreateNewDir, o.cic.fullPath, pin.Results.PrependText, pin.Results.AppendText);
+            %Object initialisation
+            %Call parent class constructor
+            o = o@neurostim.plugins.ePhys(c); 
+            
+            %Post-initialisation
+            %Initialise class properties
+            o.hostAddr = pin.Results.HostAddr; 
+            o.startMsg = pin.Results.StartMsg;
+            o.stopMsg = pin.Results.StopMsg;
+            o.createNewDir = pin.Results.CreateNewDir; 
+            o.prependText = pin.Results.PrependText; 
+            o.appendText = pin.Results.AppendText; 
+                                   
+        end 
+    end 
+    
+    methods (Access = protected)
+        function startRecording(o)
+            %Start data acquisition and recording.
+            %Set connectionStatus flag.
+            
+            %Generate string command that is used to initiate recording and specify save information  
+            request = sprintf('StartRecord CreateNewDir=%i RecDir=%s PrependText=%s AppendText=%s', ...
+                o.createNewDir, o.cic.fullPath, o.prependText, o.appendText);
             
             [~, stat1] = zeroMQrr('Send', o.hostAddr, 'StartAcquisition', 1); %Blocking set to 1, waits for response before proceeding. 
                                                                               %Throws error if no response.                                                                                                 
@@ -60,51 +86,40 @@ classdef openEphys < neurostim.plugins.ePhys
             o.latencyStruct.startRecordLatency(end+1) = stat2.timeResponseReceived - stat2.timeRequestSent;
             
             [~, stat3] = zeroMQrr('Send', o.hostAddr, o.startMsg, 1);
-            o.latencyStruct.startMsg(end+1) = stat3.timeResponseReceived - stat3.timeRequestSent;                         
-        end
+            o.latencyStruct.startMsg(end+1) = stat3.timeResponseReceived - stat3.timeRequestSent; 
+        end 
         
-        function o = afterExperiment(o) 
+        function stopRecording(o) 
             %Stop recording and data acquisition. 
-                        
-            [~, stat1] = zeroMQrr('Send',o.hostAddr, 'StopRecord', 1);
-            o.latencyStruct.stopRecordLatency(end+1) = stat1.timeResponseReceived - stat1.timeRequestSent;
+            %Reset connectionStatus flag.
+            %Close connection.
             
             [~,stat2] = zeroMQrr('Send', o.hostAddr, o.stopMsg, 1);
             o.latencyStruct.stopMsg(end+1) = stat2.timeResponseReceived - stat2.timeRequestSent;
             
+            [~, stat1] = zeroMQrr('Send',o.hostAddr, 'StopRecord', 1);
+            o.latencyStruct.stopRecordLatency(end+1) = stat1.timeResponseReceived - stat1.timeRequestSent;
+                       
             [~, stat3] =  zeroMQrr('Send',o.hostAddr, 'StopAcquisition', 1); 
             o.latencyStruct.stopAcqLatency(end+1) = stat3.timeResponseReceived - stat3.timeRequestSent;
             
-            [~] = zeroMQrr('GetResponses',o.hostAddr,1);
-            
-            zeroMQrr('CloseThread', o.hostAddr);
             zeroMQrr('CloseAll'); %closes all open sockets and queue thread
             
             o.connectionStatus = false; 
         end
         
-        function o = beforeTrial(o)
-            beforeTrial@neurostim.plugins.ePhys(o);
+        function startTrial(o)
+            %Send string at start of trial 
+            o.trialInfo = ['Start_T' num2str(o.cic.trial) '_C' num2str(o.cic.condition)];
             zeroMQrr('Send', o.hostAddr, o.trialInfo ,1); 
         end 
         
-        function o = afterTrial(o) 
-            afterTrial@neurostim.plugins.ePhys(o); 
+        function stopTrial(o) 
+            %Send string at end of trial
+            o.trialInfo = ['Trial' num2str(o.cic.trial) 'complete'];
             zeroMQrr('Send', o.hostAddr, o.trialInfo,1); 
         end 
                
     end
     
 end
-
-% function temp = validateDir(directory)
-%     %validator used by inputParser to check whether selected recording directory exists
-%     if exist(directory, 'dir') == 7 
-%         temp = true;
-%     else
-%         temp = false;
-%     end 
-%         
-% end 
-
-

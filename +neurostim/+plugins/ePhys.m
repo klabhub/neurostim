@@ -1,47 +1,69 @@
 classdef ePhys < neurostim.plugin
     %Generic class for electrophysiology acquisition systems e.g. Blackrock Centrale, Open Ephys GUI
-    %   Detailed explanation goes here
-    
-    properties (SetAccess = private, GetAccess = public)
+    %Detailed explanation goes here
+          
+    properties (SetAccess = protected, GetAccess = public)         
+        connectionStatus@logical = false;
+        fakeConnection@logical = false;
+        startMsg@char = 'Neurostim experiment'; 
+        stopMsg@char = 'End of experiment';
         trialInfo 
-    end
+    end      
     
-    properties (SetAccess = protected, GetAccess = public) 
-        hostAddr = 'tcp://localhost:5556'; %IP address of the machine acquiring data, and the TCP port.
+    methods (Access = public)
         
-    end 
-    
-    methods
         function o = ePhys(c) 
             o = o@neurostim.plugin(c,'ePhys'); 
-            o.addProperty('connectionStatus', false, 'validate', @islogical);             
-            o.addProperty('startMsg', 'Neurostim experiment', 'validate', @ischar);
-            o.addProperty('stopMsg', 'Experiment complete', 'validate', @ischar); 
+            o.addProperty('hostAddr', 'tcp://localhost:5556', 'validate', @ischar, 'SetAccess', 'protected', 'GetAccess', 'public');
+            o.addProperty('useMCC', true, 'validate', @islogical) ; 
+            o.addProperty('mccChannel', [], 'validate', @isnumeric);
+            o.addProperty('clockTime', []); 
             
         end 
-        
-        function beforeExperiment(o) %called by cic
-            %Placeholder function to be overridden with the following actions. 
-            %Establish connection and start acquisition/recording. 
-            %Set connectionStatus flag upon sucessful connection. 
-            %Send message that marks start of experiment.
+
+        %Automatically called by cic.run()
+        function beforeExperiment(o) 
+            o.startRecording(); 
         end 
         
         function beforeTrial(o) 
-            o.trialInfo = ['Start_T' num2str(o.cic.trial) '_C' num2str(o.cic.condition)];
+            startTrial(o); 
         end 
         
         function afterExperiment(o) 
-            %Placeholder function to be overriden with the following actions.
-            %Stop recording/acquisition and close connection.
-            %Reset connectionStatus flag.
-            %Send message that marks end of experiment.
+            stopRecording(o);
         end 
         
         function afterTrial(o) 
-            o.trialInfo = ['Trial' num2str(o.cic.trial) 'complete'];
+            stopTrial(o); 
         end 
     end
+    
+    methods (Access = protected) 
+        
+        function startRecording(~)
+            %Defined in child class
+            %The following actions should be specified here:
+            %Start acquisition/recording, set connectionStatus flag, send exerpiment start message 
+        end
+        
+        function stopRecording(~)
+            %Defined in child class
+            %The following actions should be specified here:
+            %Stop recording/acquisition, reset connectionStatus flag, send experiment end message
+        end 
+        
+        function startTrial(~)
+            %Defined in child class
+            %Indicate the start of a trial with a string
+        end 
+        
+        function stopTrial(~)
+            %Defined in child class
+            %Indicate the end of a trial with a string
+        end
+            
+    end 
     
 end
 
