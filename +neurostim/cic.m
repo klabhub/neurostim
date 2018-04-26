@@ -26,7 +26,7 @@ classdef cic < neurostim.plugin
         saveEveryN              = 10;
         saveEveryBlock          = false;
         keyBeforeExperiment     = true;
-        keyAfterExperiment      =true;
+        keyAfterExperiment      = true;
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
             'width',[],'height',[],...
             'color',struct('text',[1 1 1],...
@@ -37,7 +37,7 @@ classdef cic < neurostim.plugin
             'frameRate',60,'number',[],'viewDist',[],...
             'calFile','','colorMatchingFunctions','',...
             'calibration',struct('gamma',2.2,'bias',nan(1,3),'min',nan(1,3),'max',nan(1,3),'gain',nan(1,3)),...
-            'overlayClut',[]);    %screen-related parameters.
+            'overlayClut',[]);    % screen-related parameters.
         
         timing = struct('vsyncMode',0,... % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
             'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
@@ -51,12 +51,12 @@ classdef cic < neurostim.plugin
         ticTime = -Inf;
         
         %% Keyboard interaction
-        kbInfo@struct= struct('keys',{[]},...% PTB numbers for each key that is handled.
+        kbInfo@struct= struct('keys',{[]},... % PTB numbers for each key that is handled.
             'help',{{}},... % Help info for key
             'plugin',{{}},...  % Which plugin will handle the key (keyboard() will be called)
             'isSubject',{logical([])},... % Is this a key that is handled by subject keyboard ?
             'fun',{{}},... % Function handle that is used instead of the plugins keyboard function (usually empty)
-            'default',{-1},... default keyboard -1 means all keyboard
+            'default',{-1},... % default keyboard -1 means all keyboard
             'subject',{[]},... % The keyboard that will handle keys for which isSubect is true (=by default stimuli)
             'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
             'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
@@ -82,7 +82,7 @@ classdef cic < neurostim.plugin
         pluginOrder; % Vector of plugin handles, sorted by execution order
         
         blocks@neurostim.block;     % Struct array with .nrRepeats .randomization .conditions
-        blockFlow;
+        blockFlow =struct('list',[],'weights',[],'randomization','','latinSquareRow',[]);
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
@@ -857,7 +857,7 @@ classdef cic < neurostim.plugin
             showCursor(c);
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
-            DrawFormattedText(c.mainWindow, 'Press any key to start...', c.center(1), 'center', c.screen.color.text);
+            DrawFormattedText(c.mainWindow, 'Press any key to start...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
             Screen('Flip', c.mainWindow);
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             c.flags.experiment = true;
@@ -1023,7 +1023,7 @@ classdef cic < neurostim.plugin
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
             
-            DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text);
+            DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
             Screen('Flip', c.mainWindow);
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);

@@ -202,22 +202,39 @@ classdef design <handle & matlab.mixin.Copyable
                 cond = o.condition;
             end
             lvls = cond2lvl(o,cond);
-            
+            if isscalar(lvls)
+                lvls = [lvls 1];
+            end
+                   
             % lvls and cond provide the same information, the former is easier for
             % factorSpecs , the latter for conditionSpecs
             v={};
             for f=1:o.nrFactors
                 v = cat(1,v,o.factorSpecs{f,lvls(f)});
-                if isempty(o.conditionSpecs)
-                    % Nothing to add
-                elseif lvls(f) > size(o.conditionSpecs,f)
-                    error(['The ' o.name ' design is corrupted']);
-                end
             end
-            
-            if  ~isempty(o.conditionSpecs) && ~isempty(o.conditionSpecs{cond})
-                % Add a per-condition spec
-                v = cat(1,v,o.conditionSpecs{cond});
+            % Now overrule with condition specs if specified
+            if  ~isempty(o.conditionSpecs) 
+                %Check whether there are overruling condition specs for
+                %this lvls. If a conditionSpec has been added for the first page 
+                % in the last dimension, then it wont match the
+                % factorSpecs; we fix that here by comparing lvls to size
+                % supplemented with 1's for the trailing dimensions
+                if all(lvls<=[size(o.conditionSpecs) ones(1,numel(lvls)-ndims(o.conditionSpecs))])
+                % A condition spec exist. Add it to the specs
+                for i=1:size(o.conditionSpecs{cond},1)
+                    % If a conditonSpec is specified as well as a factor spec 
+                    % then the latter overrides the former. Even though
+                    % they are applied in sequence (So the conditionspec
+                    % would be used in a trial), we remove the duplicate factor spec
+                    % here to avoid the confusing two assignments that get stored in the
+                    % log.
+                    % Look for matchin plg and trg in the v (from factorSpecs) and the
+                    % conditionSpecs.
+                    duplicateSetting = ~cellfun(@isempty,strfind(v(:,1),o.conditionSpecs{cond}{i,1})) &  ~cellfun(@isempty,strfind(v(:,2),o.conditionSpecs{cond}{i,2})); 
+                    v(duplicateSetting,:) = []; %#ok<AGROW> %Rmove seting that came from factor specs (or previous condition spec)
+                end
+                v = cat(1,v,o.conditionSpecs{cond}); % Combine condition with factor specs. 
+                end
             end
         end
         
@@ -438,10 +455,33 @@ classdef design <handle & matlab.mixin.Copyable
                         
                         lvls = o.nrLevels;
                         
+                        
+                        for f=1:o.nrFactors
+                            if strcmpi(ix{f},':')
+                                % Replace : with  1:end
+                                ix{f} = 1:lvls(f);
+                            end
+                        end
+                        
                         if ischar(V) || (~iscell(V) && isscalar(V))
                             V = {V};
                         elseif ~iscell(V)
-                            if ndims(V) == ndims(lvls) && all(size(V)==lvls)
+                            nrInTrg = cellfun(@numel,ix);
+                            nrInSrc = size(V);
+                            match = false;
+                            if numel(nrInTrg)==numel(nrInSrc) && all(nrInTrg==nrInSrc)
+                                match = true;
+                            end
+                            if ~match
+                                while(nrInTrg(end)==1)
+                                    nrInTrg(end)=[];
+                                    if numel(nrInTrg)==numel(nrInSrc) && all(nrInTrg==nrInSrc)
+                                        match = true;
+                                        break
+                                    end                                
+                                end
+                            end                            
+                            if match
                                 % This is a matrix where each element is
                                 % intended as a level for a factor. 
                                 V = neurostim.utils.vec2cell(V);
@@ -453,15 +493,10 @@ classdef design <handle & matlab.mixin.Copyable
                         end
                         
                         for f=1:o.nrFactors
-                            if strcmpi(ix{f},':')
-                                % Replace : with  1:end
-                                ix{f} = 1:lvls(f);
-                            end
-                            if ~(numel(V)==1 || size(V,f) == lvls(f))
-                                error(['The number of values on the RHS [' num2str(size(V)) '] does not match the number specified on the LHS [' num2str(lvls) ']']);
-                            end
+                        if ~(numel(V)==1 || size(V,f) == numel(ix{f}))
+                            error(['The number of values on the RHS [' num2str(size(V)) '] does not match the number specified on the LHS [' num2str(lvls) ']']);
                         end
-                        
+                        end 
                         ix = neurostim.utils.allcombinations(ix{:});
                         if size(ix,2) ==1
                             ix = [ix ones(numel(ix),1)]; % NEed this below for comparison with size(conditionSpecs)
@@ -478,19 +513,15 @@ classdef design <handle & matlab.mixin.Copyable
                                 srcSub  =trgSub;
                             end
                             thisV = V{srcSub{:}};
-                            if isa(thisV,'neurostim.plugins.adaptive')
-                                if o.nrFactors>1
-                                    linearIx = sub2ind(o.nrLevels,ix(i,1),ix(i,2));
-                                else
-                                    linearIx = ix(i,1);
-                                end
-                                thisV.belongsTo(o.name,linearIx); % Tell the adaptive to listen to this design/level combination
+                            if isa(thisV,'neurostim.plugins.adaptive')                                
+                                thisV.belongsTo(o.name,o.lvl2cond(ix(i,:))); % Tell the adaptive to listen to this design/level combination
                             end
                             if ndims(o.conditionSpecs)<numel(trgSub) || any(size(o.conditionSpecs)<[trgSub{:}]) || isempty(o.conditionSpecs(trgSub{:}))
                                 % new spec for this condition
                                 o.conditionSpecs{trgSub{:}} = {plg,prm,thisV};
                             else
                                 % add to previous
+                                
                                 o.conditionSpecs{trgSub{:}} = cat(1,o.conditionSpecs{trgSub{:}},{plg,prm,thisV});
                             end
                         end
@@ -601,6 +632,12 @@ classdef design <handle & matlab.mixin.Copyable
             else
                 v = [cond 1];
             end
+        end
+        
+        function v = lvl2cond(o,lvl)
+            %Return the condition number for a specific multidimensional level index.
+            lvl = neurostim.utils.vec2cell(lvl);
+            v = sub2ind(o.nrLevels,lvl{:});
         end
     end
 end
