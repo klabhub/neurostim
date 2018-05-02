@@ -219,8 +219,9 @@ classdef design <handle & matlab.mixin.Copyable
                 % in the last dimension, then it wont match the
                 % factorSpecs; we fix that here by comparing lvls to size
                 % supplemented with 1's for the trailing dimensions
-                if all(lvls<=[size(o.conditionSpecs) ones(1,numel(lvls)-ndims(o.conditionSpecs))])
-                % A condition spec exist. Add it to the specs
+                if all(lvls<=[size(o.conditionSpecs) ones(1,numel(lvls)-ndims(o.conditionSpecs))]) && ~isempty(v)
+                % A condition spec exist. Add it to the factor specs (if
+                % not empty) and remove duplicates (overruled by conditionSpecs) 
                 for i=1:size(o.conditionSpecs{cond},1)
                     % If a conditonSpec is specified as well as a factor spec 
                     % then the latter overrides the former. Even though
@@ -228,10 +229,18 @@ classdef design <handle & matlab.mixin.Copyable
                     % would be used in a trial), we remove the duplicate factor spec
                     % here to avoid the confusing two assignments that get stored in the
                     % log.
-                    % Look for matchin plg and trg in the v (from factorSpecs) and the
-                    % conditionSpecs.
-                    duplicateSetting = ~cellfun(@isempty,strfind(v(:,1),o.conditionSpecs{cond}{i,1})) &  ~cellfun(@isempty,strfind(v(:,2),o.conditionSpecs{cond}{i,2})); 
-                    v(duplicateSetting,:) = []; %#ok<AGROW> %Rmove seting that came from factor specs (or previous condition spec)
+                    % Look for matchin plg and trg in the v, which is
+                    % initially created from factorSpecs, and then
+                    % overruled by conditionSpecs.  
+                    if isempty(v)
+                        % If a previous dplicate removal makes the
+                        % FactorSpecs in v empty, then we'er done                        
+                        break;
+                    else
+                        % Check for duplicates and remove
+                        duplicateSetting = ~cellfun(@isempty,strfind(v(:,1),o.conditionSpecs{cond}{i,1})) &  ~cellfun(@isempty,strfind(v(:,2),o.conditionSpecs{cond}{i,2})); 
+                        v(duplicateSetting,:) = []; %#ok<AGROW> %Rmove seting that came from factor specs (or previous condition spec)
+                    end
                 end
                 v = cat(1,v,o.conditionSpecs{cond}); % Combine condition with factor specs. 
                 end
