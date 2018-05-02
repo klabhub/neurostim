@@ -19,16 +19,9 @@ if isempty(computerName)
     [~,computerName] =system('hostname');
     computerName = deblank(computerName);
 end
-c.dirs.output = 'C:\'; %Specify output directory
-                        
+c.dirs.output = tempdir; % Output files will be stored here.
+
 switch computerName
-    case 'DESKTOP-B118ISS'
-        %Alan's ultrabook
-        scrNr = max(Screen('screens'));
-        fr = Screen('FrameRate',scrNr);
-        rect = Screen('rect',scrNr);
-        c = rig(c,'eyelink',pin.Results.eyelink,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',min(fr,60),'screenNumber',scrNr);
-        smallWindow = true;
     case 'MU00101417X'
         % Shaun's MacBook Pro
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',2560,'ypixels',1600,'screenWidth',28.6,'frameRate',60,'screenNumber',max(Screen('screens')),'keyboardNumber',max(GetKeyboardIndices()));
@@ -130,7 +123,7 @@ switch computerName
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
-        c = rig(c,'eyelink',pin.Results.eyelink,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',min(fr,60),'screenNumber',scrNr);
+        c = rig(c,'eyelink',pin.Results.eyelink,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
         smallWindow = true;
 end
 

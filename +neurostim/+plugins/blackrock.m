@@ -78,26 +78,16 @@ classdef blackrock < neurostim.plugins.ePhys
         
         function startTrial(o)
             
-            %Send a network comment to flag the start of the trial. Could be used for timing alignment.
-            o.trialInfo = ['Start_T' num2str(o.cic.trial) '_C' num2str(o.cic.condition)];
+            %Send a network comment to flag the start of the trial. Could be used for timing alignment.            
             cbmex('comment', 255, 0, o.trialInfo);
-            
-            %Send a second trial marker, through digital I/O box (Measurement Computing)
-            if o.useMCC
-                o.cic.mcc.digitalOut(o,o.mccChannel,1);
-            end
+                        
         end        
         
         function stopTrial(o)
             
-            %Send a network comment to flag the end of the trial. Could be used for timing alignment.
-            o.trialInfo = ['Trial' num2str(o.cic.trial) 'complete'];
+            %Send a network comment to flag the end of the trial. Could be used for timing alignment.            
             cbmex('comment', 127, 0, o.trialInfo);
-            
-            %Send a second trial marker, through digital I/O box (Measurement Computing)
-            if o.useMCC
-                o.cic.mcc.digitalOut(o,o.mccChannel,0);
-            end
+                        
         end
                 
     end   

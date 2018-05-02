@@ -1,24 +1,42 @@
 classdef ePhys < neurostim.plugin
     %Generic class for electrophysiology acquisition systems e.g. Blackrock Centrale, Open Ephys GUI
     %Detailed explanation goes here
-          
-    properties (SetAccess = protected, GetAccess = public)         
-        connectionStatus@logical = false;
+    
+    properties (Access = public) 
         fakeConnection@logical = false;
-        startMsg@char = 'Neurostim experiment'; 
-        stopMsg@char = 'End of experiment';
+        startMsg
+        stopMsg
+    end
+    
+    properties (SetAccess = protected, GetAccess = public)         
+        connectionStatus@logical = false;        
         trialInfo 
-    end      
+    end     
     
     methods (Access = public)
         
-        function o = ePhys(c) 
+        function o = ePhys(c, varargin) 
+            
+            %Object initialization
+            %Call parent class constructor
             o = o@neurostim.plugin(c,'ePhys'); 
-            o.addProperty('hostAddr', 'tcp://localhost:5556', 'validate', @ischar, 'SetAccess', 'protected', 'GetAccess', 'public');
+            
+            %Post-initialisation
+            %Initialise class properties
+            o.addProperty('hostAddr', 'tcp://localhost:5556', 'validate', @ischar);
             o.addProperty('useMCC', true, 'validate', @islogical) ; 
             o.addProperty('mccChannel', [], 'validate', @isnumeric);
             o.addProperty('clockTime', []); 
             
+            pin = inputParser;
+            pin.addParameter('HostAddr', 'tcp://localhost:5556', @ischar);
+            pin.addParameter('StartMsg', 'Neurostim experiment', @ischar); 
+            pin.addParameter('StopMsg', 'End of experiment', @ischar);
+            pin.parse(varargin{:})
+            
+            o.hostAddr = pin.Results.HostAddr; 
+            o.startMsg = pin.Results.StartMsg; 
+            o.stopMsg = pin.Results.StopMsg; 
         end 
 
         %Automatically called by cic.run()
@@ -27,15 +45,25 @@ classdef ePhys < neurostim.plugin
         end 
         
         function beforeTrial(o) 
-            startTrial(o); 
+            o.trialInfo = ['Start_T' num2str(o.cic.trial) '_C' num2str(o.cic.condition)];
+            startTrial(o);
+            %Send a second trial marker, through digital I/O box (Measurement Computing)
+            if o.useMCC
+                o.cic.mcc.digitalOut(o,o.mccChannel,1);
+            end
         end 
         
-        function afterExperiment(o) 
+        function afterExperiment(o)            
             stopRecording(o);
         end 
         
         function afterTrial(o) 
-            stopTrial(o); 
+            o.trialInfo = ['Trial' num2str(o.cic.trial) 'complete'];
+            stopTrial(o);
+            %Send a second trial marker, through digital I/O box (Measurement Computing)
+            if o.useMCC
+                o.cic.mcc.digitalOut(o,o.mccChannel,0);
+            end
         end 
     end
     

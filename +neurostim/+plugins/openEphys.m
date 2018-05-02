@@ -14,14 +14,14 @@ classdef openEphys < neurostim.plugins.ePhys
     methods (Access = public)
         function o = openEphys(c, varargin) 
             %Class constructor
-            %Inputs: 
+            %Example: o = neurostim.plugins.openEphys(c [,HostAddr] [,StartMsg] [,StopMsg] [,CreateNewDir] [,PrependText] [,AppendText])
+            %Optional parameter/value pairs: 
             %HostAddr - TCP address of the machine running Open Ephys. Default is tcp://localhost:5556
             %StartMsg - String to be sent at the start of the experiment. Default is 'Neurostim experiment.'
             %StopMsg - String to be sent at the end of the experiment. Default is 'End of experiment.'
             %CreateNewDir - If true, creates new directory rather than appending data to existing directory. Default is True.
             %PrependText - Specify prefix for the name of the save directory. Default is blank.
-            %AppendText - Specify suffix for the name of the save directory. Default is blank. 
-            %Example: o = neurostim.plugins.openEphys(c, 'CreateNewDir', 1, 'PrependText', 'someText', 'AppendText', 'someText')
+            %AppendText - Specify suffix for the name of the save directory. Default is blank.             
             
             %Pre-Initialisation
             %Check whether zeroMQrr mex file is on the search path
@@ -42,24 +42,20 @@ classdef openEphys < neurostim.plugins.ePhys
             end
             
             %inputParser defines name-value pair inputs accepted by the constructor
-            pin = inputParser; 
-            pin.addParameter('HostAddr', 'tcp://localhost:5556', @ischar);
-            pin.addParameter('StartMsg', 'Neurostim experiment', @ischar); 
-            pin.addParameter('StopMsg', 'End of experiment', @ischar); 
+            pin = inputParser;              
             pin.addParameter('CreateNewDir', 1, @(x) assert( x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));
             pin.addParameter('PrependText', '', @ischar); 
             pin.addParameter('AppendText', '', @ischar);  
+            pin.KeepUnmatched = true; 
             pin.parse(varargin{:});
             
             %Object initialisation
             %Call parent class constructor
-            o = o@neurostim.plugins.ePhys(c); 
+            %Pass HostAddr, StartMsg and StopMsg to the parent constructor via the 'Unmatched' property of the input parser.
+            o = o@neurostim.plugins.ePhys(c, pin.Unmatched); 
             
             %Post-initialisation
             %Initialise class properties
-            o.hostAddr = pin.Results.HostAddr; 
-            o.startMsg = pin.Results.StartMsg;
-            o.stopMsg = pin.Results.StopMsg;
             o.createNewDir = pin.Results.CreateNewDir; 
             o.prependText = pin.Results.PrependText; 
             o.appendText = pin.Results.AppendText; 
@@ -110,13 +106,11 @@ classdef openEphys < neurostim.plugins.ePhys
         
         function startTrial(o)
             %Send string at start of trial 
-            o.trialInfo = ['Start_T' num2str(o.cic.trial) '_C' num2str(o.cic.condition)];
             zeroMQrr('Send', o.hostAddr, o.trialInfo ,1); 
         end 
         
         function stopTrial(o) 
             %Send string at end of trial
-            o.trialInfo = ['Trial' num2str(o.cic.trial) 'complete'];
             zeroMQrr('Send', o.hostAddr, o.trialInfo,1); 
         end 
                
