@@ -121,6 +121,9 @@ classdef viewpoint < neurostim.plugins.eyetracker
       o.vp.targetbeep = false;
       o.vp.feedbackbeep = false;
            
+      o.vp.width = o.cic.screen.xpixels; % force width, to play nice with SOFTWARE-OVERLAY
+      o.vp.height = o.cic.screen.ypixels;         
+      
       if isempty(o.backgroundColor)
         % no background colour specified... use the screen background
         o.backgroundColor = o.cic.screen.color.background;
