@@ -40,7 +40,7 @@ classdef noiseraster < neurostim.stimulus
     properties (SetAccess = private, GetAccess = public)
         vals@double; %Raster pixel luminance values
     end
-    
+
     methods % set/get dependent properties
         
     end
@@ -67,8 +67,9 @@ classdef noiseraster < neurostim.stimulus
             o.addProperty('values',[]); %For logging luminance values, if requested
             
             o.writeToFeed('Warning: this is a new stimulus and has not been tested.');
+            
         end
-        
+
         function beforeTrial(o)
             
             %Set up a callback function, used to population the noise raster with luminance values
@@ -105,6 +106,8 @@ classdef noiseraster < neurostim.stimulus
         
         function beforeFrame(o)
             
+            global GL;
+            
             %Update the raster luminance values
             o.update();
             
@@ -113,9 +116,40 @@ classdef noiseraster < neurostim.stimulus
             height = o.height;
             win = o.window;
             rect = [-width/2 -height/2 width/2 height/2];
-            tex=Screen('MakeTexture', win, o.vals);
-            Screen('DrawTexture', win, tex, [], rect, [], 0);
-            Screen('Close', tex);
+            tex=Screen('MakeTexture', win, o.vals');
+            
+%           Screen('DrawTexture', win, tex, [], rect, [], 0);
+            
+            [gltex, gltextarget] = Screen('GetOpenGLTexture', win, tex);
+                     
+            % Begin OpenGL rendering into onscreen window again:
+            Screen('BeginOpenGL', win);
+            
+            % Enable texture mapping for this type of textures...
+            glEnable(gltextarget);
+            
+            % Bind our texture, so it gets applied to all following objects:
+            glBindTexture(gltextarget, gltex);
+            
+            glTexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT);
+            glTexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT);
+            
+            %Filtering
+            glTexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
+            glTexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
+
+            glBegin(GL.QUADS);
+                texWidth = o.size(2);
+                texHeight = o.size(1); 
+                glTexCoord2f(0.0, 0.0);                 glVertex3f(0.0, 0.0, 0.0);
+                glTexCoord2f(0.0, texHeight);           glVertex3f(0.0, height, 0.0);
+                glTexCoord2f(texWidth, texHeight);      glVertex3f(width, height, 0.0);
+                glTexCoord2f(texWidth, 0.0);            glVertex3f(width, 0.0, 0.0);
+            glEnd();
+       
+            Screen('EndOpenGL', win);
+
+           Screen('Close', tex);
         end
     end % public methods
     

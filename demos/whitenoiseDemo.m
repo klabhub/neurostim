@@ -12,11 +12,11 @@ c = myRig;
 
 %% ============== Add stimuli ==================
 wn = stimuli.noiseraster(c,'grid');
-wn.size = [30,60];          %Dimensionality of raster (30 texels high, 50 wide)
-wn.height = 10;   %Width and height on screen
-wn.width = 20;
+wn.size = [32,64];          %Dimensionality of raster (30 texels high, 50 wide)
+wn.height = 320;   %Width and height on screen
+wn.width = 640;
 wn.distribution = 'normal'; %Distribution from which luminance values are drawn
-wn.parms = {0 15};          %{mean sd}
+wn.parms = {0 10};          %{mean sd}
 maxContrast = 0.25;
 wn.bounds = 128*[-(1-maxContrast) 1-maxContrast];   %Truncate the distribution.
 
@@ -32,7 +32,7 @@ c.trialDuration = 3000;       %End the trial as soon as the 2AFC response is mad
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.
 myDesign.fac1.grid.contrast = maxContrast*[0 0.5 1];  
-myDesign.fac2.grid.X = [-10 0 10];  
+myDesign.fac1.grid.X = [-10 0 10];  
 
 %Specify a block of trials
 myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
