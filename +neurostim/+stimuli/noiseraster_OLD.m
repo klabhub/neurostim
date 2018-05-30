@@ -1,32 +1,6 @@
-classdef noiseraster < neurostim.stimulus
-    % Stimulus class to present random noise rasters (e.g. for white-noise analysis).
-    % Luminance noise values are drawn from built-in probaility distributions or returned by a user-defined function.
-    % Argument specification is based on that of the jitter() plugin (though custom function specification is slightly different... TODO: unify this and jitter())
-    % Each pixel is an independent random variable. For co-variation, do it manually through custom distribution function.
+classdef noiseraster_OLD < neurostim.stimulus
+
     %
-    % By default, luminance values are NOT logged because of potential memory load.
-    % However, the state of the RNG on each frame is logged, allowing offline reconstruction.
-    % There is some over-head there. Logging can also be switched off entirely.
-    % This approach to rng is inefficient: it would be better to have a
-    % separate RNG stream for this stimulus. CIC would need to act as RNG server.
-    %
-    %
-    %   Settable properties:
-    %
-    %   size            - dimensionality of the raster matrix, as used in rand(),ones() etc.
-    %   parms           - parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)
-    %   distribution    - the name of a built-in pdf [default = 'uniform'], or a handle to a custom function, f(o), which takes the plugin as a the lone argument)
-    %   bounds          - 2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
-    %   width           - width on screen (screen units)
-    %   hight           - height on screen (screen units)
-    %   logType         - What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
-    %   signal          - A matrix of values that is added to the noise (e.g. for detection task)
-    %  
-    %  TODO:
-    %       (1) Allow specification of update frequency. Currently new vals
-    %       every frame.
-    %       (2) Provide a reconstruction tool for offline analysis
-    
     properties (Access = private)
         callback@function_handle;   %Handle of function for returning luminance values on each frame
         rng;        %Pointer to the global RNG stream
@@ -105,7 +79,7 @@ classdef noiseraster < neurostim.stimulus
         end
         
         function beforeFrame(o)
-            
+
             global GL;
             
             %Update the raster luminance values
@@ -115,41 +89,54 @@ classdef noiseraster < neurostim.stimulus
             width = o.width;
             height = o.height;
             win = o.window;
-            rect = [-width/2 -height/2 width/2 height/2];
-            tex=Screen('MakeTexture', win, o.vals');
+          
+            %o.vals = (o.vals-min(o.vals(:)))./(max(o.vals(:))-min(o.vals(:)));
             
-%           Screen('DrawTexture', win, tex, [], rect, [], 0);
-            
-            [gltex, gltextarget] = Screen('GetOpenGLTexture', win, tex);
-                     
-            % Begin OpenGL rendering into onscreen window again:
-            Screen('BeginOpenGL', win);
-            
-            % Enable texture mapping for this type of textures...
-            glEnable(gltextarget);
-            
-            % Bind our texture, so it gets applied to all following objects:
-            glBindTexture(gltextarget, gltex);
-            
-            glTexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.REPEAT);
-            glTexParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.REPEAT);
-            
-            %Filtering
-            glTexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
-            glTexParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
-
-            glBegin(GL.QUADS);
-                texWidth = o.size(2);
-                texHeight = o.size(1); 
+            if 1
+                %Use Screen('DrawTexture')
+                rect = [-width/2 -height/2 width/2 height/2];
+                tex=Screen('MakeTexture', win, o.vals);
+                Screen('DrawTexture', win, tex, [], rect, [], 0);
+            else
+                % Use openGl directly
+                tex=Screen('MakeTexture', win, o.vals');
+                %tex=Screen('MakeTexture', win, o.vals',[],1);      %Special flag to force GL_TEXTURE_2D type
+                [gltex, gltextarget] = Screen('GetOpenGLTexture', win, tex);
+                
+                % Begin OpenGL rendering into onscreen window again:
+                Screen('BeginOpenGL', win, 1);	%1 needed to preserve the existing stimulus transformations
+                
+                % Enable texture mapping for this type of textures...
+                glEnable(gltextarget);
+                
+                % Bind our texture, so it gets applied to all following objects:
+                glBindTexture(gltextarget, gltex);
+                
+                glTexParameteri(gltextarget, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+                glTexParameteri(gltextarget, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+                
+                %Filtering
+                glTexParameteri(gltextarget, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+                glTexParameteri(gltextarget, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
+                
+                if gltextarget==GL.TEXTURE_RECTANGLE
+                    texWidth = o.size(2); %Texel coordinates used
+                    texHeight = o.size(1);
+                else
+                    texWidth = 1.0; %Normalised texel coordinates used
+                    texHeight = 1.0;
+                end
+                
+                glBegin(GL.QUAD);
                 glTexCoord2f(0.0, 0.0);                 glVertex3f(0.0, 0.0, 0.0);
                 glTexCoord2f(0.0, texHeight);           glVertex3f(0.0, height, 0.0);
                 glTexCoord2f(texWidth, texHeight);      glVertex3f(width, height, 0.0);
                 glTexCoord2f(texWidth, 0.0);            glVertex3f(width, 0.0, 0.0);
-            glEnd();
-       
-            Screen('EndOpenGL', win);
-
-           Screen('Close', tex);
+                glEnd();
+                
+                Screen('EndOpenGL', win);
+            end
+            Screen('Close', tex);
         end
     end % public methods
     

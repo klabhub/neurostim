@@ -11,27 +11,24 @@ commandwindow;
 c = myRig;
 
 %% ============== Add stimuli ==================
-wn = stimuli.noiseraster(c,'grid');
+wn = stimuli.noiserastergrid(c,'grid');
 wn.size = [32,64];          %Dimensionality of raster (30 texels high, 50 wide)
-wn.height = 320;   %Width and height on screen
-wn.width = 640;
+wn.height = 6.40;   %Width and height on screen
+wn.width = 12.80;
 wn.distribution = 'normal'; %Distribution from which luminance values are drawn
-wn.parms = {0 10};          %{mean sd}
-maxContrast = 0.25;
-wn.bounds = 128*[-(1-maxContrast) 1-maxContrast];   %Truncate the distribution.
+wn.parms = {0 40};          %{mean sd}
+signalContrast = 0.15;
+wn.bounds = (1-signalContrast)*[-128,128];%Truncate the distribution.
 
 %Specify a signal to embed (the embedding happens automatically in the stimulus class)
 sig=sin(linspace(0,8*pi,wn.size(2)));
-addProperty(wn,'sinusoid', repmat(sig,wn.size(1),1));
-addProperty(wn,'contrast', 1);
-wn.signal = '@grid.contrast*grid.sinusoid*128+127';
+wn.signal = signalContrast*repmat(sig,wn.size(1),1)*127+127;
 
 %% Experimental design
-c.trialDuration = 3000;       %End the trial as soon as the 2AFC response is made.
+c.trialDuration = 30000; 
 
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.
-myDesign.fac1.grid.contrast = maxContrast*[0 0.5 1];  
 myDesign.fac1.grid.X = [-10 0 10];  
 
 %Specify a block of trials
