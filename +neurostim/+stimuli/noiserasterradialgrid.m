@@ -9,50 +9,45 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             o = o@neurostim.stimuli.noiserasterclut(c,name);
             
             %User-definable
-            o.addProperty('nSectors',8,'validate',@(x) isnumeric(x)); 
-            o.addProperty('nRadii',4,'validate',@(x) isnumeric(x));
+            o.addProperty('nWedges',32,'validate',@(x) isnumeric(x)); 
+            o.addProperty('nRadii',16,'validate',@(x) isnumeric(x));
+            o.addProperty('innerRad',5,'validate',@(x) isnumeric(x) & x >= 0);
+            o.addProperty('outerRad',10,'validate',@(x) isnumeric(x) & x >= 0);
             
             o.writeToFeed('WARNING: The radial noise stimulus is just testing a concept. Horrible. Do not use');
         end
 
         function beforeTrial(o)
             
-            %The image is specified as a bitmap in which each pixel value is
-            %the ID of the random (luminance) variable to be used.
-%             imInds = 1:o.nSectors*o.nRadii;
-%             o.idImage = reshape(imInds,o.nSectors,o.nRadii);
-            
-            %*******
-            % Set up a shader (maybe?) to wrap the rectangular idImage
-            % (drawn in parent class) circularly around the origin, to
-            % create a polar grid?
-            %Like this? https://www.shadertoy.com/view/XdBSzz
-            %***********
-            nPixels = o.cic.screen.ypixels;
+            %Use the full pixel resolution available.
+            nPixels = 2*(o.cic.physical2Pixel(o.outerRad,0)-o.cic.physical2Pixel(0,0));
             x=linspace(-1,1,nPixels);
             [xGrid,yGrid]=meshgrid(x,x);
+            
+            %Calculations here are in normalised coordinates
+            inner = o.innerRad./o.outerRad;
+            outer = 1;
+            o.width = o.outerRad*2;
+            o.height = o.outerRad*2;
+            
+            %Get the polar angle and radius of each texel
             [pixTh,pixR]=cart2pol(xGrid,yGrid);
             
-            sectBinWidth = 2*pi/o.nSectors;
-            sectBins = linspace(sectBinWidth/2,2*pi-sectBinWidth/2,o.nSectors);
-            radBinWidth = 1./o.nRadii;
-            radBins = linspace(radBinWidth/2,1-radBinWidth/2,o.nRadii);
+            %Assign an integer ID to wedges
+            wedgeBinWidth = 2*pi/o.nWedges;
+            radBins = linspace(inner,outer,o.nRadii+1);
             
-            im=zeros(size(xGrid));
-            ind=1;
-            for i=1:o.nSectors
-                for j=1:o.nRadii
-                    inBin = abs(angle(exp(1i*pixTh)./exp(1i*sectBins(i)))) <= sectBinWidth/2;
-                    inBin = inBin & abs(pixR-radBins(j)) <= radBinWidth/2;
-                    im(inBin) = ind;
-                    ind=ind+1;
-                end
-            end
 
-            o.idImage = im;
+            [~,~,thSub]=histcounts(pixTh,'binWidth',wedgeBinWidth);
+            [~,~,radSub]=histcounts(pixR,radBins);
             
+            thSub(thSub==0)=NaN;
+            radSub(radSub==0)=NaN;
+            im = sub2ind([o.nWedges,o.nRadii],thSub,radSub);
+            im(isnan(im))=o.BACKGROUND;
+           
             %Set up the CLUT and random variable callback functions
-            initialise(o);
+            initialise(o,im);
         end
         
 

@@ -61,10 +61,10 @@ classdef noiserastergrid < neurostim.stimuli.noiserasterclut
             %The image is specified as a bitmap in which each pixel value is
             %the ID of the random (luminance) variable to be used.
             imInds = 1:prod(o.size);
-            o.idImage = reshape(imInds,o.size(1),o.size(2));
-            
+            im = reshape(imInds,o.size(1),o.size(2));
+                        
             %Set up the CLUT and random variable callback functions
-            initialise(o);
+            initialise(o,im);
         end
         
 

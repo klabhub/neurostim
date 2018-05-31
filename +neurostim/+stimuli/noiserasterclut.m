@@ -1,8 +1,15 @@
 classdef (Abstract) noiserasterclut < neurostim.stimulus
     % Abstract stimulus class to present random noise rasters (e.g. for white-noise analysis).
-    % Luminance noise values are drawn from built-in probaility distributions or returned by a user-defined function.
+    % Luminance noise values are drawn from Matlab's built-in probaility distributions or returned by a user-defined function.
     % Argument specification is based on that of the jitter() plugin (though custom function specification is slightly different... TODO: unify this and jitter())
-    % Each pixel is an independent random variable.
+    %
+    % The imaging approach is similar to a CLUT, where the image that is
+    % drawn is represented as a 2D matrix of indices into a vector LUT of random
+    % variables for luminance. The LUT values are updated (sampled) from frame to frame.
+    % This allows an arbitrary mapping of a small number of random variables onto
+    % a potentially larger image of texels/pixels. The last entry in the LUT is the background luminance.
+    % This allows you to make arbitrary noise stimuli, such as Cartesian grids, polar grids,
+    % polygons, non-contiguous patches, etc.
     %
     % By default, luminance values are NOT logged because of potential memory load.
     % However, the state of the RNG on each frame is logged, allowing offline reconstruction.
@@ -11,48 +18,54 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
     %
     %   Settable properties:
     %
-    %   parms           - parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)
-    %   distribution    - the name of a built-in pdf [default = 'uniform'], or a handle to a custom function, f(o), which takes the plugin as a the lone argument)
-    %   bounds          - 2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
-    %   width           - width on screen (screen units)
-    %   hight           - height on screen (screen units)
-    %   logType         - What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
-    %   signal          - A matrix of values that is added to the noise (e.g. for detection task)
-    %  
+    %   parms           -   parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)
+    %   distribution    -   the name of a built-in pdf [default = 'uniform'],
+    %                       or a handle to a custom function, f(o), which takes the plugin as a
+    %                       the lone argument, and returns a vector of luminance values (size = [1, o.nRandVars]) for each of the
+    %                       random variables (that are mapped internally to pixels in the ID image)
+    %   bounds          -   2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
+    %   width           -   width on screen (screen units)
+    %   hight           -   height on screen (screen units)
+    %   logType         -   What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
+    %   signal          -   A matrix of values that is added to the noise (e.g. for detection task)
+    %
     %  TODO:
     %       (1) Allow specification of update frequency. Currently new vals every frame.
-    %       (2) Add co-variance matrix for presenting correlated noise.
+    %       (2) Add co-variance matrix, sz = [o.nRandVars,o.nRandVars], for presenting correlated noise.
     %       (3) Provide a reconstruction tool for offline analysis
     %       (4) This approach to rng is inefficient: it would be better to have a separate RNG stream for this stimulus. CIC would need to act as RNG server?
     
     properties (Access = private)
         callback@function_handle;   %Handle of function for returning luminance values on each frame
         rng;        %Pointer to the global RNG stream
-        clutLength;
+        nRandVars;
+        initialised = false;
     end
     
+    properties (SetAccess = private, GetAccess = protected)
+      
+    end
     properties (Constant)
-        BACKGROUND = 0;
+       BACKGROUND = 0;
     end
     
     % dependent properties, calculated on the fly...
     properties (Dependent, SetAccess = private, GetAccess = public)
-       
+        
     end
     
     properties (SetAccess = private, GetAccess = public)
         lumImage@double; %Raster pixel luminance values
         clut;
-        clutImage;
     end
-
+    
     methods % set/get dependent properties
-
+        
     end
     
     methods (Access = public)
         function o = noiserasterclut(c,name)
-
+            
             o = o@neurostim.stimulus(c,name);
             
             %User-definable
@@ -64,72 +77,18 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
             o.addProperty('width',20);
             o.addProperty('height',10);
             
-            %Internal variables for clut
+            %Internal variables for clut and mapping
             o.addProperty('idImage',[]);
-
+            o.addProperty('randVarXY',[]);
+            
             %Internal use for logging of luminance values
             o.addProperty('probObj',[]);
             o.addProperty('rngState',[]);
             o.addProperty('rngAlgorithm',[]);
             o.addProperty('clutVals',[]); %For logging luminance values, if requested
-
             
             o.writeToFeed('Warning: this is a new stimulus and has not been tested.');
-            
-        end
-
-        function initialise(o)
-            
-            %The image is specified as a bitmap of arbitrary IDs for random variables.
-            %This allows a child class to allocate a fixed ID to a location in the stimulus,
-            %even if that location is perhaps not present on a given trial.
-            %A function is provided, idImageToClutImage(), to convert the
-            %image of IDs into an image of indices into the random
-            %variables stored for that trial.
-            %IDs must be integers greater than zero. Pixels with an ID==0
-            %are set to the background luminance.
-            
-            %Flip it upside down to align it with neurostim coordinates
-            o.idImage = flipud(o.idImage);
-            
-            %Convert the image of arbitrary random variable indices to clut indices (i.e. random variables)
-            o.clutImage = o.idImageToClutImage(o.idImage);
-            
-            %How long will the CLUT be?
-            o.clutLength = max(o.clutImage(:));
-            o.clut = zeros(1,o.clutLength);
-            o.clut(1) = o.cic.screen.color.background(1)*256; %0 in the idImage codes for background colour.
-
-            %Set up a callback function, used to population the noise clut with luminance values
-            dist = o.distribution;
-            
-            if isa(dist,'function_handle')                
-                %User-defined function. Function must receive the noiseraster plugin as its sole argument
-                o.callback = dist;
-                
-            elseif ischar(dist) && strcmpi(dist,'1ofN')                
-                %Picking a value from a pre-defined list
-                o.callback = @oneOfN;
-                
-            elseif ischar(dist) && any(strcmpi(dist,makedist))                
-                %Using Matlab's built-in probability distributions
-                o.callback = @(o) random(o.probObj,1,o.clutLength-1);
-                
-                %Create a probability distribution object
-                pd = makedist(o.distribution,o.parms{:});
-                
-                %Truncate the distribution, if requested
-                if ~isempty(o.bounds)
-                    pd = truncate(pd,o.bounds(1),o.bounds(2));
-                end
-                
-                %Store object
-                o.probObj = pd;
-            end
-            
-            %Store the RNG state. 
-            s = RandStream.getGlobalStream;
-            o.rng = s; 
+                        
         end
         
         function beforeFrame(o)
@@ -141,21 +100,103 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
             width = o.width;
             height = o.height;
             win = o.window;
-
+            
             rect = [-width/2 -height/2 width/2 height/2];
             tex=Screen('MakeTexture', win, o.lumImage);
             Screen('DrawTexture', win, tex, [], rect, [], 0);
             Screen('Close', tex);
         end
+        
+        function afterTrial(o)
+            o.initialised = false;
+        end
     end % public methods
+    
     
     methods (Access = protected)
         
+        function initialise(o,im)
+            
+            %The image (im) is specified as a bitmap of arbitrary IDs for random variables.
+            %IDs must be integers from 1 to N, or 0 to use background luminance.
+            
+            %Check that the idImage is in the right format, re-code background luminance texels, and prepare CLUT
+            o.setupClut(im);
+            
+            %Set up a callback function, used to population the noise clut with luminance values
+            o.setupLumCallback();
+            
+            o.initialised = true;
+        end
+        
+        function setupClut(o,im)
+            
+            %Which indices are in the image? [excluding background]
+            ids = unique(im);
+            
+            %Make sure that the IDs are set appropriately
+            if ~all(diff(ids)==1) || ~ismember(ids(1),[0 1])
+                error('ID numbers in image must be numbered sequentially from 1 to N (or zero to use background luminance)');
+            end
+            
+            %Re-code background ID to be max(ID)+1
+            hasBackgroundID = ids(1)==o.BACKGROUND;
+            o.nRandVars = numel(ids) - hasBackgroundID;
+            im(im==o.BACKGROUND)=max(ids)+1;
+            
+            %Flip it upside down to align it with neurostim coordinates
+            im = flipud(im);
+            
+            %All OK. Store it.
+            o.idImage = im;
+            
+            %Build the CLUT, adding one extra entry for the background luminance.
+            o.clut = ones(1,o.nRandVars+1)*o.cic.screen.color.background(1)*256;
+            
+        end
+        
+        function setupLumCallback(o)
+            
+            %Set up a callback function, used to population the noise clut with luminance values
+            dist = o.distribution;
+            
+            if isa(dist,'function_handle')
+                %User-defined function. Function must receive the noiseraster plugin as its sole argument and return
+                %luminance values for each of the random variables.
+                o.callback = dist;
+                
+            elseif ischar(dist) && any(strcmpi(dist,{'1ofN','oneofN'}))
+                %Picking a value from a pre-defined list
+                o.callback = @oneOfN;
+                
+            elseif ischar(dist) && any(strcmpi(dist,makedist))
+                %Using Matlab's built-in probability distributions
+                o.callback = @(o) random(o.probObj,1,o.nRandVars);
+                
+                %Create a probability distribution object
+                pd = makedist(o.distribution,o.parms{:});
+                
+                %Truncate the distribution, if requested
+                if ~isempty(o.bounds)
+                    pd = truncate(pd,o.bounds(1),o.bounds(2));
+                end
+                
+                %Store object
+                o.probObj = pd;
+            elseif ischar(dist)
+                error(horzcat('Unknown distribution name ', dist));
+            end
+            
+            %Store the RNG state.
+            s = RandStream.getGlobalStream;
+            o.rng = s;
+        end
+        
         function o = update(o)
-
+            
             %Temporarily set the rng to not use full precision, to favour speed
-            s = o.rng;
-            s.FullPrecision = false;
+             s = o.rng;
+%             s.FullPrecision = false;
             
             %Log the state of the RNG, if requested
             if strcmpi(o.logType,'RNGSTATE')
@@ -164,16 +205,16 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
                 o.rngAlgorithm = s.Type;
             end
             
-            %Update the values in the clut
-            o.clut(2:end) = o.callback(o);
+            %Update the values in the clut (excluding the last entry, which is the background luminance)
+            o.clut(1:end-1) = o.callback(o);
             
             %Log the clut luminance values, if requested (use only for small memory loads)
             if strcmpi(o.logType,'VALUES')
                 o.clutVals = o.clut;
             end
             
-            %Create the luminance image            
-            o.lumImage = o.clut(o.clutImage); %Plus 1 because first entry in CLUT is the background, coded as -1 in clutImage
+            %Create the luminance image
+            o.lumImage = o.clut(o.idImage);
             
             %Add in the signal
             sig = o.signal;
@@ -182,33 +223,40 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
             end
             
             %Restore precision
-            o.rng.FullPrecision = true;
+%             o.rng.FullPrecision = true;
+        end
+          
+        function setIDxy(o,xy)
+            %Store a single normalised [x,y] coordinate to each random variable (e.g. patch centroid).
+            if ~o.initialised
+                error('You can only set the coordinates after placing the image with o.initialise(im)');
+            end
+            
+            %Check format
+            if ~isequal(size(xy),[o.nRandVars,2])
+                error('The XY matrix must be a two-column matrix of x and Y coordinates with the number of rows equal to the number of unique IDs in the image, i.e., [o.nRandVars, 2]');
+            end
+            if ~all(xy>=0 & xy <=1)
+                error('The XY mapping coordinates for IDs must be in normalised units (0 to 1)');
+            end
+            
+            %All good.
+            o.randVarXY = xy;
         end
         
-
+%         function [x,y] = id2xy(o,id)
+%             
+%         end
     end % protected methods
     
     methods (Access = private)
         function vals = oneOfN(o)
             % Convenience function to pick from a set of values with equal probability.
-            vals = randsample(cell2mat(o.parms),o.clutLength-1,true);
-            vals = reshape(vals,sz);
+            vals = randsample(cell2mat(o.parms),o.nRandVars,true);
         end
     end
     
     methods (Static)
-        function clutImage = idImageToClutImage(idImage)
-            
-            %Which indices are in the image? [excluding background]
-            [unqInds,~,clutImage] = unique(idImage);
-            
-            %If no image pixels are to be background, will need to increment all indices by 1
-            if unqInds(1)~=0
-                clutImage = clutImage + 1;
-            end
-            
-            %Restore original size
-            clutImage = reshape(clutImage,size(idImage));
-        end
+        
     end
 end % classdef
