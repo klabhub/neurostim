@@ -40,6 +40,7 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
         rng;        %Pointer to the global RNG stream
         nRandVars;
         initialised = false;
+        frameInterval_f;
     end
     
     properties (SetAccess = private, GetAccess = protected)
@@ -76,6 +77,7 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
             o.addProperty('signal',[],'validate',@isnumeric); %Luminance values to add to noise matrix.
             o.addProperty('width',20);
             o.addProperty('height',10);
+            o.addProperty('frameInterval',o.cic.frames2ms(3));        %How long should each frame be shown for? default = 3 frames.
             
             %Internal variables for clut and mapping
             o.addProperty('idImage',[]);
@@ -87,23 +89,25 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
             o.addProperty('rngAlgorithm',[]);
             o.addProperty('clutVals',[]); %For logging luminance values, if requested
             
-            o.writeToFeed('Warning: this is a new stimulus and has not been tested.');
-                        
+            o.writeToFeed('Warning: this is a new stimulus and has not been tested.');                   
         end
         
         function beforeFrame(o)
             
             %Update the raster luminance values
-            o.update();
+            curFr = o.frame;
+            frInt = o.frameInterval_f;
+            if (isinf(frInt) && curFr==0) || (~isinf(frInt)&&~mod(curFr,frInt))
+                o.update();
+            end
             
             % After drawing, we can discard the noise texture.
             width = o.width;
             height = o.height;
-            win = o.window;
             
             rect = [-width/2 -height/2 width/2 height/2];
-            tex=Screen('MakeTexture', win, o.lumImage);
-            Screen('DrawTexture', win, tex, [], rect, [], 0);
+            tex=Screen('MakeTexture', o.window, o.lumImage);
+            Screen('DrawTexture', o.window, tex, [], rect, [], 0);
             Screen('Close', tex);
         end
         
@@ -119,6 +123,14 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
             
             %The image (im) is specified as a bitmap of arbitrary IDs for random variables.
             %IDs must be integers from 1 to N, or 0 to use background luminance.
+            
+            %Make sure the requested duration is a multiple of the display frame interval            
+            tol = 0.05; %5% mismatch between requested frame duration and what is possible
+            frInt = o.cic.ms2frames(o.frameInterval,false);
+            if ~isinf(frInt) && abs(frInt-round(frInt)) > tol
+                error('Requested noise frameInterval is not a multiple of the display frame interval');
+            end
+            o.frameInterval_f = round(frInt);
             
             %Check that the idImage is in the right format, re-code background luminance texels, and prepare CLUT
             o.setupClut(im);
@@ -152,12 +164,11 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
             
             %Build the CLUT, adding one extra entry for the background luminance.
             o.clut = ones(1,o.nRandVars+1)*o.cic.screen.color.background(1)*256;
-            
         end
         
         function setupLumCallback(o)
             
-            %Set up a callback function, used to population the noise clut with luminance values
+            %Set up a callback function, used to population the noise clut with luminance values            
             dist = o.distribution;
             
             if isa(dist,'function_handle')
@@ -207,13 +218,13 @@ classdef (Abstract) noiserasterclut < neurostim.stimulus
             
             %Update the values in the clut (excluding the last entry, which is the background luminance)
             o.clut(1:end-1) = o.callback(o);
-            
+        
             %Log the clut luminance values, if requested (use only for small memory loads)
             if strcmpi(o.logType,'VALUES')
                 o.clutVals = o.clut;
             end
             
-            %Create the luminance image
+            %Create the luminance image         
             o.lumImage = o.clut(o.idImage);
             
             %Add in the signal
