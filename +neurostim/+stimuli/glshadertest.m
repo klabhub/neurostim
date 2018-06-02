@@ -39,7 +39,13 @@ classdef glshadertest < neurostim.stimulus
             [width, height]=Screen('WindowSize', o.window);
             s=floor(min(width, height)/2)-1;
             sz = s*2+1;
-            idImage = repmat(round(linspace(0,o.nRandels - 1,sz)),round(sz),1);
+%             idImage = repmat(round(linspace(0,o.nRandels - 1,sz)),round(sz),1);
+
+            % alternate idImage
+            n = floor(sqrt(o.nRandels));
+            tmp = reshape(0:n*n-1,n,n);
+            idImage = kron(tmp,ones(floor(sz/n)));
+            
             o.tex=Screen('MakeTexture', o.window, idImage, [], [], floatPrecision);
             
             o.newLUT = zeros(o.nRandels,3);
@@ -118,6 +124,8 @@ classdef glshadertest < neurostim.stimulus
             
             if ~mod(o.frame,round(100/o.nRandels)+1)
                 o.newLUT = circshift(o.newLUT,-1,1);
+%                 o.newLUT = repmat(rand(o.nRandels,1)*255,1,3); % <-- with nRandels > ~1k, this gives an old skool analog tv vibe
+                
 %                 backupLUT=o.newLUT(1, :);
 %                 o.newLUT(1:(o.nRandels - 1), :)=o.newLUT(2:o.nRandels, :);
 %                 o.newLUT(o.nRandels, :)=backupLUT;
