@@ -13,13 +13,12 @@
 
 uniform sampler2DRect Image;
 uniform sampler2DRect clut;
-varying float nRandels;
 
 void main()
 {
     vec4 incolor = texture2DRect(Image, gl_TexCoord[0].st);
-    float index = incolor.r * nRandels + 0.5;
-    /*float index = incolor.r*/;
-    gl_FragColor.rgb = texture2DRect(clut, vec2(index, 0)).rgb;
+    /*float index = incolor.r * nRandels + 0.5;*/
+    /*float index = incolor.r;*/
+    gl_FragColor.rgb = texture2DRect(clut, vec2(incolor.r, 0)).rgb;
     gl_FragColor.a = incolor.a;
 }

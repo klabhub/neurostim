@@ -23,16 +23,28 @@ classdef glshadertest < neurostim.stimulus
             % an OpenGL Psychtoolbox
             AssertOpenGL;
             
+            info = Screen('GetWindowInfo', o.cic.mainWindow);
+            if info.GLSupportsTexturesUpToBpc >= 32
+              % full 32 bit single precision float texture
+              floatPrecision = 2; % nRandels < 2^32
+            elseif info.GLSupportsTexturesUpToBpc >= 16
+              % no 32 bit textures... use 16 bit 'half-float' texture
+              floatPrecision = 1; % nRandels < 2^16
+            else
+              % no support for >8 bit textures at all... use 8 bit texture?
+              floatPrecision = 0; % nRandels < 2^8 
+            end
+            
             % %The ID image is set here
             [width, height]=Screen('WindowSize', o.window);
             s=floor(min(width, height)/2)-1;
             sz = s*2+1;
             idImage = repmat(round(linspace(0,o.nRandels - 1,sz)),round(sz),1);
-            o.tex=Screen('MakeTexture', o.window, idImage);
+            o.tex=Screen('MakeTexture', o.window, idImage, [], [], floatPrecision);
             
             o.newLUT = zeros(o.nRandels,3);
             vals=linspace(0,255,o.nRandels);
-            for i=0:2:(o.nRandels - 1)
+            for i=0:1:(o.nRandels - 1)
                 o.newLUT(i+1, :)=[vals(i+1) vals(i+1) vals(i+1)];
             end
         end
@@ -53,19 +65,18 @@ classdef glshadertest < neurostim.stimulus
             end
             
             % Load our fragment shader for clut blit operations:
-            %shaderFile = fullfile(o.cic.dirs.root,'\+neurostim\+stimuli\GLSLShaders\noiserasterclut.frag.txt');
-            shaderFile = 'ClutBlitShader.frag.txt'; 
+            shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','noiserasterclut.frag.txt');
             
             o.mogl.remapshader = LoadGLSLProgramFromFiles(shaderFile);
             glUseProgram(o.mogl.remapshader);
             % Assign proper texture units for input image and clut:
             shader_image = glGetUniformLocation(o.mogl.remapshader, 'Image');
             shader_clut  = glGetUniformLocation(o.mogl.remapshader, 'clut');
-            shader_nRandels  = glGetUniformLocation(o.mogl.remapshader, 'nRandels');
+%             shader_nRandels  = glGetUniformLocation(o.mogl.remapshader, 'nRandels');
             
             glUniform1i(shader_image, 0);
             glUniform1i(shader_clut, 1);
-            glUniform1i(shader_nRandels, o.nRandels-1);
+%             glUniform1f(shader_nRandels, single(o.nRandels-1));
             glUseProgram(0);
             
             % Build a gray-ramp as texture:
@@ -105,7 +116,7 @@ classdef glshadertest < neurostim.stimulus
             % 256 -> 255, 2 -> 256, ... we just leave slot 1 alone, it defines
             % the DAC output values for the background.
             
-            if ~mod(o.frame,50)
+            if ~mod(o.frame,5)
                 o.newLUT = circshift(o.newLUT,-1,1);
 %                 backupLUT=o.newLUT(1, :);
 %                 o.newLUT(1:(o.nRandels - 1), :)=o.newLUT(2:o.nRandels, :);
