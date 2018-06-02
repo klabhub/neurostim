@@ -15,6 +15,7 @@ classdef glshadertest < neurostim.stimulus
         end
         
         function beforeExperiment(o)
+            global GL;
             
             % This script calls Psychtoolbox commands available only in OpenGL-based
             % versions of the Psychtoolbox. (So far, the OS X Psychtoolbox is the
@@ -33,6 +34,11 @@ classdef glshadertest < neurostim.stimulus
             else
               % no support for >8 bit textures at all... use 8 bit texture?
               floatPrecision = 0; % nRandels < 2^8 
+            end
+            
+            maxTexSz = glGetIntegerv(GL.MAX_TEXTURE_SIZE);
+            if o.nRandels > maxTexSz
+              warning('Oooh... I bet this barfs! Too many randels. Max is probably %i.',maxTexSz);
             end
             
             % %The ID image is set here
@@ -87,11 +93,11 @@ classdef glshadertest < neurostim.stimulus
             
             % Build a gray-ramp as texture:
             o.clut = uint8(zeros(1, o.nRandels*3));
-            for i=0:(o.nRandels - 1)
-                o.clut(1 + i*3 + 0)= i;
-                o.clut(1 + i*3 + 1)= i;
-                o.clut(1 + i*3 + 2)= i;
-            end
+%             for i=0:(o.nRandels - 1)
+%                 o.clut(1 + i*3 + 0)= i;
+%                 o.clut(1 + i*3 + 1)= i;
+%                 o.clut(1 + i*3 + 2)= i;
+%             end
             
             % Select the 2nd texture unit (unit 1) for setup:
             glActiveTexture(GL.TEXTURE1);
@@ -160,9 +166,9 @@ classdef glshadertest < neurostim.stimulus
             end
             
             % Cast to integer and update our 'clut' array with new clut:
-            o.clut(1:3:end-2)= uint8(newclut(:, 1) + 0.5); %seems to me (Adam) that the 0.5 shouldn't be here. This makes it from 1 to 255. shouldn't it be 0 to 255?
-            o.clut(2:3:end-1)= uint8(newclut(:, 2) + 0.5);
-            o.clut(3:3:end-0)= uint8(newclut(:, 3) + 0.5);
+            o.clut(1:3:end-2)= uint8(newclut(:, 1));% + 0.5); %seems to me (Adam) that the 0.5 shouldn't be here. This makes it from 1 to 255. shouldn't it be 0 to 255?
+            o.clut(2:3:end-1)= uint8(newclut(:, 2));% + 0.5);
+            o.clut(3:3:end-0)= uint8(newclut(:, 3));% + 0.5);
             
             % Upload new clut:
             glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.nRandels, 1, GL.RGB, GL.UNSIGNED_BYTE, o.clut);
