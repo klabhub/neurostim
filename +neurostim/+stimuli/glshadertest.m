@@ -44,7 +44,7 @@ classdef glshadertest < neurostim.stimulus
             
             o.newLUT = zeros(o.nRandels,3);
             vals=linspace(0,255,o.nRandels);
-            for i=0:1:(o.nRandels - 1)
+            for i=0:(o.nRandels - 1)
                 o.newLUT(i+1, :)=[vals(i+1) vals(i+1) vals(i+1)];
             end
         end
@@ -116,7 +116,7 @@ classdef glshadertest < neurostim.stimulus
             % 256 -> 255, 2 -> 256, ... we just leave slot 1 alone, it defines
             % the DAC output values for the background.
             
-            if ~mod(o.frame,5)
+            if ~mod(o.frame,round(100/o.nRandels)+1)
                 o.newLUT = circshift(o.newLUT,-1,1);
 %                 backupLUT=o.newLUT(1, :);
 %                 o.newLUT(1:(o.nRandels - 1), :)=o.newLUT(2:o.nRandels, :);
@@ -152,9 +152,9 @@ classdef glshadertest < neurostim.stimulus
             end
             
             % Cast to integer and update our 'clut' array with new clut:
-            o.clut(1:3:end-2)= uint8(newclut(:, 1));% + 0.5); %seems to me (Adam) that the 0.5 shouldn't be here. This makes it from 1 to 255. shouldn't it be 0 to 255?
-            o.clut(2:3:end-1)= uint8(newclut(:, 2));% + 0.5);
-            o.clut(3:3:end-0)= uint8(newclut(:, 3));% + 0.5);
+            o.clut(1:3:end-2)= uint8(newclut(:, 1) + 0.5); %seems to me (Adam) that the 0.5 shouldn't be here. This makes it from 1 to 255. shouldn't it be 0 to 255?
+            o.clut(2:3:end-1)= uint8(newclut(:, 2) + 0.5);
+            o.clut(3:3:end-0)= uint8(newclut(:, 3) + 0.5);
             
             % Upload new clut:
             glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.nRandels, 1, GL.RGB, GL.UNSIGNED_BYTE, o.clut);
