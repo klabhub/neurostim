@@ -5,7 +5,8 @@ classdef glshadertest < neurostim.stimulus
         clut
         mogl
         nRandels
-        
+        nChans
+        zeroPad
         lutTexSz
     end
     
@@ -13,6 +14,7 @@ classdef glshadertest < neurostim.stimulus
     methods (Access = public)
         function o = glshadertest(c,name)
             o = o@neurostim.stimulus(c,name);
+            o.addProperty('optimiseForSpeed',true); %Turns off some error checking (e.g. that RGB vals are valid)
         end
         
         function beforeExperiment(o)
@@ -57,7 +59,8 @@ classdef glshadertest < neurostim.stimulus
               lutTexSz = [maxTexSz, ceil(max(idImage(:))./maxTexSz)+1];
             end
             
-            idImage_ = zeros([size(idImage),3]); % GL.RGA?
+            o.nChans = 3;
+            idImage_ = zeros([size(idImage),o.nChans]); % GL.RGA?
               
             [idImage_(:,:,1),idImage_(:,:,2)] = ind2sub(lutTexSz,idImage);
             idImage_(:,:,2) = idImage_(:,:,2)-1; % note: zero based
@@ -66,9 +69,10 @@ classdef glshadertest < neurostim.stimulus
            
             o.tex=Screen('MakeTexture', o.window, idImage_, [], [], floatPrecision);
             
-            % initialise CLUT
+            % initialise CLUT with linear ramp of greyscale
             vals=linspace(0,255,o.nRandels);
-            o.clut = repmat(vals,3,1);
+            o.clut = repmat(vals,o.nChans,1);
+            o.zeroPad = uint8(zeros(o.nChans*(prod(o.lutTexSz)-o.nRandels),1)); %Pre-computed for speed (to use horxcat rather than indexing)
         end
         
         function beforeTrial(o)
@@ -103,16 +107,14 @@ classdef glshadertest < neurostim.stimulus
             
             % cast clut to uint8()
 %             linClut = uint8(reshape(o.clut,1,[]));
-            linClut = zeros(1,prod(o.lutTexSz)*3);
-            linClut(1:numel(o.clut)) = o.clut(:);
+            paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
             
             % create the lut texture
             o.mogl.luttex = glGenTextures(1);
             
             % setup sampling etc.
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
-
-            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, GL.RGB, GL.UNSIGNED_BYTE, uint8(linClut));
+            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, GL.RGB, GL.UNSIGNED_BYTE, paddedClut);
             
             % Make sure we use nearest neighbour sampling:
             glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
@@ -133,6 +135,8 @@ classdef glshadertest < neurostim.stimulus
             % update o.clut
             if ~mod(o.frame,round(100/o.nRandels)+1)
                 o.clut = circshift(o.clut,-1,2);
+                %o.clut = reshape(repmat(ones(1,o.nRandels),o.nChans,1),[],1);
+                %o.clut = circshift(o.clut,-o.nChans,2);
 %                 o.clut = repmat(rand(1,o.nRandels)*255,3,1); % <-- with nRandels > ~1k, this gives an old skool analog tv vibe
             end
             
@@ -146,29 +150,20 @@ classdef glshadertest < neurostim.stimulus
         function moglUpdate(o)
             
             global GL;
-            newclut = o.clut;
-                        
-            % size check
-            if size(newclut,2) ~= o.nRandels || size(newclut,1) ~= 3
-                % invalid or missing lut
-                error('newclut of wrong size (must be 3 rows by o.nRandels) provided!');
-            end
             
-            % range check
-            if any(newclut(:) < 0) || any(newclut(:) > 255)
+            %RGB validitiy check removed for speed
+%             % range check
+            if ~o.optimiseForSpeed && (any(o.clut < 0) || any(o.clut > 255))
                 % lut values out of range
-                error('At least one value in newclut is outside the range from 0 to (o.nRandels - 1)!');
+                error('At least one value in newclut is outside the range from 0 to 255!');
             end
             
             % cast clut to uint8...
-            linClut = zeros(1,prod(o.lutTexSz)*3);
-            linClut(1:numel(newclut)) = newclut(:);
+            paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
             
             % copy clut to the lut texture
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
-
-            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), GL.RGB, GL.UNSIGNED_BYTE, uint8(linClut));            
-            
+            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), GL.RGB, GL.UNSIGNED_BYTE, paddedClut);            
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
         
