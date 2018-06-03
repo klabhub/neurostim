@@ -2,7 +2,6 @@ classdef glshadertest < neurostim.stimulus
     properties
         tex
         black
-        newLUT
         clut
         mogl
         nRandels
@@ -67,9 +66,9 @@ classdef glshadertest < neurostim.stimulus
            
             o.tex=Screen('MakeTexture', o.window, idImage_, [], [], floatPrecision);
             
-%             o.newLUT = zeros(o.nRandels,3);
+            % initialise CLUT
             vals=linspace(0,255,o.nRandels);
-            o.newLUT = repmat(vals(:),1,3); % nRandels x 3
+            o.clut = repmat(vals,3,1);
         end
         
         function beforeTrial(o)
@@ -102,14 +101,18 @@ classdef glshadertest < neurostim.stimulus
             
             glUseProgram(0);
             
-            o.clut = uint8(zeros(1,prod(o.lutTexSz)*3));
+            % cast clut to uint8()
+%             linClut = uint8(reshape(o.clut,1,[]));
+            linClut = zeros(1,prod(o.lutTexSz)*3);
+            linClut(1:numel(o.clut)) = o.clut(:);
             
             % create the lut texture
             o.mogl.luttex = glGenTextures(1);
             
             % setup sampling etc.
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
-            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, GL.RGB, GL.UNSIGNED_BYTE, o.clut);
+
+            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, GL.RGB, GL.UNSIGNED_BYTE, uint8(linClut));
             
             % Make sure we use nearest neighbour sampling:
             glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
@@ -127,22 +130,13 @@ classdef glshadertest < neurostim.stimulus
         function beforeFrame(o)
             glLoadIdentity();
                    
-            % Animation by CLUT color cycling loop:
-            
-            % Shift/Cycle all LUT entries: Entry 3 -> 2, 4 -> 3, 5 ->4 , ... ,
-            % 256 -> 255, 2 -> 256, ... we just leave slot 1 alone, it defines
-            % the DAC output values for the background.
-            
+            % update o.clut
             if ~mod(o.frame,round(100/o.nRandels)+1)
-                o.newLUT = circshift(o.newLUT,-1,1);
-%                 o.newLUT = repmat(rand(o.nRandels,1)*255,1,3); % <-- with nRandels > ~1k, this gives an old skool analog tv vibe
-                
-%                 backupLUT=o.newLUT(1, :);
-%                 o.newLUT(1:(o.nRandels - 1), :)=o.newLUT(2:o.nRandels, :);
-%                 o.newLUT(o.nRandels, :)=backupLUT;
+                o.clut = circshift(o.clut,-1,2);
+%                 o.clut = repmat(rand(1,o.nRandels)*255,3,1); % <-- with nRandels > ~1k, this gives an old skool analog tv vibe
             end
             
-            % copy o.newLUT to the lut [texture]
+            % copy o.clut to the lut [texture]
             moglUpdate(o);
 
             % draw the texture... 
@@ -152,12 +146,12 @@ classdef glshadertest < neurostim.stimulus
         function moglUpdate(o)
             
             global GL;
-            newclut = o.newLUT;
+            newclut = o.clut;
                         
             % size check
-            if size(newclut,1) ~= o.nRandels || size(newclut,2) ~= 3
+            if size(newclut,2) ~= o.nRandels || size(newclut,1) ~= 3
                 % invalid or missing lut
-                error('newclut of wrong size (must be o.nRandels rows by 3 columns) provided!');
+                error('newclut of wrong size (must be 3 rows by o.nRandels) provided!');
             end
             
             % range check
@@ -166,13 +160,14 @@ classdef glshadertest < neurostim.stimulus
                 error('At least one value in newclut is outside the range from 0 to (o.nRandels - 1)!');
             end
             
-            % copy newclut to clut, casting to uint8...
-            o.clut(1:numel(newclut)) = uint8(newclut');
+            % cast clut to uint8...
+            linClut = zeros(1,prod(o.lutTexSz)*3);
+            linClut(1:numel(newclut)) = newclut(:);
             
             % copy clut to the lut texture
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
 
-            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), GL.RGB, GL.UNSIGNED_BYTE, o.clut);            
+            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), GL.RGB, GL.UNSIGNED_BYTE, uint8(linClut));            
             
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
