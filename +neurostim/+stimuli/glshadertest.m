@@ -6,6 +6,8 @@ classdef glshadertest < neurostim.stimulus
         clut
         mogl
         nRandels
+        
+        lutTexSz
     end
     
     
@@ -36,10 +38,7 @@ classdef glshadertest < neurostim.stimulus
               floatPrecision = 0; % nRandels < 2^8 
             end
             
-            maxTexSz = glGetIntegerv(GL.MAX_TEXTURE_SIZE);
-            if o.nRandels > maxTexSz
-              warning('Oooh... I bet this barfs! Too many randels. Max is probably %i.',maxTexSz);
-            end
+            maxTexSz = double(glGetIntegerv(GL.MAX_TEXTURE_SIZE));
             
             % %The ID image is set here
             [width, height]=Screen('WindowSize', o.window);
@@ -50,15 +49,27 @@ classdef glshadertest < neurostim.stimulus
             % alternate idImage
             n = floor(sqrt(o.nRandels));
             tmp = reshape(0:n*n-1,n,n);
-            idImage = kron(tmp,ones(floor(sz/n)));
+            idImage = kron(tmp,ones(ceil(sz/n))); % was floor()?
+
+            % work around texture size limit...
+            lutTexSz = [o.nRandels, 1];
             
-            o.tex=Screen('MakeTexture', o.window, idImage, [], [], floatPrecision);
-            
-            o.newLUT = zeros(o.nRandels,3);
-            vals=linspace(0,255,o.nRandels);
-            for i=0:(o.nRandels - 1)
-                o.newLUT(i+1, :)=[vals(i+1) vals(i+1) vals(i+1)];
+            if o.nRandels > maxTexSz
+              lutTexSz = [maxTexSz, ceil(max(idImage(:))./maxTexSz)+1];
             end
+            
+            idImage_ = zeros([size(idImage),3]); % GL.RGA?
+              
+            [idImage_(:,:,1),idImage_(:,:,2)] = ind2sub(lutTexSz,idImage);
+            idImage_(:,:,2) = idImage_(:,:,2)-1; % note: zero based
+            
+            o.lutTexSz = lutTexSz; % [width,height] of the lut texture
+           
+            o.tex=Screen('MakeTexture', o.window, idImage_, [], [], floatPrecision);
+            
+%             o.newLUT = zeros(o.nRandels,3);
+            vals=linspace(0,255,o.nRandels);
+            o.newLUT = repmat(vals(:),1,3); % nRandels x 3
         end
         
         function beforeTrial(o)
@@ -80,30 +91,25 @@ classdef glshadertest < neurostim.stimulus
             shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','noiserasterclut.frag.txt');
             
             o.mogl.remapshader = LoadGLSLProgramFromFiles(shaderFile);
+
             glUseProgram(o.mogl.remapshader);
-            % Assign proper texture units for input image and clut:
+            
             shader_image = glGetUniformLocation(o.mogl.remapshader, 'Image');
             shader_clut  = glGetUniformLocation(o.mogl.remapshader, 'clut');
-%             shader_nRandels  = glGetUniformLocation(o.mogl.remapshader, 'nRandels');
             
             glUniform1i(shader_image, 0);
             glUniform1i(shader_clut, 1);
-%             glUniform1f(shader_nRandels, single(o.nRandels-1));
+            
             glUseProgram(0);
             
-            % Build a gray-ramp as texture:
-            o.clut = uint8(zeros(1, o.nRandels*3));
-%             for i=0:(o.nRandels - 1)
-%                 o.clut(1 + i*3 + 0)= i;
-%                 o.clut(1 + i*3 + 1)= i;
-%                 o.clut(1 + i*3 + 2)= i;
-%             end
+            o.clut = uint8(zeros(1,prod(o.lutTexSz)*3));
             
-            % Select the 2nd texture unit (unit 1) for setup:
-            glActiveTexture(GL.TEXTURE1);
+            % create the lut texture
             o.mogl.luttex = glGenTextures(1);
+            
+            % setup sampling etc.
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
-            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.nRandels, 1, 0, GL.RGB, GL.UNSIGNED_BYTE, o.clut);
+            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, GL.RGB, GL.UNSIGNED_BYTE, o.clut);
             
             % Make sure we use nearest neighbour sampling:
             glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
@@ -113,8 +119,7 @@ classdef glshadertest < neurostim.stimulus
             glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_WRAP_S, GL.CLAMP);
             glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_WRAP_T, GL.CLAMP);
             
-            % Default CLUT setup done: Switch back to texture unit 0:
-            glActiveTexture(GL.TEXTURE0);
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
         
         
@@ -137,51 +142,41 @@ classdef glshadertest < neurostim.stimulus
 %                 o.newLUT(o.nRandels, :)=backupLUT;
             end
             
-            % Perform blit of our image, applying newLUT as clut:
+            % copy o.newLUT to the lut [texture]
             moglUpdate(o);
 
+            % draw the texture... 
+            Screen('DrawTexture', o.window, o.tex, [], [], 0, 0, [], [], o.mogl.remapshader);
         end
         
         function moglUpdate(o)
             
             global GL;
             newclut = o.newLUT;
-            
-            % Select the 2nd texture unit (unit 1) for setup:
-            glActiveTexture(GL.TEXTURE1);
-            % Bind our clut texture to it:
-            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
-            
-            
-            % Size check:
-            if size(newclut,1)~=o.nRandels || size(newclut, 2)~=3
-                % Invalid or missing clut:
+                        
+            % size check
+            if size(newclut,1) ~= o.nRandels || size(newclut,2) ~= 3
+                % invalid or missing lut
                 error('newclut of wrong size (must be o.nRandels rows by 3 columns) provided!');
             end
             
-            % Range check:
-            if ~isempty(find(newclut < 0)) || ~isempty(find(newclut > 255))
-                % Clut values out of range:
-                error('At least one value in newclut is not in required range 0 to (o.nRandels - 1)!');
+            % range check
+            if any(newclut(:) < 0) || any(newclut(:) > 255)
+                % lut values out of range
+                error('At least one value in newclut is outside the range from 0 to (o.nRandels - 1)!');
             end
             
-            % Cast to integer and update our 'clut' array with new clut:
-            o.clut(1:3:end-2)= uint8(newclut(:, 1));% + 0.5); %seems to me (Adam) that the 0.5 shouldn't be here. This makes it from 1 to 255. shouldn't it be 0 to 255?
-            o.clut(2:3:end-1)= uint8(newclut(:, 2));% + 0.5);
-            o.clut(3:3:end-0)= uint8(newclut(:, 3));% + 0.5);
+            % copy newclut to clut, casting to uint8...
+            o.clut(1:numel(newclut)) = uint8(newclut');
             
-            % Upload new clut:
-            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.nRandels, 1, GL.RGB, GL.UNSIGNED_BYTE, o.clut);
+            % copy clut to the lut texture
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
+
+            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), GL.RGB, GL.UNSIGNED_BYTE, o.clut);            
             
-            
-            % Switch back to texunit 0 - the primary one:
-            glActiveTexture(GL.TEXTURE0);
-            
-            
-            % New style: Needs Screen-MEX update to fix a bug in Screen before it can be used!
-            Screen('DrawTexture', o.window, o.tex, [], [], 0, 0, [], [], o.mogl.remapshader);
-            
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
+        
         function afterExperiment(o)
             
             % Disable CLUT blitter. This needs to be done before the call to
