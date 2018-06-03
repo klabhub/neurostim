@@ -2,7 +2,6 @@ classdef glshadertest < neurostim.stimulus
     properties
         tex
         black
-        newLUT
         clut
         mogl
         nRandels
@@ -54,11 +53,9 @@ classdef glshadertest < neurostim.stimulus
             
             o.tex=Screen('MakeTexture', o.window, idImage, [], [], floatPrecision);
             
-            o.newLUT = zeros(o.nRandels,3);
+            %Initialise CLUT
             vals=linspace(0,255,o.nRandels);
-            for i=0:(o.nRandels - 1)
-                o.newLUT(i+1, :)=[vals(i+1) vals(i+1) vals(i+1)];
-            end
+            o.clut = repmat(vals,3,1);
         end
         
         function beforeTrial(o)
@@ -91,19 +88,15 @@ classdef glshadertest < neurostim.stimulus
 %             glUniform1f(shader_nRandels, single(o.nRandels-1));
             glUseProgram(0);
             
-            % Build a gray-ramp as texture:
-            o.clut = uint8(zeros(1, o.nRandels*3));
-%             for i=0:(o.nRandels - 1)
-%                 o.clut(1 + i*3 + 0)= i;
-%                 o.clut(1 + i*3 + 1)= i;
-%                 o.clut(1 + i*3 + 2)= i;
-%             end
+            % Start with an all-zeros clut
+            %linClut = uint8(zeros(1, o.nRandels*3));
+            linClut = uint8(reshape(o.clut,1,[]));
             
             % Select the 2nd texture unit (unit 1) for setup:
             glActiveTexture(GL.TEXTURE1);
             o.mogl.luttex = glGenTextures(1);
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
-            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.nRandels, 1, 0, GL.RGB, GL.UNSIGNED_BYTE, o.clut);
+            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.nRandels, 1, 0, GL.RGB, GL.UNSIGNED_BYTE, linClut);
             
             % Make sure we use nearest neighbour sampling:
             glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
@@ -129,7 +122,7 @@ classdef glshadertest < neurostim.stimulus
             % the DAC output values for the background.
             
             if ~mod(o.frame,round(100/o.nRandels)+1)
-                o.newLUT = circshift(o.newLUT,-1,1);
+                o.clut = circshift(o.clut,-1,2);
 %                 o.newLUT = repmat(rand(o.nRandels,1)*255,1,3); % <-- with nRandels > ~1k, this gives an old skool analog tv vibe
                 
 %                 backupLUT=o.newLUT(1, :);
@@ -145,7 +138,7 @@ classdef glshadertest < neurostim.stimulus
         function moglUpdate(o)
             
             global GL;
-            newclut = o.newLUT;
+            newclut = o.clut;
             
             % Select the 2nd texture unit (unit 1) for setup:
             glActiveTexture(GL.TEXTURE1);
@@ -154,9 +147,9 @@ classdef glshadertest < neurostim.stimulus
             
             
             % Size check:
-            if size(newclut,1)~=o.nRandels || size(newclut, 2)~=3
+            if size(newclut,2)~=o.nRandels || size(newclut, 1)~=3
                 % Invalid or missing clut:
-                error('newclut of wrong size (must be o.nRandels rows by 3 columns) provided!');
+                error('newclut of wrong size (must be 3 rows by o.nRandels) provided!');
             end
             
             % Range check:
@@ -166,12 +159,10 @@ classdef glshadertest < neurostim.stimulus
             end
             
             % Cast to integer and update our 'clut' array with new clut:
-            o.clut(1:3:end-2)= uint8(newclut(:, 1));% + 0.5); %seems to me (Adam) that the 0.5 shouldn't be here. This makes it from 1 to 255. shouldn't it be 0 to 255?
-            o.clut(2:3:end-1)= uint8(newclut(:, 2));% + 0.5);
-            o.clut(3:3:end-0)= uint8(newclut(:, 3));% + 0.5);
+            linClut = uint8(reshape(newclut,1,[]));
             
             % Upload new clut:
-            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.nRandels, 1, GL.RGB, GL.UNSIGNED_BYTE, o.clut);
+            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.nRandels, 1, GL.RGB, GL.UNSIGNED_BYTE, linClut);
             
             
             % Switch back to texunit 0 - the primary one:
