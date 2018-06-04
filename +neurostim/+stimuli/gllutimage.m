@@ -32,6 +32,8 @@ classdef (Abstract) gllutimage < neurostim.stimulus
     methods (Access = public)
         function o = gllutimage(c,name)
             o = o@neurostim.stimulus(c,name);
+            o.addProperty('width',o.cic.screen.height);
+            o.addProperty('height',o.cic.screen.height);
             
             %Make sure openGL stuff is available
             AssertOpenGL;
@@ -97,17 +99,24 @@ classdef (Abstract) gllutimage < neurostim.stimulus
                 
         function draw(o)
             % draw the texture...
-            Screen('DrawTexture', o.window, o.tex, [], [], 0, 0, [], [], o.mogl.remapshader);
+            width = o.width;
+            height = o.height;
+            rect = [-width/2 -height/2 width/2 height/2];
+            Screen('DrawTexture', o.window, o.tex, [], rect, 0, 0, [], [], o.mogl.remapshader);
+        end
+        
+        function setImage(o,idImage)
+            %idImage should be a m x n matrix of luminance values
+            idImage = flipud(idImage);
+            o.nClutColors = max(idImage(:));
+            o.idImage = idImage;
         end
         
         function makeImageTex(o)
-            
-            %idImage should be a m x n matrix of luminance values or a m x n x 2 matrix with luminance and alpha in last dimension.           
-            im = o.idImage;
-            o.nClutColors = max(im(:));
-            
+
             %The image can contain zeros for where background luminance should be used (i.e. alpha should also equal zero).
                 %So, enforce that here by setting alpha.
+            im = o.idImage;
             isNullPixel = im(:,:,1)==o.BACKGROUND;
             im(isNullPixel) = NaN;
             
@@ -170,7 +179,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
         
-        function defaultImage(o,nGridElements)
+        function im = defaultImage(o,nGridElements)
                 
             if nargin < 2
                 nGridElements = 16;
@@ -183,8 +192,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             sz = s*2+1;
             n = floor(sqrt(nGridElements));
             tmp = reshape(1:n*n,n,n);
-            o.idImage = kron(tmp,ones(ceil(sz/n))); % was floor()?
-            o.nClutColors = nGridElements;
+            im = kron(tmp,ones(ceil(sz/n))); % was floor()?
         end
         
         function defaultCLUT(o)
@@ -216,6 +224,9 @@ classdef (Abstract) gllutimage < neurostim.stimulus
         end
           
         function cleanUp(o)
+            o.idImage = [];
+            o.clut = [];
+            o.alphaMask = [];
             if ~isempty(o.tex)
                 Screen('close',o.tex);
                 o.tex = [];

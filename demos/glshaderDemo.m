@@ -19,7 +19,7 @@ f.size = 0.25;
 f.color=[1 0 0];
 
 g = stimuli.gllutimageChildDemo(c,'grid');
-g.nGridElements = 64;
+g.nGridElements = 225;
 
 %% Experimental design
 c.trialDuration = 30000; 

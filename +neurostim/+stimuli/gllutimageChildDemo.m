@@ -1,5 +1,4 @@
 classdef gllutimageChildDemo < neurostim.stimuli.gllutimage
-   
     properties
 
     end
@@ -17,16 +16,15 @@ classdef gllutimageChildDemo < neurostim.stimuli.gllutimage
         function beforeTrial(o)
             
            %Set o.idImage here. Here, we use a demo image
-            %o.idImage = something
-            
-           defaultImage(o,o.nGridElements);
+           im = defaultImage(o,o.nGridElements);
+           o.setImage(im)
            
            %Apply a Gaussian envelope.
            d = size(o.idImage,1);
            g = normpdf(1:d,d/2,d/8);
            g = g./max(g);
            [g1,g2]=meshgrid(g,g);
-           o.alphaMask =  g1.*g2;
+           o.alphaMask =  1-g1.*g2;
            
            %Index of zero in idImage means to use background luminance.
            %This will overrise alpha mask for those pixels.
@@ -41,7 +39,6 @@ classdef gllutimageChildDemo < neurostim.stimuli.gllutimage
         end
         
         function beforeFrame(o)
-            glLoadIdentity();
              
             %Cyecle the CLUT
             if ~mod(o.frame,round(100/o.nClutColors)+1)
