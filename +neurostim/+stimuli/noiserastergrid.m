@@ -21,52 +21,30 @@ classdef noiserastergrid < neurostim.stimuli.noiserasterclut
     %   height           - height on screen (screen units)
     %   logType         - What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
     %   signal          - A matrix of values that is added to the noise (e.g. for detection task)
-    %  
+    %
     %  TODO:
     %       (1) Allow specification of update frequency. Currently new vals every frame.
     %       (2) Provide a reconstruction tool for offline analysis
     
-    properties (Access = private)
-
-    end
-    
-    properties (Constant)
-
-    end
-    
-    % dependent properties, calculated on the fly...
-    properties (Dependent, SetAccess = private, GetAccess = public)
-       
-    end
-    
-    properties (SetAccess = private, GetAccess = public)
-
-    end
-
-    methods % set/get dependent properties
-
-    end
     
     methods (Access = public)
         function o = noiserastergrid(c,name)
-
+            
             o = o@neurostim.stimuli.noiserasterclut(c,name);
             
             %User-definable
-            o.addProperty('size',[10 20],'validate',@(x) isnumeric(x) & ndims(x)==2); %#ok<ISMAT>                 
-        end
-
+            o.addProperty('size',[10 20],'validate',@(x) isnumeric(x) & ndims(x)==2); %#ok<ISMAT>
+        end 
+        
         function beforeTrial(o)
             
             %The image is specified as a bitmap in which each pixel value is
             %the ID of the random (luminance) variable to be used.
             imInds = 1:prod(o.size);
             im = reshape(imInds,o.size(1),o.size(2));
-                        
+            
             %Set up the CLUT and random variable callback functions
             initialise(o,im);
         end
-        
-
-    end % public methods   
+    end % public methods
 end % classdef
