@@ -164,6 +164,23 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             vals=linspace(0,255,o.nClutColors);
             clut = repmat(vals,o.nChans,1);
         end
+        
+        
+        function cleanUp(o)
+            o.idImage = [];
+            o.clut = [];
+            o.alphaMask = [];
+            o.isPrepped = false;
+            
+            if ~isempty(o.tex)
+                Screen('close',o.tex);
+                o.tex = [];
+            end
+            if ~isempty(o.mogl.luttex)
+                glDeleteTextures(1,o.mogl.luttex);
+                o.mogl.luttex = [];
+            end
+        end
     end
     
     methods (Access = private)
@@ -218,13 +235,14 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             
             % create the lut texture
             o.mogl.luttex = glGenTextures(1);
-  
+            
             % setup sampling etc.
             if o.nChans == 1
                 o.clutFormat = GL.LUMINANCE;
             elseif o.nChans == 3
                 o.clutFormat = GL.RGB;
             end
+            
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
             glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, o.clutFormat, GL.UNSIGNED_BYTE, paddedClut);
             
@@ -238,22 +256,5 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
-        
-        function cleanUp(o)
-            o.idImage = [];
-            o.clut = [];
-            o.alphaMask = [];
-            o.isPrepped = false;
-            o.isSetup = false;
-            
-            if ~isempty(o.tex)
-                Screen('close',o.tex);
-                o.tex = [];
-            end
-            if ~isempty(o.mogl.luttex)
-                glDeleteTextures(1,o.mogl.luttex);
-                o.mogl.luttex = [];
-            end
-        end  
     end
 end
