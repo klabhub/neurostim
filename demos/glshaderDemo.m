@@ -1,4 +1,4 @@
-function c=glshaderDemo(nRandels)
+function c=glshaderDemo
 %   This demo shows how to present a grid of pixel noise, for reverse
 %   correlation analysis and/or signal-in-noise detection tasks.
 
@@ -11,8 +11,15 @@ commandwindow;
 c = myRig;
 
 %% ============== Add stimuli ==================
-g = stimuli.glshadertest(c,'grid');
-g.nRandels = nRandels;
+
+f = stimuli.fixation(c,'fix');
+f.X = 0;
+f.Y = 0;
+f.size = 0.25;
+f.color=[1 0 0];
+
+g = stimuli.gllutimageChildDemo(c,'grid');
+g.nGridElements = 64;
 
 %% Experimental design
 c.trialDuration = 30000; 
@@ -26,7 +33,7 @@ myBlock=block('myBlock',myDesign);             %Create a block of trials using t
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
-c.order('grid');   %Ignore this for now - we hope to remove the need for this.
+c.order('fix','grid');   %Ignore this for now - we hope to remove the need for this.
 c.subject = 'easyD';
 c.run(myBlock);
 

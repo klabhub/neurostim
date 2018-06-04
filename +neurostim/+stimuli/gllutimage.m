@@ -1,0 +1,229 @@
+classdef (Abstract) gllutimage < neurostim.stimulus
+    
+    %Child class should, in beforeTrial(), set the values for idImage and CLUT and then call
+    %prep() of parent class to prepare the openGL textures and shaders that do the work.
+    
+    properties (Access=public)
+        idImage; 
+        clut;
+        alphaMask;
+        optimiseForSpeed = true;    %Turns off some error checking (e.g. that RGB vals are valid)
+    end
+    
+    properties (SetAccess=private)
+        nClutColors = 16;        
+    end
+    
+    properties (Constant)
+        BACKGROUND=0;
+    end
+    
+    properties (Access=private)
+        isSetup = false;
+        tex
+        mogl
+        nChans = 3;
+        zeroPad
+        lutTexSz
+        floatPrecision
+        maxTexSz
+    end
+    
+    methods (Access = public)
+        function o = gllutimage(c,name)
+            o = o@neurostim.stimulus(c,name);
+            
+            %Make sure openGL stuff is available
+            AssertOpenGL;
+        end
+    end
+    
+    methods (Access = protected)
+        function setup(o)
+            global GL;
+            AssertGLSL;
+            
+            info = Screen('GetWindowInfo', o.cic.mainWindow);
+            if info.GLSupportsTexturesUpToBpc >= 32
+                % full 32 bit single precision float texture
+                o.floatPrecision = 2; % nClutColors < 2^32
+            elseif info.GLSupportsTexturesUpToBpc >= 16
+                % no 32 bit textures... use 16 bit 'half-float' texture
+                o.floatPrecision = 1; % nClutColors < 2^16
+            else
+                % no support for >8 bit textures at all... use 8 bit texture?
+                o.floatPrecision = 0; % nClutColors < 2^8
+            end
+            
+            %What is the maximum number of texels along a single dimension?
+            o.maxTexSz = double(glGetIntegerv(GL.MAX_TEXTURE_SIZE));
+            
+            % Make sure GLSL and pixelshaders are supported on first call:
+            extensions = glGetString(GL.EXTENSIONS);
+            if isempty(findstr(extensions, 'GL_ARB_fragment_shader'))
+                % No fragment shaders: This is a no go!
+                error('moglClutBlit: Sorry, this function does not work on your graphics hardware due to lack of sufficient support for fragment shaders.');
+            end
+            
+            % Load our fragment shader for clut blit operations:
+            shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','noiserasterclut.frag.txt');
+            o.mogl.remapshader = LoadGLSLProgramFromFiles(shaderFile);
+            
+            o.isSetup = true;
+        end
+        
+        function prep(o)
+            
+            %Check that everything is ready to go
+            if ~o.isSetup
+                error('You must call o.setup() in your beforeExperiment() function');
+            end
+            
+            %If no image has been set, use a default image.
+            if isempty(o.idImage)
+                error('You should define your image (o.idImage) before calling o.prep(). Default image used)');
+            end
+            
+            %Prepare the texture for the index image
+            makeImageTex(o);
+            
+            if isempty(o.clut)
+                error('You should define your clut (o.clut) before calling o.prep(). Default clut used)');
+            end
+            
+            %Prepare the texture for the CLUT
+            makeCLUTtex(o);
+        end
+                
+        function draw(o)
+            % draw the texture...
+            Screen('DrawTexture', o.window, o.tex, [], [], 0, 0, [], [], o.mogl.remapshader);
+        end
+        
+        function makeImageTex(o)
+            
+            %idImage should be a m x n matrix of luminance values or a m x n x 2 matrix with luminance and alpha in last dimension.           
+            im = o.idImage;
+            o.nClutColors = max(im(:));
+            
+            %The image can contain zeros for where background luminance should be used (i.e. alpha should also equal zero).
+                %So, enforce that here by setting alpha.
+            isNullPixel = im(:,:,1)==o.BACKGROUND;
+            im(isNullPixel) = NaN;
+            
+            %How big will the clut need to be? Make it the minimum square
+            %that has enough entries (because the CLUT is stored in 2D internally anyway)
+            lutSz = ceil(sqrt(o.nClutColors));
+            lutSz = [lutSz,lutSz];
+            
+            imRGB = zeros([size(im),4]);
+            [imRGB(:,:,1),imRGB(:,:,2)] = ind2sub(lutSz,im);
+            imRGB = imRGB - 1; % because shader operations are zero based
+            
+            %Apply the alpha mask
+            if isempty(o.alphaMask)
+                o.alphaMask = ones(size(im));
+            end
+            
+            %Set alpha to 0 for image indices equal to background (i.e. background),
+            o.alphaMask(isNullPixel) = 0;
+            
+            %Set the mask.
+            imRGB(:,:,4) = o.alphaMask;
+            o.lutTexSz = lutSz; % [width,height] of the lut texture
+            
+            o.tex=Screen('MakeTexture', o.window, imRGB, [], [], o.floatPrecision);
+        end
+        
+        function makeCLUTtex(o)
+            global GL;
+            
+            glUseProgram(o.mogl.remapshader);
+            
+            shader_image = glGetUniformLocation(o.mogl.remapshader, 'Image');
+            shader_clut  = glGetUniformLocation(o.mogl.remapshader, 'clut');
+            
+            glUniform1i(shader_image, 0);
+            glUniform1i(shader_clut, 1);
+            
+            glUseProgram(0);
+            
+            % cast clut to uint8()
+            o.zeroPad = uint8(zeros(o.nChans*(prod(o.lutTexSz)-o.nClutColors),1)); %Pre-computed for speed (to use horxcat rather than indexing)
+            paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
+            
+            % create the lut texture
+            o.mogl.luttex = glGenTextures(1);
+            
+            % setup sampling etc.
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
+            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, GL.RGB, GL.UNSIGNED_BYTE, paddedClut);
+            
+            % Make sure we use nearest neighbour sampling:
+            glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+            glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
+            
+            % And that we clamp to edge:
+            glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_WRAP_S, GL.CLAMP);
+            glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_WRAP_T, GL.CLAMP);
+            
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
+        end
+        
+        function defaultImage(o,nGridElements)
+                
+            if nargin < 2
+                nGridElements = 16;
+            end
+            
+            %This function should be overloaded in child class
+            %Making a sample image here
+            [width, height]=Screen('WindowSize', o.window);
+            s=floor(min(width, height)/2)-1;
+            sz = s*2+1;
+            n = floor(sqrt(nGridElements));
+            tmp = reshape(1:n*n,n,n);
+            o.idImage = kron(tmp,ones(ceil(sz/n))); % was floor()?
+            o.nClutColors = nGridElements;
+        end
+        
+        function defaultCLUT(o)
+            %This function should be overloaded in child class
+            % initialise CLUT with linear ramp of greyscale
+            vals=linspace(0,255,o.nClutColors);
+            o.clut = repmat(vals,o.nChans,1);
+        end
+        
+        
+        function updateCLUT(o)
+            
+            global GL;
+            
+            %RGB validitiy check removed for speed
+            %             % range check
+            if ~o.optimiseForSpeed && (any(o.clut < 0) || any(o.clut > 255))
+                % lut values out of range
+                error('At least one value in newclut is outside the range from 0 to 255!');
+            end
+            
+            % cast clut to uint8...
+            paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
+
+            % copy clut to the lut texture
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
+            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), GL.RGB, GL.UNSIGNED_BYTE, paddedClut);
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
+        end
+          
+        function cleanUp(o)
+            if ~isempty(o.tex)
+                Screen('close',o.tex);
+                o.tex = [];
+            end
+            if ~isempty(o.mogl.luttex)
+                glDeleteTextures(1,o.mogl.luttex);
+                o.mogl.luttex = [];
+            end
+        end
+    end
+end
