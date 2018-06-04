@@ -12,17 +12,18 @@ c = myRig;
 
 %% ============== Add stimuli ==================
 wn = stimuli.noiserastergrid(c,'grid');
-wn.size = [32,64];          %Dimensionality of raster (30 texels high, 50 wide)
-wn.height = 6.40;   %Width and height on screen
-wn.width = 12.80;
+wn.size = [50,50];          %Dimensionality of raster (30 texels high, 50 wide)
+wn.height = 18;   %Width and height on screen
+wn.width = 18;
 wn.distribution = 'normal'; %Distribution from which luminance values are drawn
-wn.parms = {0 40};          %{mean sd}
+wn.parms = {127 40};          %{mean sd}
 signalContrast = 0.15;
-wn.bounds = (1-signalContrast)*[-128,128];%Truncate the distribution.
+%wn.bounds = (1-signalContrast)*[-128,128];%Truncate the distribution.
+wn.bounds = [0 255];
 
 %Specify a signal to embed (the embedding happens automatically in the stimulus class)
-sig=sin(linspace(0,8*pi,wn.size(2)));
-wn.signal = signalContrast*repmat(sig,wn.size(1),1)*127+127;
+% sig=sin(linspace(0,8*pi,wn.size(2)));
+% wn.signal = signalContrast*repmat(sig,wn.size(1),1)*127+127;
 
 %% Experimental design
 c.trialDuration = 30000; 

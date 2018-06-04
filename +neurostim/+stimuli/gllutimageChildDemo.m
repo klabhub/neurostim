@@ -8,11 +8,7 @@ classdef gllutimageChildDemo < neurostim.stimuli.gllutimage
             o = o@neurostim.stimuli.gllutimage(c,name);
             o.addProperty('nGridElements',16);
         end
-       
-        function beforeExperiment(o)
-            setup(o);
-        end
-        
+         
         function beforeTrial(o)
             
            %Set o.idImage here. Here, we use a demo image
@@ -24,7 +20,7 @@ classdef gllutimageChildDemo < neurostim.stimuli.gllutimage
            g = normpdf(1:d,d/2,d/8);
            g = g./max(g);
            [g1,g2]=meshgrid(g,g);
-           o.alphaMask =  1-g1.*g2;
+           o.alphaMask =  g1.*g2;
            
            %Index of zero in idImage means to use background luminance.
            %This will overrise alpha mask for those pixels.
@@ -32,8 +28,8 @@ classdef gllutimageChildDemo < neurostim.stimuli.gllutimage
            
            %Set clut here
             %Initialise CLUT with luminance ramp.
-           defaultCLUT(o);
-            
+           o.clut = defaultCLUT(o);
+
            %Now prepare textures and shaders
            o.prep(); 
         end

@@ -9,8 +9,8 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             o = o@neurostim.stimuli.noiserasterclut(c,name);
             
             %User-definable
-            o.addProperty('nWedges',32,'validate',@(x) isnumeric(x)); 
-            o.addProperty('nRadii',16,'validate',@(x) isnumeric(x));
+            o.addProperty('nWedges',40,'validate',@(x) isnumeric(x)); 
+            o.addProperty('nRadii',8,'validate',@(x) isnumeric(x));
             o.addProperty('innerRad',5,'validate',@(x) isnumeric(x) & x >= 0);
             o.addProperty('outerRad',10,'validate',@(x) isnumeric(x) & x >= 0);
             
@@ -37,7 +37,6 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             wedgeBinWidth = 2*pi/o.nWedges;
             radBins = linspace(inner,outer,o.nRadii+1);
             
-
             [~,~,thSub]=histcounts(pixTh,'binWidth',wedgeBinWidth);
             [~,~,radSub]=histcounts(pixR,radBins);
             
@@ -49,7 +48,5 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             %Set up the CLUT and random variable callback functions
             initialise(o,im);
         end
-        
-
     end % public methods   
 end % classdef

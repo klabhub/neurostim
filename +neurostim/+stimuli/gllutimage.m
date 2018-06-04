@@ -4,14 +4,17 @@ classdef (Abstract) gllutimage < neurostim.stimulus
     %prep() of parent class to prepare the openGL textures and shaders that do the work.
     
     properties (Access=public)
-        idImage; 
+        idImage;
         clut;
         alphaMask;
         optimiseForSpeed = true;    %Turns off some error checking (e.g. that RGB vals are valid)
     end
     
+    properties (Access = protected)
+        nChans = 1;
+    end
     properties (SetAccess=private)
-        nClutColors = 16;        
+        nClutColors = 16;
     end
     
     properties (Constant)
@@ -20,9 +23,10 @@ classdef (Abstract) gllutimage < neurostim.stimulus
     
     properties (Access=private)
         isSetup = false;
+        isPrepped = false;
         tex
         mogl
-        nChans = 3;
+        clutFormat
         zeroPad
         lutTexSz
         floatPrecision
@@ -37,6 +41,11 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             
             %Make sure openGL stuff is available
             AssertOpenGL;
+        end
+        
+        function beforeExperiment(o)
+            %Usually to be overloaded in child class (but if so, must still call setup())
+            setup(o);
         end
     end
     
@@ -83,20 +92,22 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             
             %If no image has been set, use a default image.
             if isempty(o.idImage)
-                error('You should define your image (o.idImage) before calling o.prep(). Default image used)');
+                error('You should define your image (o.idImage) before calling o.prep().');
             end
             
             %Prepare the texture for the index image
             makeImageTex(o);
             
             if isempty(o.clut)
-                error('You should define your clut (o.clut) before calling o.prep(). Default clut used)');
+                error('You should define your clut (o.clut) before calling o.prep().');
             end
             
             %Prepare the texture for the CLUT
             makeCLUTtex(o);
+            
+            o.isPrepped = true;
         end
-                
+        
         function draw(o)
             % draw the texture...
             width = o.width;
@@ -112,10 +123,54 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             o.idImage = idImage;
         end
         
+        function updateCLUT(o)
+            
+            global GL;
+            
+            %RGB validitiy check removed for speed
+            %             % range check
+            if ~o.optimiseForSpeed && (any(o.clut < 0) || any(o.clut > 255))
+                % lut values out of range
+                error('At least one value in newclut is outside the range from 0 to 255!');
+            end
+            
+            % cast clut to uint8...
+            paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
+            
+            % copy clut to the lut texture
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
+            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), o.clutFormat, GL.UNSIGNED_BYTE, paddedClut);
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
+        end
+        function im = defaultImage(o,nGridElements)
+            
+            if nargin < 2
+                nGridElements = 16;
+            end
+            
+            %This function should be overloaded in child class
+            %Making a sample image here
+            [width, height]=Screen('WindowSize', o.window);
+            s=floor(min(width, height)/2)-1;
+            sz = s*2+1;
+            n = floor(sqrt(nGridElements));
+            tmp = reshape(1:n*n,n,n);
+            im = kron(tmp,ones(ceil(sz/n))); % was floor()?
+        end
+        
+        function clut = defaultCLUT(o)
+            %This function should be overloaded in child class
+            % initialise CLUT with linear ramp of greyscale
+            vals=linspace(0,255,o.nClutColors);
+            clut = repmat(vals,o.nChans,1);
+        end
+    end
+    
+    methods (Access = private)
         function makeImageTex(o)
-
+            
             %The image can contain zeros for where background luminance should be used (i.e. alpha should also equal zero).
-                %So, enforce that here by setting alpha.
+            %So, enforce that here by setting alpha.
             im = o.idImage;
             isNullPixel = im(:,:,1)==o.BACKGROUND;
             im(isNullPixel) = NaN;
@@ -163,10 +218,15 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             
             % create the lut texture
             o.mogl.luttex = glGenTextures(1);
-            
+  
             % setup sampling etc.
+            if o.nChans == 1
+                o.clutFormat = GL.LUMINANCE;
+            elseif o.nChans == 3
+                o.clutFormat = GL.RGB;
+            end
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
-            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, GL.RGB, GL.UNSIGNED_BYTE, paddedClut);
+            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, o.clutFormat, GL.UNSIGNED_BYTE, paddedClut);
             
             % Make sure we use nearest neighbour sampling:
             glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
@@ -179,54 +239,13 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
         
-        function im = defaultImage(o,nGridElements)
-                
-            if nargin < 2
-                nGridElements = 16;
-            end
-            
-            %This function should be overloaded in child class
-            %Making a sample image here
-            [width, height]=Screen('WindowSize', o.window);
-            s=floor(min(width, height)/2)-1;
-            sz = s*2+1;
-            n = floor(sqrt(nGridElements));
-            tmp = reshape(1:n*n,n,n);
-            im = kron(tmp,ones(ceil(sz/n))); % was floor()?
-        end
-        
-        function defaultCLUT(o)
-            %This function should be overloaded in child class
-            % initialise CLUT with linear ramp of greyscale
-            vals=linspace(0,255,o.nClutColors);
-            o.clut = repmat(vals,o.nChans,1);
-        end
-        
-        
-        function updateCLUT(o)
-            
-            global GL;
-            
-            %RGB validitiy check removed for speed
-            %             % range check
-            if ~o.optimiseForSpeed && (any(o.clut < 0) || any(o.clut > 255))
-                % lut values out of range
-                error('At least one value in newclut is outside the range from 0 to 255!');
-            end
-            
-            % cast clut to uint8...
-            paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
-
-            % copy clut to the lut texture
-            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex);
-            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), GL.RGB, GL.UNSIGNED_BYTE, paddedClut);
-            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
-        end
-          
         function cleanUp(o)
             o.idImage = [];
             o.clut = [];
             o.alphaMask = [];
+            o.isPrepped = false;
+            o.isSetup = false;
+            
             if ~isempty(o.tex)
                 Screen('close',o.tex);
                 o.tex = [];
@@ -235,6 +254,6 @@ classdef (Abstract) gllutimage < neurostim.stimulus
                 glDeleteTextures(1,o.mogl.luttex);
                 o.mogl.luttex = [];
             end
-        end
+        end  
     end
 end
