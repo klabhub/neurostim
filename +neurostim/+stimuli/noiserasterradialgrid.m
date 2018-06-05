@@ -1,7 +1,16 @@
 classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
-    %Place holder. This will become a polar grid of luminance noise.
-    %Should be able to use a texture map or shadrer to wrap a rectangular
-    %texture around the origin?
+
+    properties (Dependent)
+        size
+    end
+    
+    methods
+        function sz = get.size(o)
+            %Size of the idImage matrix. Done this way so it can be accessed before runtime.
+            sz = 2*(o.cic.physical2Pixel(o.outerRad,0)-o.cic.physical2Pixel(0,0));
+            sz = [sz sz];
+        end
+    end
     
     methods (Access = public)
         function o = noiserasterradialgrid(c,name)
@@ -12,16 +21,14 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             o.addProperty('nWedges',40,'validate',@(x) isnumeric(x)); 
             o.addProperty('nRadii',8,'validate',@(x) isnumeric(x));
             o.addProperty('innerRad',5,'validate',@(x) isnumeric(x) & x >= 0);
-            o.addProperty('outerRad',10,'validate',@(x) isnumeric(x) & x >= 0);
-            
-            o.writeToFeed('WARNING: The radial noise stimulus is just testing a concept. Horrible. Do not use');
-        end
+            o.addProperty('outerRad',10,'validate',@(x) isnumeric(x) & x >= 0);           
+     end
 
         function beforeTrial(o)
             
             %Use the full pixel resolution available.
-            nPixels = 2*(o.cic.physical2Pixel(o.outerRad,0)-o.cic.physical2Pixel(0,0));
-            x=linspace(-1,1,nPixels);
+            nPixels = o.size;
+            x=linspace(-1,1,nPixels(1));
             [xGrid,yGrid]=meshgrid(x,x);
             
             %Calculations here are in normalised coordinates

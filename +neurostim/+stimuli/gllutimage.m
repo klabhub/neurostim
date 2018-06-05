@@ -264,7 +264,9 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
             
             % create the lut texture
-            o.mogl.luttex = glGenTextures(2);
+            tmp = glGenTextures(2);         %Don't know why, this works, but genTextures(1) was returning zero (i.e. not a real tex id)
+            o.mogl.luttex = tmp(1);
+            glDeleteTextures(1,tmp(2));     %So we just dump the second
             
             % setup sampling etc.
             if o.nChans == 1

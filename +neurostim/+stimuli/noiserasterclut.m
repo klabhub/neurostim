@@ -25,12 +25,13 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
     %                       random variables (that are mapped internally to pixels in the ID image)
     %   bounds          -   2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
     %   width           -   width on screen (screen units)
-    %   hight           -   height on screen (screen units)
+    %   height           -   height on screen (screen units)
     %   logType         -   What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
-    %   signal          -   A matrix of values that is added to the noise (e.g. for detection task)
+    %   alphaMask       -   Matrix of alpha values to apply a transparency mask. Size = o.size
+    %   signal          -   [not yet supported - use alphaMask for now] A matrix of values that is added to the noise (e.g. for detection task)
     %
     %  TODO:
-    %       (1) Allow specification of update frequency. Currently new vals every frame.
+    %       (1) Allow a signal to be embedded (this has to happen in the shader used in gllutimage.m)
     %       (2) Add co-variance matrix, sz = [o.nRandVars,o.nRandVars], for presenting correlated noise.
     %       (3) Provide a reconstruction tool for offline analysis
     %       (4) This approach to rng is inefficient: it would be better to have a separate RNG stream for this stimulus. CIC would need to act as RNG server?

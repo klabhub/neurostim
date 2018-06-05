@@ -9,7 +9,7 @@ classdef noiserastergrid < neurostim.stimuli.noiserasterclut
     % There is some over-head there. Logging can also be switched off entirely.
     % This approach to rng is inefficient: it would be better to have a
     % separate RNG stream for this stimulus. CIC would need to act as RNG server.
-    %
+    % 
     %
     %   Settable properties:
     %
@@ -18,13 +18,10 @@ classdef noiserastergrid < neurostim.stimuli.noiserasterclut
     %   distribution    - the name of a built-in pdf [default = 'uniform'], or a handle to a custom function, f(o), which takes the plugin as a the lone argument)
     %   bounds          - 2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
     %   width           - width on screen (screen units)
-    %   height           - height on screen (screen units)
+    %   height          - height on screen (screen units)
     %   logType         - What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
-    %   signal          - A matrix of values that is added to the noise (e.g. for detection task)
     %
-    %  TODO:
-    %       (1) Allow specification of update frequency. Currently new vals every frame.
-    %       (2) Provide a reconstruction tool for offline analysis
+    % See also neurostim.stimuli.noiserasterclut
     
     
     methods (Access = public)
