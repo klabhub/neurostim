@@ -47,6 +47,10 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             %Usually to be overloaded in child class (but if so, must still call setup())
             setup(o);
         end
+        
+        function afterTrial(o)
+            cleanUp(o);
+        end
     end
     
     methods (Access = protected)

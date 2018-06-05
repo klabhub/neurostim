@@ -87,6 +87,7 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
         end
         
         function afterTrial(o)
+            o.cleanUp();
             o.initialised = false;
         end
     end % public methods
