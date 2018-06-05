@@ -1,4 +1,4 @@
-function c = hexNoiseDemo(sz)
+function c = hexNoiseDemo(n)
 
 % 2018-06-05 - Shaun L. Cloherty <s.cloherty@ieee.org>
 
@@ -13,19 +13,22 @@ c = myRig; % returns s neurostim @cic object
 %
 
 % white noise on a hexagonal grid
-n = neurostim.stimuli.hexNoise(c,'noise');
-n.width = c.screen.width; % width and height on screen
-n.height = c.screen.height;
+h = neurostim.stimuli.hexNoise(c,'noise');
+h.innerRad = 2.0;
+h.outerRad = 10.0;
+h.nTiles = 16;
 
-n.distribution = 'normal'; % luminance distribution
-n.parms = {127, 40}; % {mean, sd}
-n.bounds = [0, 255]; % [min, max]
+h.distribution = 'normal'; % luminance distribution
+h.parms = {127, 40}; % {mean, sd}
+h.bounds = [0, 255]; % [min, max]
 
-n.frameInterval = 300.0; % milliseconds
+h.frameInterval = 300.0; % milliseconds
 
 if nargin >= 1
-  n.hexSz = sz;
+  h.nTiles = n;
 end
+
+% h.debug = true;
 
 % fixation target
 f = stimuli.fixation(c,'fix');
