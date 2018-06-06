@@ -1,4 +1,4 @@
-function c = hexNoiseDemo(n)
+function hexNoiseDemo(n)
 
 % 2018-06-05 - Shaun L. Cloherty <s.cloherty@ieee.org>
 
