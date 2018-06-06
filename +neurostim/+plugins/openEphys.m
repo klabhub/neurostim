@@ -70,19 +70,19 @@ classdef openEphys < neurostim.plugins.ePhys
             
             %Generate string command that is used to initiate recording and specify save information  
             request = sprintf('StartRecord CreateNewDir=%i RecDir=%s PrependText=%s AppendText=%s', ...
-                o.createNewDir, o.cic.fullPath, o.prependText, o.appendText);
+                o.createNewDir, 'C:\', o.prependText, o.appendText);
             
-            [~, stat1] = zeroMQrr('Send', o.hostAddr, 'StartAcquisition', 1); %Blocking set to 1, waits for response before proceeding. 
+            zeroMQrr('Send', o.hostAddr, 'StartAcquisition', 1); %Blocking set to 1, waits for response before proceeding. 
                                                                               %Throws error if no response.                                                                                                 
-            o.latencyStruct.startAcqLatency(end+1) = stat1.timeResponseReceived - stat1.timeRequestSent;
+%             o.latencyStruct.startAcqLatency(end+1) = stat1.timeResponseReceived - stat1.timeRequestSent;
             
             o.connectionStatus = true; 
                                                                                                        
-            [~, stat2] = zeroMQrr('Send', o.hostAddr, request, 1); %Issue command to start recording            
-            o.latencyStruct.startRecordLatency(end+1) = stat2.timeResponseReceived - stat2.timeRequestSent;
+            zeroMQrr('Send', o.hostAddr, request, 1); %Issue command to start recording            
+%             o.latencyStruct.startRecordLatency(end+1) = stat2.timeResponseReceived - stat2.timeRequestSent;
             
-            [~, stat3] = zeroMQrr('Send', o.hostAddr, o.startMsg, 1);
-            o.latencyStruct.startMsg(end+1) = stat3.timeResponseReceived - stat3.timeRequestSent; 
+            zeroMQrr('Send', o.hostAddr, o.startMsg, 1);
+%             o.latencyStruct.startMsg(end+1) = stat3.timeResponseReceived - stat3.timeRequestSent; 
         end 
         
         function stopRecording(o) 
@@ -90,14 +90,16 @@ classdef openEphys < neurostim.plugins.ePhys
             %Reset connectionStatus flag.
             %Close connection.
             
-            [~,stat2] = zeroMQrr('Send', o.hostAddr, o.stopMsg, 1);
-            o.latencyStruct.stopMsg(end+1) = stat2.timeResponseReceived - stat2.timeRequestSent;
+            zeroMQrr('Send', o.hostAddr, o.stopMsg, 1);
+%             o.latencyStruct.stopMsg(end+1) = stat2.timeResponseReceived - stat2.timeRequestSent;
             
-            [~, stat1] = zeroMQrr('Send',o.hostAddr, 'StopRecord', 1);
-            o.latencyStruct.stopRecordLatency(end+1) = stat1.timeResponseReceived - stat1.timeRequestSent;
+%pause(1); %Gives stopMsg a chance to be written to disk
+
+            zeroMQrr('Send',o.hostAddr, 'StopRecord', 1);
+%             o.latencyStruct.stopRecordLatency(end+1) = stat1.timeResponseReceived - stat1.timeRequestSent;
                        
-            [~, stat3] =  zeroMQrr('Send',o.hostAddr, 'StopAcquisition', 1); 
-            o.latencyStruct.stopAcqLatency(end+1) = stat3.timeResponseReceived - stat3.timeRequestSent;
+            zeroMQrr('Send',o.hostAddr, 'StopAcquisition', 1); 
+%             o.latencyStruct.stopAcqLatency(end+1) = stat3.timeResponseReceived - stat3.timeRequestSent;
             
             zeroMQrr('CloseAll'); %closes all open sockets and queue thread
             

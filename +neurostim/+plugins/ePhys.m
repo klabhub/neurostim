@@ -25,7 +25,7 @@ classdef ePhys < neurostim.plugin
             %Initialise class properties
             o.addProperty('hostAddr', 'tcp://localhost:5556', 'validate', @ischar);
             o.addProperty('useMCC', true, 'validate', @islogical) ; 
-            o.addProperty('mccChannel', [], 'validate', @isnumeric);
+            o.addProperty('mccChannel', 1, 'validate', @isnumeric); %Channe B - Output
             o.addProperty('clockTime', []); 
             
             pin = inputParser;
@@ -41,7 +41,10 @@ classdef ePhys < neurostim.plugin
 
         %Automatically called by cic.run()
         function beforeExperiment(o) 
-            o.startRecording(); 
+            o.startRecording();
+            if o.useMCC
+                o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
+            end
         end 
         
         function beforeTrial(o) 
@@ -49,12 +52,15 @@ classdef ePhys < neurostim.plugin
             startTrial(o);
             %Send a second trial marker, through digital I/O box (Measurement Computing)
             if o.useMCC
-                o.cic.mcc.digitalOut(o,o.mccChannel,1);
+                o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
             end
         end 
         
         function afterExperiment(o)            
             stopRecording(o);
+            if o.useMCC
+                o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
+            end
         end 
         
         function afterTrial(o) 
@@ -62,7 +68,7 @@ classdef ePhys < neurostim.plugin
             stopTrial(o);
             %Send a second trial marker, through digital I/O box (Measurement Computing)
             if o.useMCC
-                o.cic.mcc.digitalOut(o,o.mccChannel,0);
+                o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
             end
         end 
     end
