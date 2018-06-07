@@ -2,7 +2,7 @@ classdef rogueReward < neurostim.plugin
     properties (SetAccess = public)
         portName@char  = 'COM4';
         baudRate@double = 9600;
-        newLine = 13; % CR
+        newLine = {'LF','LF'}; % CR
        
     end
     properties (SetAccess =private)
@@ -18,7 +18,7 @@ classdef rogueReward < neurostim.plugin
     
     methods
         function v = get.settings(o)
-            fprintf(o.s,'Read');
+            command(o,'Read');
             response = fgetl(o.s);
             v = cellfun(@str2double,strsplit(response,'_'));
         end
@@ -35,7 +35,7 @@ classdef rogueReward < neurostim.plugin
             end
             
             % Status check
-            fprintf(o.s,'RRD1');
+            command(o,'RRD1');
             response = fgetl(o.s);
             v = strcmpi(response,'OK');
         end
@@ -104,7 +104,7 @@ classdef rogueReward < neurostim.plugin
             end
             
             setupString = sprintf('Setup_%d_%d_%d_1E',o.nrPositions,o.initialPosition,o.speed);
-            fprintf(o.s, setupString);
+            command(o, setupString);
             
             v =o.settings;
             requested = [o.nrPositions o.initialPosition o.speed];
@@ -122,7 +122,7 @@ classdef rogueReward < neurostim.plugin
             if ~o.isOpen
                 o.cic.error('STOPEXPERIMENT','Lost connection with RRR device');
             end
-            fprintf(o.s, 'RST');
+            command(o.s, 'RST');
             if ~o.isOK
                 o.cic.error('STOPEXPERIMENT','RRR Reset failed');
             end
@@ -147,9 +147,13 @@ classdef rogueReward < neurostim.plugin
     methods (Access=private)
         function ok = moveToNr(o,positionNr)
             posString = sprintf('R_%d_1E',positionNr);
-            fprintf(o.s, posString);
+            command(o, posString);
             response= fgetl(o.s);
             ok = strcmpi(response,'done');            
+        end
+        
+        function command(o,str)
+            fprintf(o.s,[str '\n']);
         end
     end
 end
