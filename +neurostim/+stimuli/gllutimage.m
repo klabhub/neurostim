@@ -24,7 +24,9 @@ classdef (Abstract) gllutimage < neurostim.stimulus
         isSetup = false;
         isPrepped = false;
         tex
-        mogl
+        luttex_gl
+        luttex_ptb
+        remapshader
         clutFormat
         zeroPad
         lutTexSz
@@ -81,12 +83,12 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             extensions = glGetString(GL.EXTENSIONS);
             if isempty(findstr(extensions, 'GL_ARB_fragment_shader'))
                 % No fragment shaders: This is a no go!
-                error('moglClutBlit: Sorry, this function does not work on your graphics hardware due to lack of sufficient support for fragment shaders.');
+                error('Sorry, this function does not work on your graphics hardware due to lack of sufficient support for fragment shaders.');
             end
             
             % Load our fragment shader for clut blit operations:
             shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','noiserasterclut.frag.txt');
-            o.mogl.remapshader = LoadGLSLProgramFromFiles(shaderFile);
+            o.remapshader = LoadGLSLProgramFromFiles(shaderFile);
             
             o.isSetup = true;
         end
@@ -133,7 +135,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             glActiveTexture(GL.TEXTURE0 + 1); % texture unit 1 is for the lut texture
             
             % ... and bind lut texture.
-            glBindTexture(GL.TEXTURE_RECTANGLE_EXT,o.mogl.luttex_gl);
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT,o.luttex_gl);
             
             % now make texture unit 0 the active texture unit
             glActiveTexture(GL.TEXTURE0); % texture unit 0 is for the image texture
@@ -147,7 +149,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             % the active texture unit before calling Screen(), so the image texture
             % gets bound where our shader expects it to be... i.e., texture unit 0
 
-            Screen('DrawTexture', o.window, o.tex, [], rect, 0, 0, [], [], o.mogl.remapshader);
+            Screen('DrawTexture', o.window, o.tex, [], rect, 0, 0, [], [], o.remapshader);
             
             % FIXME: for maximum robustness, I guess we should 'unbind' the
             %        textures here... we don't want some other sloppy
@@ -176,7 +178,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
             
             % copy clut to the lut texture
-            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex_gl);
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.luttex_gl);
             glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), o.clutFormat, GL.UNSIGNED_BYTE, paddedClut);
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
@@ -207,16 +209,8 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             o.idImage = [];
             o.clut = [];
             o.isPrepped = false;
-            
-            if ~isempty(o.tex)
-                Screen('close',o.tex);
-                o.tex = [];
-            end
-            if ~isempty(o.mogl.luttex_ptb)
-                Screen('close',o.mogl.luttex_ptb);
-                o.mogl.luttex_gl = [];
-                o.mogl.luttex_ptb = [];
-            end
+            o.luttex_gl = [];
+            o.luttex_ptb = [];
         end
     end
     
@@ -261,10 +255,10 @@ classdef (Abstract) gllutimage < neurostim.stimulus
         function makeCLUTtex(o)
             global GL;
             
-            glUseProgram(o.mogl.remapshader);
+            glUseProgram(o.remapshader);
             
-            shader_image = glGetUniformLocation(o.mogl.remapshader, 'Image');
-            shader_clut  = glGetUniformLocation(o.mogl.remapshader, 'clut');
+            shader_image = glGetUniformLocation(o.remapshader, 'Image');
+            shader_clut  = glGetUniformLocation(o.remapshader, 'clut');
             
             glUniform1i(shader_image, 0); % % texture unit 0 is for the image texture
             glUniform1i(shader_clut, 1); % texture unit 1 is for the lut texture
@@ -276,8 +270,8 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
             
             % create the lut texture
-            o.mogl.luttex_ptb = Screen('MakeTexture',o.window,0);
-            o.mogl.luttex_gl = Screen('GetOpenGLTexture',o.window,o.mogl.luttex_ptb);
+            o.luttex_ptb = Screen('MakeTexture',o.window,0);
+            o.luttex_gl = Screen('GetOpenGLTexture',o.window,o.luttex_ptb);
             
             % setup sampling etc.
             if o.nChans == 1
@@ -286,7 +280,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
                 o.clutFormat = GL.RGB;
             end
             
-            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.mogl.luttex_gl);
+            glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.luttex_gl);
             glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, o.clutFormat, GL.UNSIGNED_BYTE, paddedClut);
             
             % Make sure we use nearest neighbour sampling:

@@ -21,7 +21,7 @@ classdef noiserastergrid < neurostim.stimuli.noiserasterclut
     %   height          - height on screen (screen units)
     %   logType         - What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
     %
-    % See also neurostim.stimuli.noiserasterclut
+    % See also noiseRasterGridDemo, noiseRasterRadialGridDemo, neurostim.stimuli.noiserasterclut, neurostim.stimuli.noiserasterradialgrid
     
     
     methods (Access = public)

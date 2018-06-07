@@ -101,7 +101,7 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
             %IDs must be integers from 1 to N, or 0 to use background luminance.
             
             %Make sure the requested duration is a multiple of the display frame interval            
-            tol = 0.05; %5% mismatch between requested frame duration and what is possible
+            tol = 0.1; %5% mismatch between requested frame duration and what is possible
             frInt = o.cic.ms2frames(o.frameInterval,false);
             if ~isinf(frInt) && abs(frInt-round(frInt)) > tol
                 error('Requested noise frameInterval is not a multiple of the display frame interval');
@@ -217,8 +217,8 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
     
     methods (Access = private)
         function vals = oneOfN(o)
-            % Convenience function to pick from a set of values with equal probability.
-            vals = randsample(cell2mat(o.parms),o.nRandVars,true);
+            %Pick from a set of values with equal probability.
+            vals = [o.parms{randi(numel(o.parms),1,o.nRandVars)}];
         end
     end
     
