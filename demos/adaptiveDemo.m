@@ -1,4 +1,4 @@
-function c= adaptiveDemo
+function adaptiveDemo
 % Demo to show adaptive threshold estimation.
 %
 % The subjects task is to detect the location of a Gabor:  left (press

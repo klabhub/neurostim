@@ -1,4 +1,4 @@
-function c = noiseRasterRadialHexDemo(n)
+function noiseRasterRadialHexDemo(n)
 
 % 2018-06-05 - Shaun L. Cloherty <s.cloherty@ieee.org>
 
