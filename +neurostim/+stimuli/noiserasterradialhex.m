@@ -1,5 +1,5 @@
-classdef hexNoise < neurostim.stimuli.noiserasterclut
-  % Stimulus class to present white noise on a hexagonal grid.
+classdef noiserasterradialhex < neurostim.stimuli.noiserasterclut
+  % Stimulus class to present noise on a (radial) hexagonal grid.
   %
   % Settable properties:
   %
@@ -23,7 +23,7 @@ classdef hexNoise < neurostim.stimuli.noiserasterclut
   
   methods (Access = public)
     
-    function o = hexNoise(c,name)
+    function o = noiserasterradialhex(c,name)
       o = o@neurostim.stimuli.noiserasterclut(c,name);
 
       o.addProperty('innerRad',0,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','nonnegative'}));

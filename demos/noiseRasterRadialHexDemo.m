@@ -1,4 +1,4 @@
-function c = hexNoiseDemo(n)
+function c = noiseRasterRadialHexDemo(n)
 
 % 2018-06-05 - Shaun L. Cloherty <s.cloherty@ieee.org>
 
@@ -13,7 +13,7 @@ c = myRig; % returns s neurostim @cic object
 %
 
 % white noise on a hexagonal grid
-h = neurostim.stimuli.hexNoise(c,'noise');
+h = neurostim.stimuli.noiserasterradialhex(c,'noise');
 h.X = '@fix.X';
 h.innerRad = 1.5;
 h.outerRad = 10.0;
@@ -48,7 +48,7 @@ myBlock = block('myBlock',myDesign);
 myBlock.nrRepeats = 10;
 
 % Run the experiment.
-c.order('noise');
+c.order('fix','noise');
 c.subject = 'easyD';
 c.run(myBlock);
 
