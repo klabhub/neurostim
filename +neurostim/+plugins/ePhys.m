@@ -25,7 +25,7 @@ classdef ePhys < neurostim.plugin
             %Initialise class properties
             o.addProperty('hostAddr', 'tcp://localhost:5556', 'validate', @ischar);
             o.addProperty('useMCC', true, 'validate', @islogical) ; 
-            o.addProperty('mccChannel', 1, 'validate', @isnumeric); %Channe B - Output
+            o.addProperty('mccChannel', 1, 'validate', @isnumeric); %Channel B - Output
             o.addProperty('clockTime', []); 
             
             pin = inputParser;
@@ -40,36 +40,41 @@ classdef ePhys < neurostim.plugin
         end 
 
         %Automatically called by cic.run()
-        function beforeExperiment(o) 
+        function beforeExperiment(o)            
             o.startRecording();
-            if o.useMCC
+%             if o.useMCC
                 o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
-            end
+                o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
+%             end
         end 
         
-        function beforeTrial(o) 
+        function beforeTrial(o)             
             o.trialInfo = ['Start_T' num2str(o.cic.trial) '_C' num2str(o.cic.condition)];
             startTrial(o);
             %Send a second trial marker, through digital I/O box (Measurement Computing)
-            if o.useMCC
+%             if o.useMCC
                 o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
-            end
+%                 o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
+%             end
         end 
         
         function afterExperiment(o)            
+%             if o.useMCC
+                o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
+%                 o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
+%             end
             stopRecording(o);
-            if o.useMCC
-                o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
-            end
+            
         end 
         
         function afterTrial(o) 
             o.trialInfo = ['Trial' num2str(o.cic.trial) 'complete'];
             stopTrial(o);
             %Send a second trial marker, through digital I/O box (Measurement Computing)
-            if o.useMCC
+%             if o.useMCC
+%                 o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
                 o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
-            end
+%             end
         end 
     end
     
