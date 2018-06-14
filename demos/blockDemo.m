@@ -1,3 +1,4 @@
+function blockDemo
 %% Blocks demo
 %
 % This demo shows how to use messages and functions before and after blocks.

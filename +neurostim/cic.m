@@ -89,7 +89,6 @@ classdef cic < neurostim.plugin
         stopTime = [];
         
         
-        
         %% Profiling information.
         
         
@@ -330,6 +329,7 @@ classdef cic < neurostim.plugin
             end
             
             c = c@neurostim.plugin([],'cic');
+            
             % Some very basic PTB settings that are enforced for all
             KbName('UnifyKeyNames'); % Same key names across OS.
             c.cursor = 'none';
@@ -364,7 +364,7 @@ classdef cic < neurostim.plugin
             c.addProperty('experiment',''); % The experiment file
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
-            
+            c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
         end

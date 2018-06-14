@@ -1,3 +1,4 @@
+function xylDemo
 %% xyL Demo
 %
 % This demo shows how to use calibrated colors. 

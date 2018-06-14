@@ -1,4 +1,4 @@
-function c=behaviorDemo
+function behaviorDemo
 %Two-alternative forced choice (2AFC) motion task:
 %       
 %       "Is the motion up or down?"
