@@ -39,7 +39,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         
         
         function addKey(o,key,keyHelp,isSubject,fun)
-            % addKey(key, fnHandle [,keyHelp],[,subject],[,fun])
+            %  addKey(o,key,keyHelp,isSubject,fun)
             % Runs a function in response to a specific key press.
             % key - a single key (string)
             % keyHelp -  a string that explains what this key does
