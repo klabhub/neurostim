@@ -23,7 +23,7 @@ classdef mcs < neurostim.stimulus
     
     properties (SetAccess = protected)
         device =[]; % handle to the device, once connected.
-        dll=[]; % The .Net assembly
+        assembly=[]; % The .Net assembly
         deviceList;  % List of all devices on USB
         deviceListEntry; % The device in the list that we will connect to (the first one, currently)
     end
@@ -121,7 +121,7 @@ classdef mcs < neurostim.stimulus
             if nargin <2
                 name = 'mcs';
             end
-            o = o@neurostim.plugin(c,name);
+            o = o@neurostim.stimulus(c,name);
             % Read-only properties
             o.addProperty('deviceName','');
             o.addProperty('path','');
@@ -139,9 +139,7 @@ classdef mcs < neurostim.stimulus
             here = mfilename('fullpath');
             switch computer
                 case 'PCWIN64'
-                    o.assembly = NET.addAssembly([here '\x64\McsUsbNet.dll']);
-                case 'PCWIN32'
-                    o.assembly = NET.addAssembly([here '\x32\McsUsbNet.dll']);
+                    o.assembly = NET.addAssembly([here '\McsUsbNet.dll']);
                 otherwise
                     error(['Sorry, the MCS .NET libraries are not available on your platform: ' computer]);
             end
@@ -213,7 +211,6 @@ classdef mcs < neurostim.stimulus
                 error(o.cic,'STOPEXPERIMENT','Please use base-1 syncOut cchannel convention to specify stimulation (one channel only)');
             end
                
-            
             step = 1/o.outputRate; %STG resolution (usually 20 mus)
             time = start:step:stop;
             values = fun(time);
@@ -234,6 +231,17 @@ classdef mcs < neurostim.stimulus
             % Send the values and the duration of each sample to the device
             o.device.ClearChannelData(channel-1);
             duration = uint64(step*1e6*ones(size(time)));
+            
+            % Check that we have enough memory - 2 bytes for value, 8 for
+            % duration
+            fractionUsed = numel(adValues)*(2+8)/o.totalMemory;
+            
+            if fractionUsed>1
+                error(o.cic,'STOPEXPERIMENT',['The MCS/STG does not have enough memory for the stimulus on channel ' num2str(channel) ]);
+            elseif fractionUsed>0.5
+                writeToFeed(o,['The stimulus for channel ' num2str(channel) ' uses ' num2str(round(fractionUsed*100)) '% of the total memory. This can work, but it is a lot... and if you have other stimulation channels too, you could run into trouble..']);                
+            end
+            
             o.device.SendChannelData(channel-1,adValues,duration)
             
             if ~isempty(syncOutChannel)
