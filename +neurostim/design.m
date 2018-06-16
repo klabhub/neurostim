@@ -218,7 +218,11 @@ classdef design <handle & matlab.mixin.Copyable
                 % supplemented with 1's for the trailing dimensions
                 if all(lvls<=[size(o.conditionSpecs) ones(1,numel(lvls)-ndims(o.conditionSpecs))])
                     % A condition spec exist. Add it to v and remove duplicates that were specified as factors
-                    % but overruled by conditionSpecs.
+                    % but overruled by conditionSpecs, or duplicates that
+                    % were added twice by condition specs (either a user
+                    % error or, more likely, because a design was copied
+                    % and then one of the variables already used was
+                    % overruled in the copy).
                     for i=1:size(o.conditionSpecs{cond},1)
                         % If a conditonSpec is specified as well as a factor spec
                         % then the latter overrides the former. Even though
@@ -238,8 +242,8 @@ classdef design <handle & matlab.mixin.Copyable
                             duplicateSetting = ~cellfun(@isempty,strfind(v(:,1),o.conditionSpecs{cond}{i,1})) &  ~cellfun(@isempty,strfind(v(:,2),o.conditionSpecs{cond}{i,2}));
                             v(duplicateSetting,:) = []; %#ok<AGROW> %Rmove seting that came from factor specs (or previous condition spec)
                         end
-                    end
-                    v = cat(1,v,o.conditionSpecs{cond}); % Combine condition with factor specs.
+                         v = cat(1,v,o.conditionSpecs{cond}(i,:)); % Combine condition with factor specs and previous condition specs.
+                    end                   
                 end
             end
         end
@@ -474,15 +478,15 @@ classdef design <handle & matlab.mixin.Copyable
                             if numel(nrInTrg)==numel(nrInSrc) && all(nrInTrg==nrInSrc)
                                 match = true;
                             end
+                            
                             if ~match
-                                while(nrInTrg(end)==1)
-                                    nrInTrg(end)=[];
-                                    if numel(nrInTrg)==numel(nrInSrc) && all(nrInTrg==nrInSrc)
-                                        match = true;
-                                        break
-                                    end
-                                end
+                                % trg could have trailing singleton
+                                % dimensions.
+                                nrMatchingDims = min(numel(nrInSrc),numel(nrInTrg));
+                                matchingDims = 1:nrMatchingDims;
+                                match = all(nrInTrg(matchingDims)==nrInSrc(matchingDims)) && all(nrInTrg(nrMatchingDims+1:end)==1) && all(nrInSrc(nrMatchingDims+1:end)==1);
                             end
+                               
                             if match
                                 % This is a matrix where each element is
                                 % intended as a level for a factor.
