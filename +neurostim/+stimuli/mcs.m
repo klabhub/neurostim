@@ -11,14 +11,14 @@ classdef mcs < neurostim.stimulus
     % function that takes time in secondss as input and returns current in
     % milliamps (or voltage in millivolts in voltage mode).
     %
-    % *** IMPORTANT *** 
+    % *** IMPORTANT ***
     % [channels]  should always be specified in base-1: Channel 1 is the
-    % first channel. 
+    % first channel.
     % [currents] in user functions should always be defined in mA (and user
     % accessible functions in this object return current measures in mA).
     % [voltage] in user functiosn should always be defined in mV (and user
     % accessible functions in this object return voltage measures in mV).
-    % 
+    %
     % BK - June 2018
     
     properties (SetAccess = protected)
@@ -48,15 +48,15 @@ classdef mcs < neurostim.stimulus
             else
                 voltage =  NaN;
                 current  = NaN;
-            end             
-            v.voltage = double(voltage);      % mV   
+            end
+            v.voltage = double(voltage);      % mV
             v.current = double(current)/1000; % convert to mA.
         end
         
         function v = get.range(o)
-            % Returns a struct with the range (maximum absolute value) 
-            % per channel in mV and mA.        
-            if o.isConnected                
+            % Returns a struct with the range (maximum absolute value)
+            % per channel in mV and mA.
+            if o.isConnected
                 for chan=0:o.nrChannels-1
                     [voltage(chan+1),current(chan+1)]  = o.device.GetAnalogRanges(chan); %#ok<AGROW>
                 end
@@ -67,7 +67,7 @@ classdef mcs < neurostim.stimulus
             v.voltage = double(voltage);        % mV
             v.current = double(current)/1000;   % Convert to mA
         end
-                        
+        
         function v = get.nrChannels(o)
             % Returns the number of analog output channels on the current device.
             if o.isConnected
@@ -90,7 +90,7 @@ classdef mcs < neurostim.stimulus
         function v = get.totalMemory(o)
             %Returns the total number of bytes in memory.
             if o.isConnected
-                v = double(o.device.GetTotalMemory); 
+                v = double(o.device.GetTotalMemory);
             else
                 v = 0;
             end
@@ -98,7 +98,7 @@ classdef mcs < neurostim.stimulus
         
         function v = get.isConnected(o)
             % Boolean to check whether the device is connected.
-            v = ~isempty(o.device) && o.device.IsConnected();            
+            v = ~isempty(o.device) && o.device.IsConnected();
         end
     end
     
@@ -133,9 +133,9 @@ classdef mcs < neurostim.stimulus
             % Read/write properties.
             o.addProperty('outputRate',50000);
             o.addProperty('mode','current');%,@(x) (ischar(x) && ismember(x,{'voltage','current'})));
-           % o.addProperty('autoReset',false);%,@islogical); - not used.
+            % o.addProperty('autoReset',false);%,@islogical); - not used.
             
-           % Load the relevant NET assembly
+            % Load the relevant NET assembly
             here = mfilename('fullpath');
             switch computer
                 case 'PCWIN64'
@@ -152,7 +152,7 @@ classdef mcs < neurostim.stimulus
                 warning(o,'Found more than one MCS device; using the first one');
             end
             
-           % Initialize the selected device
+            % Initialize the selected device
             % This does not work, probably because the .NET array is not
             % correct.
             %             args = NET.createArray('Mcs.Usb.DeviceIdNet',1); % NEt Array of 1
@@ -169,7 +169,7 @@ classdef mcs < neurostim.stimulus
             o.hwVersion = char(  o.deviceListEntry.HwVersion);
             o.manufacturer = char(  o.deviceListEntry.Manufacturer);
             o.product = char(  o.deviceListEntry.Product);
-            o.serialNumber  = char(  o.deviceListEntry.SerialNumber);                        
+            o.serialNumber  = char(  o.deviceListEntry.SerialNumber);
         end
         
         function beforeExperiment(o)
@@ -181,80 +181,145 @@ classdef mcs < neurostim.stimulus
             % Discconnect from the device.
             disconnect(o);
         end
-         
         
-        function setStimulus(o,fun,start,stop,channel,syncOutChannel)
+        
+        function setStimulus(o,fun,varargin)
             % Specify a function fun that takes time in seconds as its
             % input and returns the current in ***milliamps***, or the voltage in
             % ***millivolts***.
             % INPUT
             %  o - STG/MCS  plugin
-            % fun - function handle  - takes a vector of times in seconds as its input
-            % and returns milliamps or millivolts. 
-            % start - Start time in seconds
-            % stop  - stop time in seconds
+            % fun -  This can be a stimulation mode ('tDCS', 'tACS','tRNS') or a
+            % function handle  that takes a vector of times in seconds as its input
+            % and returns milliamps or millivolts.
+            %
+            % Parameter/Value pairs (each of these can be scalar or
+            % specified per channel).
+            % duration - duration of stimulation [s]
             % channel - a single channel number (base -1)
-            % syncChannel - Specify a channel that will send a syncout
-            % signal  (optional).            
-            if nargin < 6
-                syncOutChannel = [];
+            % syncOutChannel - Specify a channel that will send a syncout
+            % signal  (optional, base-1).
+            %
+            % mean - mean value of current/voltage [mA/mV]
+            % frequency -  frequency of sinusoidal tACS [Hz]
+            % amplitude - amplitude of sinusoid [mA/mV]
+            % phase   -  phase of sine [degrees]
+            % rampUp  - duration of linear ramp-up [s]
+            % rampDown - duration of linear ramp-down [s]
+            
+            p = inputParser;
+            p.addParameter('duration',1,@(x) (isnumeric(x) && all(x>0)));
+            p.addParameter('channel',1,@(x) (isnumeric(x) && all(x>= 1 & x <= o.nrChannels)));
+            p.addParameter('syncOutChannel',[],@(x) (isnumeric(x) && all( x>= 1 & x <= o.nrSyncOutChannels)));
+            p.addParameter('mean',zeros(1,o.nrChannels),@isnumeric);
+            p.addParameter('frequency',zeros(1,o.nrChannels),@isnumeric);
+            p.addParameter('amplitude',zeros(1,o.nrChannels),@isnumeric);
+            p.addParameter('phase',zeros(1,o.nrChannels),@isnumeric);
+            p.addParameter('rampUp',zeros(1,o.nrChannels),@isnumeric);
+            p.addParameter('rampDown',zeros(1,o.nrChannels),@isnumeric);
+            p.parse(varargin{:});
+            
+            if ~o.isConnected
+                error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus  -device disconnected');
             end
-
-            if ~o.isConnected 
-                error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus  -device disconnected'); 
-            end
-            if numel(channel)~=1 || channel > o.nrChannels  || channel <1
-                error(o.cic,'STOPEXPERIMENT','Please use base-1 channel convention to specify stimulation (one channel at a time)');
-            end
-                
-            if ~isempty(syncOutChannel) && (numel(syncOutChannel)>1 || syncOutChannel > o.nrSyncOutChannels  || syncOutChannel <1)
-                error(o.cic,'STOPEXPERIMENT','Please use base-1 syncOut cchannel convention to specify stimulation (one channel only)');
-            end
-               
+            
             step = 1/o.outputRate; %STG resolution (usually 20 mus)
-            time = start:step:stop;
-            values = fun(time);
-            if numel(values) ~=numel(time)
-                error(o.cic,'STOPEXPERIMENT','The stimulus function returns an incorrect number of time points');
+            
+            fractionUsed =0;
+            
+            for channelCntr = 1:numel(p.Results.channel)
+                time = 0:step:expandSingleton(p.Results.duration,channelCntr);
+                %% Set the basic stimulus shape
+                thisFun = expandSingleton(fun,channelCntr);
+                if ischar(thisFun)
+                    switch upper(thisFun)
+                        case 'TACS'
+                            values = expandSingleton(p.Results.amplitude,channelCntr)*sin(2*pi*expandSingleton(p.Results.frequency,channelCntr)*time+expandSingleton(p.Results.phase,channelCntr)*pi/180)+expandSingleton(p.Results.mean,channelCntr);
+                        case 'TDCS'
+                            values = expandSingleton(p.Results.mean,channelCntr)*ones(size(time));
+                        case 'TRNS'
+                            error('NIY')
+                        otherwise
+                            error(o.cic,'STOPEXPERIMENT',['Unknown MCS/STG stimulation function: ' fun]);
+                    end
+                elseif isa(thisFun,'function_handle')
+                    % User-specified function handle.
+                    values = thisFun(time);
+                    if numel(values) ~=numel(time)
+                        error(o.cic,'STOPEXPERIMENT','The stimulus function returns an incorrect number of time points');
+                    end
+                end
+                
+                %% Add ramp if requested
+                ramp = ones(size(time));
+                if ~isempty(p.Results.rampUp)
+                    stepsInRamp= round(expandSingleton(p.Results.rampUp,channelCntr)/step);
+                    ramp(1:stepsInRamp) = linspace(0,1,stepsInRamp);
+                end
+                
+                if ~isempty(p.Results.rampDown)
+                    stepsInRamp= round(expandSingleton(p.Results.rampDown,channelCntr)/step);
+                    ramp(end-stepsInRamp+1:end) = linspace(1,0,stepsInRamp);
+                end
+                values = values.*ramp;
+                
+                %% Convert to DAC values
+                thisChannel = p.Results.channel(channelCntr);
+                maxValue = o.range.(o.mode)(thisChannel); % The range for this channel in milliamps or millivolts
+                absValues = abs(values);
+                isNegative = values<0;
+                if any(absValues>maxValue)
+                    error(o.cic,'STOPEXPERIMENT',['The requested stimulation values are out of range (' num2str(maxValue) ')']);
+                end
+                % Convert to 12 bit values scaled to the range (maxValue).
+                adValues = uint16(round((2^12-1)*absValues/maxValue));
+                % Specify the sign wiith bit #12
+                adValues(isNegative) = adValues(isNegative)+8192;
+                % Send the values and the duration of each sample to the device
+                o.device.ClearChannelData(thisChannel-1);
+                
+                % Check how much memory this uses - 2 bytes for value, 8 for
+                % duration
+                fractionUsed = fractionUsed + numel(adValues)*(2+8)/o.totalMemory;
+                o.device.SendChannelData(thisChannel-1,adValues,uint64(step*1e6*ones(size(time))))
+                
+                if ~isempty(p.Results.syncOutChannel)
+                    o.device.ClearSyncData(expandSingleton(p.Results.syncOutChannel,channelCntr)-1);
+                    o.device.SendSyncData(expandSingleton(p.Results.syncOutChannel,channelCntr)-1,uint16(1),1e6*expandSingleton(p.Results.duration,channelCntr));
+                end
             end
             
-            maxValue = o.range.(o.mode)(channel); % The range for this channel in milliamps or millivolts
-            absValues = abs(values);
-            isNegative = values<0;
-            if any(absValues>maxValue)
-                error(o.cic,'STOPEXPERIMENT',['The requested stimulation values are out of range (' num2str(maxValue) ')']);
-            end
-            % Convert to 12 bit values scaled to the range (maxValue). 
-            adValues = uint16(round((2^12-1)*absValues/maxValue));
-            % Specify the sign wiith bit #12
-            adValues(isNegative) = adValues(isNegative)+8192;
-            % Send the values and the duration of each sample to the device
-            o.device.ClearChannelData(channel-1);
-            duration = uint64(step*1e6*ones(size(time)));
-            
-            % Check that we have enough memory - 2 bytes for value, 8 for
-            % duration
-            fractionUsed = numel(adValues)*(2+8)/o.totalMemory;
-            
+            %% Checking actual memory would be better but status does not seem to reflect overruns
+            % accurately, so let's just warn for now.
             if fractionUsed>1
-                error(o.cic,'STOPEXPERIMENT',['The MCS/STG does not have enough memory for the stimulus on channel ' num2str(channel) ]);
+                error(o.cic,'STOPEXPERIMENT','The MCS/STG does not have enough memory for these stimuli');
             elseif fractionUsed>0.5
-                writeToFeed(o,['The stimulus for channel ' num2str(channel) ' uses ' num2str(round(fractionUsed*100)) '% of the total memory. This can work, but it is a lot... and if you have other stimulation channels too, you could run into trouble..']);                
+                writeToFeed(o,['The stimulus uses ' num2str(round(fractionUsed*100)) '% of the total memory. This can work, but it is a lot... and if you have other stimulation channels too, you could run into trouble..']);
             end
             
-            o.device.SendChannelData(channel-1,adValues,duration)
             
-            if ~isempty(syncOutChannel)
-                 o.device.ClearSyncData(syncOutChannel-1);
-                 syncDuration = 1e6*(stop-start);
-                 o.device.SendSyncData(syncOutChannel-1,uint16(1),syncDuration);                           
-            end            
-        end        
+            function v = expandSingleton(vals,ix)
+                if isscalar(vals) || ischar(vals)
+                    v = vals;
+                else
+                    if ix<=numel(vals)
+                        if iscell(vals)
+                            v =vals{ix};
+                        else
+                            v =vals(ix);
+                        end
+                    else
+                        v=NaN; %#ok<NASGU>
+                        error(['Mismatched specification : ' num2str(numel(vals)) ' parameters specified, but #' num2str(ix) ' requested']);
+                    end
+                end
+            end
+        end
     end
     
     
     methods (Access=public)
-       function mask = chan2mask(o,channels)
+        function mask = chan2mask(o,channels)
             % Convert an array of  base-1 channel number to a channel bit mask
             if any(channels>o.nrChannels | channels<1)
                 error(o.cic,['MCS Channels should be between 1 and ' num2str(o.nrChannels)]);
@@ -275,7 +340,7 @@ classdef mcs < neurostim.stimulus
             end
         end
         function stop(o,channels)
-            % Stop these channels from continuing. 
+            % Stop these channels from continuing.
             % Channels should be a vector of base-1 channel numbers.
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not stop MCS. Device not connected');
@@ -283,7 +348,7 @@ classdef mcs < neurostim.stimulus
                 o.device.SendStop(chan2mask(o,channels))
             end
         end
-           
+        
         function connect(o)
             % Connect to the device and setup the device object to wwork in
             % STG Download mode.
@@ -292,7 +357,7 @@ classdef mcs < neurostim.stimulus
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' MCS device']);
             end
-                
+            
             o.device.DisableMultiFileMode(); % Triggers are assigned to channels, not segments.
             o.device.SetOutputRate(uint32(o.outputRate));
             if strcmpi(o.mode,'CURRENT')
@@ -301,18 +366,18 @@ classdef mcs < neurostim.stimulus
                 o.device.SetVoltageMode();
             end
             
-%         Not clear what this does.    if o.autoReset
-%                 % Only for download mode...
-%                 o.device.EnableAutoReset();
-%             else
-%                 o.device.DisableAutoReset();
-%             end
+            %         Not clear what this does.    if o.autoReset
+            %                 % Only for download mode...
+            %                 o.device.EnableAutoReset();
+            %             else
+            %                 o.device.DisableAutoReset();
+            %             end
             
             % Clear the currently stored data
             for c=0:o.nrChannels-1
                 o.device.ClearChannelData(c);
                 o.device.ClearSyncData(c);
-            end            
+            end
         end
         
         function disconnect(o)
@@ -320,6 +385,6 @@ classdef mcs < neurostim.stimulus
             if o.isConnected
                 o.device.Disconnect();
             end
-        end        
+        end
     end
 end
