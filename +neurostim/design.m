@@ -471,7 +471,7 @@ classdef design <handle & matlab.mixin.Copyable
                         
                         if ischar(V) || (~iscell(V) && isscalar(V))
                             V = {V};
-                        elseif ~iscell(V)
+                        elseif ~iscell(V) 
                             nrInTrg = cellfun(@numel,ix);
                             nrInSrc = size(V);
                             match = false;
@@ -584,6 +584,7 @@ classdef design <handle & matlab.mixin.Copyable
                             V = repmat(V,1,levelsPreviouslyDefined); % Copy the singleton to match previous factorSpecs.
                             thisNrLevels = levelsPreviouslyDefined;
                         elseif levelsPreviouslyDefined ==1
+                            warning(['Creating ' num2str(thisNrLevels) ' levels for ' plg '.' prm '. If you just wanted one level, use {}']);                                
                             [o.factorSpecs{factor,1:thisNrLevels}] =deal(o.factorSpecs{factor,1}); % make copies of the singleton spec that was previosuly defined
                         elseif levelsPreviouslyDefined ==0
                             % New factor (e.g. fac2 was defined before fac1 )
