@@ -6,7 +6,6 @@ classdef stimulus < neurostim.plugin
     %   on - time the stimulus should come 'on' (ms) from start of trial
     %   duration - length of time the stimulus should be 'on' (ms)
     %   color - color of the stimulus
-    %   alpha - alpha blend of the stimulus.
     %   scale.x,scale.y,scale.z - scale of the stimulus along various axes
     %   angle - angle of the stimulus
     %   rx, ry, rz - rotation of the stimulus
@@ -82,7 +81,6 @@ classdef stimulus < neurostim.plugin
             s.addProperty('on',0,'validate',@isnumeric);
             s.addProperty('duration',Inf,'validate',@isnumeric);
             s.addProperty('color',[1/3 1/3 50],'validate',@isnumeric);
-            s.addProperty('alpha',1,'validate',@(x)x<=1&&x>=0);
             s.addProperty('scale',[1 1 1]);
             s.addProperty('angle',0,'validate',@isnumeric);
             s.addProperty('rx',0,'validate',@isnumeric);
