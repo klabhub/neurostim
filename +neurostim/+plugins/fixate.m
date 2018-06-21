@@ -21,6 +21,7 @@ classdef fixate < neurostim.plugins.behavior
            o.addProperty('Y',0,'validate',@isnumeric);
            o.addProperty('Z',0,'validate',@isnumeric);
            o.addProperty('tolerance',1,'validate',@isnumeric);
+           o.addProperty('invert',false,'validate',@isnumeric); %Behavior is complete when NOT looking at this point.
            o.continuous = true;
            o.sampleEvent = '';
            if isfield(c,'eye')
@@ -42,6 +43,17 @@ classdef fixate < neurostim.plugins.behavior
            if dx < tol
                inProgress = sqrt(dx^2+(o.cic.eye.y-o.Y)^2)<=tol;
            end
+           
+           %If inverted, say whether we are NOT fixating now.
+           if o.invert
+               inProgress = ~inProgress;
+           end
+           
+           if inProgress && ~o.continuous
+               o.outcome = 'COMPLETE';
+               o.success=true;
+           end
+             
        end
    end
     
