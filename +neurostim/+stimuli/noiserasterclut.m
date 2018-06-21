@@ -44,6 +44,10 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
         frameInterval_f;
     end
     
+    properties
+       isNewFrame = false  %Flag that gets set to true on each frame that the noise is updated. Useful for syncing other stimuli/plugins. 
+    end
+    
     methods (Access = public)
         function o = noiserasterclut(c,name)
             
@@ -81,6 +85,9 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
             frInt = o.frameInterval_f;
             if (isinf(frInt) && curFr==0) || (~isinf(frInt)&&~mod(curFr,frInt))
                 o.update();
+                o.isNewFrame = true;
+            else
+                o.isNewFrame = false;
             end
             
             o.draw();
