@@ -82,7 +82,6 @@ classdef behavior < neurostim.plugin
             o.addProperty('from',Inf,'validate',@isnumeric);            %The time by which the behaviour *must* have commenced (for continuous)
             o.addProperty('to',Inf,'validate',@isnumeric);              %The time to which the behaviour *must* continue to be satisfied (for continuous).
             o.addProperty('deadline',Inf,'validate',@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
-            o.addProperty('invert',false,'validate',@isnumeric);        %Success is achieved when NOT doing this behavior.            
             
             %Internal use only
             o.addProperty('startTime',Inf);         %The time at which the behaviour was initiated (i.e. in progress).
