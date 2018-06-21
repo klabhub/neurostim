@@ -544,7 +544,7 @@ classdef cic < neurostim.plugin
             
             
             defaultOrder = cat(2,{c.plugins.name},{c.stimuli.name});
-            if nargin==1
+            if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
             else
                 newOrder = varargin;
@@ -846,7 +846,7 @@ classdef cic < neurostim.plugin
             end
             
             %% Set up order and blocks
-            order(c);
+            order(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
             %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);
