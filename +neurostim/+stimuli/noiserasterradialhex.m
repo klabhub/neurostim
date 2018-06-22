@@ -1,5 +1,19 @@
-classdef hexNoise < neurostim.stimuli.noiserasterclut
-  % Stimulus class to present white noise on a hexagonal grid.
+classdef noiserasterradialhex < neurostim.stimuli.noiserasterclut
+  % Stimulus class to present noise on a (radial) hexagonal grid.
+  %
+  % Settable properties:
+  %
+  %   innerRad        - radius of the inner clear aperturer (default: 0; no clear aperture),
+  %   outerRad        - radius of the noise field (default: 10),
+  %   nTiles   - the number of tiles between innerRad and outerRad (default: 10),
+  %
+  %   note: when rendering the noise field, tiles extend from innerRad to
+  %         outerRad, both rounded *up* to the nearest multiple of the tile
+  %         size/center separation, where
+  %
+  %           size = (outerRad-innerRad)/nTiles
+  %
+  % See also neurostim.stimuli.noiserasterclut
   
   % 2018-06-05 - Shaun L. Cloherty <s.cloherty@ieee.org>
 
@@ -9,13 +23,13 @@ classdef hexNoise < neurostim.stimuli.noiserasterclut
   
   methods (Access = public)
     
-    function o = hexNoise(c,name)
+    function o = noiserasterradialhex(c,name)
       o = o@neurostim.stimuli.noiserasterclut(c,name);
 
-      o.addProperty('innerRad',5,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','nonnegative'}));
+      o.addProperty('innerRad',0,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','nonnegative'}));
       o.addProperty('outerRad',10,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','positive'}));
 
-      o.addProperty('nTiles',8,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','positive'}));
+      o.addProperty('nTiles',10,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','positive'}));
       
       % x,y coords of tile centres (in screen units)... FIXME: SetAccess = private?
       o.addProperty('xc',[],'validate',@(x) validateattributes(x,{'numeric'},{'real'}));
@@ -24,9 +38,7 @@ classdef hexNoise < neurostim.stimuli.noiserasterclut
   
     function beforeTrial(o)
       % compute index image...
-%       t0 = tic();
       [img,o.xc,o.yc] = o.hexgrid();
-%       fprintf(1,'%.3fms to compute %i hexagons...\n',toc(t0)*1e3,max(img(:)));     
 
       % compute physical size for the index image...
       sz = size(img);
@@ -64,10 +76,10 @@ classdef hexNoise < neurostim.stimuli.noiserasterclut
       %
 
       % distance between centres
-      dc = (sz/2)*(4/sqrt(5));
+      dc = sz; %(sz/2)*(4/sqrt(5));
       
-      dy = dc; % horiz. spacing (centre to centre)
-      dx = dc*(2/sqrt(5)); % vert. spacing
+      dy = dc; % vert. spacing (centre to centre)
+      dx = dc*(2/sqrt(5)); % horiz. spacing
       
       n = ceil(o.outerRad/dx)+1; % +1 to be sure?
 
@@ -78,12 +90,13 @@ classdef hexNoise < neurostim.stimuli.noiserasterclut
 
 %       o.xc = xc(:); % FIXME: logged?
 %       o.yc = yc(:);
-      xc = xc(:); % FIXME: logged?
+      xc = xc(:);
       yc = yc(:);
       
       % tiles to mask...
       [~,r] = cart2pol(xc,yc);
-      mask = find((r < (o.innerRad)) | (r > (o.outerRad)));
+%       mask = find((r < (o.innerRad)) | (r > (o.outerRad)));
+      mask = find((r < ceil(o.innerRad/dc)*dc) | (r > ceil(o.outerRad/dc)*dc));
                   
       % convert to pixels
       xscale = o.cic.screen.xpixels./o.cic.screen.width;
