@@ -39,7 +39,7 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             [xGrid,yGrid]=meshgrid(x,x);
             
             %Calculations here are in normalised coordinates
-            inner = o.innerRad./o.outerRad;
+            inner = o.innerRad/o.outerRad;
             outer = 1;
             o.width = o.outerRad*2;
             o.height = o.outerRad*2;
@@ -48,19 +48,31 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             [pixTh,pixR]=cart2pol(xGrid,yGrid);
             
             %Assign an integer ID to wedges
-            wedgeBinWidth = 2*pi/o.nWedges;
-            radBins = linspace(inner,outer,o.nRadii+1);
+            thBinWidth = 2*pi/o.nWedges;
+            thBinEdges = -pi:thBinWidth:pi;
+            radBinWidth = (outer-inner)/o.nRadii;
+            radBinEdges = inner:radBinWidth:outer;
             
-            [~,~,thSub]=histcounts(pixTh,'binWidth',wedgeBinWidth);
-            [~,~,radSub]=histcounts(pixR,radBins);
-            
+            [~,~,thSub]=histcounts(pixTh,thBinEdges);
+            [~,~,radSub]=histcounts(pixR,radBinEdges);
+
             thSub(thSub==0)=NaN;
             radSub(radSub==0)=NaN;
             im = sub2ind([o.nWedges,o.nRadii],thSub,radSub);
-            im(isnan(im))=o.BACKGROUND;
+            isBackground = isnan(im);
+            im(isBackground)=o.BACKGROUND;
             
             %Set up the CLUT and random variable callback functions
             initialise(o,im);
+
+            %Calculate locations of randels
+            thBinCenters = thBinEdges(1:end-1)+thBinWidth/2;
+            radBinCenters = radBinEdges(1:end-1) + radBinWidth/2;
+            
+            %Set the ns physical coordinate of each sector
+            [a,b]=meshgrid(1:o.nRadii,1:o.nWedges);
+            o.randelX = thBinCenters(b(:));
+            o.randelY = radBinCenters(a(:))*o.outerRad;
         end
         
         function mask = annulusGaussianMask(o,sigma,refAngle,arcAng)
@@ -84,7 +96,7 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             
             %Make the mask as a gaussian function of that distance
             scaleFilt = @(filt) (filt-min(filt(:)))/range(filt(:));
-            mask = scaleFilt(normpdf(dists,0,sigma));
+            mask = scaleFilt(normpdf(dists,0,o.physical2texel(sigma)));
             mask = reshape(mask,sz,sz);
         end
         
@@ -106,6 +118,10 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
             sz = o.size(1);
             pixCoords = linspace(-sz/2,sz/2,sz);
             [x,y]=meshgrid(pixCoords,pixCoords);
+        end
+        
+        function val = physical2texel(o,dist)
+            val = dist/o.width*o.size(1);
         end
     end % public methods
 end % classdef

@@ -30,15 +30,12 @@ classdef noiserasterradialhex < neurostim.stimuli.noiserasterclut
       o.addProperty('outerRad',10,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','positive'}));
 
       o.addProperty('nTiles',10,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','positive'}));
-      
-      % x,y coords of tile centres (in screen units)... FIXME: SetAccess = private?
-      o.addProperty('xc',[],'validate',@(x) validateattributes(x,{'numeric'},{'real'}));
-      o.addProperty('yc',[],'validate',@(x) validateattributes(x,{'numeric'},{'real'}));      
+          
     end
   
     function beforeTrial(o)
       % compute index image...
-      [img,o.xc,o.yc] = o.hexgrid();
+      [img,o.randelX,o.randelY] = o.hexgrid();
 
       % compute physical size for the index image...
       sz = size(img);
@@ -54,7 +51,7 @@ classdef noiserasterradialhex < neurostim.stimuli.noiserasterclut
       o.beforeFrame@neurostim.stimuli.noiserasterclut();
       
       if o.debug
-        Screen('DrawDots',o.window,[o.xc(:), o.yc(:)]',1,[0.6,1.0,0.6]);
+        Screen('DrawDots',o.window,[o.randelX(:), o.randelY(:)]',1,[0.6,1.0,0.6]);
         
         rect = kron([o.innerRad,o.outerRad],[-1,-1,1,1]');
         color = [1.0, 0.0, 0.0, 0.1; 0.0, 0.0, 1.0, 0.1]';
@@ -88,8 +85,8 @@ classdef noiserasterradialhex < neurostim.stimuli.noiserasterclut
       yc = dy.*(yc + 0.5.*mod(xc,2));
       xc = dx.*xc;
 
-%       o.xc = xc(:); % FIXME: logged?
-%       o.yc = yc(:);
+
+      xc = xc(:); 
       xc = xc(:);
       yc = yc(:);
       
