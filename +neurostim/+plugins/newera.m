@@ -91,6 +91,15 @@ classdef newera <  neurostim.plugins.liquid
       % close the pump
       o.close();
     end
+    
+    function keyboard(o,key)
+      % manual reward... via keyboard hotkey
+
+      % which key was pressed?
+      item = find(strcmpi(key,o.keys));
+               
+      o.deliver(item);
+    end
   end
   
   methods (Access = protected)
@@ -154,15 +163,6 @@ classdef newera <  neurostim.plugins.liquid
       o.nrDelivered = o.nrDelivered + 1;
       o.totalDelivered = o.totalDelivered + volume; % ml
     end
-    
-%     function keyboard(o,key)
-%       % manual reward... via keyboard hotkey
-% 
-%       % which key was pressed?
-%       item = find(strcmpi(key,o.keys));
-%                
-%       o.deliver(item);
-%     end
     
     function report(o)
        % report back to the gui?
