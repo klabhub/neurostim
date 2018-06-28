@@ -116,10 +116,11 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
             %Make sure the requested duration is a multiple of the display frame interval            
             tol = 0.1; %5% mismatch between requested frame duration and what is possible
             frInt = o.cic.ms2frames(o.frameInterval,false);
-            if ~isinf(frInt) && abs(frInt-round(frInt)) > tol
-                error('Requested noise frameInterval is not a multiple of the display frame interval');
-            end
             o.frameInterval_f = round(frInt);
+            if ~isinf(frInt) && abs(frInt-o.frameInterval_f) > tol
+                o.writeToFeed(['Noise frameInterval not a multiple of the display frame interval. It has been rounded to ', num2str(o.cic.frames2ms(o.frameInterval_f)) ,'ms']);
+            end
+            
 
             %Set up a callback function, used to population the noise clut with luminance values
             o.setupLumCallback();
