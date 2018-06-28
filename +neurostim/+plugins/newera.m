@@ -90,8 +90,7 @@ classdef newera <  neurostim.plugins.liquid
     function afterExperiment(o)
       % close the pump
       o.close();
-    end
-    
+    end    
   end
   
   methods (Access = protected)
