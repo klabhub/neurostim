@@ -542,9 +542,14 @@ classdef cic < neurostim.plugin
             % Inputs: lists name of plugins in the order they are requested
             % to be executed in.
             
+            %If there is an existing order, preserve it, unless an empty
+            %vector has been supplied (to clear it back to default order)
+            if numel(varargin) == 1 && isa(varargin{1},'neurostim.plugin')
+                varargin = arrayfun(@(plg) plg.name,varargin{1},'uniformoutput',false);
+            end
             
             defaultOrder = cat(2,{c.plugins.name},{c.stimuli.name});
-            if nargin==1
+            if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
             else
                 newOrder = varargin;
@@ -846,7 +851,7 @@ classdef cic < neurostim.plugin
             end
             
             %% Set up order and blocks
-            order(c);
+            order(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
             %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);

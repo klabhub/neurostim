@@ -130,7 +130,7 @@ classdef gabor < neurostim.stimulus
                                             
             % Draw the Gabor using the GLSL shader            
             aux = [+o.phase, +o.frequency, oSigma; +o.contrast +o.flickerPhase 0 0]';    
-            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, +o.orientation, filterMode, globalAlpha, [oColor, +o.alpha] , textureShader,specialFlags, aux);            
+            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, +o.orientation, filterMode, globalAlpha, oColor , textureShader,specialFlags, aux);            
 
         end
         
