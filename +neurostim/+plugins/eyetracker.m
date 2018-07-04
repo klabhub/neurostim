@@ -21,7 +21,7 @@ classdef eyetracker < neurostim.plugin
     end
     
     properties
-        x@double=NaN; % Should have default values, otherwise bhavior checking can fail.
+        x@double=NaN; % Should have default values, otherwise behavior checking can fail.
         y@double=NaN;
         z@double=NaN;
         pupilSize@double;
@@ -40,6 +40,8 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('clbTargetSize',0.25);
             o.addProperty('eyeToTrack','left');
             o.addProperty('continuous',false);
+            
+            o.addProperty('calibrationMatrix',1.0); %eye(3));
         end
         
         
@@ -52,6 +54,31 @@ classdef eyetracker < neurostim.plugin
                     o.y=currentY;
                 end
             end
+        end
+        
+        function [a,b] = raw2ns(o,x,y,cm)
+          if nargin < 4
+            cm = o.calibrationMatrix;
+          end
+          
+          ab = [x,y,ones(size(x))]*cm;
+          
+%           [a,b] = o.cic.pixel2Physical(ab(:,1),ab(:,2));
+          a = ab(:,1);
+          b = ab(:,2);
+        end
+        
+        function [x,y] = ns2raw(o,a,b,cm)
+          if nargin < 4
+            cm = o.calibrationMatrix;
+          end
+          
+%           [x,y] = o.cic.physical2Pixel(a,b);
+          
+          xy = [a,b,ones(size(a))]*inv(cm);
+          
+          x = xy(:,1);
+          y = xy(:,2);
         end
     end
     

@@ -132,7 +132,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % but tests on July 1st 2017 showed that this was (no longer)
             % correct. 
             
-            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value)) || (ischar(v) && strcmp(v,o.value))
+            if  (isnumeric(v) && numel(v)==numel(o.value) && isequal(v,o.value)) || (ischar(v) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end
