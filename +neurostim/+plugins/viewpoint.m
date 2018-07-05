@@ -341,7 +341,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
             tmp(:,1)*o.cic.screen.xpixels, tmp(:,2)*o.cic.screen.ypixels);
     end
     
-    function [rx,ry] = ns2raw(o,nx,xy,cm)
+    function [rx,ry] = ns2raw(o,nx,ny,cm)
       % convert neurostim's physical coords to Viewpoint's normalized screen coords
       
       if nargin < 4
@@ -350,7 +350,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
       
       [a,b] = o.cic.physical2Pixel(nx,ny);
       
-      tmp = [a./o.cic.screen.xpixels,b./o.screen.ypixels,ones(size(a))];
+      tmp = [a./o.cic.screen.xpixels,b./o.cic.screen.ypixels,ones(size(a))];
       
       % invert manual calibration
       tmp = tmp*inv(cm);
