@@ -128,11 +128,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Store and Log the new value for this parm
             
             % Check if the value changed and log only the changes. 
-            %(at some point this seemed to be slower than just logging everything. 
-            % but tests on July 1st 2017 showed that this was (no longer)
-            % correct. 
-            
-            if  (isnumeric(v) && numel(v)==numel(o.value) && isequal(v,o.value)) || (ischar(v) && strcmp(v,o.value))
+            % (at some point this seemed to be slower than just logging everything. 
+            % but tests on July 1st 2017 showed that this was (no longer) correct. 
+            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v(:)==o.value(:))) || (ischar(v) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end

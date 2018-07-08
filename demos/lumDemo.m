@@ -1,3 +1,4 @@
+function lumDemo
 %% Calibrated Luminance Demo
 %
 % This demo shows how to use calibrated luminance to specify your stimuii. 

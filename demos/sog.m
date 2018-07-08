@@ -1,3 +1,4 @@
+function sog
 %% 
 % Stream of Gratings Example
 % 

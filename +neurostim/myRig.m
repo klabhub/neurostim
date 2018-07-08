@@ -44,7 +44,7 @@ switch computerName
         
     case 'MOBOT'
         %Home
-        c = rig(c,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
+        c = rig(c,'xorigin',950,'yorigin',550,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
         smallWindow = true;
         
     case 'CMBN-Presentation-Airbook.local'

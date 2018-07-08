@@ -101,10 +101,10 @@ classdef psyBayes < neurostim.plugins.adaptive
             % in the parent class, using the trialResullt function
             % specified by the user when constructing an object of this
             % class.
-            tic;
+            %tic;
             parmValue = getValue(o); % This is the value that we used previously
             [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
-            toc
+            %toc
         end
         
         function v =getValue(o)
