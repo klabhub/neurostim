@@ -140,12 +140,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % For non-function params this is the value that will be
             % returned to the next getValue
             o.value = v;
-            
-            if o.sticky
-              % update default value also...
-              setCurrentToDefault(o);
-            end
-            
+                        
             if o.noLog 
                return 
             end
@@ -230,6 +225,10 @@ classdef parameter < handle & matlab.mixin.Copyable
         % allows us to reset the parms to their default at the start of a
         % trial (before applying condition specific modifications).
         function setCurrentToDefault(o)
+            if o.sticky
+              return
+            end
+            
             if isempty(o.fun)
                 o.default = o.value;
             else
@@ -238,8 +237,11 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function setDefaultToCurrent(o)
+            if o.sticky
+              return
+            end
+          
             % Put the default back as the current value
-            %
             setValue(o,[],o.default);
             
             % Note that for Neurostim functions ('@' strings) the string
