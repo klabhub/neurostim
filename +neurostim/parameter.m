@@ -55,6 +55,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         capacity=0; % Capacity to store in log
         
         noLog; % Set this to true to skip logging
+        sticky; % set this to true to make value(s) sticky, i.e., across trials
         fun =[];        % Function to allow across parameter dependencies
         funPrms;
         funStr = '';    % The neurostim function string
@@ -80,6 +81,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.hDynProp  = h; % Handle to the dynamic property
             o.validate = options.validate;
             o.noLog = options.noLog;
+            o.sticky = options.sticky;
             setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
@@ -128,18 +130,21 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Store and Log the new value for this parm
             
             % Check if the value changed and log only the changes. 
-            %(at some point this seemed to be slower than just logging everything. 
-            % but tests on July 1st 2017 showed that this was (no longer)
-            % correct. 
-            
+            % (at some point this seemed to be slower than just logging everything. 
+            % but tests on July 1st 2017 showed that this was (no longer) correct. 
             if  (isnumeric(v) && numel(v)==numel(o.value) && all(v(:)==o.value(:))) || (ischar(v) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end
                                    
-            % For non-function parns this is the value that will be
-            % returned  to the next getValue
+            % For non-function params this is the value that will be
+            % returned to the next getValue
             o.value = v;
+            
+            if o.sticky
+              % update default value also...
+              setCurrentToDefault(o);
+            end
             
             if o.noLog 
                return 
