@@ -1,4 +1,4 @@
-function c=egiDemo
+function egiDemo
 %Two-alternative forced choice (2AFC) motion task.
 %
 %This demo shows how to use:

@@ -82,12 +82,11 @@ classdef cic < neurostim.plugin
         pluginOrder; % Vector of plugin handles, sorted by execution order
         
         blocks@neurostim.block;     % Struct array with .nrRepeats .randomization .conditions
-        blockFlow;
+        blockFlow =struct('list',[],'weights',[],'randomization','','latinSquareRow',[]);
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
         stopTime = [];
-        
         
         
         %% Profiling information.
@@ -330,6 +329,7 @@ classdef cic < neurostim.plugin
             end
             
             c = c@neurostim.plugin([],'cic');
+            
             % Some very basic PTB settings that are enforced for all
             KbName('UnifyKeyNames'); % Same key names across OS.
             c.cursor = 'none';
@@ -364,7 +364,7 @@ classdef cic < neurostim.plugin
             c.addProperty('experiment',''); % The experiment file
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
-            
+            c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
         end
@@ -542,9 +542,14 @@ classdef cic < neurostim.plugin
             % Inputs: lists name of plugins in the order they are requested
             % to be executed in.
             
+            %If there is an existing order, preserve it, unless an empty
+            %vector has been supplied (to clear it back to default order)
+            if numel(varargin) == 1 && isa(varargin{1},'neurostim.plugin')
+                varargin = arrayfun(@(plg) plg.name,varargin{1},'uniformoutput',false);
+            end
             
             defaultOrder = cat(2,{c.plugins.name},{c.stimuli.name});
-            if nargin==1
+            if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
             else
                 newOrder = varargin;
@@ -846,7 +851,7 @@ classdef cic < neurostim.plugin
             end
             
             %% Set up order and blocks
-            order(c);
+            order(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
             %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);

@@ -135,7 +135,7 @@ classdef texture < neurostim.stimulus
 
       % draw the texture
       filterMode = 1; % bilinear interpolation
-      Screen('DrawTextures',o.window,ptr,[],rect',[],filterMode,o.alpha);
+      Screen('DrawTextures',o.window,ptr,[],rect',[],filterMode);
     end    
   end % public methods
     

@@ -46,7 +46,7 @@ classdef jitter < neurostim.plugins.adaptive
             
             p = inputParser;
             p.addRequired('parms',@(x) iscell(x));
-            p.addParameter('distribution','uniform');
+            p.addParameter('distribution','uniform',@(x) isa(x,'function_handle') | strcmpi(x,'1ofN') | any(strcmpi(x,prob.ProbabilityDistributionRegistry.list('parametric'))));
             p.addParameter('bounds',[], @(x) isempty(x) || (numel(x)==2 && ~any(isinf(x)) && diff(x) > 0));
             p.addParameter('size',1);
           

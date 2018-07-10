@@ -1,3 +1,4 @@
+function lumM16Demo
 %% Calibrated Luminance Demo
 %
 % This demo shows how to use calibrated luminance to specify your stimuli

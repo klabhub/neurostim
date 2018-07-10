@@ -1,4 +1,4 @@
-
+function starstimDemo
 import neurostim.*;
 %% Setup CIC and the stimuli.
 c = myRig('debug',true);

@@ -1,3 +1,4 @@
+function surroundSuppression
 %% 
 % Surround Suppression Example
 %
