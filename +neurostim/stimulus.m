@@ -6,16 +6,14 @@ classdef stimulus < neurostim.plugin
     %   on - time the stimulus should come 'on' (ms) from start of trial
     %   duration - length of time the stimulus should be 'on' (ms)
     %   color - color of the stimulus
-    %   alpha - alpha blend of the stimulus.
     %   scale.x,scale.y,scale.z - scale of the stimulus along various axes
     %   angle - angle of the stimulus
     %   rx, ry, rz - rotation of the stimulus
     %   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
     %       details)
-    %   rngSeed - seed of the RNG.
     %   diode.on,diode.color,diode.location,diode.size - a square box of
     %       specified color in the corner of the screen specified ('nw','sw', etc.),
-    %   for use with a photodiode recording.
+    %       for use with a photodiode recording.
     %   mccChannel - a linked MCC Channel to output alongside a stimulus.
     %
     %
@@ -83,7 +81,6 @@ classdef stimulus < neurostim.plugin
             s.addProperty('on',0,'validate',@isnumeric);
             s.addProperty('duration',Inf,'validate',@isnumeric);
             s.addProperty('color',[1/3 1/3 50],'validate',@isnumeric);
-            s.addProperty('alpha',1,'validate',@(x)x<=1&&x>=0);
             s.addProperty('scale',[1 1 1]);
             s.addProperty('angle',0,'validate',@isnumeric);
             s.addProperty('rx',0,'validate',@isnumeric);
@@ -92,7 +89,6 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             s.addProperty('disabled',false);
             
-            s.addProperty('rngSeed',[],'validate',@isnumeric);
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
             s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
@@ -108,8 +104,7 @@ classdef stimulus < neurostim.plugin
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
             
-            s.rngSeed=GetSecs;
-            rng(s.rngSeed);
+         
             
             s.feedStyle = '[0 0.75 0]'; % Stimuli show feed messages in light green.
         end
@@ -320,17 +315,17 @@ classdef stimulus < neurostim.plugin
             if s.flags.on
                 
                 %Apply stimulus transform
-                sX =s.X;sY=s.Y;sZ=s.Z;
+                sX =+s.X;sY=+s.Y;sZ=+s.Z; % USe + operator to force the use of values if s.X is an adaptive parameter.
                 if  any([sX sY sZ]~=0)
                     Screen('glTranslate',locWindow,sX,sY,sZ);
                 end
-                sScale = s.scale;
+                sScale = +s.scale;
                 if any(sScale~=1)
                     Screen('glScale',locWindow,sScale(1),sScale(2),sScale(3));
                 end
-                sAngle= s.angle;
+                sAngle= +s.angle;
                 if  sAngle ~=0
-                    Screen('glRotate',locWindow,sAngle,s.rx,s.ry,s.rz);
+                    Screen('glRotate',locWindow,sAngle,+s.rx,+s.ry,+s.rz);
                 end
                 
                 %If this is the first frame that the stimulus will be drawn, register that it has started.
@@ -345,16 +340,20 @@ classdef stimulus < neurostim.plugin
                 end
                 
                 %Pass control to the child class and any other listeners
-                beforeFrame(s);
-                
-                if s.diode.on
-                    Screen('FillRect',locWindow,s.diode.color,s.diodePosition);
-                end
+                beforeFrame(s);                
             elseif s.stimstart && (cFrame==sOffFrame)% if the stimulus will not be shown,
                 % get the next screen flip for stopTime
                 s.cic.getFlipTime=true;
             end
             Screen('glLoadIdentity', locWindow);
+            
+            % diode size/position is in pixels and we don't really want it
+            % changing even if we change the physical screen size (e.g., 
+            % when changing viewing distance) or being distorted by the
+            % transforms above...
+            if s.flags.on && s.diode.on
+              Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);
+            end
             
         end
         

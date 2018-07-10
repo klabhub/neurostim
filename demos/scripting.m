@@ -1,4 +1,4 @@
-function c=scripting
+function scripting
 %% This demo shows how to use control scripts.
 import neurostim.*
 %% Setup CIC and the stimuli.

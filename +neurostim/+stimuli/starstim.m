@@ -205,6 +205,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('transition',100);
             o.addProperty('frequency',NaN);
             o.addProperty('sham',false);
+            o.addProperty('shamDuration',0); % 0 ms means rampup, and immediately ramp down.
             o.addProperty('enabled',true);
             
             
@@ -427,6 +428,19 @@ classdef starstim < neurostim.stimulus
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
             
         end
+        
+        function troubleShoot(o)
+            %%
+%             beforeExperiment(o);
+%             loadProtocol(o);            
+%             start(o);
+            %%
+            o.mean = [-1000 1000 0 0 0 0 0 0];
+            %for i=1:10               
+               rampUp(o,250);
+             %   wait(o.tmr)
+            %end
+        end
     end
     
     
@@ -435,6 +449,7 @@ classdef starstim < neurostim.stimulus
         
         
         function sendMarker(o,m)
+            
             if o.fake
                 writeToFeed(o,[m ' marker delivered']);
                 o.marker = o.code(m); % Log it
@@ -466,6 +481,7 @@ classdef starstim < neurostim.stimulus
                 peakLevelDuration =Inf;
             end
             
+            waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});             
             sendMarker(o,'rampUp');
             switch upper(o.type)
                 case 'TACS'
@@ -474,40 +490,44 @@ classdef starstim < neurostim.stimulus
                     msg{3} = sprintf('\t%d mA',o.amplitude);
                     msg{4} = sprintf('\t%d Hz',o.frequency);
                     msg{5} = sprintf('\t%d o ',o.phase);
-                    if o.fake
-                        o.writeToFeed(msg);
-                    else                                                 
+                    if ~o.fake                                                                         
                         [ret] = MatNICOnlinetACSChange(perChannel(o,o.amplitude), perChannel(o,o.frequency), perChannel(o,o.phase), o.NRCHANNELS, o.transition, o.sock);                        
                         o.checkRet(ret,msg);
-                    end
+                    end                                                           
                 case 'TDCS'
                     msg{1} = sprintf('Ramping tDCS up in %d ms to:',o.transition);
                     msg{2} = sprintf('\tCh#%d',1:o.NRCHANNELS);
                     msg{3} = sprintf('\t%d mA',o.mean);
-                    if o.fake
-                        o.writeToFeed(msg);
-                    else 
+                    if ~o.fake                         
                         [ret] = MatNICOnlineAtdcsChange(perChannel(o,o.mean), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,msg);
-                    end
+                    end                                        
                 case 'TRNS'
+                    msg{1} = '??? tRNS not implemented yet';
                     o.checkRet(-1,'tRNS Not implemented yet');
                 otherwise
                     error(['Unknown stimulation type : ' o.type]);
             end            
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
             
+            waitFor(o,'CODE_STATUS_STIMULATION_FULL');             
+            tReachedPeak = GetSecs;
+            
+            if o.fake || o.debug
+                o.writeToFeed(msg);
+            end
+            
             if o.sham
-                peakLevelDuration =0;
+                peakLevelDuration =o.shamDuration;
             end
             
             % Schedule the rampDown. Assuming that this line is executed
             % immediately after sending the rampup command to Starstim.
-            if isfinite(peakLevelDuration)
-                off  = @(timr,events,obj,tSchedule) (rampDown(obj,tSchedule));                
-                o.tmr.StartDelay = (o.transition+peakLevelDuration)/1000; % seconds
+            if isfinite(peakLevelDuration)                
+                off  = @(timr,events,obj,tPeak) (rampDown(obj,tPeak));                
+                o.tmr.StartDelay = peakLevelDuration/1000; %\ seconds
                 o.tmr.ExecutionMode='SingleShot';
-                o.tmr.TimerFcn = {off,o,GetSecs};
+                o.tmr.TimerFcn = {off,o,tReachedPeak};
                 start(o.tmr);
             end
             
@@ -515,16 +535,18 @@ classdef starstim < neurostim.stimulus
         
         
         function rampDown(o,tScheduled)
-            sendMarker(o,'rampDown');
-            if o.fake
+             
+            waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
+            if o.fake || o.debug
                 if nargin ==2
-                    o.writeToFeed('Ramping %s down to zero in %d ms after %.0f ms )',o.type, o.transition,1000*(GetSecs-tScheduled));
+                    o.writeToFeed('Ramping %s down to zero in %d ms after %.0f ms at peak level )',o.type, o.transition,1000*(GetSecs-tScheduled));
                 else
                     o.writeToFeed('Ramping %s down to zero in %d ms',o.type, o.transition);
                 end
-            else
-                waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
-                switch upper(o.type)
+            end
+            sendMarker(o,'rampDown');
+            if ~o.fake                
+                 switch upper(o.type)
                     case 'TACS'
                         [ret] = MatNICOnlinetACSChange(zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
@@ -539,6 +561,7 @@ classdef starstim < neurostim.stimulus
             end
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
         
+          
         end
         
         
@@ -642,6 +665,7 @@ classdef starstim < neurostim.stimulus
             % busy-wait for a sequence of status events.
             % waitFor(o,'a','b') first waits for a then for b
             % waitFor(o,{'a','b'}) waits for either a or b to occur
+            
             cntr =1;
             nrInSequence = numel(varargin);
             TIMEOUT = 5;
@@ -696,7 +720,7 @@ classdef starstim < neurostim.stimulus
             acCurrent = repmat(o.amplitude,[nrT 1]).*sin(pi/180*repmat(perChannel(o,o.phase),[nrT 1]) + 2*pi*t.*repmat(perChannel(o,o.frequency),[nrT,1]));
             currentThreshold = 1;% 1 muA excess is probably an error
             if any(abs(sum(acCurrent,2))>currentThreshold)
-                o.cic.error('STOPEXPERIMENT','AC Current not conserved. Please check stastim.amplitude , .frequency , and .phase numbers');
+                o.cic.error('STOPEXPERIMENT','AC Current not conserved. Please check starstim.amplitude , .frequency , and .phase numbers');
                 ok = false;
             end
             

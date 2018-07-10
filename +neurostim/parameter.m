@@ -132,7 +132,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % but tests on July 1st 2017 showed that this was (no longer)
             % correct. 
             
-            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v==o.value)) || (ischar(v) && strcmp(v,o.value))
+            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v(:)==o.value(:))) || (ischar(v) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end
@@ -154,6 +154,9 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.capacity = numel(o.log);
             end
             %% Fill the log.
+            if isa(v,'neurostim.plugins.adaptive')
+                v = getValue(v);
+            end
             o.log{o.cntr}  = v;
             o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime
         end
@@ -322,6 +325,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 trial = 1:maxTrial; % The trial where the event set came from is trial(ix);
                 time = time(ix);
                 trialTime = trialTime(ix);
+                block = block(ix);
                 
                 if any(out)
                     data(out)=[];

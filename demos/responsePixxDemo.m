@@ -1,4 +1,4 @@
-function c=responsePixxDemo
+function responsePixxDemo
 % reaction time experiment using the responsePixx
 
 %% Prerequisites. 
