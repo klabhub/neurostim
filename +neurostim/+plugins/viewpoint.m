@@ -331,7 +331,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
       % convert Viewpoint's normalized screen coords to neurostim's physical coords
       
       if nargin < 4
-        cm = o.calibrationMatrix;
+        cm = o.clbMatrix;
       end
       
       % apply manual calibration... default is the identity matrix
@@ -345,7 +345,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
       % convert neurostim's physical coords to Viewpoint's normalized screen coords
       
       if nargin < 4
-        cm = o.calibrationMatrix;
+        cm = o.clbMatrix;
       end
       
       [a,b] = o.cic.physical2Pixel(nx,ny);
