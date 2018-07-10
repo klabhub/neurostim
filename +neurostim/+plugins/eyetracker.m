@@ -41,7 +41,7 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('eyeToTrack','left');
             o.addProperty('continuous',false);
             
-            o.addProperty('calibrationMatrix',eye(3));
+            o.addProperty('clbMatrix',eye(3));
         end
         
         
@@ -50,6 +50,15 @@ classdef eyetracker < neurostim.plugin
             if o.useMouse
                 [currentX,currentY,buttons] = o.cic.getMouse;
                 if buttons(1) || o.continuous
+                    % temporary hack here to mimic normalized input from Viewpoint
+                    [x,y] = o.cic.physical2Pixel(currentX,currentY);
+                    
+                    currentX = x./o.cic.screen.xpixels;
+                    currentY = y./o.cic.screen.ypixels;
+                    %
+                    
+                    [currentX,currentY] = o.raw2ns(currentX,currentY);
+                    
                     o.x=currentX;
                     o.y=currentY;
                 end
@@ -58,24 +67,36 @@ classdef eyetracker < neurostim.plugin
         
         function [a,b] = raw2ns(o,x,y,cm)
           if nargin < 4
-            cm = o.calibrationMatrix;
+            cm = o.clbMatrix;
           end
           
           ab = [x,y,ones(size(x))]*cm;
           
-%           [a,b] = o.cic.pixel2Physical(ab(:,1),ab(:,2));
+          % temporary hack
+          a = ab(:,1).*o.cic.screen.xpixels;
+          b = ab(:,2).*o.cic.screen.ypixels;
+          
+          [a,b] = o.cic.pixel2Physical(a,b);
+          ab = [a(:), b(:)];
+          %
+
           a = ab(:,1);
           b = ab(:,2);
         end
         
         function [x,y] = ns2raw(o,a,b,cm)
           if nargin < 4
-            cm = o.calibrationMatrix;
+            cm = o.clbMatrix;
           end
           
-%           [x,y] = o.cic.physical2Pixel(a,b);
+          % temporary hack
+          [x,y] = o.cic.physical2Pixel(a,b);
           
-          xy = [a,b,ones(size(a))]*inv(cm);
+          x = x./o.cic.screen.xpixels;
+          y = y./o.cic.screen.ypixels;
+          %
+          
+          xy = [x,y,ones(size(a))]*inv(cm);
           
           x = xy(:,1);
           y = xy(:,2);
