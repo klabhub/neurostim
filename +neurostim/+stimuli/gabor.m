@@ -178,8 +178,7 @@ classdef gabor < neurostim.stimulus
             % Create a purely virtual procedural texture of size width x height virtual pixels.            % Attach the Shader to it to define its appearance:
             o.texture = Screen('SetOpenGLTexture', o.window, [], 0, GL.TEXTURE_RECTANGLE_EXT, o.width, o.height, 1, o.shader);
             % Query and return its bounding rectangle:
-            o.textureRect = Screen('Rect', o.texture);
-            o.textureRect=CenterRectOnPoint(o.textureRect,0,0);
+            o.textureRect= [-o.width -o.height o.width o.height]./2;
             
         end
     end
