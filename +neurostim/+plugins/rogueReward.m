@@ -110,7 +110,7 @@ classdef rogueReward < neurostim.plugin
                 writeToFeed(o,['RRR Speed should be in 50:50:400, not ' num2str(o.speed) '. Now set to ' num2str(newSpeed)]);
                 o.speed = newSpeed;
             end
-            if iseven(o.nrPositions)
+            if rem(o.nrPositions,2)==0
                 o.nrPositions = o.nrPositions+1;
                 writeToFeed(o,['RRR number of positions set to an odd number: ' num2str(o.nrPositions)]);
             end

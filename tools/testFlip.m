@@ -121,4 +121,5 @@ plot(tictoc(2:end),tictoc(1:end-1),'.',xlim,xlim,'k--');
 xlabel('ms');
 ylabel('ms');
 
-suptitle(sprintf('nrFrames = %i, deadline = %i, slack = %.2f',nrFrames,deadline,slack));
+str = sprintf('nrFrames = %i, deadline = %i, slack = %.2f',nrFrames,deadline,slack);
+annotation(gcf,'textbox',[0 0 1 1],'String',str,'HorizontalAlignment','Center')

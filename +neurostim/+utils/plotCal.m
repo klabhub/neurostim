@@ -43,7 +43,8 @@ function plotCal(cal)
     
     title (['Inverse Gamma. R^2 = ' num2str(cal.ns.R2,3)]);
     
-    suptitle([cal.describe.computer ':' datestr(cal.describe.date)])
+    str = [cal.describe.computer ':' datestr(cal.describe.date)];
+    annotation(gcf,'textbox',[0 0 1 1],'String',str,'HorizontalAlignment','Center')
 
 
 
