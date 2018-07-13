@@ -1,5 +1,9 @@
 classdef behavior < neurostim.plugin
-    % Plugin that runs the behavior state machine 
+    % Generic behavior class (inc. function wrappers) for subclasses.
+    %
+    % Simple behavioral class which adds properties, event listeners and function wrappers
+    % for all behavioral subclasses.
+    
     
     properties (Access=public)
         failEndsTrial = true;             %Does violating behaviour end trial?
