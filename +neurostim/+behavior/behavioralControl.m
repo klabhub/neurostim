@@ -1,13 +1,15 @@
-classdef behavior <  neurostim.plugin
+classdef (Abstract) behavioralControl <  neurostim.plugin
     
     properties (SetAccess=public,GetAccess=public)
-        
+        failEndsTrial       = true;             %Does violating behaviour end trial?
+        successEndsTrial    = false;         % Does completing the behavior successfully end the trial?     
         everyFrame@logical =true;
         
     end
     
     properties (SetAccess=protected,GetAccess=public)
-         currentState; % Function handle that represents the current state.       
+         currentState; % Function handle that represents the current state. 
+         initialState; % Each trial starts in this state 
     end
     
     
@@ -22,6 +24,7 @@ classdef behavior <  neurostim.plugin
         
         
         function beforeTrial(o)
+            o.currentState = o.initialState;
             
         end
         
@@ -48,25 +51,42 @@ classdef behavior <  neurostim.plugin
     
     %% 
     methods (Access=public)  % Derived classes can overrule these if needed
-        % Constructor
+       
+        % Constructor. In the non-abstract derived clases, the user must
+        % set currentState to an existing state.
         function o = behavior(c,name)
             o = o@neurostim.plugin(c,name);     
             o.feedStyle = 'blue';
         end
-        
-        
+           
         function e = getEvent(o)
-            [e.x,e.y,e.buttons] = GetMouse;            
+            [e.x,e.y,e.buttons] = GetMouse;   
+            e.t = o.cic.trialTime;
         end
-        
       
     end
     
     %% States
     methods
-        function endTrial(o,e)
-            
+        function fail(o,e)
+            if o.failEndsTrial
+                o.cic.endTrial();
+            end
         end
+        
+        function success(o,e)
+            if o.successEndsTrial
+                o.cic.endTrial();
+            end
+        end
+    end
+    
+    methods
+        % Helper function to determine whether we've reached the timeout
+        function value = isTimeout(o,e)
+            value = e.t >o.timeout;
+        end
+        
     end
     
 end

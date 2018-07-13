@@ -1,40 +1,42 @@
-classdef fixation  < neurostim.behavior.behaviorStateMachine
+classdef fixation  < neurostim.behavior.eyeMovement
+    % This state machine defines two new states:
+    % freeViewing (set as the initial state)
+    % fixating   (reached when the eye moves inside the window)
+    % and it inherits two of the standard states;
+    % success (reached if the eye is still in the window at o.off time 
+    % fail (reached when the eye leaves the window before the .off time, or 
+    %       if it never reaches the window at all)
+    %
     
-    properties
-        x=0;
-        y=0;
-        tolX =1;
-        tolY=1;
-    end
+    
     % State functions
     methods
-        function o=fixation
-%             o.addParameter('x',0);
-%             o.addParameter('y',0);
-%             o.addParameter('tolX',0);
-%             o.addParameter('tolY',0);
-            o.currentState = @o.freeViewing;
-            
+        
+        function o=fixation(c,name)
+            o = o@neurostim.behavior.eyeMovement(c,name);   
+            o.initialState = @o.freeViewing; % Initial state at the start of the trial
         end
         
         function freeViewing(o,e)
-            if isInside(o,e)
-                transition(o,@o.fixating);
-            else
+            % Free viewing has two transitions, either to fail (if we reach
+            % the timeout), or to fixating (if the eye is in the window)
+            if isTimeout(o,e)               
+                transition(o,@o.fail);
+            elseif isInWindow(o,e)
+                transition(o,@o.fixating);            
             end
         end
         
-        function fixating(o,e)
-            if isInside(o,e)
+        
+       function fixating(o,e)
+            if isInWindow(o,e)
+                if isTimeout(o,e)
+                    transition(o,@o.success);
+                end
             else
-                transition(o,@o.endTrial);
+                transition(o,@o.fail);
             end
         end
     end
-    
-    methods (Access=protected)
-        function value= isInside(o,e)
-              value= all(abs(e.x-o.x)<o.tolX) && all(abs(e.y-o.y)<o.tolY);
-        end
-    end
+  
 end
