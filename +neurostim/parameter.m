@@ -392,7 +392,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             t = o.plg.cic.prms.trial.time;   % Start of the trial            
             t(tr==0) = [];
             t(isnan(t))= []; 
-            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match then number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(tr));            
+            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match the number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(tr));            
         end
         
         function tr = eTime2TrialNumber(o,eventTime)

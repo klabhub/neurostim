@@ -17,7 +17,7 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
            o.addProperty('radius',5,'validate',@isnumeric); 
            
            
-           if ~isfield(c,'eye')
+           if ~hasPlugin(c,'eye')
                warning(c,'No eye data in CIC. This behavior control is unlikely to work');
            end
 
@@ -26,6 +26,7 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
         % Overrule the getEvent function to generate events that carry eye
         % position information.
         function e = getEvent(o)
+            e = neurostim.event;
             e.X = o.cic.eye.x;
             e.Y = o.cic.eye.y;
         end
@@ -37,15 +38,22 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
     
     methods (Access=protected)
         % Helper function to determine whether the eye is in a circular window
-        function value= isInWindow(o,e)
-            dx = e.X-o.X; 
-            tol =o.tolerance.
-            if dx < tol
-               value = sqrt(dx^2+(e.Y-o.Y)^2)<=tol;
+        % around o.X, o.Y. A different position can be checked the same way
+        % by specifying the optional third and fourth input argument.
+        function value= isInWindow(o,e,X,Y)
+            nin=nargin;
+            if nin < 4
+                Y = o.Y;
+                if nin < 3
+                    X = o.X;
+                end
             end
-           if o.invert
+            nrXPos = numel(X);  % X and Y could have multiple targets( they have to match in numels)
+            distance = sqrt(sum((repmat([e.X e.Y],[nrXPos 1])-[X(:)' Y(:)']).^2,2));            
+            value= any(distance< o.tolerance);
+            if o.invert
                value = ~value;
-           end
+            end
         end
         
        

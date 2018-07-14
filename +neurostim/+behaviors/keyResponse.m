@@ -52,16 +52,16 @@ classdef keyResponse < neurostim.behavior
         end
         
         function  e =getEvent(~)
-            % This function is not necessary for a keyboard as the events are generated
-            % and passed to the state in the keyboard function (truly
-            % event-based, rather than in the frame loop).
-            e= struct; % Return empty struct
+            e= neurostim.event(neurostim.event.NOOP); % Return nan empty struct- none of the 
         end
         
         function beforeFrame(o)
             % The base behavior class checks events and passes them to the
             % state in this function. The keyResponse class does this in the
-            % keyboard event handler.
+            % keyboard event handler. But for consistency and to allow
+            % derived classes to rely on a frame-loop calling of the state
+            % functions, we implement 
+            
             
             % A simulated observer (useful to test paradigms and develop
             % analysis code).
@@ -70,33 +70,40 @@ classdef keyResponse < neurostim.behavior
                     keyboard(o,o.keys{o.simWhat});
                 end
             end
+            
+            beforeFrame@neurostim.behavior(o);
         end
         
         % Ths keyboard event handler (also plays the role that getEvent
         % plays in the base class).
-        function keyboard(o,key)
-            
-            %Check that we're in teh response window
+        function keyboard(o,key)            
+            %Check that we're in time window
             t = o.cic.trialTime;            
             on = t >= o.from && t <= o.to;
-            if ~on; return;end
+            if ~on; return;end % ignore
             
+            e = keyToEvent(o,key);
+            % Send to state.
+            o.currentState(t,e);
+            
+        end
+        
+        function e= keyToEvent(o,key)
             % Evaluate and log key correctness
-            keyNr = find(strcmpi(key,o.keys));
-            o.keyNr = keyNr; %Log the index of the pressed key
+            keyIx = find(strcmpi(key,o.keys));
+            o.keyIx = keyIx; %Log the index of the pressed key
             if isempty(o.correctFun)
                 thisIsCorrect = true;
             else
-                thisIsCorrect = keyNr ==o.correctFun;
+                thisIsCorrect = keyIx ==o.correctFun;
             end
-            o.corect = thisIsCorect; %Log it for easy analysis
+            o.correct = thisIsCorrect; %Log it for easy analysis
             
-            % Package as an event to pass to the state.
+            % Package as a regular event to pass to the state.
+            e = neurostim.event(neurostim.event.REGULAR);
             e.key =key;
-            e.keyNr =keyNr;
-            e.correct = thisIsCorrect;            
-            o.currentState(o,t,e);
-            
+            e.keyNr =keyIx;
+            e.correct = thisIsCorrect;                
         end
     end
     %% States
@@ -104,7 +111,8 @@ classdef keyResponse < neurostim.behavior
         
         % Waiting for a single correct/incorrect response
         function waiting(o,t,e)
-            if t>t.to
+            if ~e.isRegular ;return;end % No Entry/exit needed.         
+            if t>o.to
                 % a call from endTrial to clean up
                 transition(o,@o.fail);  %No key received this trial
             else

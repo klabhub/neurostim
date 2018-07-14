@@ -53,11 +53,13 @@ classdef hold < neurostim.behavior
         function  e = getEvent(o)
             % By convention a high bit on the mccChannel is considered a
             % HOLD.
+            e= neurostim.event;
             e.isBitHigh = o.mcc.isHigh;
         end
         
         %% States
         function holding(o,t,e)
+            if ~e.isRegular ;return;end % No Entry/exit needed.
             if isBitHigh(o,e)
                 if t>t.to
                     transition(o,@o.success);
@@ -75,6 +77,7 @@ classdef hold < neurostim.behavior
         end
         
         function notHolding(o,t,e)
+            if ~e.isRegular ;return;end % No Entry/exit needed.
             if isBitHigh(o,e)
                 transition(o,@o.holding);
             else

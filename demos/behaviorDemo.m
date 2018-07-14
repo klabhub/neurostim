@@ -27,7 +27,7 @@ commandwindow;
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
 c = myRig;
-c.addPropsToInform('choice.correct','f1.success'); % Show this value on the command prompt after each trial (i.e. whether the answer was correct and whether fixation was successful).
+c.addPropsToInform('choice.correct','f1.stateName'); % Show this value on the command prompt after each trial (i.e. whether the answer was correct and whether fixation was successful).
 
 %Make sure there is an eye tracker (or at least a virtual one)
 if isempty(c.pluginsByClass('eyetracker'))
@@ -49,7 +49,7 @@ f.duration = Inf;               %How long should it be displayed?
 d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
 d.X = '@fix.X';                 %Parameters can be set to arbitrary, dynamic functions using this string format. To refer to other stimuli/plugins, use their name (here "fix" is the fixation point).
 d.Y = '@fix.Y';                 %Here, wherever the fixation point goes, so too will the dots, even if it changes in real-time.       
-d.on = '@f1.startTime+500';     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
+d.on = '@startTime(cic.f1,''fixating'')+500';     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
 d.duration = 1000;
 d.color = [1 1 1];
 d.size = 2;
@@ -61,22 +61,21 @@ d.noiseMode = 1;
 %% ========== Add required behaviours =========
 
 %Subject's 2AFC response
-k = plugins.nafcResponse(c,'choice');
-k.on = '@dots.on + dots.duration';
-k.deadline = '@choice.on + 2000';                   %Maximum allowable RT is 2000ms
+k = behaviors.keyResponse(c,'choice');
+k.from = '@dots.on + dots.duration';
+k.to= '@choice.from + 2000';                   %Maximum allowable RT is 2000ms
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
-k.keyLabels = {'up', 'down'};
-k.correctKey = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
-k.required = false; %   This means that even if this behavior is not successful (i.e. the wrong answer is given), the trial will not be repeated.
+k.correctFun = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
+%k.required = false; %   This means that even if this behavior is not successful (i.e. the wrong answer is given), the trial will not be repeated.
 
 %Maintain gaze on the fixation point until the dots disappear
-g = plugins.fixate(c,'f1');
-g.from = '@f1.startTime';
+g = behaviors.fixate(c,'f1');
+g.from = 5000; % If fixation has not started at this time, move to the next trial
 g.to = '@dots.stopTime';
 g.X = '@fix.X';
 g.Y = '@fix.Y';
 g.tolerance = 3;
-g.required = true; % This is a required behavior. Any trial in which fixation is not maintained throughout will be retried. (See myDesign.retry below)
+%g.required = true; % This is a required behavior. Any trial in which fixation is not maintained throughout will be retried. (See myDesign.retry below)
 
 %% ========== Specify feedback/rewards ========= 
 % Play a correct/incorrect sound for the 2AFC task
@@ -88,7 +87,9 @@ s.add('waveform','correct.wav','when','afterTrial','criterion','@choice.correct'
 s.add('waveform','incorrect.wav','when','afterTrial','criterion','@ ~choice.correct');
 
 %% Experimental design
-c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
+c.trialDuration = Inf; '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
+k.failEndsTrial = true;
+k.successEndsTrial  = true;
 
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.

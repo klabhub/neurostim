@@ -1,11 +1,10 @@
 classdef fixate  < neurostim.behaviors.eyeMovement
     % This state machine defines two new states:
-    % freeViewing (set as the initial state)
-    % fixating   (reached when the eye moves inside the window)
-    % and it inherits two of the standard states;
-    % success (reached if the eye is still in the window at o.to time 
-    % fail (reached when the eye leaves the window before the .from time, or 
-    %       if it never reaches the window at all)
+    % FREEVEIWING - each trial starts here
+    %              -> FIXATING when the eye moves inside the window
+    %              ->FAIL  if t>t.from
+    % FIXATING    -> FAIL if eye moves outside the window before t.to
+    %             -> SUCCESS if eye is still inside the window at or after t.to  
     %% STATE DIAGRAM:
     % FREEVIEWING ---(isInWindow)?--->   FIXATING --- (~isInWindow)? --> FAIL 
     %       |                               |
@@ -35,6 +34,7 @@ classdef fixate  < neurostim.behaviors.eyeMovement
         function freeViewing(o,t,e)
             % Free viewing has two transitions, either to fail (if we reach
             % the timeout), or to fixating (if the eye is in the window)
+            if ~e.isRegular ;return;end % No Entry/exit needed.
             if t>o.from               
                 transition(o,@o.fail);
             elseif isInWindow(o,e)
@@ -44,6 +44,7 @@ classdef fixate  < neurostim.behaviors.eyeMovement
         
         
        function fixating(o,t,e)
+         	if ~e.isRegular ;return;end % No Entry/exit needed.
             if isInWindow(o,e)
                 if t>o.to
                     transition(o,@o.success);

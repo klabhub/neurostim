@@ -63,9 +63,10 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
                 o.startedLogger = true;
             end
             
-            getEvent(o); % Read responsePixx and pass key to keyboard.
             
-            % Calll parent beforeFrame (to simulate responses)
+            % Calll parent beforeFrame (to simulate responses and to call
+            % the behavior class beforeFrame as well to generate events that 
+            % do not depend on the keyboard)
             beforeFrame@neurostim.behaviors.keyResponse(o);
         end
         
@@ -98,27 +99,29 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
        
     end
     methods (Access=protected)
+        % This function is called by behavior.beforeFrame which will send out
+        % events to the states. 
         function e=getEvent(o)        
             [buttonStates, transitionTimesSecs, ~] = ResponsePixx('GetLoggedResponses');
             [tIx,buttonNr] = find(buttonStates);
-            nrPressed = numel(buttonNr);            
-            e.key = '';
+            nrPressed = numel(buttonNr);   
+            % Unless there is a key press in the pixx, we'll return a NOOP
+            % event , which will not be sent out to the state.
+            e = neurostim.event(neurostim.event.NOOP);            
             if nrPressed ==0
                 % nothing to
             elseif nrPressed ==1                
                 %Have a button press. Map it to a key in the o.keys
                 key = o.keyToButtonMapper{buttonNr};
                 if ismember(key,o.keys)
-                    keyboard(o,key); % Pass to keyResponse.keyboard which will evaluate correctness and change state accordingly
-                    e.key = key; % Not used, but want to return something from this function
+                    e = keyToEvent(o,key);
                 else
                     o.writeFeed(['Subject pressed the ' key ' button. Ignored for behavior, but logged.']); 
                 end
                 o.button = [buttonNr transitionTimesSecs(tIx)]; % Store button and the time in DPixx time
             else
                o.writeFeed(['Subject pressed ' num2str(nrPressed) ' buttons. Ignored.']);                
-            end
-            
+            end           
         end
         
     end
