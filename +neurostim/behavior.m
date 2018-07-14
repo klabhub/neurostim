@@ -1,9 +1,39 @@
 classdef (Abstract) behavior <  neurostim.plugin
-    
+    % This abstract class implements a finite state machine to
+    % define behaviors. Derived classes are needed to implement specific
+    % behavioral sequences. See for example behaviors.fixate or
+    % behaviors.keyResponse.
+    %
+    % This base class only implements two states:
+    % FAIL - the final state of the machine indicating that the behavioral
+    %           constraints defined by the machine were not met.
+    % SUCCESS - the final state of the machine indicating tha that the
+    % behavioral constraints defined by the machine were met. 
+    % 
+    % Derived classes should define their states such that the machine ends
+    % in either the FAIL or SUCCESS endstate.
+    %
+    % Parameters:
+    % failEndsTrial  - a trial ends when the FAIL state is reached [true]
+    % successEndsTrial - a trial ends when the SUCCESS state is reached  [false]
+    % verbose - Write output about each state change to the command line [true]
+    % stateName - the name of the current state of the machine.
+    % isOn -  Logical to indicate whether the machine is currently active.
+    % stopTime - the trial time when the machine reached either the FAIL or
+    %                   SUCCESS state in the current trial
+    % Functions to be used in experiment designs:
+    % 
+    % startTime(o,state) - returns the time in the current trial when the
+    % specified state started. 
+    % duration(o,state,t) - returns how long the machine has been in state s at time t
+    %                       of the current trial (or the current time if t is not provide).
+    %
+    % BK  - July 2018
     properties (SetAccess=public,GetAccess=public)
         failEndsTrial       = true;          % Does reaching the fail state end the trial?
         successEndsTrial    = false;         % Does reaching the success state end the trial?
         verbose             = true;
+        
     end
     
     properties (SetAccess=protected,GetAccess=public)
@@ -151,24 +181,25 @@ classdef (Abstract) behavior <  neurostim.plugin
     %% Helper functions
     methods
         
-        function v= stateDuration(o,t,s)
+        function v= duration(o,s,t)
             %Return how long the state s has been active at time t.
             if o.prms.state.cntr >1
-                [v] = get(o.prms.state,'trial',o.trial,'withDataOnly',true);
+                if nargin <3
+                    t = o.cic.trialTime;
+                end
+                v = t - startTime(o,s);
             else
                 v= 0;
             end
         end
         
-        % Return the starttimes of a specific state (s) in the current
-        % trial. In a behavior where the same state can be visited multiple
-        % times, this can be a vector of times - the caller will have to
-        % handle that aspect. (e.g. take the max for the last)
+        % Return the last starttimes of a specific state (s) in the current
+        % trial.
         function v = startTime(o,s)
             if o.prms.state.cntr >1
-                [states,~,t] = get(o.prms.state,'trial',o.cic.trial,'withDataOnly',true);
-                stay = ismember(states,upper(s));
-                v  = t(stay);
+                if ~iscell(s);s={s};end
+                [~,~,v] = get(o.prms.state,'trial',o.cic.trial,'withDataOnly',true,'dataIsMember',upper(s));
+                v= max(v);
                 if isempty(v) % This state did not occur yet this trial
                     v= NaN;
                 end

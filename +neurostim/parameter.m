@@ -278,13 +278,16 @@ classdef parameter < handle & matlab.mixin.Copyable
             % after this event.
             % 'trial'  - request only entries occuring in this set of
             % trials.
-            %
+            % 'withDataOnly' - return only events with data.
+            % 'dataIsMember' - return only those events where the data
+            % matches this cell/vector of elements.
+            
             p =inputParser;
             p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial
             p.addParameter('after','',@ischar); % Return the first value after this event in the trial
             p.addParameter('trial',[],@isnumeric); % Return only values in these trials
             p.addParameter('withDataOnly',false,@islogical); % Only those values that have data
-            
+            p.addParameter('dataIsMember',{});  %Only when data is a member of the list
             p.parse(varargin{:});
             
             data = o.log(1:o.cntr);
@@ -343,44 +346,40 @@ classdef parameter < handle & matlab.mixin.Copyable
                     else
                         block = NaN; % Should never happen...
                     end
-                end
-                
-                %Convert cell array to a matrix if possible
-                data = neurostim.parameter.matrixIfPossible(data);
+                end                                
             end
             
+            % Some more pruning if requested
+            out = false(size(data));
             if ~isempty(p.Results.trial)
-                stay = ismember(trial,p.Results.trial);
-                if iscell(data)
-                    data=data(stay);
-                else
-                    sz = size(data);
-                    data = data(stay,:);
-                    data = reshape(data,[sum(stay),sz(2:end)]);
-                end
-                trial = trial(stay);
-                time = time(stay);
-                trialTime = trialTime(stay);
-                block = block(stay);
+                out = out | ~ismember(trial,p.Results.trial);                
             end
             
-            if isvector(data)
-                data=data(:);
+           
+            if p.Results.withDataOnly 
+                out  = out | cellfun(@isempty,data);            
             end
+            if ~isempty(p.Results.dataIsMember) 
+                out = out | cellfun(@(x)(~ismember(x,p.Results.dataIsMember)),data);
+            end
+            
+            % Prune
+            data(out) =[];
+            %Convert cell array to a matrix if possible
+            data = neurostim.parameter.matrixIfPossible(data);
+            time(out) =[];
+            block(out) = [];
+            trial(out) =[];
+            trialTime(out)=[];
+           
+            
+            if isvector(data) % For consistency - always row
+                data=data(:);
+            end           
             trialTime = trialTime(:);
             time = time(:);
             block = block(:);
-            trial = trial(:);
-            
-            if p.Results.withDataOnly && iscell(data)
-                out  = cellfun(@isempty,data);
-                data(out) =[];
-                data = neurostim.parameter.matrixIfPossible(data);
-                time(out) =[];
-                block(out) = [];
-                trial(out) =[];
-                trialTime(out)=[];
-            end
+            trial = trial(:);                                    
             
         end
         
