@@ -28,6 +28,11 @@ classdef (Abstract) behavior <  neurostim.plugin
     % duration(o,state,t) - returns how long the machine has been in state s at time t
     %                       of the current trial (or the current time if t is not provide).
     %
+    % TODO:
+    %   hack str2fun so that it can accept f1.startTime.fixation instead of
+    %   startTime(cic.f1,''fixation'') as is currently necessary because
+    %   str2fun cannot handle the .startTime.fixation. 
+    %
     % BK  - July 2018
     properties (SetAccess=public,GetAccess=public)
         failEndsTrial       = true;          % Does reaching the fail state end the trial?
@@ -71,9 +76,8 @@ classdef (Abstract) behavior <  neurostim.plugin
 
         function v = get.stopTime(o)
              if o.prms.state.cntr >1
-                [states,~,t] = get(o.prms.state,'trial',o.cic.trial,'withDataOnly',true);
-                stay = ismember(states,{'FAIL','SUCCESS'});
-                v  = t(stay);
+                [states,~,v] = get(o.prms.state,'trial',o.cic.trial,'withDataOnly',true,'dataIsMember',{'FAIL','SUCCESS'});
+                v = max(v);
                 if isempty(v) % This state did not occur yet this trial
                     v= NaN;
                 end
@@ -81,8 +85,10 @@ classdef (Abstract) behavior <  neurostim.plugin
                 v= NaN;
             end
         end
-
+        
+        
     end
+    
     
         methods (Access=public)  
     

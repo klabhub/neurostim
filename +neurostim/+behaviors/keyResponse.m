@@ -52,7 +52,7 @@ classdef keyResponse < neurostim.behavior
         end
         
         function  e =getEvent(~)
-            e= neurostim.event(neurostim.event.NOOP); % Return nan empty struct- none of the 
+            e= neurostim.event; % Event without key - used to process time.
         end
         
         function beforeFrame(o)
@@ -84,8 +84,7 @@ classdef keyResponse < neurostim.behavior
             
             e = keyToEvent(o,key);
             % Send to state.
-            o.currentState(t,e);
-            
+            o.currentState(t,e);            
         end
         
         function e= keyToEvent(o,key)
@@ -115,7 +114,9 @@ classdef keyResponse < neurostim.behavior
             if t>o.to
                 % a call from endTrial to clean up
                 transition(o,@o.fail);  %No key received this trial
-            else
+            elseif ~isempty(e.key) % hack - this code should only run in response to real key events
+                                   % not just the passage of time (as above
+                                   % in t>o.to)
                 if e.correct
                     transition(o,@o.success);
                 else
