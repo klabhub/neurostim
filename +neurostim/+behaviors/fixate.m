@@ -6,8 +6,15 @@ classdef fixate  < neurostim.behaviors.eyeMovement
     % success (reached if the eye is still in the window at o.to time 
     % fail (reached when the eye leaves the window before the .from time, or 
     %       if it never reaches the window at all)
+    %% STATE DIAGRAM:
+    % FREEVIEWING ---(isInWindow)?--->   FIXATING --- (~isInWindow)? --> FAIL 
+    %       |                               |
+    %     (t>from)? --> FAIL               t>to? ---> SUCCESS   
     %
-    % Parameters:
+    % Note that **even before t< o.from**, the eye has to remain 
+    % in the window once it is in there (no in-and-out privileges)
+    %
+    %% Parameters (inherited from eyeMovement):
     % 
     % X,Y,  - fixation position 
     % tolerance - width/height of the square tolerance window around X,Y

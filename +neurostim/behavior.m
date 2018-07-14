@@ -1,10 +1,8 @@
 classdef (Abstract) behavior <  neurostim.plugin
     
     properties (SetAccess=public,GetAccess=public)
-        failEndsTrial       = true;             %Does violating behaviour end trial?
-        successEndsTrial    = false;         % Does completing the behavior successfully end the trial?     
-        everyFrame@logical =true;
-        
+        failEndsTrial       = true;          % Does reaching the fail state end the trial?
+        successEndsTrial    = false;         % Does reaching the success state end the trial?     
     end
     
     properties (SetAccess=protected,GetAccess=public)
@@ -14,27 +12,34 @@ classdef (Abstract) behavior <  neurostim.plugin
          
     end
     properties (Dependent)
-        stateName@char;       
+        stateName@char;   
+        isOn@logical;
     end
     
     methods %get/set
+        
+        function v = get.isOn(o)
+            t= o.cic.trialTime;
+            v= t>=o.on & t < o.off;
+        end
+        
         function v = get.stateName(o)
             pattern = '@\(varargin\)o\.(?<name>[\w\d]+)\(varargin{:}\)'; % This is what a state function looks like when using func2str : @(varargin)o.freeViewing(varargin{:})
             match = regexp(func2str(f.currentState),pattern,'names');
             if isempty(match)
                 error('State name extraction failed');
             else
-                v= match.name;
+                v= upper(match.name);
             end
        end
     end
     
     %% Standard plugin member functions
-    methods (Sealed)
+    methods 
         % Users should add functionality by defining new states, or
         % if a different response modailty (touchbar, keypress, eye) is
-        % needed, by overloading the getEvent function. The regular plugin
-        % functions are sealed. 
+        % needed, by overloading the getEvent function.
+        
         function beforeExperiment(o)
             assert(~isempty(o.beforeExperimentState),['Behavior ' o.name '''s beforeExperimentState has not been defined']);
         end
@@ -48,21 +53,18 @@ classdef (Abstract) behavior <  neurostim.plugin
         end
         
         function beforeFrame(o)
-            t = o.cic.trialTime;
-            on = t >= o.on && t <= o.off;
-            
-            
-            if on && o.everyFrame    
+            if o.isOn   
                 e= getEvent(o);     % Get current events
-                o.currentState(t,e);  % Each state is a member function- just pass the event
+                o.currentState(o,t,e);  % Each state is a member function- just pass the event
             end
         end
         
 %         function afterFrame(o)
 %         end
-%         
-%         function afterTrial(o)
-%         end
+%         o,
+         function afterTrial(o)
+             %One last update?
+         end
 %         function afterExperiment(o)
 %         end
 %         
