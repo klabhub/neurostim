@@ -19,24 +19,25 @@ g.orientation = 0;
 g.mask ='GAUSS';
 g.duration = 250;
 
-v = neurostim.plugins.responsePixx(c,'responsePixx');
+v = behaviors.pixxResponse(c,'responsePixx');
 v.on = 0;
 v.off= Inf;
 v.successEndsTrial = true;
 
-c.addPropsToInform('responsePixx.correct','responsePixx.pressedButton','responsePixx.stopTime')
+c.addPropsToInform('responsePixx.correct','responsePixx.button','responsePixx.stopTime')
 %% Define conditions and blocks, then run. 
 % One simple button press block; press the button that lights up...
 d = design('press');
-d.fac1.responsePixx.correctButtons= 1:5;
-d.fac1.responsePixx.lit = 1:5;
+d.fac1.responsePixx.keys= {'r','g','b','y'}; % 
+d.fac1.responsePixx.lit = {'r','g','b','y'};
+d.conditions(:).responsePix.correctFun = '@1'; % Always ix 1 is correct
 blk = block('press',d);
 blk.nrRepeats = 1;
 
 r = design('rt');
 r.conditions(1).gabor.on= plugins.jitter(c,{250,1250});
-r.conditions(1).responsePixx.lit = plugins.responsePixx.BLUE;
-r.conditions(1).responsePixx.allowedButtons =plugins.responsePixx.BLUE;
+r.conditions(1).responsePixx.lit = {'b'} ;
+r.conditions(1).responsePixx.keys = {'b'};
 rblk = block('rt',r);
 rblk.nrRepeats = 100;
 

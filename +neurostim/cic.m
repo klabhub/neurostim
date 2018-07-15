@@ -588,6 +588,12 @@ classdef cic < neurostim.plugin
             plgs = c.plugins(stay);
         end
         
+        function behs = behaviors(c)
+            allClasses = arrayfun(@class,c.plugins,'uniformoutput',false);
+            stay = ~cellfun(@isempty,regexp(allClasses,'\.behaviors\.'));
+            behs= c.plugins(stay);
+        end
+        
         function disp(c)
             % Provide basic information about the CIC
             for i=1:numel(c)

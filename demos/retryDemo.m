@@ -27,7 +27,7 @@ d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
 d.X = 0;
 d.Y = 0;
 d.on = 0;
-d.duration = 500;
+d.duration = 1500;
 d.color = [1 1 1];
 d.size = 2;
 d.nrDots = 200;
@@ -40,7 +40,7 @@ d.noiseMode = 1;
 %Subject's 2AFC response
 k = behaviors.keyResponse(c,'choice');
 k.from= '@dots.on + dots.duration';
-k.to = '@choice.from + 1000';                    %Maximum allowable RT is 1000ms
+k.maximumRT = 1000;                    %Maximum allowable RT is 1000ms
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
 k.correctFun = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
 

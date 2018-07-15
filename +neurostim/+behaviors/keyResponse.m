@@ -12,7 +12,8 @@ classdef keyResponse < neurostim.behavior
     %               - key presses before .from are ignored (keep WAITING)
     %               ->FAIL if the wrong key is pressed
     %               ->SUCCESS if the correct key is pressed 
-    %               ->FAIL if t>o.to 
+    %               ->FAIL if the time in this state is longer than
+    %               o.maximumRT
     %
     %% Parameters:
     % keys         - cell array of key characters, e.g. {'a','z'}
@@ -35,7 +36,7 @@ classdef keyResponse < neurostim.behavior
             o.addProperty('correctFun',[]); %User provided function that evaluates to the correct key index on each trial
             o.addProperty('correct',[],'validate',@islogical); % Log of the correctness of each keypress
             o.addProperty('keyIx',[],'validate',@isnumeric); % Log of the keys that were pressed (as an index into o.keys)
-            
+            o.addProperty('maximumRT',1000,'validate',@isnumeric);  % A key must have been received this long after the waiting state starts.
             o.addProperty('simWhen','');
             o.addProperty('simWhat','');
             
@@ -111,13 +112,13 @@ classdef keyResponse < neurostim.behavior
         function waiting(o,t,e)
             if ~e.isRegular ;return;end % No Entry/exit needed.         
             %Guards
-            tooLate = t>o.to;
+            tooLate = (duration(o,'WAITING',t)-o.from) > o.maximumRT;
             noKey = isempty(e.key); % hack - checek whether this is a real key press or just passage of time
             correct = e.correct;                       
             
             if tooLate && noKey
                 transition(o,@o.fail,e);  %No key received this trial
-            elseif ~tooLate 
+            elseif ~tooLate && ~noKey 
                 if correct
                     transition(o,@o.success,e);
                 else             

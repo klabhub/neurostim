@@ -39,6 +39,10 @@ classdef (Abstract) behavior <  neurostim.plugin
     % isOn -  Logical to indicate whether the machine is currently active.
     % stopTime - the trial time when the machine reached either the FAIL or
     %                   SUCCESS state in the current trial
+    % required - If this is true, then this behaviors end state is used to
+    % determine the success of an entire trail (which may have other
+    % behaviors too) [true]
+    % 
     % Functions to be used in experiment designs:
     % 
     % startTime(o,state) - returns the time in the current trial when the
@@ -58,6 +62,7 @@ classdef (Abstract) behavior <  neurostim.plugin
         failEndsTrial       = true;          % Does reaching the fail state end the trial?
         successEndsTrial    = false;         % Does reaching the success state end the trial?
         verbose             = true;
+        required            = true;
         
     end
     
@@ -70,9 +75,13 @@ classdef (Abstract) behavior <  neurostim.plugin
         stateName@char;
         isOn@logical;
         stopTime@double; % time when fail or success state was reached.
+        isSuccess;
     end
     
     methods %get/set
+        function v = get.isSuccess(o)
+            v= strcmpi(o.stateName,'SUCCESS');
+        end
         
         function v = get.isOn(o)
             t= o.cic.trialTime;

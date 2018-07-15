@@ -38,7 +38,7 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
         function o = pixxResponse(c,name)
             o = o@neurostim.behaviors.keyResponse(c,name);            
             o.addProperty('intensity',0.5);
-            o.addProperty('lit',false(1,o.NRBUTTONS));
+            o.addProperty('lit',{});
             o.addProperty('startLogTime',NaN);
             o.addProperty('stopLogTime',NaN);            
             o.addProperty('timeCalibration',struct);
@@ -52,14 +52,7 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
             
             % Start the VPIXX button logger and turn on lights as requested
             if ~o.startedLogger 
-                if islogical(o.lit)
-                    litLogic = o.lit;
-                elseif isnumeric(o.lit) && all(o.lit>0 & o.lit <= o.NRBUTTONS)
-                    litLogic = zeros(1, o.NRBUTTONS);
-                    litLogic(o.lit) =true;
-                else
-                    error('.lit must be a logical or an index ');
-                end
+                litLogic = cellfun(@ismember,o.keyToButtonMapper,o.lit);
                 o.startLogTime = ResponsePixx('StartNow', true,litLogic,o.intensity); % Clear log
                 o.startedLogger = true;
             end
@@ -99,7 +92,7 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
         end
        
     end
-    methods (Access=protected)
+    methods 
         % This function is called by behavior.beforeFrame which will send out
         % events to the states. 
         function e=getEvent(o)        
