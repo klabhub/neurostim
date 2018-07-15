@@ -112,19 +112,20 @@ classdef keyResponse < neurostim.behavior
         function waiting(o,t,e)
             if ~e.isRegular ;return;end % No Entry/exit needed.         
             %Guards
-            tooLate = (duration(o,'WAITING',t)-o.from) > o.maximumRT;
+%             tooLate = (duration(o,'WAITING',t)-o.from) > o.maximumRT;
+            tooLate = o.duration>o.maximumRT;
             noKey = isempty(e.key); % hack - checek whether this is a real key press or just passage of time
             correct = e.correct;                       
             
-            if tooLate && noKey
+            if tooLate 
                 transition(o,@o.fail,e);  %No key received this trial
-            elseif ~tooLate && ~noKey 
+            elseif ~noKey 
                 if correct
                     transition(o,@o.success,e);
                 else             
                     transition(o,@o.fail,e);                
                 end
             end
-        end
+      end
     end
 end

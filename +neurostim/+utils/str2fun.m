@@ -17,7 +17,17 @@ function [f,h] = str2fun(str,c)
     str = str(2:end);
     
     %Find the unique parameter class objects and store their handles
-    plgAndProp = regexp(str,'(\<[a-zA-Z_]+\w*\.\w+)','match');
+   % strctProp = regexp(str,'(?<plg>\<[a-zA-Z_]+\w*)\.(?<strct>\w+)\.(?<prop>\w+\>)','names');
+%     if ~isempty(strctProp)
+%         % This is something like plg.struct.prop  - we could use this in
+%         % behaviors to provide dot notation access to the properties of
+%         % different states in the same behavior.
+%         % f1.startTime.fixating  - the startTime of the fixating phase. To
+%         % but these thngs aren't really structs so we call a function
+%         % instead. - > startTime(f1,'fixating')
+%     
+%     end
+    plgAndProp = regexp(str,'\<[a-zA-Z_]+\w*\.\w+','match');
     plgAndProp = unique(plgAndProp);
     if ~isempty(plgAndProp)
         for i=1:numel(plgAndProp)
@@ -34,11 +44,11 @@ function [f,h] = str2fun(str,c)
             if isfield(c.(plg).prms,prm)
                 %It's a ns parameter. Use the param handle.
                 h{i} = c.(plg).prms.(prm); %#ok<AGROW> Array of parameters.
-                getLabel{i} = 'getValue()';
+                getLabel{i} = 'getValue()';%#ok<AGROW> Array of parameters.
             else
                 %It's just a regular property. Use the plugin handle.
-                h{i} = c.(plg);
-                getLabel{i} = prm;
+                h{i} = c.(plg);%#ok<AGROW> Array of parameters.
+                getLabel{i} = prm;%#ok<AGROW> Array of parameters.
             end
         end
         
