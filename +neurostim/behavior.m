@@ -14,6 +14,22 @@ classdef (Abstract) behavior <  neurostim.plugin
     % in either the FAIL or SUCCESS endstate.
     % To learn how to do this, look at the behaviors.fixate class which
     % implements one complete state machine for steady fixation in a trial.
+    % Then look at behaviors.saccade and behaviors.fixateThenChoose to see 
+    % how behaviors can build on each other. In all cases, if you find
+    % yourself adding many if/then constructs to see where you are in the
+    % flow of the behavior, then you're probably doing something wrong and
+    % should think about adding a state instead. 
+    % Another example of inheritance is the keyResponse (single key
+    % press per trial) and multiKeyResponse (multiple presses that allow a
+    % subject to change their mind during the trial). This could be
+    % achieved by adding various flags and if/thens in the keyResponse
+    % behavior, but adding states (as in multikeyResponse) leads to cleaner
+    % and less error prone code. 
+    %
+    % For more background information on the advantages of finite state machines
+    % see 
+    % https://en.wikipedia.org/wiki/UML_state_machine 
+    % https://barrgroup.com/Embedded-Systems/How-To/State-Machines-Event-Driven-Systems
     %
     % Parameters:
     % failEndsTrial  - a trial ends when the FAIL state is reached [true]
@@ -107,7 +123,7 @@ classdef (Abstract) behavior <  neurostim.plugin
         
         
         function beforeTrial(o)
-            transition(o,o.beforeTrialState);
+            transition(o,o.beforeTrialState,neurostim.event(neurostim.event.NOOP));
         end
         
         function beforeFrame(o)
@@ -130,17 +146,14 @@ classdef (Abstract) behavior <  neurostim.plugin
         
         % Constructor. In the non-abstract derived clases, the user must
         % set currentState to an existing state.
-        function o = behavior(c,name,beforeTrialState)
-            o = o@neurostim.plugin(c,name);
-            if nargin<3 || ~isa(beforeTrialState,'function_handle')
-                error('A behavior must specify the state that each trial starts with, and this should be a member (''beforeTrialState'')')
-            end
-                
+        function o = behavior(c,name)
+            o = o@neurostim.plugin(c,name);                
             o.addProperty('on',0,'validate',@isnumeric);
             o.addProperty('off',Inf,'validate',@isnumeric);
             o.addProperty('from',0,'validate',@isnumeric);
             o.addProperty('to',Inf,'validate',@isnumeric);
             o.addProperty('state','','validate',@ischar);
+            o.addProperty('event',neurostim.event(neurostim.event.NOOP)); 
             o.feedStyle = 'blue';
         end
         
@@ -159,13 +172,32 @@ classdef (Abstract) behavior <  neurostim.plugin
         methods (Sealed)
         % To avoid the temptation to overload these member functions, they 
         % sealed,. 
-        function transition(o,state)       
+        function transition(o,state,e) 
+            % state = the state to transition into
+            % e = the event that triggered this transition. This event is
+            % sent to the old and new state as an entry/exit signal to
+            % allow teardown/setup code to use the information in the
+            % event.            
+            
+            o.event = e; % Log the event driving the transition.
+            
+            
+            %Tear down old state
             if ~isempty(o.currentState)
-                o.currentState(0, neurostim.event(neurostim.event.EXIT)); % Send the EXIT signal           
+                e.type = neurostim.event.EXIT; % Change the type
+                o.currentState(0,e); % Send the EXIT signal           
             end
+            
+            
+            % Setup new state
+            e.type = neurostim.event.ENTRY;
+            state([],e); % Send the ENTRY signal to the new state.
+            
+            % Switch to new state and log the new name
             o.currentState = state; % Change the state
             o.state = o.stateName; % Log time/state transition            
-            o.currentState([], neurostim.event(neurostim.event.ENTRY)); % Send the ENTRY signal
+            
+            
             if o.verbose
                 o.writeToFeed(['Transition to ' o.state]);
             end
@@ -174,14 +206,20 @@ classdef (Abstract) behavior <  neurostim.plugin
         end
     
     %% States
+    % These two generic states should be the endpoint for every derived
+    % class. success or fail.  
     methods
-        function fail(o,~,e)           
+        function fail(o,~,e)       
+            % This state responds to the entry signal to end the trial (if
+            % requested)
             if e.isEntry && o.failEndsTrial
                 o.cic.endTrial();
             end
         end
         
         function success(o,~,e)            
+            % This state responds to the entry signal to end the trial (if
+            % requested)            
             if e.isEntry && o.successEndsTrial
                 o.cic.endTrial();
             end
@@ -204,7 +242,7 @@ classdef (Abstract) behavior <  neurostim.plugin
             end
         end
         
-        % Return the last starttimes of a specific state (s) in the current
+        % Return the (last) starttime of state (s) in the current
         % trial.
         function v = startTime(o,s)
             if o.prms.state.cntr >1

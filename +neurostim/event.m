@@ -1,10 +1,11 @@
 classdef event
     
     properties (Constant)
-        ENTRY =0;  % An ENTRY event (to allow a state to define some setup routine)
-        EXIT = 1;  % An EXIT event (to allow a state to define a teardown routine);
-        REGULAR = 2; % REGULAR events send updates of current variables (e.e. eye pos, key press)
-        NOOP =3; % An event that shoudl not be sent out but ignored.
+        ENTRY =1;  % An ENTRY event (to allow a state to define some setup routine)
+        EXIT = 2;  % An EXIT event (to allow a state to define a teardown routine);
+        REGULAR = 3; % REGULAR events send updates of current variables (e.e. eye pos, key press)
+        NOOP =4; % An event that shoudl not be sent out but ignored.
+        eventTypes = {'ENTRY','EXIT','REGULAR','NOOP'};
     end
     properties
         % These are the properties used by current behaviors. Adding new
@@ -46,13 +47,19 @@ classdef event
         end
         
     end
+    
     methods
         function o = event(tp)
             if nargin <1
                 tp = neurostim.event.REGULAR;
             end
             o.type = tp;
-        end        
+        end
+        
+        function disp(o)
+            disp([o.eventTypes{o.type} '-event'])
+            builtin('display',o)
+        end
         
     end
 end

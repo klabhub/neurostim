@@ -109,7 +109,7 @@ switch computerName
         smallWindow = false;      
         c.eye.sampleRate  = 250;
   case 'PC2017A'
-        scrNr = max(Screen('screens'));
+        scrNr = min(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);

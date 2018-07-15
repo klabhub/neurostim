@@ -9,65 +9,77 @@ classdef saccade < neurostim.behaviors.fixate
     % FIXATING    -> FAIL if eye is still inside the window after o.to or
     %                   outside the window before o.to
     %             -> INFLIGHT if eye moves outside the window after o.to 
-    % INFLIGHT     -> FAIL if t > saccadeLate   
-    %             -> ONTARGET  if inside the target window (endX,endY)
+    % INFLIGHT     -> FAIL if in this state longer than o.saccadeDuration
+    %                  
+    %             -> ONTARGET  if inside the target window (targetX,targetY)
     % ONTARGET    -> SUCCESS if inside target for o.targetDuration 
     %             -> FAIL if outside target before o.targetDuration
     %
     %% Parameters
     % X,Y = (first) fixation position
+    % from,to = required fixation at the XY starting fixation
     % targetX,targetY = target positions (multiple allowed).
-
-        
-    
+    % saccadeDuration - the maximum duration of the saccade. The target must be acquired at o.to+o.saccadeDuration 
+    % targetDuration  - the time that the target should be fixated    
+    %
+    % BK - July 2018
     methods
         function o=saccade(c,name,varargin)
-            o=o@neurostim.behaviors.fixate(c,name);
-            
+            o=o@neurostim.behaviors.fixate(c,name);            
             o.addProperty('targetX',[5 -5],'validate',@isnumeric);   % end possibilities - calculated as an OR
-            o.addProperty('targetY',[5 5],'validate',@(x) isnumeric(x) && all(size(x)==size(o.endX)));
-            o.addProperty('saccadeDuration',150,'validate',@isnumeric);
+            o.addProperty('targetY',[5 5],'validate',@(x) isnumeric(x) && all(size(x)==size(o.targetX)));
+            o.addProperty('saccadeDuration',250,'validate',@isnumeric);
             o.addProperty('targetDuration',150,'validate',@isnumeric);   
             o.beforeTrialState = @o.freeViewing; 
         end
         
         
         function fixating(o,t,e)
-            if ~e.isRegular ;return;end % No Entry/exit needed.
-         
-            if t>o.to 
-                if isInWindow(o,e)
-                    transition(o,@o.fail);
-                else                
-                    transition(o,@o.inFlight);
-                end
-            else
-                if ~isInWindow(o,e)
-                    transition(o,@o.fail);
-                %else - stay in state
-                end
+            if ~e.isRegular ;return;end % No Entry/exit needed. 
+            % Setup the logical variables (guard conditions) that we need 
+            % to decide whether to transition.
+            % For efficiency reasons, every member variable (e.g. o.to) is
+            % read only once (these variables could require the evaluation
+            % of multiple functions behind the scenes)
+            oTo= o.to;
+            afterTo = t>oTo;
+            saccadeMustHaveCompleted  = t>oTo+o.saccadeDuration;
+            inside = isInWindow(o,e);
+            % With these guards, code the three possible transitions listed
+            % in the description above
+            if saccadeMustHaveCompleted && inside
+                transition(o,@o.fail,e);  % Transition to the fail state. Pass the event that lead to this transition
+            elseif afterTo && ~inside                
+                transition(o,@o.inFlight,e);% Transition to the inFlight state. Pass the event that lead to this transition
+            elseif ~afterTo && ~inside
+                transition(o,@o.fail,e);% Transition to the fail state. Pass the event that lead to this transition
             end
         end
         
         function inFlight(o,t,e)
-              if ~e.isRegular ;return;end % No Entry/exit needed.
-         
-            if isInWindow(o,e,o.targetX,o.targetY)
-                transition(o,@o.onTarget);
-            elseif stateDuration(o,t,'INFLIGHT') > o.saccadeDuration
-                transition(o,@o.fail);                
+            if ~e.isRegular ;return;end % No Entry/exit needed
+            % Define guard conditions
+             insideTarget=isInWindow(o,e,[o.targetX,o.targetY]);
+             inflighTooLong = duration(o,'INFLIGHT',t) > o.saccadeDuration;                       
+             % Code transitions
+             if insideTarget
+                transition(o,@o.onTarget,e);
+            elseif inflighTooLong 
+                transition(o,@o.fail,e);                
             end
         end
         
         
         function onTarget(o,t,e)
             if ~e.isRegular ;return;end % No Entry/exit needed.
-         
-            if stateDuration(o,t,'ONTARGET') >= o.targetDuration
-                transition(o,@o.success);
-            elseif ~isInWindow(o,e,o.targetX,o.targetY)
-                %Left the window prematurely
-                transition(o,@o.fail);
+            %Define guard conditions            
+            longEnough  = duration(o,'ONTARGET',t) >= o.targetDuration;
+            brokeTargetFixation = ~isInWindow(o,e,[o.targetX,o.targetY]);            
+            % Code transitions
+            if longEnough
+                transition(o,@o.success,e);
+            elseif brokeTargetFixation                
+                transition(o,@o.fail,e);
             end                
         end
         

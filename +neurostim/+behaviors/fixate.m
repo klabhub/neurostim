@@ -40,10 +40,10 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             % the time when the subject shoudl have been fisating (o.from)), 
             % or to fixating (if the eye is in the window)
             if ~e.isRegular ;return;end % Ignroe Entry/exit events.
-            if t>o.from               
-                transition(o,@o.fail);
-            elseif isInWindow(o,e)
-                transition(o,@o.fixating);  %Note that there is no restriction on t so fixation can start any time  after t.on (which is when the behavior starts running)           
+            if t>o.from  % guard 1             
+                transition(o,@o.fail,e);
+            elseif isInWindow(o,e)  % guard 2
+                transition(o,@o.fixating,e);  %Note that there is no restriction on t so fixation can start any time  after t.on (which is when the behavior starts running)           
             end
         end
         
@@ -53,12 +53,14 @@ classdef fixate  < neurostim.behaviors.eyeMovement
        % matter where we came from.
        function fixating(o,t,e)
          	if ~e.isRegular ;return;end % No Entry/exit needed.
-            if isInWindow(o,e)
-                if t>o.to
-                    transition(o,@o.success);
-                end
-            else
-                transition(o,@o.fail);
+            % Guards 
+            inside  = isInWindow(o,e);
+            complete = t>=o.to;
+            % Transitions
+            if ~inside 
+                transition(o,@o.fail,e);
+            elseif complete
+                 transition(o,@o.success,e);                
             end
         end
     end

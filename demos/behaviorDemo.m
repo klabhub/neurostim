@@ -61,7 +61,10 @@ d.noiseMode = 1;
 %% ========== Add required behaviours =========
 
 %Subject's 2AFC response
+% Use this is you want to receive a single key press 
 k = behaviors.keyResponse(c,'choice');
+% or this if you want to allow subjects to change their mind:
+%k = behaviors.multiKeyResponse(c,'choice');
 k.from = '@dots.on + dots.duration';
 k.to= '@choice.from + 2000';                   %Maximum allowable RT is 2000ms
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"

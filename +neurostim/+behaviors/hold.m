@@ -8,25 +8,17 @@ classdef hold < neurostim.behavior
     % a touchbar/button is pressed, the plugin defaults to a HOLD
     % behaviour. To require a RELEASE, set "invert" to true.
     %
-    % Each trial starts in the NOTHOLDING state, and transitions either to
-    % FAIL if the bit remains low until t>from, or into HOLDING if the bit
-    % goes high before o.from.
-    % Once in the HOLDING state, the state becomes either a FAIL if the bar is
-    % released between o.from and o.to, a SUCCESS if it is released after
-    % o.to, or back to HOLDING if released before o.from.
-    % 
-    %% STATE DIAGRAM
-    %                   |-----(isBitHigh)?---
-    %                   v                   |
-    % NOTHOLDING ---(isHolding)?--->   HOLDING--- (~isHolding)? --> FAIL 
-    %       |                               |
-    %     (t>from)? --> FAIL               t>to? ---> SUCCESS   
-    %
+    % NOTHOLDING    - Each trial starts here
+    %               -> FAIL if bit remains low at o.from
+    %               -> HOLDING if bit goes high
+    % HOLDING       -> NOTHOLDING if bit goes low before o.from
+    %               -> FAIL if bit goes low after o.from but before o.to
+    %               ->SUCCESS if bit is still high at o.to
     % Parameters:
     % from,to:      must hold between from and to
     % mccChannel:   the DIGITAL channel to monitor [default = 1]
-    % invert:       set to true to software-invert the bit value. 
-
+    % invert:       set to true to software-invert the bit value.
+    
     properties
         mcc = [];
     end
@@ -42,9 +34,9 @@ classdef hold < neurostim.behavior
         function beforeExperiment(o)
             %Check that the MCC plugin is added.
             o.mcc = pluginsByClass(o.cic,'mcc');
-            if numel(o.mcc)~=1                
+            if numel(o.mcc)~=1
                 o.cic.error('STOPEXPERIMENT','The hold plugin requires an MCC plug-in. None (or more than one) detected)');
-            end            
+            end
             o.mcc.map('DIGITAL',o.mccChannel,'isHigh', 'AFTERFRAME');
         end
         
@@ -59,32 +51,31 @@ classdef hold < neurostim.behavior
         %% States
         function holding(o,t,e)
             if ~e.isRegular ;return;end % No Entry/exit needed.
-            if isBitHigh(o,e)
-                if t>t.to
-                    transition(o,@o.success);
-                %else
-                    %stay in holding state
-                end
-            else
-                if t <t.from   
-                    % Allow releases before from time
-                    transition(o,@o.notHolding);
-                else                    
-                    transition(o,@o.fail);                
-                end
+            % Guards
+            isHold = isBitHigh(o,e);
+            longEnough = t>o.to;
+            notYetRequired = t<o.from;
+            % Transitions
+            if isHold  && longEnough
+                transition(o,@o.success,e);
+            elseif ~isHold && notYetRequired
+                % Allow releases before from time
+                transition(o,@o.notHolding,e);
+            elseif ~isHold
+                transition(o,@o.fail,e);
             end
         end
         
         function notHolding(o,t,e)
             if ~e.isRegular ;return;end % No Entry/exit needed.
-            if isBitHigh(o,e)
-                transition(o,@o.holding);
-            else
-                if t>o.from
-                    transition(o,@o.fail);
-                %else
-                %   stay in not-holding state.
-                end                    
+            %Guards
+            isHold = isBitHigh(o,e);
+            holdRequired = t>o.to;
+            % Transitions
+            if isHold
+                transition(o,@o.holding,e);
+            elseif holdRequired
+                transition(o,@o.fail,e);                
             end
         end
         

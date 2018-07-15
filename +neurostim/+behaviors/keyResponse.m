@@ -17,7 +17,7 @@ classdef keyResponse < neurostim.behavior
     %% Parameters:
     % keys         - cell array of key characters, e.g. {'a','z'}
     % correctFun   - function that returns the index (into 'keys') of the correct key. Usually a function of some stimulus parameter(s).
-    % from          - key press allowed from this time onward
+    % from         - key press accepted from this time onward
     % to          - key press allowed until this time
     %
     % simWhen       - time when a simulated key press will be generated (Defaults  to empty; never)
@@ -107,19 +107,21 @@ classdef keyResponse < neurostim.behavior
     %% States
     methods
         
-        % Waiting for a single correct/incorrect response
+        % Waiting for a *single* correct/incorrect response
         function waiting(o,t,e)
             if ~e.isRegular ;return;end % No Entry/exit needed.         
-            if t>o.to
-                % a call from endTrial to clean up
-                transition(o,@o.fail);  %No key received this trial
-            elseif ~isempty(e.key) % hack - this code should only run in response to real key events
-                                   % not just the passage of time (as above
-                                   % in t>o.to)
-                if e.correct
-                    transition(o,@o.success);
-                else
-                    transition(o,@o.fail);
+            %Guards
+            tooLate = t>o.to;
+            noKey = isempty(e.key); % hack - checek whether this is a real key press or just passage of time
+            correct = e.correct;                       
+            
+            if tooLate && noKey
+                transition(o,@o.fail,e);  %No key received this trial
+            elseif ~tooLate 
+                if correct
+                    transition(o,@o.success,e);
+                else             
+                    transition(o,@o.fail,e);                
                 end
             end
         end
