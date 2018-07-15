@@ -27,7 +27,8 @@ classdef saccade < neurostim.behaviors.fixate
             o.addProperty('targetX',[5 -5],'validate',@isnumeric);   % end possibilities - calculated as an OR
             o.addProperty('targetY',[5 5],'validate',@(x) isnumeric(x) && all(size(x)==size(o.endX)));
             o.addProperty('saccadeDuration',150,'validate',@isnumeric);
-            o.addProperty('targetDuration',150,'validate',@isnumeric);            
+            o.addProperty('targetDuration',150,'validate',@isnumeric);   
+            o.beforeTrialState = @o.freeViewing; 
         end
         
         

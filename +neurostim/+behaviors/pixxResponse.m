@@ -43,6 +43,7 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
             o.addProperty('stopLogTime',NaN);            
             o.addProperty('timeCalibration',struct);
             o.addProperty('button',[]); % Log raw single-button presses
+            o.beforeTrialState = @o.waiting;
         end
         
         function beforeFrame(o)

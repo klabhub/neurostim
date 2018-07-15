@@ -36,7 +36,6 @@ classdef hold < neurostim.behavior
             o=o@neurostim.behavior(c,name);
             o.addProperty('invert',false);
             o.addProperty('mccChannel',1);
-            o.beforeExperimentState = @o.notHolding;
             o.beforeTrialState   = @o.notHolding;
         end
         

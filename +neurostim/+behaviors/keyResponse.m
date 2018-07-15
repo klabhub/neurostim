@@ -39,7 +39,6 @@ classdef keyResponse < neurostim.behavior
             o.addProperty('simWhen','');
             o.addProperty('simWhat','');
             
-            o.beforeExperimentState = @o.waiting;
             o.beforeTrialState = @o.waiting;
         end
         

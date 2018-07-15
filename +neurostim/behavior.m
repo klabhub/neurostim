@@ -12,6 +12,8 @@ classdef (Abstract) behavior <  neurostim.plugin
     % 
     % Derived classes should define their states such that the machine ends
     % in either the FAIL or SUCCESS endstate.
+    % To learn how to do this, look at the behaviors.fixate class which
+    % implements one complete state machine for steady fixation in a trial.
     %
     % Parameters:
     % failEndsTrial  - a trial ends when the FAIL state is reached [true]
@@ -28,6 +30,8 @@ classdef (Abstract) behavior <  neurostim.plugin
     % duration(o,state,t) - returns how long the machine has been in state s at time t
     %                       of the current trial (or the current time if t is not provide).
     %
+    % 
+    % 
     % TODO:
     %   hack str2fun so that it can accept f1.startTime.fixation instead of
     %   startTime(cic.f1,''fixation'') as is currently necessary because
@@ -43,8 +47,7 @@ classdef (Abstract) behavior <  neurostim.plugin
     
     properties (SetAccess=protected,GetAccess=public)
         currentState; % Function handle that represents the current state.
-        beforeExperimentState; % Must be non-empty
-        beforeTrialState;  % If empty,the currentState is used
+        beforeTrialState;  % Must be non-empty
         
     end
     properties (Dependent)
@@ -76,7 +79,7 @@ classdef (Abstract) behavior <  neurostim.plugin
 
         function v = get.stopTime(o)
              if o.prms.state.cntr >1
-                [states,~,v] = get(o.prms.state,'trial',o.cic.trial,'withDataOnly',true,'dataIsMember',{'FAIL','SUCCESS'});
+                [~,~,v] = get(o.prms.state,'trial',o.cic.trial,'withDataOnly',true,'dataIsMember',{'FAIL','SUCCESS'});
                 v = max(v);
                 if isempty(v) % This state did not occur yet this trial
                     v= NaN;
@@ -99,14 +102,12 @@ classdef (Abstract) behavior <  neurostim.plugin
         % make sure to also call the functions defined here.
                     
         function beforeExperiment(o)
-            assert(~isempty(o.beforeExperimentState),['Behavior ' o.name '''s beforeExperimentState has not been defined']);
+            assert(~isempty(o.beforeTrialState),['Behavior ' o.name '''s beforeTrialState has not been defined']);
         end
         
         
         function beforeTrial(o)
-            if ~isempty(o.beforeTrialState)
-                transition(o,o.beforeTrialState);
-            end            
+            transition(o,o.beforeTrialState);
         end
         
         function beforeFrame(o)
@@ -129,8 +130,12 @@ classdef (Abstract) behavior <  neurostim.plugin
         
         % Constructor. In the non-abstract derived clases, the user must
         % set currentState to an existing state.
-        function o = behavior(c,name)
+        function o = behavior(c,name,beforeTrialState)
             o = o@neurostim.plugin(c,name);
+            if nargin<3 || ~isa(beforeTrialState,'function_handle')
+                error('A behavior must specify the state that each trial starts with, and this should be a member (''beforeTrialState'')')
+            end
+                
             o.addProperty('on',0,'validate',@isnumeric);
             o.addProperty('off',Inf,'validate',@isnumeric);
             o.addProperty('from',0,'validate',@isnumeric);
