@@ -145,7 +145,8 @@ classdef (Abstract) behavior <  neurostim.plugin
         end
         
         function afterTrial(o)
-            o.currentState(o.cic.trialTime,neurostim.event)
+            % Send an afterTrial  event
+            o.currentState(o.cic.trialTime,neurostim.event(neurostim.event.AFTERTRIAL))
         end 
         function beforeFrame(o)
             if o.isOn

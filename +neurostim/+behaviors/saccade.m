@@ -9,12 +9,13 @@ classdef saccade < neurostim.behaviors.fixate
     % FIXATING    -> FAIL if eye is still inside the window after o.to or
     %                   outside the window before o.to
     %             -> INFLIGHT if eye moves outside the window after o.to 
-    % INFLIGHT     -> FAIL if in this state longer than o.saccadeDuration
-    %                  
+    %             -> FAIL afterTrial
+    % INFLIGHT     -> FAIL if in this state longer than o.saccadeDuration                   
     %             -> ONTARGET  if inside the target window (targetX,targetY)
+    %             -> FAIL if afterTrial
     % ONTARGET    -> SUCCESS if inside target for o.targetDuration 
     %             -> FAIL if outside target before o.targetDuration
-    %
+    %             -> SUCCESS if afterTrial
     %% Parameters
     % X,Y = (first) fixation position
     % from,to = required fixation at the XY starting fixation
@@ -35,6 +36,7 @@ classdef saccade < neurostim.behaviors.fixate
         
         
         function fixating(o,t,e)
+            if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail          
             if ~e.isRegular ;return;end % No Entry/exit needed. 
             % Setup the logical variables (guard conditions) that we need 
             % to decide whether to transition.
@@ -57,6 +59,7 @@ classdef saccade < neurostim.behaviors.fixate
         end
         
         function inFlight(o,t,e)
+            if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail          
             if ~e.isRegular ;return;end % No Entry/exit needed
             % Define guard conditions
              insideTarget=isInWindow(o,e,[o.targetX,o.targetY]);
@@ -71,6 +74,7 @@ classdef saccade < neurostim.behaviors.fixate
         
         
         function onTarget(o,t,e)
+            if e.isAfterTrial;transition(o,@o.success,e);end % if still in this state-> success          
             if ~e.isRegular ;return;end % No Entry/exit needed.
             %Define guard conditions            
             longEnough  = duration(o,'ONTARGET',t) >= o.targetDuration;

@@ -3,11 +3,13 @@ classdef fixate  < neurostim.behaviors.eyeMovement
     % FREEVEIWING - each trial starts here
     %              -> FIXATING when the eye moves inside the window
     %              ->FAIL  if t>t.from
+    %               ->FAIL afterTrial
     % FIXATING    -> FAIL if eye moves outside the window before t.to
     %             -> SUCCESS if eye is still inside the window at or after t.to  
+    %             ->SUUCCSS afterTrial
     % Note that **even before t< o.from**, the eye has to remain 
     % in the window once it is in there (no in-and-out privileges)
-    %
+    % 
     %% Parameters (inherited from eyeMovement):
     % 
     % X,Y,  - fixation position 
@@ -39,6 +41,7 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             % Free viewing has two transitions, either to fail (if we reach
             % the time when the subject shoudl have been fisating (o.from)), 
             % or to fixating (if the eye is in the window)
+            if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % Ignroe Entry/exit events.
             if t>o.from  % guard 1             
                 transition(o,@o.fail,e);
@@ -52,6 +55,7 @@ classdef fixate  < neurostim.behaviors.eyeMovement
        % only have to look forward (where to transition to), it does not
        % matter where we came from.
        function fixating(o,t,e)
+            if e.isAfterTrial;transition(o,@o.success,e);end % if still in this state-> success
          	if ~e.isRegular ;return;end % No Entry/exit needed.
             % Guards 
             inside  = isInWindow(o,e);

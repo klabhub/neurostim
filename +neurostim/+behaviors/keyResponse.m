@@ -13,7 +13,7 @@ classdef keyResponse < neurostim.behavior
     %               ->FAIL if the wrong key is pressed
     %               ->SUCCESS if the correct key is pressed 
     %               ->FAIL if the time in this state is longer than
-    %               o.maximumRT
+    %               o.maximumRT or afterTrial
     %
     %% Parameters:
     % keys         - cell array of key characters, e.g. {'a','z'}
@@ -110,9 +110,9 @@ classdef keyResponse < neurostim.behavior
         
         % Waiting for a *single* correct/incorrect response
         function waiting(o,t,e)
+            if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % No Entry/exit needed.         
             %Guards
-%             tooLate = (duration(o,'WAITING',t)-o.from) > o.maximumRT;
             tooLate = o.duration>o.maximumRT;
             noKey = isempty(e.key); % hack - checek whether this is a real key press or just passage of time
             correct = e.correct;                       

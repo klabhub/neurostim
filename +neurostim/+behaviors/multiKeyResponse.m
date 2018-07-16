@@ -9,11 +9,15 @@ classdef multiKeyResponse < neurostim.behaviors.keyResponse
     % WAITING       - each trial starts in this state    
     %               ->INCORRECT if the wrong key is pressed
     %               ->CORRECT if the correct key is pressed 
-    %               ->FAIL if no key is pressed at o.to
+    %               ->FAIL if no key is pressed at o.to or afterTrial
+    %               
     % CORRECT       ->INCORRECT if the wrong key is pressed.
     %               ->SUCCESS if t> o.to
+    %               ->SUCCES if afterTrial
+    %
     % INCORRECT      ->CORRECT if the correct key is pressed
-    %               ->FAIL if t>o.to
+    %               ->FAIL if t>o.to or afterTrial
+    %                
     %
     %% Parameters: 
     % keys         - cell array of key characters, e.g. {'a','z'}
@@ -40,6 +44,7 @@ classdef multiKeyResponse < neurostim.behaviors.keyResponse
         
         % Waiting for a *single* correct/incorrect response
         function waiting(o,t,e)
+            if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % No Entry/exit needed.         
             %Guards
             tooLate = t>o.to;            
@@ -57,6 +62,7 @@ classdef multiKeyResponse < neurostim.behaviors.keyResponse
         end
         
         function correctAnswer(o,t,e)
+            if e.isAfterTrial;transition(o,@o.success,e);end % if still in this state-> success
             if ~e.isRegular ;return;end % No Entry/exit needed.                
             done= t>o.to;
             correct = e.correct;
@@ -68,6 +74,7 @@ classdef multiKeyResponse < neurostim.behaviors.keyResponse
         end
         
         function incorrectAnswer(o,t,e)
+            if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % No Entry/exit needed.                
             done= t>o.to;
             correct = e.correct;

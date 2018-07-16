@@ -11,9 +11,11 @@ classdef hold < neurostim.behavior
     % NOTHOLDING    - Each trial starts here
     %               -> FAIL if bit remains low at o.from
     %               -> HOLDING if bit goes high
+    %               ->FAIL afterTrial
     % HOLDING       -> NOTHOLDING if bit goes low before o.from
     %               -> FAIL if bit goes low after o.from but before o.to
     %               ->SUCCESS if bit is still high at o.to
+    %               ->SUCCESS afterTrial
     % Parameters:
     % from,to:      must hold between from and to
     % mccChannel:   the DIGITAL channel to monitor [default = 1]
@@ -50,6 +52,7 @@ classdef hold < neurostim.behavior
         
         %% States
         function holding(o,t,e)
+            if e.isAfterTrial;transition(o,@o.success,e);end % if still in this state-> success
             if ~e.isRegular ;return;end % No Entry/exit needed.
             % Guards
             isHold = isBitHigh(o,e);
@@ -67,6 +70,7 @@ classdef hold < neurostim.behavior
         end
         
         function notHolding(o,t,e)
+            if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % No Entry/exit needed.
             %Guards
             isHold = isBitHigh(o,e);

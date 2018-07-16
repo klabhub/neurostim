@@ -5,7 +5,8 @@ classdef event
         EXIT = 2;  % An EXIT event (to allow a state to define a teardown routine);
         REGULAR = 3; % REGULAR events send updates of current variables (e.e. eye pos, key press)
         NOOP =4; % An event that shoudl not be sent out but ignored.
-        eventTypes = {'ENTRY','EXIT','REGULAR','NOOP'};
+        AFTERTRIAL=5; %An event that signals the trial ended.
+        eventTypes = {'ENTRY','EXIT','REGULAR','NOOP','AFTERTRIAL'};
     end
     properties
         % These are the properties used by current behaviors. Adding new
@@ -29,6 +30,7 @@ classdef event
         isRegular@logical;
         isExit@logical;
         isNoop@logical;
+        isAfterTrial@logical;
     end
     methods
         function v = get.isEntry(o)
@@ -44,6 +46,10 @@ classdef event
         
         function v = get.isNoop(o)
             v = o.type==neurostim.event.NOOP;
+        end
+        
+        function v = get.isAfterTrial(o)
+            v = o.type==neurostim.event.AFTERTRIAL;
         end
         
     end

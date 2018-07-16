@@ -4,13 +4,16 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
    % FREEVEIWING - each trial starts here
     %              -> FIXATING when the eye moves inside the window
     %              ->FAIL  if t>t.from
+    %               ->FAIL afterTrial
     % FIXATING    -> FAIL if eye moves outside the window before t.to or
     %                       does not reach CHOOSE before o.choiceFrom
     %             -> CHOOSE  if eye moves to the choice targets between
     %                   t.to and t.choiceFrom.
+    %               ->FAIL afterTrial
     % CHOOSE     -> FAIL if the eye leaves the first choice sooner than o.chooseDuration
     %            -> SUCCESS if the eye is still withion o.tolerance of the
     %            choice after o.choiseDuration and the choice was correct.
+    %             -> SUCCESS if afterTrial and correct choice
     % Note that **even before t< o.from**, the eye has to remain 
     % in the window once it is in there (no in-and-out privileges)
   
@@ -52,7 +55,8 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
    
    methods
         % Define the fixation state by coding all its transitions
-        function fixating(o,t,e)            
+        function fixating(o,t,e)   
+            if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular;return;end % regular only - no entry/exit
             % Guards
             oTo = o.to;
@@ -69,8 +73,8 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
         end
             
         % Define the choose state by coding all its transitions            
-        function choose(o,t,e)            
-            if e.isEntry
+        function choose(o,t,e) 
+             if e.isEntry
                 % First time entering the Choose state.                 
                 oAngles = o.angles;
                 if numel(oAngles)==0
@@ -91,8 +95,6 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
                 o.choiceIx = choiceIx;
                 o.choice  = choiceXY;
                 return; %Done with setup/entry code
-            elseif ~e.isRegular
-                return;
             end % regular only - no exit
             
             % Guards
@@ -100,7 +102,7 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
             choiceComplete = duration(o,'CHOOSE',t)>= o.choiceDuration;
             isCorrect = o.correct;
             % All transitions
-            if choiceComplete 
+            if choiceComplete || e.afterTrial
                 if inChoice && isCorrect
                     transition(o,@o.success,e);                
                 else
