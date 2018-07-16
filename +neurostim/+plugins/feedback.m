@@ -103,11 +103,16 @@ classdef feedback < neurostim.plugin
         
         function beforeTrial(o)
             %Reset flags for all items.
+            reset(o);
+        end
+        
+        function reset(o)
+            %Reset flags for all items.
             for i=1:o.nItems
                 o.(['item' num2str(i) 'delivered']) = false;
             end
         end
-          
+        
         function deliverPending(o,queue)
             %Which feedback items should be delivered now?            
             for i=queue                
