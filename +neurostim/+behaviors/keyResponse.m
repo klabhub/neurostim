@@ -35,7 +35,7 @@ classdef keyResponse < neurostim.behavior
             o.addProperty('keys',{},'validate',@iscellstr); % User provided list of keys
             o.addProperty('correctFun',[]); %User provided function that evaluates to the correct key index on each trial
             o.addProperty('correct',[],'validate',@islogical); % Log of the correctness of each keypress
-            o.addProperty('keyIx',[],'validate',@isnumeric); % Log of the keys that were pressed (as an index into o.keys)
+            o.addProperty('keyIx',NaN,'validate',@isnumeric); % Log of the keys that were pressed (as an index into o.keys). Initialize with NaN to always return something (to allow checking its value)
             o.addProperty('maximumRT',1000,'validate',@isnumeric);  % A key must have been received this long after the waiting state starts.
             o.addProperty('simWhen','');
             o.addProperty('simWhat','');
