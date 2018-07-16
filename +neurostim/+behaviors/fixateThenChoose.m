@@ -99,10 +99,10 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
             
             % Guards
             inChoice = isInWindow(o,e,o.choice); % Check that we're still in the window around the original choice
-            choiceComplete = duration(o,'CHOOSE',t)>= o.choiceDuration;
+            choiceComplete = o.duration >= o.choiceDuration;
             isCorrect = o.correct;
             % All transitions
-            if choiceComplete || e.afterTrial
+            if choiceComplete || e.isAfterTrial
                 if inChoice && isCorrect
                     transition(o,@o.success,e);                
                 else

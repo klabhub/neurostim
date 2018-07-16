@@ -69,7 +69,7 @@ classdef (Abstract) behavior <  neurostim.plugin
     properties (SetAccess=protected,GetAccess=public)
         currentState; % Function handle that represents the current state.
         beforeTrialState;  % Must be non-empty
-        startTime@double=NaN;
+        iStartTime;  % containers.Map object to store state startTimes for quick access
         
         
     end
@@ -94,7 +94,7 @@ classdef (Abstract) behavior <  neurostim.plugin
         
         function v=get.duration(o)
             % Duration of the current state
-            v= o.cic.trialTime -o.startTime;
+            v= o.cic.trialTime -startTime(o,o.stateName);
         end
         
         function v = get.stateName(o)
@@ -141,6 +141,8 @@ classdef (Abstract) behavior <  neurostim.plugin
         
         
         function beforeTrial(o)
+            % Reset the internal record of state start times
+            o.iStartTime = containers.Map('keyType','char','ValueType','double');
             transition(o,o.beforeTrialState,neurostim.event(neurostim.event.NOOP));
         end
         
@@ -177,6 +179,7 @@ classdef (Abstract) behavior <  neurostim.plugin
             o.addProperty('state','','validate',@ischar);
             o.addProperty('event',neurostim.event(neurostim.event.NOOP)); 
             o.feedStyle = 'blue';
+            o.iStartTime = containers.Map('keyType','char','ValueType','double');          
         end
         
         % This function must return a neurostim.event, typically of the
@@ -217,14 +220,18 @@ classdef (Abstract) behavior <  neurostim.plugin
             
             % Switch to new state and log the new name
             o.currentState = state; % Change the state
-            o.state = o.stateName; % Log time/state transition            
-            o.startTime = o.cic.trialTime;
+            oStateName = o.stateName;
+            o.state = oStateName; % Log time/state transition            
+            o.iStartTime(oStateName) = o.cic.trialTime;
             
             if o.verbose
                 o.writeToFeed(['Transition to ' o.state]);
             end
         end
     
+        
+        
+        
         end
     
     %% States
@@ -251,34 +258,18 @@ classdef (Abstract) behavior <  neurostim.plugin
     
     %% Helper functions
     methods
+      
         
-%         function v= duration(o,s,t)
-%             %Return how long the state s has been active at time t.
-%             if o.prms.state.cntr >1
-%                 if nargin <3
-%                     t = o.cic.trialTime;
-%                 end
-%                 v = t - startTime(o,s);
-%             else
-%                 v= 0;
-%             end
-%         end
-        
-        % Return the (last) starttime of state (s) in the current
-        % trial.
-%         function v = startTime(o,s)
-%             if o.prms.state.cntr >1
-%                 if ~iscell(s);s={s};end
-%                 [~,~,v] = get(o.prms.state,'trial',o.cic.trial,'withDataOnly',true,'dataIsMember',upper(s));
-%                 v= max(v);
-%                 if isempty(v) % This state did not occur yet this trial
-%                     v= NaN;
-%                 end
-%             else
-%                 v= NaN;
-%             end
-%             
-%         end
+     
+    function v = startTime(o,s)
+        s = upper(s);
+        if isKey(o.iStartTime,s)
+            % This state's startTime was logged 
+            v = o.iStartTime(s);        
+        else
+            v= NaN;
+        end
+    end
      end
     
     
