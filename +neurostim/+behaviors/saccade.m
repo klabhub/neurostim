@@ -63,7 +63,7 @@ classdef saccade < neurostim.behaviors.fixate
             if ~e.isRegular ;return;end % No Entry/exit needed
             % Define guard conditions
              insideTarget=isInWindow(o,e,[o.targetX,o.targetY]);
-             inflighTooLong = duration(o,'INFLIGHT',t) > o.saccadeDuration;                       
+             inflighTooLong = o.duration > o.saccadeDuration;                       
              % Code transitions
              if insideTarget
                 transition(o,@o.onTarget,e);
@@ -77,7 +77,7 @@ classdef saccade < neurostim.behaviors.fixate
             if e.isAfterTrial;transition(o,@o.success,e);end % if still in this state-> success          
             if ~e.isRegular ;return;end % No Entry/exit needed.
             %Define guard conditions            
-            longEnough  = duration(o,'ONTARGET',t) >= o.targetDuration;
+            longEnough  = o.duration >= o.targetDuration;
             brokeTargetFixation = ~isInWindow(o,e,[o.targetX,o.targetY]);            
             % Code transitions
             if longEnough

@@ -112,15 +112,7 @@ classdef (Abstract) behavior <  neurostim.plugin
         end
 
         function v = get.stopTime(o)
-             if o.prms.state.cntr >1
-                [~,~,v] = get(o.prms.state,'trial',o.cic.trial,'withDataOnly',true,'dataIsMember',{'FAIL','SUCCESS'});
-                v = max(v);
-                if isempty(v) % This state did not occur yet this trial
-                    v= NaN;
-                end
-            else
-                v= NaN;
-            end
+            v = min(startTime(o,'FAIL'),startTime(o,'SUCCESS')); % At least one will be NaN             
         end
         
         
