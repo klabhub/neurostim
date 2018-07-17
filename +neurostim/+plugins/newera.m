@@ -175,9 +175,9 @@ classdef newera <  neurostim.plugins.liquid
       [err,status,~] = o.sndcmd(''); % send a CR... no command
       assert(err == 0);
       
-      % beep once so we know the pump is alive...
-      err = o.beep(1);
-      assert(err == 0);
+%       % beep once so we know the pump is alive...
+%       err = o.beep(1);
+%       assert(err == 0);
     end
 
     function close(o)
