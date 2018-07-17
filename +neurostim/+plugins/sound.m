@@ -1,5 +1,8 @@
 classdef sound < neurostim.plugin
     % Generic sound plugin for PTB. Add if using sound.
+    properties (Access=public)
+        sampleRate@double = NaN;
+    end
     properties (Access=protected)
         paHandle
     end
@@ -11,12 +14,17 @@ classdef sound < neurostim.plugin
             
             % Sound initialization
             InitializePsychSound(1);
+            
+            % Opening here instead of beforeExperiment so that the actual
+            % sampleRate is available for resampling in classes that use
+            % this plugin (e.g. soundFeedback)
+            o.paHandle = PsychPortAudio('Open');            
+            status = PsychPortAudio('GetStatus', o.paHandle);
+            o.sampleRate = status.SampleRate;
         end
         
         function beforeExperiment(o)
-            
-            
-            o.paHandle = PsychPortAudio('Open');
+           
         end
         
         function afterExperiment(o)

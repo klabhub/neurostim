@@ -42,6 +42,13 @@ classdef soundFeedback < neurostim.plugins.feedback
                 if exist(file,'file')
                     %Read file and return waveform data        
                     wave = audioread(file);
+                    info = audioinfo(file);
+                    % If the .wav sampleRate differs from the soundcard, we
+                    % need to change the sampling rate.
+                    if info.SampleRate ~= o.cic.sound.sampleRate                        
+                        % Simple resampling
+                        wave =resample(wave,linspace(0,info.Duration,info.TotalSamples),o.cic.sound.sampleRate);
+                    end
                 else
                     o.cic.error('STOPEXPERIMENT',['Sound file ' strrep(file,'\','/') ' could not be found.']);
                 end
