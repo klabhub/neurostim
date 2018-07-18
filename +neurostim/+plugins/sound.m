@@ -21,12 +21,19 @@ classdef sound < neurostim.plugin
             o.paHandle = PsychPortAudio('Open');            
             status = PsychPortAudio('GetStatus', o.paHandle);
             o.sampleRate = status.SampleRate;
+            
+             %Play a dummy sound (first sound wasn't playing)
+            bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,[0; 0]);
+            PsychPortAudio('FillBuffer', o.paHandle,bufferHandle);
+            PsychPortAudio('Start',o.paHandle);
+            
         end
         
-        function beforeExperiment(o)
-           
-        end
         
+%         function beforeExperiment(o)
+%                    
+%         end
+%         
         function afterExperiment(o)
             PsychPortAudio('Close', o.paHandle);
         end

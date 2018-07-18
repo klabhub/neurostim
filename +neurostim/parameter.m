@@ -55,6 +55,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         capacity=0; % Capacity to store in log
         
         noLog; % Set this to true to skip logging
+        sticky; % set this to true to make value(s) sticky, i.e., across trials
         fun =[];        % Function to allow across parameter dependencies
         funPrms;
         funStr = '';    % The neurostim function string
@@ -80,6 +81,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.hDynProp  = h; % Handle to the dynamic property
             o.validate = options.validate;
             o.noLog = options.noLog;
+            o.sticky = options.sticky;
             setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
@@ -127,22 +129,21 @@ classdef parameter < handle & matlab.mixin.Copyable
         function storeInLog(o,v)
             % Store and Log the new value for this parm
             
-            % Check if the value changed and log only the changes.
-            %(at some point this seemed to be slower than just logging everything.
-            % but tests on July 1st 2017 showed that this was (no longer)
-            % correct.
-            
-            if  (isnumeric(v) && numel(v)==numel(o.value) && all(v(:)==o.value(:))) || (ischar(v) && strcmp(v,o.value))
+
+            % Check if the value changed and log only the changes. 
+            % (at some point this seemed to be slower than just logging everything. 
+            % but tests on July 1st 2017 showed that this was (no longer) correct. 
+            if  (isnumeric(v) && numel(v)==numel(o.value) && isnumeric(o.value) && all(v(:)==o.value(:))) || (ischar(v) && ischar(o.value) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end
-            
-            % For non-function parns this is the value that will be
-            % returned  to the next getValue
+                                   
+            % For non-function params this is the value that will be
+            % returned to the next getValue
             o.value = v;
-            
-            if o.noLog
-                return
+                        
+            if o.noLog 
+               return 
             end
             
             % Keep a timed log.
@@ -225,6 +226,10 @@ classdef parameter < handle & matlab.mixin.Copyable
         % allows us to reset the parms to their default at the start of a
         % trial (before applying condition specific modifications).
         function setCurrentToDefault(o)
+            if o.sticky
+              return
+            end
+            
             if isempty(o.fun)
                 o.default = o.value;
             else
@@ -233,8 +238,11 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function setDefaultToCurrent(o)
+            if o.sticky
+              return
+            end
+          
             % Put the default back as the current value
-            %
             setValue(o,[],o.default);
             
             % Note that for Neurostim functions ('@' strings) the string
@@ -389,8 +397,8 @@ classdef parameter < handle & matlab.mixin.Copyable
             tr = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
             t = o.plg.cic.prms.trial.time;   % Start of the trial
             t(tr==0) = [];
-            t(isnan(t))= [];
-            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match the number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(tr));
+            t(isnan(t))= []; 
+            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match the number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(tr));            
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
