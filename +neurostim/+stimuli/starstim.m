@@ -116,6 +116,9 @@ classdef starstim < neurostim.stimulus
                 v = ' Fake OK';
             else
                 [~, v] = MatNICQueryStatus(o.sock);
+                if isempty(v) || (isnumeric(v) && v==0)
+                    v= 'error/unknown';
+                end
             end
         end
         
@@ -124,6 +127,9 @@ classdef starstim < neurostim.stimulus
                 v = ' Fake Protocol OK';
             else
                 [~, v] = MatNICQueryStatusProtocol(o.sock);
+                 if isempty(v) || (isnumeric(v) && v==0)
+                    v= 'error/unknown';
+                end
             end
         end
         
@@ -132,7 +138,7 @@ classdef starstim < neurostim.stimulus
                 v =true;
             else
                 stts = o.protocolStatus;
-                if isempty(stts) || ~ischar(stts)
+                if isempty(stts) || ~ischar(stts) || strcmpi(stts,'error/unknown')
                     v =false;
                 else
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP'});
@@ -197,7 +203,9 @@ classdef starstim < neurostim.stimulus
             o.addProperty('z',NaN);
             o.addProperty('type','tACS');%tACS, tDCS, tRNS
             o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED'
-   
+            o.addProperty('path',''); % Set to the folder on the starstim computer where data should be stored. 
+            % If path is empty, the path of the neurostim output file is
+            % used (which may not exist on the remote starstim computer).
             
             o.addProperty('amplitude',NaN);            
             o.addProperty('mean',NaN);
@@ -251,9 +259,13 @@ classdef starstim < neurostim.stimulus
                 % This only makes sense if both the Neurostim computer and
                 % the NIC computer have access to the same path. Otherwise
                 % NIC will complain... 
-                pth = o.cic.fullFile; % This is without the extension
-                if ~exist(pth,'dir')
-                    mkdir(pth);
+                if isempty(o.path)
+                    pth = o.cic.fullFile; % This is without the extension
+                    if ~exist(pth,'dir')
+                        mkdir(pth);
+                    end
+                else
+                    pth = o.path;
                 end
                 ret  = MatNICConfigurePathFile (pth, o.sock); % Specify target directory
                 o.checkRet(ret,'PathFile');
@@ -301,7 +313,7 @@ classdef starstim < neurostim.stimulus
         end
         
         function unloadProtocol(o)
-            if o.fake || ~ischar(o.protocolStatus) || strcmpi(o.protocolStatus,'CODE_STATUS_IDLE') || strcmpi(o.protocolStatus,'CODE_STATUS_STIMULATION_FULL')
+            if o.fake || ~ischar(o.protocolStatus) || ismember(o.protocolStatus,{'CODE_STATUS_IDLE','CODE_STATUS_STIMULATION_FULL','error/unknown'})
                 return; % No protocol loaded.
             end
             ret = MatNICUnloadProtocol(o.sock);
@@ -405,8 +417,9 @@ classdef starstim < neurostim.stimulus
         
         function afterExperiment(o)
             
-            
-            o.tmr.stop; % Stop the timer
+            if o.tmr.isvalid
+                o.tmr.stop; % Stop the timer
+            end
             rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')

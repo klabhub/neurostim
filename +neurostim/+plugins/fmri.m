@@ -22,6 +22,7 @@ classdef fmri < neurostim.plugin
                 DrawFormattedText(o.cic.window,'Which scan number is about to start?' ,'center','center',o.cic.screen.color.text);
                 Screen('Flip',o.cic.window);
                 disp('*****************************************')
+                commandwindow;
                 answer = input('Which scan number is about to start?');
             end
             o.scanNr =answer;
