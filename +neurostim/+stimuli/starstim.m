@@ -447,12 +447,12 @@ classdef starstim < neurostim.stimulus
 %             beforeExperiment(o);
 %             loadProtocol(o);            
 %             start(o);
-            %%
-            o.mean = [-1000 1000 0 0 0 0 0 0];
-            %for i=1:10               
-               rampUp(o,250);
-             %   wait(o.tmr)
-            %end
+%             %%
+%             o.mean = [-1000 1000 0 0 0 0 0 0];
+%             %for i=1:10               
+%                rampUp(o,250);
+%              %   wait(o.tmr)
+%             %end
         end
     end
     

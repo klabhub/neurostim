@@ -37,7 +37,7 @@ classdef fmri < neurostim.plugin
                 % Wait until the requested pre triggers have been recorded
                 DrawFormattedText(o.cic.window,'Start the scanner now ...' ,'center','center',o.cic.screen.color.text);
                 Screen('Flip',o.cic.window);
-                while o.trigger < o.preTriggers
+                while o.trigger < o.preTriggers-1
                     WaitSecs(0.1);
                     o.cic.KbQueueCheck;
                     DrawFormattedText(o.cic.window,['Waiting for another ' num2str(o.preTriggers-o.trigger) ' triggers from the scanner'],'center','center',o.cic.screen.color.text);
