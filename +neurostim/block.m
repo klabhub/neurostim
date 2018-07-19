@@ -13,8 +13,9 @@ classdef block < dynamicprops
     % Settable fields include:
     %   myBlock.nrRepeats - number of repeats of the current block
     %
-    %   myBlock.randomization - one of 'SEQUENTIAL','RANDOMWIHOUTREPLACEMENT',
-    %       RANDOMWITHREPLACEMENT', case insensitive
+    %   myBlock.randomization - one of 'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT',
+    %       RANDOMWITHREPLACEMENT', case insensitive. Sets the order in which design
+    %       obejcts will be run.
     %
     %   myBlock.weights = [a b]
     %       wherein the weights correspond to the equivalent design (i.e. a factorial or set of conditions).
@@ -166,7 +167,7 @@ classdef block < dynamicprops
             o.designs = varargin(isDesign);
             names = cellfun(@(x) x.name,o.designs,'uniformoutput',false);
             if numel(unique(names)) ~= numel(o.designs)
-                error('Duplicate design object detected. Use the "nrRepeats" or "weights" properties of the block object to present the design more than once');
+                error('Duplicate design instance or name detected. Use the "nrRepeats" or "weights" properties of the block object to present the design more than once');
             end
             o.name = name;
             o.weights = ones(1,o.nrDesigns);
