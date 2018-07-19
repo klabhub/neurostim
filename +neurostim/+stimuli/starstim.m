@@ -142,10 +142,7 @@ classdef starstim < neurostim.stimulus
                     v =false;
                 else
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP'});
-                end
-                if o.debug
-                    o.writeToFeed(stts);
-                end
+                end                
             end
             
         end
@@ -159,10 +156,7 @@ classdef starstim < neurostim.stimulus
                     v =true; % No protcol status means it is not running...??
                 else
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_PAUSED', 'CODE_STATUS_IDLE'});
-                end
-                if o.debug
-                    o.writeToFeed(stts);
-                end
+                end                
             end
         end               
         
@@ -272,7 +266,10 @@ classdef starstim < neurostim.stimulus
                 % File format : % YYYYMMDD_[subject].edf
                 % Always generate .easy file, and edf file (NIC requires
                 % it), and generate .stim when stimulating.
-                ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,true,true,true,false,o.sock);
+                % Change in 4.07:
+                % patientName, recordEasy, recordNedf, recordSD, recordEDF,
+                % socket  (no more STIM file)
+                ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,true,false,true,o.sock);
                 o.checkRet(ret,'FileNameAndTypes');
                 [ret,o.markerStream] = MatNICMarkerConnectLSL('Neurostim');
                 o.checkRet(ret,'Please enable the Neurostim Marker Stream in NIC');
@@ -397,7 +394,7 @@ classdef starstim < neurostim.stimulus
         function afterTrial(o)
             switch upper(o.mode)
                 case 'BLOCKED'
-                    if o.cic.blockDone
+                    if o.cic.blockDone && o.enabled
                         rampDown(o);
                     end
                 case 'TRIAL'
