@@ -155,8 +155,9 @@ classdef viewpoint < neurostim.plugins.eyetracker
       % FIXME: set the sample rate, i.e., 'eyeA:videoMode 90' or 'eyeA:videoMode 220'
             
       % open file to record data (will be renamed on copy?)
-      [~,tmpFile] = fileparts(tempname);
-      o.vpxFile = ['C:\Users\shaunc\Documents\' tmpFile '.vpx']; % FIXME: Viewpoint doesn;t seem to be honoring setDir DATA:
+%       [~,tmpFile] = fileparts(tempname);
+%       o.vpxFile = ['C:\Users\shaunc\Documents\' tmpFile '.vpx']; % FIXME: Viewpoint doesn't seem to be honouring setDir DATA:
+      o.vpxFile = ['C:\Users\shaunc\Documents\' o.cic.file '.vpx']; % FIXME: Viewpoint doesn't seem to be honouring setDir DATA:
 
       Viewpoint('command','dataFile_UnPauseUponClose 0'); % recording is paused by default
       Viewpoint('command','dataFile_Pause 1');
@@ -201,6 +202,8 @@ classdef viewpoint < neurostim.plugins.eyetracker
       Viewpoint('stopRecording');
       Viewpoint('closeFile');
       Viewpoint('shutdown');
+      
+      o.vpxFile = [o.cic.file '.vpx']; % FIXME: shouldn't be necessary
     end
         
     function beforeTrial(o)
