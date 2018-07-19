@@ -405,6 +405,7 @@ classdef design <handle & matlab.mixin.Copyable
             conds=ones(1,o.nrConditions);
             conds=cumsum(conds);
             weighted=repelem(conds(:),o.weights(:));
+            weighted=weighted(:);
             switch upper(o.randomization)
                 case 'SEQUENTIAL'
                     o.list=weighted;
