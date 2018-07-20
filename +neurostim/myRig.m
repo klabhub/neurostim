@@ -6,7 +6,6 @@ pin = inputParser;
 pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
 pin.addParameter('bgColor',[0.25,0.25,0.25]);
 pin.addParameter('eyelink',false);
-pin.addParameter('bgColor',[0.25,0.25,0.25]);
 pin.addParameter('debug',false);
 pin.parse(varargin{:});
 smallWindow = pin.Results.smallWindow;

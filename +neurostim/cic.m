@@ -1035,6 +1035,13 @@ classdef cic < neurostim.plugin
             c.KbQueueStop;
             %Prune the log of all plugins/stimuli and cic itself
             pruneLog([c.pluginOrder c]);
+
+            % clean up CLUT textures used by SOFTWARE-OVERLAY
+            if isfield(c.screen,'overlayClutTex') && ~isempty(c.screen.overlayClutTex)
+                glDeleteTextures(numel(c.screen.overlayClutTex),c.screen.overlayClutTex(1));
+                c.screen.overlayClutTex = [];
+            end
+            
             c.saveData;
             
             ListenChar(0);
@@ -1049,19 +1056,11 @@ classdef cic < neurostim.plugin
             c.writeToFeed('Data for trials 1:%d saved to %s',c.trial,filePath);
         end
         
-        function delete(c) %#ok<INUSD>
-            %Destructor. Release all resources. Maybe more to add here?
-            
-            % clean up CLUT textures (used by SOFTWARE-OVERLAY)
-            if isfield(c.screen,'overlayClutTex') && ~isempty(c.screen.overlayClutTex)
-                glDeleteTextures(numel(c.screen.overlayClutTex),c.screen.overlayClutTex(1));
-            end
-            
-            %Screen('CloseAll');
+        function delete(c)
+            %Destructor. Release all resources. Maybe more to add here?            
         end
         
         %% Keyboard handling routines
-        %
         function addKeyStroke(c,key,keyHelp,plg,isSubject,fun)
             if ischar(key)
                 key = KbName(key);
