@@ -92,6 +92,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('eyeEvts',struct);
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
             o.addProperty('clbType','HV9');
+            o.addProperty('host','');
         end
         
         function beforeExperiment(o)
@@ -116,7 +117,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.el.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
             end
             
-            
+            if ~isempty(o.host)
+                Eyelink('SetAddress',o.host);
+            end            
             %Initialise connection to Eyelink.
             if ~o.useMouse
                 result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
