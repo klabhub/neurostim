@@ -122,11 +122,27 @@ classdef design <handle & matlab.mixin.Copyable
     methods  %/get/set
         
         function v=size(o)
-            % The number of levels.
+            %Return the factorial design size as [nLevelsFac1,nrLevelsFac2, etc..]            
             v= o.nrLevels;
             if isempty(v)
                 v = [o.nrConditions 1];
             end
+        end
+        function v = repmat(o,varargin)
+            %Concatenation is prevented to prevent confusion from o.size(),
+            %which should always return the size of the design matrix of conditions, not
+            %the size of an object vector. (there is no reason to create a
+            %vector. Cell arrays are OK.)
+            error('Design objects should not be concatenated');
+        end
+        function v = horzcat(o,varargin)
+            error('Design objects should not be concatenated');
+        end
+        function v = vertcat(o,varargin)
+            error('Design objects should not be concatenated');
+        end
+        function v = cat(o,varargin)
+            error('Design objects should not be concatenated');
         end
         
         function v= get.done(o)
@@ -390,6 +406,7 @@ classdef design <handle & matlab.mixin.Copyable
             conds=ones(1,o.nrConditions);
             conds=cumsum(conds);
             weighted=repelem(conds(:),o.weights(:));
+            weighted=weighted(:);
             switch upper(o.randomization)
                 case 'SEQUENTIAL'
                     o.list=weighted;
@@ -406,10 +423,18 @@ classdef design <handle & matlab.mixin.Copyable
             % subsasgn to create special handling of .weights .conditions, and
             % .facN design specifications.
             handled = false; % If not handled here, we call the builtin below.
+
             if strcmpi(S(1).type,'.')
                 if strcmpi(S(1).subs,'WEIGHTS')
                     handled =true;
-                    if numel(V) ==1 ||  (ndims(V)==o.nrFactors && all(size(V)==o.nrLevels))
+                    
+                    %If a vector of weights (i.e. a one-factor design), make a
+                    %column vector (to match up with the nLevels x 1 output of o.nrLevels
+                    if isvector(V)
+                        V = V(:);
+                    end
+                    
+                    if numel(V) ==1 || isequal(size(V),o.nrLevels)
                         o.weights = V;
                     else
                         error(['These weights [' num2str(size(V)) '] do not match the design [' num2str(size(o)) ']']);
