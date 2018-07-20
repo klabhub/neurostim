@@ -27,6 +27,7 @@ classdef cic < neurostim.plugin
         saveEveryBlock          = false;
         keyBeforeExperiment     = true;
         keyAfterExperiment      = true;
+        beforeExperimentText    = 'Press any key to start...'; % Shown at the start of an experiment
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
             'width',[],'height',[],...
             'color',struct('text',[1 1 1],...
@@ -548,7 +549,14 @@ classdef cic < neurostim.plugin
                 varargin = arrayfun(@(plg) plg.name,varargin{1},'uniformoutput',false);
             end
             
-            defaultOrder = cat(2,{c.plugins.name},{c.stimuli.name});
+            if ~isempty(c.plugins)
+                defaultOrder = {c.plugins.name};
+            else
+                defaultOrder = {};
+            end
+            if ~isempty(c.stimuli)
+                defaultOrder = cat(2,defaultOrder,{c.stimuli.name});
+            end
             if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
             else
@@ -872,7 +880,7 @@ classdef cic < neurostim.plugin
             showCursor(c);
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
-            DrawFormattedText(c.mainWindow, 'Press any key to start...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
+            DrawFormattedText(c.mainWindow,c.beforeExperimentText, 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);            
             Screen('Flip', c.mainWindow);
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             c.flags.experiment = true;
