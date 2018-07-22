@@ -104,7 +104,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('SetAccess','public');
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);
-            p.addParameter('sticky',false,@islogical);
             p.parse(varargin{:});
             
             

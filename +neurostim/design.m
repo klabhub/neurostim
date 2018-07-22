@@ -252,15 +252,14 @@ classdef design <handle & matlab.mixin.Copyable
                         if isempty(v)
                             % If a previous dplicate removal makes the
                             % FactorSpecs in v empty, then we'er done
-                            % pruning v.
                             break;
                         else
                             % Check for duplicates and remove
                             duplicateSetting = ~cellfun(@isempty,strfind(v(:,1),o.conditionSpecs{cond}{i,1})) &  ~cellfun(@isempty,strfind(v(:,2),o.conditionSpecs{cond}{i,2}));
                             v(duplicateSetting,:) = []; %#ok<AGROW> %Rmove seting that came from factor specs (or previous condition spec)
-                        end                         
-                    end
-                    v = cat(1,v,o.conditionSpecs{cond}); % Combine condition with factor specs (in v; pruned of duplcates).
+                        end
+                         v = cat(1,v,o.conditionSpecs{cond}(i,:)); % Combine condition with factor specs and previous condition specs.
+                    end                   
                 end
             end
         end

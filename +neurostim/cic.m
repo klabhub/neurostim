@@ -674,7 +674,7 @@ classdef cic < neurostim.plugin
             
             if strcmpi(p.Results.randomization,'LATINSQUARES')
                 nrUBlocks = numel(c.blocks);
-                if ~(rem(nrUBlocks,2)==0)
+                if ~iseven(nrUBlocks)
                     error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrBlocks)]);
                 end
                 allLS = neurostim.utils.ballatsq(nrUBlocks);

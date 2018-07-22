@@ -165,8 +165,8 @@ if p.Results.lumTest
     ylabel '#Measurements'
     title 'Mismatch'
     
-    str = [calFile ':' datestr(cal.describe.date)];
-    annotation(gcf,'textbox',[0 0 1 1],'String',str,'HorizontalAlignment','Center')    
+    suptitle( [calFile ':' datestr(cal.describe.date)])
+        
 end
 
 %% Test the color calibration

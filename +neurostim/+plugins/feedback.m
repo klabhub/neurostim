@@ -77,7 +77,7 @@ classdef feedback < neurostim.plugin
             p.KeepUnmatched = true;
             p.addParameter('when','AFTERTRIAL', @(x) any(strcmpi(x,{'AFTERTRIAL','AFTERFRAME'})));  % When the criterion should be evaluated (and the fedback delivered) (must be a CIC event)
             p.addParameter('criterion',false);                                                      % Boolean function that determines whether the feedback will be delivered
-            p.addParameter('repeat',false);                                                         %If false, will be delivered once only. If true, will deliver it whenever criterion is true
+            p.addParameter('delivered',false);
             p.parse(varargin{:});            
             
             
@@ -90,8 +90,6 @@ classdef feedback < neurostim.plugin
             for i=1:numel(flds)
                 o.addProperty([thisItem lower(flds{i})],p.Results.(flds{i}));                
             end
-            o.addProperty([thisItem 'delivered'],false);
-            
             if strcmpi(p.Results.when,'AFTERTRIAL')
                 o.afterTrialQueue = [o.afterTrialQueue o.nItems];
             elseif strcmpi(p.Results.when,'AFTERFRAME')
@@ -125,12 +123,9 @@ classdef feedback < neurostim.plugin
                 
                 % ... and that the criterion is satisfied.
                 if o.(['item' num2str(i) 'criterion'])
-                    o.deliver(i);
-                    o.(['item' num2str(i) 'delivered']) = true; %Logs delivery
-                    if o.(['item' num2str(i) 'repeat'])
-                        o.(['item' num2str(i) 'delivered']) = false; %Reset to allow repeat
-                    end
-                end
+                  o.deliver(i);
+                  o.(['item' num2str(i) 'delivered']) = true;
+                end                
             end
         end
         
