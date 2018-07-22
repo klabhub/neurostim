@@ -13,9 +13,8 @@ classdef block < dynamicprops
     % Settable fields include:
     %   myBlock.nrRepeats - number of repeats of the current block
     %
-    %   myBlock.randomization - one of 'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT',
-    %       RANDOMWITHREPLACEMENT', case insensitive. Sets the order in which design
-    %       obejcts will be run.
+    %   myBlock.randomization - one of 'SEQUENTIAL','RANDOMWIHOUTREPLACEMENT',
+    %       RANDOMWITHREPLACEMENT', case insensitive
     %
     %   myBlock.weights = [a b]
     %       wherein the weights correspond to the equivalent design (i.e. a factorial or set of conditions).
@@ -57,7 +56,7 @@ classdef block < dynamicprops
     end
     
     properties (GetAccess=public, SetAccess = protected)
-        designs@cell; % The collection of designs that will run in this block
+        designs@neurostim.design; % The collection of designs that will run in this block
         list=[];    % Order of the designs that will be run.
         name='';    % Name of the block
         designIx;      % Design we are currently running
@@ -76,7 +75,7 @@ classdef block < dynamicprops
     methods
         function v=get.design(o)
             % Current design
-            v =o.designs{o.list(o.designIx)};
+            v =o.designs(o.list(o.designIx));
         end
         
         function v = get.done(o)
@@ -85,7 +84,7 @@ classdef block < dynamicprops
         end
         
         function v = get.nrPlannedTrials(o)
-            v =sum(cellfun(@(d) d.nrPlannedTrials,o.designs(o.list)));
+            v =sum([o.designs(o.list).nrPlannedTrials]);
         end
         
         function v = get.nrTrials(o)
@@ -143,10 +142,10 @@ classdef block < dynamicprops
         end
         
         function v = get.nrConditions(o)
-            %Sum the number of conditions over all design objects
-            v = sum(cellfun(@(d) d.nrConditions,o.designs));
+            nr = {o.designs.nrConditions};
+            v = sum([nr{:}]);
         end
-
+        
     end
     
     
@@ -161,15 +160,8 @@ classdef block < dynamicprops
             if ~any(isDesign)
                 error('block construction needs at least one design');
             end
-            
-            %Make sure that all design objects are different objects and
-            %not handles to the same object (otherwise becomes a problem for counters)
-            o.designs = varargin(isDesign);
-            names = cellfun(@(x) x.name,o.designs,'uniformoutput',false);
-            if numel(unique(names)) ~= numel(o.designs)
-                error('Duplicate design instance or name detected. Use the "nrRepeats" or "weights" properties of the block object to present the design more than once');
-            end
             o.name = name;
+            o.designs = [varargin{isDesign}];
             o.weights = ones(1,o.nrDesigns);
             % The remaining args are parameter/value pairs
             pv = varargin(~isDesign);
