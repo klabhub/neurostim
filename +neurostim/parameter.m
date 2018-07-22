@@ -395,11 +395,20 @@ classdef parameter < handle & matlab.mixin.Copyable
         function t = trialStartTime(o)
             % Return the time that the trial started (all trialTimes are
             % aligned to this).
+            %
+            % Note: this is *not* the time of the first frame of the
+            %       stimulus on each trial... for that see firstFrameTime()
+            %       below.
             tr = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
             t = o.plg.cic.prms.trial.time;   % Start of the trial            
             t(tr==0) = [];
-            t(isnan(t))= []; 
-            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match the number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(tr));            
+            t(isnan(t))= [];
+            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match the number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(t));
+        end
+        
+        function t = firstFrameTime(o)
+            % Return the time of the first frame
+            t = [o.plg.cic.prms.firstFrame.log{:}];
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
@@ -410,15 +419,13 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function trTime= eTime2TrialTime(o,eventTime)
             % Find the time that each trial started by looking in the cic events log.
-            trStartT = trialStartTime(o);
-            trTime = arrayfun(@(t,t0) neurostim.parameter.align(t,trStartT,false),eventTime);%,'UniformOutput',false);
-            
-        end
-                
+            trStartT = firstFrameTime(o); % trialStartTime(o);
+            trTime = arrayfun(@(t,t0) neurostim.parameter.align(t,trStartT,false),eventTime);
+        end                
         
         function eTime= trialTime2ETime(o,trTime,tr)
-            trStartT = trialStartTime(o);
-            eTime= trTime + trStartT(tr);
+            trStartT = firstFrameTime(o); % trialStartTime(o);
+            eTime = trTime + trStartT(tr);
         end
         
                 
@@ -441,6 +448,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             
         end
     end
+    
     methods (Static)
         function data = matrixIfPossible(data)
             if iscell(data) && ~isempty(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
@@ -462,8 +470,9 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         
-          function [v] = align(t,trialT,returnTr)
-            tr= find(t>=trialT,1,'last');
+        function [v] = align(t,trialT,returnTr)
+            % computes the time of experiment time t relative to the alignment time trialT
+            tr = find(t>=trialT,1,'last');
             if isempty(tr)
                     % Happened before first trial start
                     tr =1;
