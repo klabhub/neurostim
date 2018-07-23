@@ -835,7 +835,7 @@ classdef cic < neurostim.plugin
                     c.experiment = stack(1).file;
                 end
             catch
-                warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
+                warning(['Tried to read experimental script  (', stack(1).file ' for logging, but failed']);
             end
             
             if isempty(c.subject)
