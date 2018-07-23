@@ -259,7 +259,10 @@ classdef block < dynamicprops
             
             %Block obejcts used to hold designs as a vector. Now it's a cell array
             if ~iscell(o.designs)
-                o.designs = {o.designs};
+                for i=1:numel(o.designs)
+                    d{i} = o.designs(i);
+                end
+                o.designs = d;
             end
         end
     end
