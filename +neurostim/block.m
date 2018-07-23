@@ -253,4 +253,14 @@ classdef block < dynamicprops
         
     end % methods
     
+    
+    methods (Static)
+        function o = loadobj(o)
+            
+            %Block obejcts used to hold designs as a vector. Now it's a cell array
+            if ~iscell(o.designs)
+                o.designs = {o.designs};
+            end
+        end
+    end
 end % classdef
