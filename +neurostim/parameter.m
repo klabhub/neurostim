@@ -296,10 +296,23 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             data = o.log(1:o.cntr);
             time = o.time(1:o.cntr);
-            trial = o.eTime2TrialNumber(time);
             trialTime= o.eTime2TrialTime(time);
+            trial = o.eTime2TrialNumber(time);
             block =NaN(1,o.cntr); % Will be computed if requested
             
+            %If the parameter is a stored value from flip(), use the data as the time rather than the time it was logged.
+            isStimOnOrOff = ismember(o.name,{'startTime','stopTime'}) && isa(o.plg,'neurostim.stimulus');
+            isFirstFrame = strcmp(o.name,'firstFrame') && isa(o.plg,'neurostim.cic');
+            if isFirstFrame
+                %Use zeros instead
+                trialTime = zeros(size(data));
+            elseif isStimOnOrOff
+                %Use the data values for all entires that were flip synced.
+                tmpData = cell2mat(data);
+                isFlipSynced = ~isinf(tmpData); %Entries that are Inf weren't frame synced
+                trialTime(isFlipSynced) = tmpData(isFlipSynced); %Flip time (in trialTime alignment) was stored. Use it.
+            end
+    
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set
             
