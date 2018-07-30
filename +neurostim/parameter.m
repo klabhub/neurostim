@@ -305,14 +305,25 @@ classdef parameter < handle & matlab.mixin.Copyable
             isFirstFrame = strcmp(o.name,'firstFrame') && isa(o.plg,'neurostim.cic');
             if isFirstFrame
                 %Use zeros instead
+                offset = -trialTime;
                 trialTime = zeros(size(data));
+                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
             elseif isStimOnOrOff
-                %Use the data values for all entires that were flip synced.
+                %Use the stored time values for all entries that were flip synced.
+                newTrialTime = trialTime;
                 tmpData = cell2mat(data);
                 isFlipSynced = ~isinf(tmpData); %Entries that are Inf weren't frame synced
-                trialTime(isFlipSynced) = tmpData(isFlipSynced); %Flip time (in trialTime alignment) was stored. Use it.
+                newTrialTime(isFlipSynced) = tmpData(isFlipSynced); %Flip time (in trialTime alignment) was stored. Use it.
+                offset = newTrialTime - trialTime;
+                trialTime = newTrialTime;
+                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
+            else
+                offset = zeros(size(data));
             end
-    
+            
+            %Apply any offsets to the clock time (so that entire event is back-dated)
+            time = time + offset;
+            
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set
             
