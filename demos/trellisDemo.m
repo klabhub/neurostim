@@ -1,3 +1,4 @@
+function trellisDemo
 %% Trellis recording Demo
 %
 % BK - May 2017

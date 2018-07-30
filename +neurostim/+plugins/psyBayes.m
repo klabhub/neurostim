@@ -121,7 +121,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             end
         end
         
-        function [m,sd,hdr,threshold]= posterior(oo,alpha,plotIt,theta)
+        function [m,sd,hdr,threshold,thresholdHdr]= posterior(oo,alpha,plotIt,theta)
             % function [m,sd,hdr]= posterior(oo,alpha,plotIt)
             % alpha = Level for high density interval [0.25]
             % plotIt = Show a graph [false]
@@ -181,14 +181,39 @@ classdef psyBayes < neurostim.plugins.adaptive
                             hdr(i,2,j) = x(find(ix==1,1,'last'));
                         end
                         
-                      
+                        
                     end
                     if nargout >3 && ~isempty(strfind(oo(j).psy.psychofun,'psyfun_yesno')) && ~isempty(strfind(oo(j).psy.psychofun,'psynormcdf'))
-                            % Yes no function uses the cumulative normal, which we can
-                            % invert to find the threshold at an arbitrary level:
-                            thresholdFun = @(theta,mu,sigma,lambda)(mu+sqrt(2)*sigma*erfinv(2*(theta-lambda/2)/(1-lambda)-1));
-                            threshold(1,j) = thresholdFun(theta,m(1,j),m(2,j),m(3,j));
+                        % Yes no function uses the cumulative normal, which we can
+                        % invert to find the threshold at an arbitrary level:
+                        thresholdFun = @(theta,mu,sigma,lambda)(mu+sqrt(2)*sigma.*erfinv(2*(theta-lambda/2)./(1-lambda)-1));
+                        threshold(1,j) = thresholdFun(theta,m(1,j),m(2,j),m(3,j));
+                        if nargout>4
+                            [M,S,L] = ndgrid(oo(j).psy.mu,oo(j).psy.sigma,oo(j).psy.lambda);
+                            x = thresholdFun(theta,M,S,L);
+                            y = oo(j).psy.post{1};
+                            x= x(:);
+                            y = y(:);
+                            N=100;
+                            f = linspace(0,max(y),N);
+                            Y = repmat(y(:),[1 N]);
+                            R = Y>repmat(f,[numel(y), 1]);
+                            P = sum(Y.*R);
+                            fAlpha = f(find(P>(1-alpha),1,'last'));
+                            ix = y>fAlpha;
+                            if sum(abs(diff(ix)) >2)
+                                warning('This HDR is non-contiguous');
+                                % Better return nan than the wrong limits..
+                                thresholdHdr(1,j) = NaN;
+                                thresholdHdr(2,j) = NaN;
+                            else % Contiguous HDR
+                                thresholdHdr(1,j) = x(find(ix==1,1,'first'));
+                                thresholdHdr(2,j) = x(find(ix==1,1,'last'));
+                            end
+                            
+                        end
                     end
+                    
                 catch
                     lasterr
                     disp (['Failed to compute posterior on ' oo(j).name])

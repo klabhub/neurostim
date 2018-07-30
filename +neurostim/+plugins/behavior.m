@@ -84,22 +84,17 @@ classdef behavior < neurostim.plugin
             o.addProperty('deadline',Inf,'validate',@isnumeric);        %The time by which the behaviour *must* be satisfied (for one-shot).
             
             %Internal use only
-            o.addProperty('startTime',Inf);      %The time at which the behaviour was initiated (i.e. in progress).
-            o.addProperty('stopTime',Inf);        %The time at which a result was achieved (good or bad).
-            o.addProperty('state',false);         % Logs changes in success. Dont assign to this, use .success instead.
-            o.addProperty('outcome',false);     %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
+            o.addProperty('startTime',Inf);         %The time at which the behaviour was initiated (i.e. in progress).
+            o.addProperty('stopTime',Inf);          %The time at which a result was achieved (good or bad).
+            o.addProperty('state',false);           % Logs changes in success. Dont assign to this, use .success instead.
+            o.addProperty('outcome',[]);            %A string indicating the outcome upon termination (e.g., 'COMPLETE','FAILEDTOSTART')
             
             o.feedStyle = 'blue';
         end
         
         function beforeTrial(o)
             % reset all flags
-            o.inProgress = false;
-            o.done = false;
-            o.startTime = Inf;
-            o.stopTime = Inf;
-            o.started = false;
-            o.state  = false;
+            reset(o);
         end
         
         function afterFrame(o)
@@ -117,6 +112,18 @@ classdef behavior < neurostim.plugin
                 o.outcome  = 'COMPLETE';
                 o.success = true;
             end
+        end
+        
+        function reset(o)
+            %Reset all flags and variables to initial state. Useful for
+            %looping/repeating the behaviour within a trial
+            o.inProgress = false;
+            o.done = false;
+            o.startTime = Inf;
+            o.stopTime = Inf;
+            o.started = false;
+            o.state  = false;
+            o.outcome = [];
         end
     end
     
@@ -151,7 +158,6 @@ classdef behavior < neurostim.plugin
             
             %Check whether the behavioural criteria are currently being met
             o.inProgress = validate(o);   %returns true if so.
-            
             
             %If the behaviour extends over an interval of time
             if o.continuous
@@ -199,7 +205,6 @@ classdef behavior < neurostim.plugin
             end
             
         end
-        
     end
     
     methods (Static)

@@ -89,7 +89,6 @@ classdef cic < neurostim.plugin
         stopTime = [];
         
         
-        
         %% Profiling information.
         
         
@@ -330,6 +329,7 @@ classdef cic < neurostim.plugin
             end
             
             c = c@neurostim.plugin([],'cic');
+            
             % Some very basic PTB settings that are enforced for all
             KbName('UnifyKeyNames'); % Same key names across OS.
             c.cursor = 'none';
@@ -364,7 +364,7 @@ classdef cic < neurostim.plugin
             c.addProperty('experiment',''); % The experiment file
             c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
-            
+            c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
         end
@@ -401,7 +401,7 @@ classdef cic < neurostim.plugin
             for b=1:numel(c.blocks)
                 blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
                 for d=1:numel(c.blocks(b).designs)
-                    show(c.blocks(b).designs(d),factors,blockStr);
+                    show(c.blocks(b).designs{d},factors,blockStr);
                 end
             end
         end
@@ -542,9 +542,14 @@ classdef cic < neurostim.plugin
             % Inputs: lists name of plugins in the order they are requested
             % to be executed in.
             
+            %If there is an existing order, preserve it, unless an empty
+            %vector has been supplied (to clear it back to default order)
+            if numel(varargin) == 1 && isa(varargin{1},'neurostim.plugin')
+                varargin = arrayfun(@(plg) plg.name,varargin{1},'uniformoutput',false);
+            end
             
             defaultOrder = cat(2,{c.plugins.name},{c.stimuli.name});
-            if nargin==1
+            if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
             else
                 newOrder = varargin;
@@ -647,12 +652,19 @@ classdef cic < neurostim.plugin
             p.addParameter('weights',[],@isnumeric);
             p.addParameter('latinSquareRow',[],@isnumeric); % The latin square row number
             
-            %% First create the blocks and blockFlow
-            isblock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
-            % Store the blocks
-            c.blocks = [varargin{isblock}];
+            %% Check the block inputs
+                %Make sure that all block objects are different objects and
+                %not handles to the same object (otherwise becomes a problem for counters)
+            isBlock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
+            c.blocks = horzcat(varargin{isBlock}); 
+            names = arrayfun(@(x) x.name,c.blocks,'uniformoutput',false);
+            if numel(unique(names)) ~= numel(c.blocks)
+                error('Duplicate block object detected. Use the "nrRepeats" or "weights" arguments of c.run() to repeat blocks');
+            end
             
-            args = varargin(~isblock);
+            
+            %% Create the blocks and blockFlow
+            args = varargin(~isBlock);
             parse(p,args{:});
             if isempty(p.Results.weights)
                 c.blockFlow.weights = ones(size(c.blocks));
@@ -662,7 +674,7 @@ classdef cic < neurostim.plugin
             
             if strcmpi(p.Results.randomization,'LATINSQUARES')
                 nrUBlocks = numel(c.blocks);
-                if ~iseven(nrUBlocks)
+                if ~(rem(nrUBlocks,2)==0)
                     error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrBlocks)]);
                 end
                 allLS = neurostim.utils.ballatsq(nrUBlocks);
@@ -811,8 +823,9 @@ classdef cic < neurostim.plugin
             %Check input
             if ~(exist('block1','var') && isa(block1,'neurostim.block'))
                 help('neurostim/cic/run');
-                error('You must supply at least one block of trials.');
+                error('You must supply at least one block of trials. e.g. c.run(myBlock1,myBlock2)');
             end
+            
             
             %Log the experimental script as a string
             try
@@ -822,7 +835,7 @@ classdef cic < neurostim.plugin
                     c.experiment = stack(1).file;
                 end
             catch
-                warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
+                warning(['Tried to read experimental script  (', stack(1).file ' for logging, but failed']);
             end
             
             if isempty(c.subject)
@@ -846,7 +859,7 @@ classdef cic < neurostim.plugin
             end
             
             %% Set up order and blocks
-            order(c);
+            order(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
             %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);

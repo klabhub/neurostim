@@ -1,10 +1,12 @@
 classdef rogueReward < neurostim.plugin
+    % Plugin to control the Rogue Rotary Reward System.
+    % BK - 2018    
     properties (SetAccess = public)
         portName@char  = 'COM4';
         baudRate@double = 9600;
-        newLine = 13; % CR
-       
+        newLine = {'CR','CR'}; % Must be CR       
     end
+    
     properties (SetAccess =private)
         s@serial;
     end
@@ -18,16 +20,19 @@ classdef rogueReward < neurostim.plugin
     
     methods
         function v = get.settings(o)
-            fprintf(o.s,'Read');
+            % [nrPositions startPosition Speed]
+            command(o,'Read');
             response = fgetl(o.s);
             v = cellfun(@str2double,strsplit(response,'_'));
         end
         
         function v = get.isOpen(o)
+            % Is the port open?            
             v = strcmpi(get(o.s,'Status'),'Open');
         end
         
         function v = get.isOK(o)
+            % Is the connection ok?
             if ~o.isOpen
                 o.cic.error('STOPEXPERIMENT','No connection with RRR device');
                 v =false;
@@ -35,21 +40,27 @@ classdef rogueReward < neurostim.plugin
             end
             
             % Status check
-            fprintf(o.s,'RRD1');
+            command(o,'RRD1');
             response = fgetl(o.s);
             v = strcmpi(response,'OK');
         end
         
         function v = get.availableDegrees(o)
+            % Show which positions (in degrees from straight ahead) are
+            % available.
             v = linspace(-90,90,o.nrPositions);
         end
         
     end
     methods
+        
         function delete(o)
+            % Make sure the port is closed
             fclose(o.s);
+            delete(o.s);
         end
         function o =rogueReward(c)
+            % Construct with default positions
             o = o@neurostim.plugin(c,'rogueReward');
             o.addProperty('position',[]);
             o.addProperty('nrPositions',11);
@@ -75,20 +86,21 @@ classdef rogueReward < neurostim.plugin
                 o.s = serial(o.portName);
                 set(o.s,'BaudRate',o.baudRate,'Terminator',o.newLine);
                 fopen(o.s);
+                pause(5); % Give the port some time to settle.
             end
             
             if ~o.isOK
                 o.cic.error('STOPEXPERIMENT',['Could not connect to the Rogue Rotary Reward system on port ' o.portName] );
             end
-            %writeToFeed(o,sprintf('Connected to RRR with defaults: %d position, initial position %d, speed %d', o.settings));
             setup(o);
         end
         
         function afterExperiment(o)
-            fclose(o);
+            fclose(o.s);
         end
         
         function setup(o)
+            % Setup and move to initial position
             if ~o.isOK
                 o.cic.error('STOPEXPERIMENT','Lost connection with RRR device');
             end
@@ -98,22 +110,21 @@ classdef rogueReward < neurostim.plugin
                 writeToFeed(o,['RRR Speed should be in 50:50:400, not ' num2str(o.speed) '. Now set to ' num2str(newSpeed)]);
                 o.speed = newSpeed;
             end
-            if iseven(o.nrPositions)
+            if rem(o.nrPositions,2)==0
                 o.nrPositions = o.nrPositions+1;
                 writeToFeed(o,['RRR number of positions set to an odd number: ' num2str(o.nrPositions)]);
             end
             
             setupString = sprintf('Setup_%d_%d_%d_1E',o.nrPositions,o.initialPosition,o.speed);
-            fprintf(o.s, setupString);
+            command(o, setupString);
             
             v =o.settings;
             requested = [o.nrPositions o.initialPosition o.speed];
             writeToFeed(o,sprintf('New RRR settings: %d positions, initial position %d, speed %d', v)); %#ok<*SPWRN>
-            
+           
             if any(v ~=requested )
                 o.cic.error('STOPEXPERIMENT',['Settings (' num2str(requested) ' not accepted by RRR, which now has: ' num2str(v)]);
             end
-            moveTo(o,0);
         end
         
         function reset(o)
@@ -122,7 +133,7 @@ classdef rogueReward < neurostim.plugin
             if ~o.isOpen
                 o.cic.error('STOPEXPERIMENT','Lost connection with RRR device');
             end
-            fprintf(o.s, 'RST');
+            command(o.s, 'RST');
             if ~o.isOK
                 o.cic.error('STOPEXPERIMENT','RRR Reset failed');
             end
@@ -146,10 +157,15 @@ classdef rogueReward < neurostim.plugin
     
     methods (Access=private)
         function ok = moveToNr(o,positionNr)
+            % Move to a numbered position
             posString = sprintf('R_%d_1E',positionNr);
-            fprintf(o.s, posString);
+            command(o, posString);
             response= fgetl(o.s);
             ok = strcmpi(response,'done');            
+        end
+        
+        function command(o,str)
+            fprintf(o.s,[str 13]);% The CR (13) has to be added explicitly
         end
     end
 end

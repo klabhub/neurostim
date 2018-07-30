@@ -1,3 +1,4 @@
+function xylTextureDemo
 %% xyL Texture Demo
 %
 % This demo shows that a Gabor texture can also be defined using 

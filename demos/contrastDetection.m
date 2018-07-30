@@ -1,4 +1,4 @@
-function c=contrastDetection
+function contrastDetection
 % Contrast detection experiment. 
 % Shows Gabor patches in random locations, user is required to click on
 % them 
