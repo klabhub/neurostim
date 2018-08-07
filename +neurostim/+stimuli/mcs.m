@@ -1,41 +1,39 @@
 classdef mcs < neurostim.stimulus
     % Plugin used to communicate with the MultiChannel Systems Stimulator
-    % (e.g. STG40002).
+    % (e.g. STG4002).
     %
     % Constructing the stimulus object will find currently connected MCS
     % devices on the USB ports. The connection/initialization of the device
     % happens in the beforeExperiment() function; device parameters cannot
     % be changed after that.
     %
-    %
     % *** IMPORTANT ***
     % [channels]  should always be specified in base-1: Channel 1 is the
     % first channel.
     % [currents] in user functions should always be defined in mA (and user
     % accessible functions in this object return current measures in mA).
-    % [voltage] in user functiosn should always be defined in mV (and user
+    % [voltage] in user functions should always be defined in mV (and user
     % accessible functions in this object return voltage measures in mV).
     %
-    % To define stimulation parameters, set the following parameters:
-    % fun -  This can be a stimulation mode ('tDCS', 'tACS','tRNS') or a
-    % function handle  that takes a vector of times in milliseconds as its
-    % first input, and the stg object as its second input  (so that you can
-    % use its properties as set in the "current" trial to modify the output
-    % of the function.) The output of the function should be a vector of
-    % currents/voltges in milliamps or millivolts with a length that matches
-    % its first input argument (i.e. the time vector).
+    % To define stimulation parameters, set the following properties:
     %
-    % duration - duration of stimulation [ms]
-    % channel - a single channel number (base -1)
-    % syncOutChannel - Specify a channel that will send a syncout
-    % signal  (optional, base-1).
-    %
-    % mean - mean value of current/voltage [mA/mV]
-    % frequency -  frequency of sinusoidal tACS [Hz]
-    % amplitude - amplitude of sinusoid [mA/mV]
-    % phase   -  phase of sine [degrees]
-    % rampUp  - duration of linear ramp-up [ms]
-    % rampDown - duration of linear ramp-down [ms]
+    % fun - This can be a stimulation mode ('tDCS', 'tACS','tRNS') or a
+    %       function handle that takes a vector of times in milliseconds as
+    %       its first input, and the STG object as its second input (so
+    %       that you can use its properties as set in the "current" trial
+    %       to modify the output of the function). The output of the
+    %       function should be a vector of currents/voltages in milliamps
+    %       or millivolts with a length that matches its first input
+    %       argument (i.e., the time vector)
+    % duration - Duration of stimulation [ms]
+    % channel - A single channel number (base-1)
+    % syncOutChannel - Channel for sync-out pulse (optional, base-1)
+    % mean - Mean value of current/voltage [mA/mV]
+    % frequency - Frequency of sinusoidal tACS [Hz]
+    % amplitude - Amplitude of sinusoid [mA/mV]
+    % phase - Phase of sine [degrees]
+    % rampUp - Duration of linear ramp-up [ms]
+    % rampDown - Duration of linear ramp-down [ms]
     %
     % Each of these parameters can be specified as a scalar (thus applying
     % to all channels equally) or as a vector with a different entry for
@@ -43,12 +41,16 @@ classdef mcs < neurostim.stimulus
     % channel.
     %
     % EXAMPLE
+    %   stg.channel = [1 2];
+    %   stg.fun  = 'tDCS'
+    %   stg.mean = [1 -1]
+    %   will do anodal stimulation on the first channel (together with its
+    %   return) and cathodal on the second.
     %
-    % stg.channel = [1 2];
-    % stg.fun  = 'tDCS'
-    % stg.mean = [1 -1]
-    % will do anodal stimulation on the first channel (together with its
-    % return) and cathodal on the second.
+    % For an STG device to work, first install MC Stimulus II on your
+    % computer (www.multichannelsystems.com/software/mc-stimulus-ii) for
+    % the drivers that come with it. That standalone app adds some useful
+    % testing and debugging potential, too.
     %
     % BK - June 2018
     
@@ -211,7 +213,6 @@ classdef mcs < neurostim.stimulus
             % Stimulation properties
             o.addProperty('fun','tDCS','validate',@(x) (isa(x,'function_handle') || (ischar(x) && ismember(x,{'tDCS','tACS','tRNS'}))));
             o.addProperty('channel',1,'validate',@(x) (isnumeric(x) && all(x>= 1 & x <= o.nrChannels)));
-            o.addProperty('syncOutChannel',[],'validate',@(x) (isnumeric(x) && all( x>= 1 & x <= o.nrSyncOutChannels)));
             o.addProperty('mean',zeros(1,o.nrChannels),'validate',@isnumeric);
             o.addProperty('frequency',zeros(1,o.nrChannels),'validate',@isnumeric);
             o.addProperty('amplitude',zeros(1,o.nrChannels),'validate',@isnumeric);
@@ -219,6 +220,7 @@ classdef mcs < neurostim.stimulus
             o.addProperty('rampUp',zeros(1,o.nrChannels),'validate',@isnumeric);
             o.addProperty('rampDown',zeros(1,o.nrChannels),'validate',@isnumeric);
             o.addProperty('itiOff',true(1,o.nrChannels),'validate',@islogical);
+            o.addProperty('syncOutChannel',[],'validate',@(x) (isnumeric(x) && all( x>= 1 & x <= o.nrSyncOutChannels)));
             o.addProperty('triggerSent',true(1,o.nrChannels),'validate',@islogical); % Keeps track of when the triggers to start stim were sent.
             o.addProperty('persistent',false(1,o.nrChannels),'validate',@islogical); % Persistent means that it can last longer than a trial
             o.addProperty('enabled',true(1,o.nrChannels),'validate',@islogical); % 
@@ -233,11 +235,8 @@ classdef mcs < neurostim.stimulus
             connect(o);
         end
         
-        function beforeTrial(o)
-            
+        function beforeTrial(o) 
             sendStimulus(o);
-            
-            
         end
         
         function beforeFrame(o)            
@@ -276,7 +275,7 @@ classdef mcs < neurostim.stimulus
             % Trigger the stimulation on the specified list of channels.
             % The channels shoudl be a vector of (base -1) channel numbers
             if ~o.isConnected
-                error(o.cic,'STOPEXPERIMENT','Could not start MCS. Device not connected'); %#ok<*CTPCT>
+                error(o.cic,'STOPEXPERIMENT','Could not start MCS. Device not connected.'); %#ok<*CTPCT>
             else
                 o.device.SendStart(chan2mask(o,channels))
                 o.triggerSent(channels) = true;
@@ -287,7 +286,7 @@ classdef mcs < neurostim.stimulus
             % Stop these channels from continuing.
             % Channels should be a vector of base-1 channel numbers.
             if ~o.isConnected
-                error(o.cic,'STOPEXPERIMENT','Could not stop MCS. Device not connected');
+                error(o.cic,'STOPEXPERIMENT','Could not stop MCS. Device not connected.');
             else
                 o.device.SendStop(chan2mask(o,channels))
                 o.triggerSent(channels) = false;
@@ -301,7 +300,7 @@ classdef mcs < neurostim.stimulus
                 o.device  = Mcs.Usb.CStg200xDownloadNet(); % Use download mode
                 o.device.Connect(o.deviceListEntry);
                 if ~o.isConnected
-                    error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' MCS device']);
+                    error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' MCS device. Make sure MC Stimulus II is installed on your computer (www.multichannelsystems.com/software/mc-stimulus-ii).']);
                 end
                 o.device.DisableMultiFileMode(); % Triggers are assigned to channels, not segments.
             end
@@ -440,9 +439,6 @@ classdef mcs < neurostim.stimulus
             elseif fractionUsed>0.5
                 writeToFeed(o,['The stimulus uses ' num2str(round(fractionUsed*100)) '% of the total memory. This can work, but it is a lot... and if you have other stimulation channels too, you could run into trouble..']);
             end
-            
-            
-            
         end
         
         function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled,thisChanged] = channelParms(o,channel)
