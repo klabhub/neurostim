@@ -45,23 +45,23 @@ classdef parameter < handle & matlab.mixin.Copyable
     end
     
     properties (SetAccess= protected, GetAccess=public)
-        name;   % Name of this property
-        value;  % Current value
-        default; % The default value; set at the beginning of the experiment.
-        log;    % Previous values;
-        time;   % Time at which previous values were set
-        trial;    % Trial in which previous values were set.
-        cntr=0; % Counter to store where in the log we are.
-        capacity=0; % Capacity to store in log
-        
-        noLog; % Set this to true to skip logging
-        sticky; % set this to true to make value(s) sticky, i.e., across trials
-        fun =[];        % Function to allow across parameter dependencies
+        name;                       % Name of this property
+        value;                      % Current value
+        default;                    % The default value; set at the beginning of the experiment.
+        log;                        % Previous values;
+        time;                       % Time at which previous values were set
+        trial;                      % Trial in which previous values were set.
+        cntr=0;                     % Counter to store where in the log we are.
+        capacity=0;                 % Capacity to store in log
+        isTimestamp@logical = false;% Does this property store timestamps (e.g. flip times)?
+        noLog;                      % Set this to true to skip logging
+        sticky;                     % set this to true to make value(s) sticky, i.e., across trials
+        fun =[];                    % Function to allow across parameter dependencies
         funPrms;
-        funStr = '';    % The neurostim function string
-        validate =[];    % Validation function
-        plg@neurostim.plugin; % Handle to the plugin that this belongs to.
-        hDynProp;  % Handle to the dynamic property
+        funStr = '';                % The neurostim function string
+        validate =[];               % Validation function
+        plg@neurostim.plugin;       % Handle to the plugin that this belongs to.
+        hDynProp;                   % Handle to the dynamic property
         
     end
     
@@ -126,7 +126,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         
-        function storeInLog(o,v)
+        function storeInLog(o,v,t)
             % Store and Log the new value for this parm
             
             % Check if the value changed and log only the changes. 
@@ -158,7 +158,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 v = getValue(v);
             end
             o.log{o.cntr}  = v;
-            o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime
+            o.time(o.cntr) = t; % Avoid the function call to cic.clockTime
         end
         
         function v = getValue(o,~)
@@ -169,12 +169,16 @@ classdef parameter < handle & matlab.mixin.Copyable
                  % The dynamic property defined with a function uses this as its GetMethod
                 v=o.fun(o.funPrms);
                 %The value might have changed, so allow it to be logged if need be
-                storeInLog(o,v);
+                t = GetSecs*1000;
+                storeInLog(o,v,t);
             end
         end
         
         function setValue(o,~,v)
-           
+            
+            %Check the clock immediately. If we need to log, this is the most accurate time-stamp.
+            t = GetSecs*1000;
+            
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % The dynprop was set to a neurostim function
@@ -208,7 +212,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.validate(v);
             end
             % Log the new value
-            storeInLog(o,v);
+            storeInLog(o,v,t);
         end
   
                 
