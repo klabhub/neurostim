@@ -32,10 +32,14 @@ classdef stimulus < neurostim.plugin
         flags = struct('on',true);
         stimstart = false;
         stimstop = false;
-        logOffset@logical;
         rsvp;
         diodePosition;
         
+    end
+    
+    properties (Access=private)
+        logOnset@logical;
+        logOffset@logical;
     end
     
     methods
@@ -300,15 +304,11 @@ classdef stimulus < neurostim.plugin
             end
             
             %%
-            % get the stimulus end time
-            if s.logOffset
-                s.stopTime=s.cic.flipTime;
-                s.logOffset=false;
-            end
-            
+
             %If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
             if cFrame==sOffFrame
-                s.logOffset=true;
+                s.cic.addFlipCallback(s);
+                s.logOffset = true;
             end
             
             %If the stimulus should be drawn on this frame:
@@ -331,19 +331,13 @@ classdef stimulus < neurostim.plugin
                 %If this is the first frame that the stimulus will be drawn, register that it has started.
                 if ~s.stimstart
                     s.stimstart = true;
-                    s.cic.getFlipTime=true; % tell CIC to store the next flip time, to log startTime in next frame
+                    s.cic.addFlipCallback(s);
+                    s.logOnset = true;
                 end
-                
-                %If the previous frame was the first frame, log the time that the flip actually happened.
-                if cFrame==sOnFrame+1
-                    s.startTime = s.cic.flipTime;
-                end
-                
-                %Pass control to the child class and any other listeners
+                               
+                %Pass control to the child class
                 beforeFrame(s);                
-            elseif s.stimstart && (cFrame==sOffFrame)% if the stimulus will not be shown,
-                % get the next screen flip for stopTime
-                s.cic.getFlipTime=true;
+
             end
             Screen('glLoadIdentity', locWindow);
             
@@ -356,8 +350,9 @@ classdef stimulus < neurostim.plugin
             end
             
         end
-        
+
         function baseAfterFrame(s)
+            
             ok = ~s.disabled && s.flags.on;
             if ok
                 afterFrame(s)
@@ -368,7 +363,6 @@ classdef stimulus < neurostim.plugin
             
             if isempty(s.stopTime) || s.offFrame>=s.cic.frame
                 s.stopTime=s.cic.trialStopTime-s.cic.firstFrame;
-                s.logOffset=false;
             end
             afterTrial(s);
         end
@@ -400,5 +394,17 @@ classdef stimulus < neurostim.plugin
         end
         
         
+    end
+    
+    methods (Access = {?neurostim.cic})
+        function afterFlip(s,flipTime)
+            if s.logOnset
+                s.startTime = flipTime;
+                s.logOnset = false;
+            elseif s.logOffset
+                s.stopTime = flipTime;
+                s.logOffset = false;
+            end
+        end
     end
 end
