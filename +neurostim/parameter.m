@@ -53,7 +53,6 @@ classdef parameter < handle & matlab.mixin.Copyable
         trial;                      % Trial in which previous values were set.
         cntr=0;                     % Counter to store where in the log we are.
         capacity=0;                 % Capacity to store in log
-        isTimestamp@logical = false;% Does this property store timestamps (e.g. flip times)?
         noLog;                      % Set this to true to skip logging
         sticky;                     % set this to true to make value(s) sticky, i.e., across trials
         fun =[];                    % Function to allow across parameter dependencies
