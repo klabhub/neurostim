@@ -588,7 +588,7 @@ classdef cic < neurostim.plugin
             % Provide basic information about the CIC
             for i=1:numel(c)
                 disp(char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
-                    ['Stimuli:' num2str(c(i).nrStimuli) ' Blocks: ' num2str(c(i).nrBlocks) ' Conditions: [' num2str([c(i).blocks.nrConditions]) '] Trials: [' num2str([c(i).blocks.nrTrials]) ']' ],...
+                    ['Stimuli: ' num2str(c(i).nrStimuli) ', Blocks: ' num2str(c(i).nrBlocks) ', Conditions: [' strtrim(sprintf('%d ',[c(i).blocks.nrConditions])) '], Trials: [' strtrim(sprintf('%d ',[c(i).blocks.nrTrials])) ']' ],...
                     ['File: ' c.fullFile '.mat']));
             end
         end
@@ -746,10 +746,9 @@ classdef cic < neurostim.plugin
                 Screen('Flip',c.mainWindow);
                 % 
                 if c.saveEveryBlock
-                    tic
+                    ttt=tic;
                     c.saveData;
-                    tmpT = toc;
-                    c.writeToFeed('Saving the file took %f s',tmpT);
+                    c.writeToFeed('Saving the file took %f s',toc(ttt));
                 end                
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
@@ -780,11 +779,9 @@ classdef cic < neurostim.plugin
             collectPropMessage(c);
             collectFrameDrops(c);
             if rem(c.trial,c.saveEveryN)==0
-                tic
+                ttt=tic;
                 c.saveData;
-                tmpT = toc;
-                c.writeToFeed('Saving the file took %f s',tmpT);
-                
+                c.writeToFeed('Saving the file took %f s',toc(ttt));
             end
         end
         
