@@ -217,8 +217,8 @@ classdef mcs < neurostim.stimulus
             o.addProperty('frequency',zeros(1,o.nrChannels),'validate',@isnumeric);
             o.addProperty('amplitude',zeros(1,o.nrChannels),'validate',@isnumeric);
             o.addProperty('phase',zeros(1,o.nrChannels),'validate',@isnumeric);
-            o.addProperty('rampUp',zeros(1,o.nrChannels),'validate',@isnumeric);
-            o.addProperty('rampDown',zeros(1,o.nrChannels),'validate',@isnumeric);
+            o.addProperty('rampUp',zeros(1,o.nrChannels),'validate',@(x)isa(x,'double') && all(x>=0));
+            o.addProperty('rampDown',zeros(1,o.nrChannels),'validate',@(x)isa(x,'double') && all(x>=0));
             o.addProperty('itiOff',true(1,o.nrChannels),'validate',@islogical);
             o.addProperty('syncOutChannel',[],'validate',@(x) (isnumeric(x) && all( x>= 1 & x <= o.nrSyncOutChannels)));
             o.addProperty('triggerSent',true(1,o.nrChannels),'validate',@islogical); % Keeps track of when the triggers to start stim were sent.
@@ -337,7 +337,7 @@ classdef mcs < neurostim.stimulus
             % device.
             
             if ~o.isConnected
-                error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus  -device disconnected');
+                error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
             end
             
             step = 1/o.outputRate; %STG resolution (usually 20 mus)            
@@ -388,13 +388,15 @@ classdef mcs < neurostim.stimulus
                 end
                 
                 %% Add ramp if requested
+                if o.rampUp+o.rampDown>o.duration
+                    error(o.cic,'STOPEXPERIMENT','Combined ramp-up and ramp-down durations exceed total stimulus duration');
+                end
                 ramp = ones(size(time));
-                if ~isempty(o.rampUp)
+                if ~isempty(o.rampUp) && o.rampUp>0
                     stepsInRamp= round((neurostim.stimuli.mcs.expandSingleton(o.rampUp,channelCntr)/1000)/step);
                     ramp(1:stepsInRamp) = linspace(0,1,stepsInRamp);
                 end
-                
-                if ~isempty(o.rampDown)
+                if ~isempty(o.rampDown) && o.rampDown>0
                     stepsInRamp= round((neurostim.stimuli.mcs.expandSingleton(o.rampDown,channelCntr)/1000)/step);
                     ramp(end-stepsInRamp+1:end) = linspace(1,0,stepsInRamp);
                 end
@@ -421,7 +423,8 @@ classdef mcs < neurostim.stimulus
                 % Check how much memory this uses - 2 bytes for value, 8 for
                 % duration
                 fractionUsed = fractionUsed + numel(adValues)*(2+8)/o.totalMemory;
-                o.device.SendChannelData(thisChannel-1,adValues,uint64(step*1e6*ones(size(time))))
+                o.device.SendChannelData(thisChannel-1,adValues,uint64(step*1e6*ones(size(time))));
+                
                 % bookkeeping                
                 o.channelData(thisChannel,:) = {thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled};
                 o.triggerSent(thisChannel) = false;
