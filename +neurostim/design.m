@@ -537,25 +537,37 @@ classdef design <handle & matlab.mixin.Copyable
                             error(['Some conditions do not fit in the [' num2str(lvls) '] factorial. Use a separate design for these conditions']);
                         end
                         %% Everything should match, lets assign
+
+                        % we know the number of factors and the number of
+                        % levels for each... initialize o.conditionSpecs if
+                        % it hasn't been initialized already
+                        if isempty(o.conditionSpecs)
+                          o.conditionSpecs = cell(o.nrLevels);
+                        end
+                        
                         for i=1:size(ix,1)
                             trgSub = neurostim.utils.vec2cell(ix(i,:));
-                            if numel(V)==1
+                            if numel(V) == 1
                                 srcSub = {1};
                             else
-                                srcSub  =trgSub;
+                                srcSub = trgSub;
                             end
                             thisV = V{srcSub{:}};
                             if isa(thisV,'neurostim.plugins.adaptive')
                                 thisV.belongsTo(o.name,o.lvl2cond(ix(i,:))); % Tell the adaptive to listen to this design/level combination
                             end
-                            if ndims(o.conditionSpecs)<numel(trgSub) || any(size(o.conditionSpecs)<[trgSub{:}]) || isempty(o.conditionSpecs(trgSub{:}))
-                                % new spec for this condition
-                                o.conditionSpecs{trgSub{:}} = {plg,prm,thisV};
-                            else
-                                % add to previous
-                                
-                                o.conditionSpecs{trgSub{:}} = cat(1,o.conditionSpecs{trgSub{:}},{plg,prm,thisV});
+
+                            % add to previous, or replace if it refers to the same property
+                            curSpecs = o.conditionSpecs{trgSub{:}};
+                            if ~isempty(curSpecs)
+                                %Check if we need to remove an existing value for this property
+                                isPlgMatch = cellfun(@(curSpecs) strcmp(curSpecs,plg),curSpecs(:,1));
+                                isPrmMatch = cellfun(@(curSpecs) strcmp(curSpecs,prm),curSpecs(:,2));
+                                curSpecs(isPlgMatch&isPrmMatch,:) = []; %Remove any matching line item
                             end
+
+                            %Add this property to the list for this condition
+                            o.conditionSpecs{trgSub{:}} = cat(1,curSpecs,{plg,prm,thisV});
                         end
                     else
                         %% Conditions-only design, specified one at a time
