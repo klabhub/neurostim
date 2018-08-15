@@ -557,8 +557,17 @@ classdef design <handle & matlab.mixin.Copyable
                                 thisV.belongsTo(o.name,o.lvl2cond(ix(i,:))); % Tell the adaptive to listen to this design/level combination
                             end
 
-                            % add to previous
-                            o.conditionSpecs{trgSub{:}} = cat(1,o.conditionSpecs{trgSub{:}},{plg,prm,thisV});
+                            % add to previous, or replace if it refers to the same property
+                            curSpecs = o.conditionSpecs{trgSub{:}};
+                            if ~isempty(curSpecs)
+                                %Check if we need to remove an existing value for this property
+                                isPlgMatch = cellfun(@(curSpecs) strcmp(curSpecs,plg),curSpecs(:,1));
+                                isPrmMatch = cellfun(@(curSpecs) strcmp(curSpecs,prm),curSpecs(:,2));
+                                curSpecs(isPlgMatch&isPrmMatch,:) = []; %Remove any matching line item
+                            end
+
+                            %Add this property to the list for this condition
+                            o.conditionSpecs{trgSub{:}} = cat(1,curSpecs,{plg,prm,thisV});
                         end
                     else
                         %% Conditions-only design, specified one at a time
