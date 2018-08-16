@@ -39,21 +39,47 @@ classdef logLatencyTest < neurostim.plugin
                 postLog.(fNames{i})(kill) = [];
             end
             sampleInds(kill) = [];
+            
             figure
-            subplot(5,1,1);
+            subplot(2,1,1);
             dt = myProp.time-cell2mat(preLog.data);
             histogram(dt); xlabel('Time to log'); hold on;
             plot([median(dt) median(dt)],ylim);
-            subplot(5,1,2);
-            plot(myProp.trialTime,dt,'.');  ylabel('Time to log'); xlabel('Trial time');
-            subplot(5,1,3);
-            plot(myProp.time,dt,'.');  ylabel('Time to log'); xlabel('Time since experiment start');
-            subplot(5,1,4);
-            plot(sampleInds,dt,'.');  ylabel('Time to log'); xlabel('Event number');
-            subplot(5,1,5);
+            
+            subplot(2,1,2);
             dt = cell2mat(postLog.data)-cell2mat(preLog.data);
             histogram(dt); xlabel('Total time per log'); hold on;
             plot([median(dt) median(dt)],ylim);
+            
+            %By trial time
+            figure
+            subplot(3,2,1);
+            plot(myProp.trialTime,dt,'.'); 
+            ylabel('Time to log'); xlabel('Trial time');
+            subplot(3,2,2);
+            bins = {(min(myProp.trialTime):100:max(myProp.trialTime)),linspace(0, max(dt),200)};
+            n = hist3([myProp.trialTime,dt],bins); 
+            imagesc(bins{1},bins{2},n'); set(gca,'ydir','normal'); hold on;
+
+           
+            %By experiment time
+            subplot(3,2,3);
+            plot(myProp.time,dt,'.');  ylabel('Time to log'); xlabel('Time since experiment start'); hold on;
+            plot(myProp.time,movmedian(dt,10),'linewidth',4);
+            subplot(3,2,4);
+            bins = {(min(myProp.time):100:max(myProp.time)),linspace(0, max(dt),200)};
+            n = hist3([myProp.time,dt],bins);
+            imagesc(bins{1},bins{2},n'); set(gca,'ydir','normal'); hold on;
+            
+            subplot(3,2,5);
+            plot(sampleInds,dt,'.');  ylabel('Time to log'); xlabel('Event number'); hold on;
+            plot(sampleInds,movmedian(dt,10),'linewidth',4);
+            subplot(3,2,6);
+            bins = {(min(sampleInds):100:max(sampleInds)),linspace(0, max(dt),200)};
+            n = hist3([sampleInds',dt],bins);
+            imagesc(bins{1},bins{2},n'); set(gca,'ydir','normal'); hold on;
+            
+
         end
         
     end  
