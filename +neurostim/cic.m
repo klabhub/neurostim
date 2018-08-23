@@ -401,7 +401,7 @@ classdef cic < neurostim.plugin
             for b=1:numel(c.blocks)
                 blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
                 for d=1:numel(c.blocks(b).designs)
-                    show(c.blocks(b).designs{d},factors,blockStr);
+                    show(c.blocks(b).designs(d),factors,blockStr);
                 end
             end
         end
@@ -652,18 +652,19 @@ classdef cic < neurostim.plugin
             p.addParameter('weights',[],@isnumeric);
             p.addParameter('latinSquareRow',[],@isnumeric); % The latin square row number
             
-            %% Check the block inputs
-                %Make sure that all block objects are different objects and
-                %not handles to the same object (otherwise becomes a problem for counters)
+            % check the block inputs
             isBlock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
-            c.blocks = horzcat(varargin{isBlock}); 
+            % store the blocks
+            c.blocks = [varargin{isBlock}];
+            
+            % make sure that all block objects are unique, i.e., *not* handles
+            % to the same object (otherwise becomes a problem for counters)
             names = arrayfun(@(x) x.name,c.blocks,'uniformoutput',false);
             if numel(unique(names)) ~= numel(c.blocks)
-                error('Duplicate block object detected. Use the "nrRepeats" or "weights" arguments of c.run() to repeat blocks');
+                error('Duplicate block object(s) detected. Use the "nrRepeats" or "weights" arguments of c.run() to repeat blocks.');
             end
             
-            
-            %% Create the blocks and blockFlow
+            % create the blocks and blockFlow
             args = varargin(~isBlock);
             parse(p,args{:});
             if isempty(p.Results.weights)
@@ -820,9 +821,8 @@ classdef cic < neurostim.plugin
             %Check input
             if ~(exist('block1','var') && isa(block1,'neurostim.block'))
                 help('neurostim/cic/run');
-                error('You must supply at least one block of trials. e.g. c.run(myBlock1,myBlock2)');
+                error('You must supply at least one block of trials, e.g., c.run(myBlock1,myBlock2)');
             end
-            
             
             %Log the experimental script as a string
             try

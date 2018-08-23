@@ -121,30 +121,6 @@ classdef design <handle & matlab.mixin.Copyable
     
     methods  %/get/set
         
-        function v=size(o)
-            %Return the factorial design size as [nLevelsFac1,nrLevelsFac2, etc..]            
-            v= o.nrLevels;
-            if isempty(v)
-                v = [o.nrConditions 1];
-            end
-        end
-        function v = repmat(o,varargin)
-            %Concatenation is prevented to prevent confusion from o.size(),
-            %which should always return the size of the design matrix of conditions, not
-            %the size of an object vector. (there is no reason to create a
-            %vector. Cell arrays are OK.)
-            error('Design objects should not be concatenated');
-        end
-        function v = horzcat(o,varargin)
-            error('Design objects should not be concatenated');
-        end
-        function v = vertcat(o,varargin)
-            error('Design objects should not be concatenated');
-        end
-        function v = cat(o,varargin)
-            error('Design objects should not be concatenated');
-        end
-        
         function v= get.done(o)
             % Returns true if the currentTrialIx points to zero or the last
             % trial.
