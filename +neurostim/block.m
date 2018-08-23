@@ -162,16 +162,18 @@ classdef block < dynamicprops
                 error('block construction needs at least one design');
             end
             
+            % concatenate design objects
+            d = cellfun(@(x) x(:),varargin(isDesign),'UniformOutput',false);
+            o.designs = cat(1,d{:});
+            
             % make sure that all design objects are unique, i.e., *not* handles
             % to the same object (otherwise becomes a problem for counters)
-            o.designs = [varargin{isDesign}];
             names = arrayfun(@(x) x.name,o.designs,'UniformOutput',false);
             if numel(unique(names)) ~= numel(o.designs)
                 error('Duplicate design object(s) detected. Use the "nrRepeats" or "weights" properties of the block object to repeat designs.');
             end
             
             o.name = name;
-%             o.designs = [varargin{isDesign}];
             o.weights = ones(1,o.nrDesigns);
             % The remaining args are parameter/value pairs
             pv = varargin(~isDesign);
