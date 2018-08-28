@@ -164,7 +164,7 @@ classdef block < dynamicprops
             
             % concatenate design objects
             d = cellfun(@(x) x(:),varargin(isDesign),'UniformOutput',false);
-            o.designs = cat(1,d{:});
+            o.designs = cat(1,d{:})';
             
             % make sure that all design objects are unique, i.e., *not* handles
             % to the same object (otherwise becomes a problem for counters)
