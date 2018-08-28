@@ -67,6 +67,9 @@ classdef viewpoint < neurostim.plugins.eyetracker
     % ip address and port of the Viewpoint server
     ipAddress = '192.168.1.2';
     port = 5000;
+    
+    % ssh settings
+    ssh@struct = struct('username',[],'privateKey',[]);
   end
     
   properties (Dependent)
@@ -201,9 +204,34 @@ classdef viewpoint < neurostim.plugins.eyetracker
     function afterExperiment(o)            
       Viewpoint('stopRecording');
       Viewpoint('closeFile');
+      
+      try
+        writeToFeed(o,'Attempting to retrieve Viewpoint .vpx file via scp.');
+        
+        newFileName = [o.cic.fullFile '.vpx'];
+
+        % open ssh connection... public/private key
+        o.ssh.connection = ssh2_config_publickey(o.ipAddress,o.ssh.username,o.ssh.privateKey);
+
+        % scp file from remote host
+        o.ssh.connection = scp_get(o.ssh.connection,o.vpxFile,o.cic.fullPath,o.ssh.remotePath);
+        
+        if o.ssh.connection.command_result
+          o.vpxFile = newFileName;
+          writeToFeed(o,['Success: transferred ' num2str(o.ssh.connection.command_result) ' bytes']);
+        else
+          writeToFeed(o,['Fail: could not transfer .vpx file (' o.vpxFile ') ' num2str(status)]);
+        end
+        
+        % close ssh connection
+        o.ssh.connection = ssh2_close(o.ssh.connection);
+      catch
+        error('Viewpoint file transfer failed. Saved on Viewpoint PC as %s.',o.vpxFile);
+      end
+      
       Viewpoint('shutdown');
       
-      o.vpxFile = [o.cic.file '.vpx']; % FIXME: shouldn't be necessary
+%       o.vpxFile = [o.cic.file '.vpx']; % FIXME: shouldn't be necessary
     end
         
     function beforeTrial(o)
