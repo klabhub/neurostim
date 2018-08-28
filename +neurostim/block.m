@@ -74,9 +74,9 @@ classdef block < dynamicprops
     end
     
     methods
-        function v=get.design(o)
+        function v = get.design(o)
             % Current design
-            v =o.designs(o.list(o.designIx));
+            v = o.designs(o.list(o.designIx));
         end
         
         function v = get.done(o)
@@ -85,7 +85,7 @@ classdef block < dynamicprops
         end
         
         function v = get.nrPlannedTrials(o)
-            v =sum([o.designs(o.list).nrPlannedTrials]);
+            v = sum([o.designs(o.list).nrPlannedTrials]);
         end
         
         function v = get.nrTrials(o)
@@ -110,6 +110,7 @@ classdef block < dynamicprops
                 error('beforeMessage must be a string');
             end
         end
+        
         function set.afterMessage(o,fun)
             %Function must accept cic as the sole input argument and return a string
             if isa(fun,'function_handle')
@@ -120,6 +121,7 @@ classdef block < dynamicprops
                 error('afterMessage must be a string');
             end
         end
+        
         function set.beforeFunction(o,fun)
             %Function must accept cic as the sole input argument.
             if isa(fun,'function_handle')
@@ -143,8 +145,7 @@ classdef block < dynamicprops
         end
         
         function v = get.nrConditions(o)
-            nr = {o.designs.nrConditions};
-            v = sum([nr{:}]);
+            v = sum([o.designs.nrConditions]);
         end
 
     end
