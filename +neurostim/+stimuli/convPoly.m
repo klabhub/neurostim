@@ -28,9 +28,9 @@ classdef convPoly < neurostim.stimulus
             
             %Draw
             if o.filled
-                Screen('FillPoly',o.window, o.color,[vx',vy'],1);
+                Screen('FillPoly',o.window, o.color,[vx(:),vy(:)],1);
             else
-                Screen('FramePoly',o.window, o.color,[vx',vy'],o.linewidth);
+                Screen('FramePoly',o.window, o.color,[vx(:),vy(:)],o.linewidth);
             end
         end
     end
