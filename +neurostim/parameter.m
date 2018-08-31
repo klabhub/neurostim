@@ -50,10 +50,9 @@ classdef parameter < handle & matlab.mixin.Copyable
         default; % The default value; set at the beginning of the experiment.
         log;    % Previous values;
         time;   % Time at which previous values were set
-        trial;    % Trial in which previous values were set.
         cntr=0; % Counter to store where in the log we are.
         capacity=0; % Capacity to store in log
-        
+        %trial
         noLog; % Set this to true to skip logging
         sticky; % set this to true to make value(s) sticky, i.e., across trials
         fun =[];        % Function to allow across parameter dependencies
@@ -76,6 +75,20 @@ classdef parameter < handle & matlab.mixin.Copyable
             %
             % Create a parameter for a plugin/stimulu with a name and a value.
             % This is called from plugins.addProperty
+            
+            %Handle post-hoc construction from loadobj()
+            if isstruct(p)
+               f = intersect(properties(o),fieldnames(p));
+               for i=1:numel(f)
+                   o.(f{i}) = p.(f{i});
+               end
+               return 
+            elseif isa(p,'neurostim.parameter')
+                o=p;
+                return;
+            end
+
+            %Regular construction
             o.name = nm;
             o.plg = p; % Handle to the plugin
             o.hDynProp  = h; % Handle to the dynamic property
@@ -504,9 +517,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);
             end
             
-        end
-       
-        function o = loadobj(o)
+        end        function o = loadobj(o)
            %Parameters that were initialised to [] and remained empty were not logged properly
            %on construction in old files. Fix it here
            if ~o.cntr
@@ -514,7 +525,10 @@ classdef parameter < handle & matlab.mixin.Copyable
                o.log{1} = [];
                o.time = -Inf;
            end
+
+           o = neurostim.parameter(o);
         end
+
     end
     
     
