@@ -85,6 +85,15 @@ classdef parameter < handle & matlab.mixin.Copyable
             setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
+            
+            %Deal with special case of empty vector. Won't be logged now unless we do something
+            %because the new value (v) matches the current value (o.value). So, we temporarily
+            %set it to something weird so that storeInLog() finds no match and hence logs it.
+            if isempty(v)
+               o.value = {'this is a highly unlikely value that will no be logged anyway'}; 
+            end
+            
+            %Set it and log it
             setValue(o,[],v);
         end
         
@@ -496,7 +505,16 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             
         end
-        
+       
+        function o = loadobj(o)
+           %Parameters that were initialised to [] and remained empty were not logged properly
+           %on construction in old files. Fix it here
+           if ~o.cntr
+               o.cntr = 1;
+               o.log{1} = [];
+               o.time = -Inf;
+           end
+        end
     end
     
     
