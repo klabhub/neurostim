@@ -167,6 +167,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
       Viewpoint('command','datafile_includeEvents 1');
       Viewpoint('command','dataFile_includeRawData 1');
       Viewpoint('command','dataFile_AsynchStringData 1'); % for Viewpoint('message',...)
+      Viewpoint('command','dataFile_startFileTimeAtZero 0');
       
       Viewpoint('command','smoothingPoints 1'); % 1 = no smoothing
 
@@ -205,33 +206,35 @@ classdef viewpoint < neurostim.plugins.eyetracker
       Viewpoint('stopRecording');
       Viewpoint('closeFile');
       
-      try
+      if ~isempty(o.ssh.username) && ~isempty(o.ssh.privateKey)
         writeToFeed(o,'Attempting to retrieve Viewpoint .vpx file via scp.');
         
-        newFileName = [o.cic.fullFile '.vpx'];
+        try
+          newFileName = [o.cic.fullFile '.vpx'];
 
-        % open ssh connection... public/private key
-        o.ssh.connection = ssh2_config_publickey(o.ipAddress,o.ssh.username,o.ssh.privateKey);
+          % open ssh connection... public/private key
+          o.ssh.connection = ssh2_config_publickey(o.ipAddress,o.ssh.username,o.ssh.privateKey);
 
-        % scp file from remote host
-        o.ssh.connection = scp_get(o.ssh.connection,o.vpxFile,o.cic.fullPath,o.ssh.remotePath);
+          % scp file from remote host
+          o.ssh.connection = scp_get(o.ssh.connection,o.vpxFile,o.cic.fullPath,o.ssh.remotePath);
         
-        if o.ssh.connection.command_result
-          o.vpxFile = newFileName;
-          writeToFeed(o,['Success: transferred ' num2str(o.ssh.connection.command_result) ' bytes']);
-        else
-          writeToFeed(o,['Fail: could not transfer .vpx file (' o.vpxFile ') ' num2str(status)]);
+          if o.ssh.connection.command_result
+            o.vpxFile = newFileName;
+            writeToFeed(o,['Success: transferred ' num2str(o.ssh.connection.command_result) ' bytes']);
+          else
+            writeToFeed(o,['Fail: could not transfer .vpx file (' o.vpxFile ') ' num2str(status)]);
+          end
+        
+          % close ssh connection
+          o.ssh.connection = ssh2_close(o.ssh.connection);
+        catch
+          error('Viewpoint file transfer failed. Saved on Viewpoint PC as %s.',o.vpxFile);
         end
-        
-        % close ssh connection
-        o.ssh.connection = ssh2_close(o.ssh.connection);
-      catch
-        error('Viewpoint file transfer failed. Saved on Viewpoint PC as %s.',o.vpxFile);
+      else
+        o.vpxFile = [o.cic.file '.vpx']; % FIXME: shouldn't be necessary
       end
       
-      Viewpoint('shutdown');
-      
-%       o.vpxFile = [o.cic.file '.vpx']; % FIXME: shouldn't be necessary
+      Viewpoint('shutdown');      
     end
         
     function beforeTrial(o)
