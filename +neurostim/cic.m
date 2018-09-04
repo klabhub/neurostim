@@ -598,7 +598,7 @@ classdef cic < neurostim.plugin
             % Provide basic information about the CIC
             for i=1:numel(c)
                 disp(char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
-                    ['Stimuli:' num2str(c(i).nrStimuli) ' Blocks: ' num2str(c(i).nrBlocks) ' Conditions: [' num2str([c(i).blocks.nrConditions]) '] Trials: [' num2str([c(i).blocks.nrTrials]) ']' ],...
+                    ['Stimuli: ' num2str(c(i).nrStimuli) ', Blocks: ' num2str(c(i).nrBlocks) ', Conditions: [' strtrim(sprintf('%d ',[c(i).blocks.nrConditions])) '], Trials: [' strtrim(sprintf('%d ',[c(i).blocks.nrTrials])) ']' ],...
                     ['File: ' c.fullFile '.mat']));
             end
         end
@@ -662,12 +662,20 @@ classdef cic < neurostim.plugin
             p.addParameter('weights',[],@isnumeric);
             p.addParameter('latinSquareRow',[],@isnumeric); % The latin square row number
             
-            %% First create the blocks and blockFlow
-            isblock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
-            % Store the blocks
-            c.blocks = [varargin{isblock}];
+            % check the block inputs
+            isBlock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
+            % store the blocks
+            c.blocks = [varargin{isBlock}];
             
-            args = varargin(~isblock);
+            % make sure that all block objects are unique, i.e., *not* handles
+            % to the same object (otherwise becomes a problem for counters)
+            names = arrayfun(@(x) x.name,c.blocks,'uniformoutput',false);
+            if numel(unique(names)) ~= numel(c.blocks)
+                error('Duplicate block object(s) detected. Use the "nrRepeats" or "weights" arguments of c.run() to repeat blocks.');
+            end
+            
+            % create the blocks and blockFlow
+            args = varargin(~isBlock);
             parse(p,args{:});
             if isempty(p.Results.weights)
                 c.blockFlow.weights = ones(size(c.blocks));
@@ -749,10 +757,9 @@ classdef cic < neurostim.plugin
                 Screen('Flip',c.mainWindow);
                 % 
                 if c.saveEveryBlock
-                    tic
+                    ttt=tic;
                     c.saveData;
-                    tmpT = toc;
-                    c.writeToFeed('Saving the file took %f s',tmpT);
+                    c.writeToFeed('Saving the file took %f s',toc(ttt));
                 end                
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
@@ -783,11 +790,9 @@ classdef cic < neurostim.plugin
             collectPropMessage(c);
             collectFrameDrops(c);
             if rem(c.trial,c.saveEveryN)==0
-                tic
+                ttt=tic;
                 c.saveData;
-                tmpT = toc;
-                c.writeToFeed('Saving the file took %f s',tmpT);
-                
+                c.writeToFeed('Saving the file took %f s',toc(ttt));
             end
         end
         
@@ -826,7 +831,7 @@ classdef cic < neurostim.plugin
             %Check input
             if ~(exist('block1','var') && isa(block1,'neurostim.block'))
                 help('neurostim/cic/run');
-                error('You must supply at least one block of trials.');
+                error('You must supply at least one block of trials, e.g., c.run(myBlock1,myBlock2)');
             end
             
             %Log the experimental script as a string
@@ -837,7 +842,7 @@ classdef cic < neurostim.plugin
                     c.experiment = stack(1).file;
                 end
             catch
-                warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
+                warning(['Tried to read experimental script  (', stack(1).file ' for logging, but failed']);
             end
             
             if isempty(c.subject)
