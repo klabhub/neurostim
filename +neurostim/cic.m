@@ -23,6 +23,7 @@ classdef cic < neurostim.plugin
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         fileOverwrite           = false; % Allow output file overwrite.
+        useConsoleColor         = false; % Set to true to allow plugins and stimuli use different colors to write to the console. There is some time-cost to this (R2018a), hence the default is false.
         saveEveryN              = 10;
         saveEveryBlock          = false;
         keyBeforeExperiment     = true;
@@ -1127,6 +1128,10 @@ classdef cic < neurostim.plugin
         
         %% GUI Functions
         function feed(c,style,formatSpecs,varargin)
+            if ~c.useConsoleColor
+                style = 'NOSTYLE';                
+            end
+               
             if numel(varargin)==2 && iscell(varargin{2})
                 % multi line message
                 maxChars = max(cellfun(@numel,varargin{2}));
