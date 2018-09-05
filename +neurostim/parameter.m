@@ -45,22 +45,22 @@ classdef parameter < handle & matlab.mixin.Copyable
     end
     
     properties (SetAccess= protected, GetAccess=public)
-        name;   % Name of this property
-        value;  % Current value
-        default; % The default value; set at the beginning of the experiment.
-        log;    % Previous values;
-        time;   % Time at which previous values were set
-        cntr=0; % Counter to store where in the log we are.
-        capacity=0; % Capacity to store in log
-        %trial
-        noLog; % Set this to true to skip logging
-        sticky; % set this to true to make value(s) sticky, i.e., across trials
-        fun =[];        % Function to allow across parameter dependencies
+
+        name;                       % Name of this property
+        value;                      % Current value
+        default;                    % The default value; set at the beginning of the experiment.
+        log;                        % Previous values;
+        time;                       % Time at which previous values were set
+        cntr=0;                     % Counter to store where in the log we are.
+        capacity=0;                 % Capacity to store in log
+        noLog;                      % Set this to true to skip logging
+        sticky;                     % set this to true to make value(s) sticky, i.e., across trials
+        fun =[];                    % Function to allow across parameter dependencies
         funPrms;
-        funStr = '';    % The neurostim function string
-        validate =[];    % Validation function
-        plg@neurostim.plugin; % Handle to the plugin that this belongs to.
-        hDynProp;  % Handle to the dynamic property
+        funStr = '';                % The neurostim function string
+        validate =[];               % Validation function
+        plg@neurostim.plugin;       % Handle to the plugin that this belongs to.
+        hDynProp;                   % Handle to the dynamic property
         
     end
     
@@ -148,7 +148,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         
-        function storeInLog(o,v)
+        function storeInLog(o,v,t)
             % Store and Log the new value for this parm
             
 
@@ -181,7 +181,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 v = getValue(v);
             end
             o.log{o.cntr}  = v;
-            o.time(o.cntr) = GetSecs*1000; % Avoid the function call to cic.clockTime
+            o.time(o.cntr) = t; % Avoid the function call to cic.clockTime
         end
         
         function v = getValue(o,~)
@@ -192,11 +192,16 @@ classdef parameter < handle & matlab.mixin.Copyable
                 % The dynamic property defined with a function uses this as its GetMethod
                 v=o.fun(o.funPrms);
                 %The value might have changed, so allow it to be logged if need be
-                storeInLog(o,v);
+                t = GetSecs*1000;
+                storeInLog(o,v,t);
             end
         end
         
         function setValue(o,~,v)
+            
+
+            %Check the clock immediately. If we need to log, this is the most accurate time-stamp.
+            t = GetSecs*1000;
             
             %Check for a function definition
             if strncmpi(v,'@',1)
@@ -231,7 +236,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.validate(v);
             end
             % Log the new value
-            storeInLog(o,v);
+            storeInLog(o,v,t);
         end
         
         
@@ -288,9 +293,10 @@ classdef parameter < handle & matlab.mixin.Copyable
         function [data,trial,trialTime,time,block] = get(o,varargin)
             % Usage example:
             %     [data,trial,trialTime,time,block] = get(c.dots.prms.Y,'atTrialTime',Inf)
+            %     data = get(c.dots.prms.Y,'struct',true)
             %
-            % For any parameter, returns up to five vectors specifying
-            % the values of the parameter during the experiment:
+            % For any parameter, returns up to five vectors (or a struct with five fields)
+            % specifying the values of the parameter during the experiment:
             %
             % data = values
             % trial = trial in which that value occurred
@@ -298,7 +304,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % time  = time relative to start of the experiment
             % block = the block in which this trial occurred.
             %
-            %   Optional input arguments as param/value pairs:
+            % Optional input arguments as param/value pairs:
             %
             % 'atTrialTime'   - returns exactly one value for each trial
             % that corresponds to the value of the parameter at that time in
@@ -310,8 +316,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             % trials.
             % 'withDataOnly' - return only events with data.
             % 'dataIsMember' - return only those events where the data
-            % matches this cell/vector of elements.
-            
+            % matches this cell/vector of elements.            
+            % 'struct' - set to true to return all outputs as a data structure
+            %
             p =inputParser;
             p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial
             p.addParameter('after','',@ischar); % Return the first value after this event in the trial
@@ -319,6 +326,8 @@ classdef parameter < handle & matlab.mixin.Copyable
             p.addParameter('withDataOnly',false,@islogical); % Only those values that have data
             p.addParameter('dataIsMember',{});  %Only when data is a member of the list
             p.addParameter('matrixIfPossible',true); % Convert to a [NRTRIALS N] matrix if possible
+            p.addParameter('struct',false,@islogical); % Pack the output arguments into a structure.
+          
             p.parse(varargin{:});
             
             data = o.log(1:o.cntr);
@@ -433,6 +442,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             trial = trial(:);
             if p.Results.matrixIfPossible
                data=  neurostim.parameter.matrixIfPossible(data);
+            end
+            if p.Results.struct
+                data = struct('data',data,'trial',trial,'trialTime',trialTime,'time',time,'block',block);
             end
         end
         

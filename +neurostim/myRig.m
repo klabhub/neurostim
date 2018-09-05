@@ -120,6 +120,15 @@ switch computerName
         c.useConsoleColor = true;
         Screen('Preference', 'SkipSyncTests', 2);
         smallWindow = true;
+        
+    case 'NEUROSTIMA2018'
+        scrNr = max(Screen('screens'));
+        fr = Screen('FrameRate',scrNr);
+        rect = Screen('rect',scrNr);
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        c.useConsoleColor = true;
+        Screen('Preference', 'SkipSyncTests', 2);
+        smallWindow = true;        
     case 'PC-2018D'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
