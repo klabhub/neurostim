@@ -224,10 +224,12 @@ classdef mcs < neurostim.stimulus
             o.addProperty('triggerSent',true(1,o.nrChannels),'validate',@islogical); % Keeps track of when the triggers to start stim were sent.
             o.addProperty('persistent',false(1,o.nrChannels),'validate',@islogical); % Persistent means that it can last longer than a trial
             o.addProperty('enabled',true(1,o.nrChannels),'validate',@islogical); %
-            NRPARMS =8;
-            o.channelData = cell(o.nrChannels,NRPARMS);
-            [o.channelData{:,1}] = deal(NaN); % Hack; first duration is Nan.
-            o.channelTriggered = -inf(1,o.nrChannels);
+            % Create a local memory of the patterns that have been sent to
+            % the device, see sendStimulus for usage.
+            NRPARMS =8; % Storing 8 parms.
+            o.channelData = cell(o.nrChannels,NRPARMS);  % This is the bookkeeping cell array
+            reset(o);            
+           
         end
         
         function beforeExperiment(o)
@@ -236,7 +238,7 @@ classdef mcs < neurostim.stimulus
         end
         
         function beforeTrial(o)
-            sendStimulus(o);
+            sendStimulus(o);            
         end
         
         function beforeFrame(o)
@@ -251,6 +253,7 @@ classdef mcs < neurostim.stimulus
         
         function afterExperiment(o)
             % Discconnect from the device.
+            reset(o);
             disconnect(o);
         end
         
@@ -304,7 +307,6 @@ classdef mcs < neurostim.stimulus
                 end
                 o.device.DisableMultiFileMode(); % Triggers are assigned to channels, not segments.
             end
-            reset(o);
         end
         
         
@@ -322,6 +324,9 @@ classdef mcs < neurostim.stimulus
                 o.device.ClearChannelData(c);
                 o.device.ClearSyncData(c);
             end
+            
+            [o.channelData{:,1}] = deal(NaN); % This will make sure the plugin knows that the device has no data
+            o.channelTriggered = -inf(1,o.nrChannels);
         end
         
         function disconnect(o)
@@ -334,7 +339,7 @@ classdef mcs < neurostim.stimulus
         
         function sendStimulus(o)
             % The main function that sends channel and syncout data to the
-            % device.
+            % device. It is called before each trial.
             
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
@@ -343,17 +348,14 @@ classdef mcs < neurostim.stimulus
             step = 1/o.outputRate; %STG resolution (usually 20 mus)
             fractionUsed =0;
             
-            %% Clear all channels that are not used first.
-            channelsToClear = setdiff(1:o.nrChannels,o.channel);
-            for channel = channelsToClear
-                o.device.ClearChannelData(channel-1);
-            end
+           
             
             % Send the values and the duration of each sample to the device
             for thisChannel = 1:o.nrChannels
                 [isInUse,channelCntr] = ismember(thisChannel,o.channel);
                 if ~isInUse
-                    o.device.ClearChannelData(thisChannel-1);
+                %    o.device.ClearChannelData(thisChannel-1);
+                %    [o.channelData(thisChannel,:)] = deal(NaN);
                 else
                     
                     [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled,thisChanged] = channelParms(o,thisChannel);
@@ -456,6 +458,7 @@ classdef mcs < neurostim.stimulus
         end
         
         function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled,thisChanged] = channelParms(o,channel)
+            % Channel is 1:nrChannels
             ix = find(o.channel == channel);
             thisDuration = neurostim.stimuli.mcs.expandSingleton(o.duration,ix);
             thisAmplitude = neurostim.stimuli.mcs.expandSingleton(o.amplitude,ix);
@@ -465,13 +468,13 @@ classdef mcs < neurostim.stimulus
             thisFun = neurostim.stimuli.mcs.expandSingleton(o.fun,ix);
             thisPersistent = neurostim.stimuli.mcs.expandSingleton(o.persistent,ix);
             thisEnabled = neurostim.stimuli.mcs.expandSingleton(o.enabled,ix);
-            if numel(o.channelData) < channel || isnan(o.channelData{channel,1})
+            if isnan(o.channelData{channel,1})
+                % Channel data is filled with NaN on startup. So this means
+                % no value has been sent yet. 
                 thisChanged = true;
             else
                 thisChanged = ~isequaln(o.channelData(channel,:),{thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled});
-            end
-            
-            
+            end                        
         end
         
         
