@@ -51,7 +51,6 @@ classdef parameter < handle & matlab.mixin.Copyable
         default;                    % The default value; set at the beginning of the experiment.
         log;                        % Previous values;
         time;                       % Time at which previous values were set
-        trial;                      % Trial in which previous values were set.
         cntr=0;                     % Counter to store where in the log we are.
         capacity=0;                 % Capacity to store in log
         noLog;                      % Set this to true to skip logging
@@ -522,7 +521,9 @@ classdef parameter < handle & matlab.mixin.Copyable
                 data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);
             end
             
-        end        function o = loadobj(o)
+        end
+        
+        function o = loadobj(o)
            %Parameters that were initialised to [] and remained empty were not logged properly
            %on construction in old files. Fix it here
            if ~o.cntr
