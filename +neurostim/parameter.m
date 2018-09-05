@@ -45,6 +45,7 @@ classdef parameter < handle & matlab.mixin.Copyable
     end
     
     properties (SetAccess= protected, GetAccess=public)
+
         name;                       % Name of this property
         value;                      % Current value
         default;                    % The default value; set at the beginning of the experiment.
@@ -75,6 +76,20 @@ classdef parameter < handle & matlab.mixin.Copyable
             %
             % Create a parameter for a plugin/stimulu with a name and a value.
             % This is called from plugins.addProperty
+            
+            %Handle post-hoc construction from loadobj()
+            if isstruct(p)
+               f = intersect(properties(o),fieldnames(p));
+               for i=1:numel(f)
+                   o.(f{i}) = p.(f{i});
+               end
+               return 
+            elseif isa(p,'neurostim.parameter')
+                o=p;
+                return;
+            end
+
+            %Regular construction
             o.name = nm;
             o.plg = p; % Handle to the plugin
             o.hDynProp  = h; % Handle to the dynamic property
@@ -84,6 +99,15 @@ classdef parameter < handle & matlab.mixin.Copyable
             setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
+            
+            %Deal with special case of empty vector. Won't be logged now unless we do something
+            %because the new value (v) matches the current value (o.value). So, we temporarily
+            %set it to something weird so that storeInLog() finds no match and hence logs it.
+            if isempty(v)
+               o.value = {'this is a highly unlikely value that will no be logged anyway'}; 
+            end
+            
+            %Set it and log it
             setValue(o,[],v);
         end
         
@@ -498,8 +522,18 @@ classdef parameter < handle & matlab.mixin.Copyable
                 data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);
             end
             
+        end        function o = loadobj(o)
+           %Parameters that were initialised to [] and remained empty were not logged properly
+           %on construction in old files. Fix it here
+           if ~o.cntr
+               o.cntr = 1;
+               o.log{1} = [];
+               o.time = -Inf;
+           end
+
+           o = neurostim.parameter(o);
         end
-        
+
     end
     
     

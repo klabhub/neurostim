@@ -23,6 +23,7 @@ classdef cic < neurostim.plugin
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         fileOverwrite           = false; % Allow output file overwrite.
+        useConsoleColor         = false; % Set to true to allow plugins and stimuli use different colors to write to the console. There is some time-cost to this (R2018a), hence the default is false.
         saveEveryN              = 10;
         saveEveryBlock          = false;
         keyBeforeExperiment     = true;
@@ -399,7 +400,7 @@ classdef cic < neurostim.plugin
             for b=1:numel(c.blocks)
                 blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
                 for d=1:numel(c.blocks(b).designs)
-                    show(c.blocks(b).designs{d},factors,blockStr);
+                    show(c.blocks(b).designs(d),factors,blockStr);
                 end
             end
         end
@@ -586,7 +587,7 @@ classdef cic < neurostim.plugin
             % Provide basic information about the CIC
             for i=1:numel(c)
                 disp(char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
-                    ['Stimuli:' num2str(c(i).nrStimuli) ' Blocks: ' num2str(c(i).nrBlocks) ' Conditions: [' num2str([c(i).blocks.nrConditions]) '] Trials: [' num2str([c(i).blocks.nrTrials]) ']' ],...
+                    ['Stimuli: ' num2str(c(i).nrStimuli) ', Blocks: ' num2str(c(i).nrBlocks) ', Conditions: [' strtrim(sprintf('%d ',[c(i).blocks.nrConditions])) '], Trials: [' strtrim(sprintf('%d ',[c(i).blocks.nrTrials])) ']' ],...
                     ['File: ' c.fullFile '.mat']));
             end
         end
@@ -650,18 +651,19 @@ classdef cic < neurostim.plugin
             p.addParameter('weights',[],@isnumeric);
             p.addParameter('latinSquareRow',[],@isnumeric); % The latin square row number
             
-            %% Check the block inputs
-                %Make sure that all block objects are different objects and
-                %not handles to the same object (otherwise becomes a problem for counters)
+            % check the block inputs
             isBlock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
-            c.blocks = horzcat(varargin{isBlock}); 
+            % store the blocks
+            c.blocks = [varargin{isBlock}];
+            
+            % make sure that all block objects are unique, i.e., *not* handles
+            % to the same object (otherwise becomes a problem for counters)
             names = arrayfun(@(x) x.name,c.blocks,'uniformoutput',false);
             if numel(unique(names)) ~= numel(c.blocks)
-                error('Duplicate block object detected. Use the "nrRepeats" or "weights" arguments of c.run() to repeat blocks');
+                error('Duplicate block object(s) detected. Use the "nrRepeats" or "weights" arguments of c.run() to repeat blocks.');
             end
             
-            
-            %% Create the blocks and blockFlow
+            % create the blocks and blockFlow
             args = varargin(~isBlock);
             parse(p,args{:});
             if isempty(p.Results.weights)
@@ -744,10 +746,9 @@ classdef cic < neurostim.plugin
                 Screen('Flip',c.mainWindow);
                 % 
                 if c.saveEveryBlock
-                    tic
+                    ttt=tic;
                     c.saveData;
-                    tmpT = toc;
-                    c.writeToFeed('Saving the file took %f s',tmpT);
+                    c.writeToFeed('Saving the file took %f s',toc(ttt));
                 end                
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
@@ -778,11 +779,9 @@ classdef cic < neurostim.plugin
             collectPropMessage(c);
             collectFrameDrops(c);
             if rem(c.trial,c.saveEveryN)==0
-                tic
+                ttt=tic;
                 c.saveData;
-                tmpT = toc;
-                c.writeToFeed('Saving the file took %f s',tmpT);
-                
+                c.writeToFeed('Saving the file took %f s',toc(ttt));
             end
         end
         
@@ -821,9 +820,8 @@ classdef cic < neurostim.plugin
             %Check input
             if ~(exist('block1','var') && isa(block1,'neurostim.block'))
                 help('neurostim/cic/run');
-                error('You must supply at least one block of trials. e.g. c.run(myBlock1,myBlock2)');
+                error('You must supply at least one block of trials, e.g., c.run(myBlock1,myBlock2)');
             end
-            
             
             %Log the experimental script as a string
             try
@@ -1132,6 +1130,10 @@ classdef cic < neurostim.plugin
         
         %% GUI Functions
         function feed(c,style,formatSpecs,varargin)
+            if ~c.useConsoleColor
+                style = 'NOSTYLE';                
+            end
+               
             if numel(varargin)==2 && iscell(varargin{2})
                 % multi line message
                 maxChars = max(cellfun(@numel,varargin{2}));
