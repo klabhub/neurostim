@@ -61,6 +61,9 @@ classdef mcs < neurostim.stimulus
         deviceListEntry; % The device in the list that we will connect to (the first one, currently)
         channelData;  % Cell array with the data last sent to each channel
         channelTriggered; % Last trigger time of each channel
+        
+        trigger=1; % The number of the trigger that is used. (Currently only one that triggers all relevant channels)
+        nrRepeatsPerTrigger=1; % 1 for now
     end
     
     properties (Dependent =true)
@@ -224,6 +227,7 @@ classdef mcs < neurostim.stimulus
             o.addProperty('triggerSent',true(1,o.nrChannels),'validate',@islogical); % Keeps track of when the triggers to start stim were sent.
             o.addProperty('persistent',false(1,o.nrChannels),'validate',@islogical); % Persistent means that it can last longer than a trial
             o.addProperty('enabled',true(1,o.nrChannels),'validate',@islogical); %
+            
             % Create a local memory of the patterns that have been sent to
             % the device, see sendStimulus for usage.
             NRPARMS =8; % Storing 8 parms.
@@ -238,11 +242,12 @@ classdef mcs < neurostim.stimulus
         end
         
         function beforeTrial(o)
-            sendStimulus(o);            
+             sendStimulus(o);  
+             setupTriggers(o);
         end
         
         function beforeFrame(o)
-            start(o,intersect(find(~o.triggerSent),o.channel));
+             start(o,intersect(find(~o.triggerSent),o.channel));
         end
         
         function afterFrame(o)
@@ -277,6 +282,7 @@ classdef mcs < neurostim.stimulus
         function start(o,channels)
             % Trigger the stimulation on the specified list of channels.
             % The channels shoudl be a vector of (base -1) channel numbers
+             if isempty(channels);return;end
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not start MCS. Device not connected.'); %#ok<*CTPCT>
             else
@@ -288,6 +294,7 @@ classdef mcs < neurostim.stimulus
         function stop(o,channels)
             % Stop these channels from continuing.
             % Channels should be a vector of base-1 channel numbers.
+            if isempty(channels);return;end
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not stop MCS. Device not connected.');
             else
@@ -305,8 +312,9 @@ classdef mcs < neurostim.stimulus
                 if ~o.isConnected
                     error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' MCS device. Make sure MC Stimulus II is installed on your computer (www.multichannelsystems.com/software/mc-stimulus-ii).']);
                 end
-                o.device.DisableMultiFileMode(); % Triggers are assigned to channels, not segments.
-            end
+                o.device.DisableMultiFileMode(); % Triggers are assigned to channels, not segments. On its own this does not do anything- still need to call setupTrigger code.
+            end            
+            
         end
         
         
@@ -337,6 +345,15 @@ classdef mcs < neurostim.stimulus
         end
         
         
+        function setupTriggers(o)
+            % Map a single trigger to start all of the channels that are in
+            % use this trial                         
+            channelsToTrigger = chan2mask(o,o.channel); % These are the channels for the current trial
+            syncoutsToTrigger  =  chan2mask(o,o.syncOutChannel); % These are the channels for the current trial
+            o.device.SetupTrigger(o.trigger,channelsToTrigger,syncoutsToTrigger,o.nrRepeatsPerTrigger);
+        
+        end
+        
         function sendStimulus(o)
             % The main function that sends channel and syncout data to the
             % device. It is called before each trial.
@@ -351,12 +368,7 @@ classdef mcs < neurostim.stimulus
            
             
             % Send the values and the duration of each sample to the device
-            for thisChannel = 1:o.nrChannels
-                [isInUse,channelCntr] = ismember(thisChannel,o.channel);
-                if ~isInUse
-                %    o.device.ClearChannelData(thisChannel-1);
-                %    [o.channelData(thisChannel,:)] = deal(NaN);
-                else
+            for thisChannel = o.channel
                     
                     [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled,thisChanged] = channelParms(o,thisChannel);
                     if thisPersistent
@@ -407,11 +419,11 @@ classdef mcs < neurostim.stimulus
                     end
                     ramp = ones(size(time));
                     if ~isempty(o.rampUp) && o.rampUp>0
-                        stepsInRamp= round((neurostim.stimuli.mcs.expandSingleton(o.rampUp,channelCntr)/1000)/step);
+                        stepsInRamp= round((neurostim.stimuli.mcs.expandSingleton(o.rampUp,thisChannel)/1000)/step);
                         ramp(1:stepsInRamp) = linspace(0,1,stepsInRamp);
                     end
                     if ~isempty(o.rampDown) && o.rampDown>0
-                        stepsInRamp= round((neurostim.stimuli.mcs.expandSingleton(o.rampDown,channelCntr)/1000)/step);
+                        stepsInRamp= round((neurostim.stimuli.mcs.expandSingleton(o.rampDown,thisChannel)/1000)/step);
                         ramp(end-stepsInRamp+1:end) = linspace(1,0,stepsInRamp);
                     end
                     values = values.*ramp;
@@ -442,10 +454,9 @@ classdef mcs < neurostim.stimulus
                     o.triggerSent(thisChannel) = false;
                     
                     if ~isempty(o.syncOutChannel)
-                        o.device.ClearSyncData(neurostim.stimuli.mcs.expandSingleton(o.syncOutChannel,channelCntr)-1);
-                        o.device.SendSyncData(neurostim.stimuli.mcs.expandSingleton(o.syncOutChannel,channelCntr)-1,uint16(1),1e3*thisDuration);
-                    end
-                end
+                        o.device.ClearSyncData(neurostim.stimuli.mcs.expandSingleton(o.syncOutChannel,thisChannel)-1);
+                        o.device.SendSyncData(neurostim.stimuli.mcs.expandSingleton(o.syncOutChannel,thisChannel)-1,uint16(1),1e3*thisDuration);
+                    end               
             end
             
             %% Checking actual memory would be better but status does not seem to reflect overruns
