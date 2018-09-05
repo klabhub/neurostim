@@ -254,10 +254,14 @@ classdef mcs < neurostim.stimulus
         end
         
         function afterTrial(o)
+            PERSISTENT = 7;
+            prematureStop = ~[o.channelData{o.channel,PERSISTENT}];
+            stop(o,o.channel(prematureStop));
         end
         
         function afterExperiment(o)
             % Discconnect from the device.
+            stop(o,1:o.nrChannels);
             reset(o);
             disconnect(o);
         end
