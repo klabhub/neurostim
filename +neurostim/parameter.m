@@ -291,9 +291,10 @@ classdef parameter < handle & matlab.mixin.Copyable
         function [data,trial,trialTime,time,block] = get(o,varargin)
             % Usage example:
             %     [data,trial,trialTime,time,block] = get(c.dots.prms.Y,'atTrialTime',Inf)
+            %     data = get(c.dots.prms.Y,'struct',true)
             %
-            % For any parameter, returns up to five vectors specifying
-            % the values of the parameter during the experiment:
+            % For any parameter, returns up to five vectors (or a struct with five fields)
+            % specifying the values of the parameter during the experiment:
             %
             % data = values
             % trial = trial in which that value occurred
@@ -301,7 +302,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % time  = time relative to start of the experiment
             % block = the block in which this trial occurred.
             %
-            %   Optional input arguments as param/value pairs:
+            % Optional input arguments as param/value pairs:
             %
             % 'atTrialTime'   - returns exactly one value for each trial
             % that corresponds to the value of the parameter at that time in
@@ -311,13 +312,15 @@ classdef parameter < handle & matlab.mixin.Copyable
             % after this event.
             % 'trial'  - request only entries occuring in this set of
             % trials.
+            % 'struct' - set to true to return all outputs as a data structure
             %
             p =inputParser;
             p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial
             p.addParameter('after','',@ischar); % Return the first value after this event in the trial
             p.addParameter('trial',[],@isnumeric); % Return only values in these trials
             p.addParameter('withDataOnly',false,@islogical); % Only those values that have data
-            
+            p.addParameter('struct',false,@islogical); % Pack the output arguments into a structure.
+           
             p.parse(varargin{:});
             
             data = o.log(1:o.cntr);
@@ -439,6 +442,9 @@ classdef parameter < handle & matlab.mixin.Copyable
                 trialTime(out)=[];
             end
             
+            if p.Results.struct
+                data = struct('data',data,'trial',trial,'trialTime',trialTime,'time',time,'block',block);
+            end
         end
         
         
