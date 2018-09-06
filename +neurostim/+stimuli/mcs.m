@@ -28,9 +28,9 @@ classdef mcs < neurostim.stimulus
     % duration - Duration of stimulation [ms]
     % channel - A single channel number (base-1)
     % syncOutChannel - Channel for sync-out pulse (optional, base-1)
-    % mean - Mean value of current/voltage [mA/mV]
+    % mean - Mean (DC) value of current/voltage [mA/mV].  
     % frequency - Frequency of sinusoidal tACS [Hz]
-    % amplitude - Amplitude of sinusoid [mA/mV]
+    % amplitude - Amplitude of sinusoid [mA/mV]  (ignored for tDCS)
     % phase - Phase of sine [degrees]
     % rampUp - Duration of linear ramp-up [ms]
     % rampDown - Duration of linear ramp-down [ms]
@@ -229,8 +229,9 @@ classdef mcs < neurostim.stimulus
             o.addProperty('enabled',true(1,o.nrChannels),'validate',@islogical); %
             
             % Create a local memory of the patterns that have been sent to
-            % the device, see sendStimulus for usage.
-            NRPARMS =8; % Storing 8 parms.
+            % the device, this allows us to check whether the current pattern is different (and therefore 
+            % needs to be sent to the device), or we can reuse the existing pattern on the device. see sendStimulus for usage.
+            NRPARMS =6; % Storing 6 parms that uniquely define a stimulus
             o.channelData = cell(o.nrChannels,NRPARMS);  % This is the bookkeeping cell array
             reset(o);            
            
@@ -239,6 +240,7 @@ classdef mcs < neurostim.stimulus
         function beforeExperiment(o)
             % Connect to the device, and clear its memory to get a clean start..
             connect(o);
+            reset(o);
         end
         
         function beforeTrial(o)
@@ -247,16 +249,16 @@ classdef mcs < neurostim.stimulus
         end
         
         function beforeFrame(o)
-             start(o,intersect(find(~o.triggerSent),o.channel));
+             thisEnabled =  neurostim.stimuli.mcs.expandSingleton(o.enabled,o.channel);
+             start(o,intersect(find(~o.triggerSent),o.channel(thisEnabled)));
         end
         
         function afterFrame(o)
         end
         
-        function afterTrial(o)
-            PERSISTENT = 7;
-            prematureStop = ~[o.channelData{o.channel,PERSISTENT}];
-            stop(o,o.channel(prematureStop));
+        function afterTrial(o)            
+            thisPersistent=  neurostim.stimuli.mcs.expandSingleton(o.persistent,o.channel);
+            stop(o,o.channel(~thisPersistent));
         end
         
         function afterExperiment(o)
@@ -454,7 +456,7 @@ classdef mcs < neurostim.stimulus
                     o.device.SendChannelData(thisChannel-1,adValues,uint64(step*1e6*ones(size(time))));
                     
                     % bookkeeping
-                    o.channelData(thisChannel,:) = {thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled};
+                    o.channelData(thisChannel,:) = {thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun};
                     o.triggerSent(thisChannel) = false;
                     
                     if ~isempty(o.syncOutChannel)
@@ -488,7 +490,7 @@ classdef mcs < neurostim.stimulus
                 % no value has been sent yet. 
                 thisChanged = true;
             else
-                thisChanged = ~isequaln(o.channelData(channel,:),{thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled});
+                thisChanged = ~isequaln(o.channelData(channel,:),{thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun});
             end                        
         end
         
