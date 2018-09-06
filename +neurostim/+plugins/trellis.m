@@ -6,18 +6,17 @@ classdef trellis < neurostim.plugin
     end
     
     properties (SetAccess=protected,GetAccess=public)
-        operator@double;    % Operator (NIP/Trellis) that we're talking to currently
+        experimentStartTime=0;
     end
-    
     
     properties (Dependent)
         time@double;        % Time in ms since NIP started
-        operators@double;   % List of Trellis IDs on the network
         status@struct;      % Current Trellis status.
         
         % Get channel numbers for all or a subset of "modalities"
         stimChannels@double;       % Stimulation channels    [1-512]
-        microChannels@double;      % Micro electrode channels [1-512]
+        microChannels@double;      % Electrode channels connected to Micro front end [1-512]
+        nanoChannels@double;       % Electrode channels connected to Nano front end [1 -512]
         surfChannels@double;       % Surface channels [1-512]
         analogChannels@double;     % Analog channels [SMA: 10241:10244. Micro-D: 10245:10268 -Audio: 10269, 10270]
         allChannels@double;        % All channels.
@@ -29,32 +28,34 @@ classdef trellis < neurostim.plugin
             v = 1000*xippmex('time')/neurostim.plugins.trellis.SAMPLINGFREQ;
         end
         
-        function v = get.operators(~)
-            v = xippmex('opers');
+        
+        function v= get.status(~)
+            v = xippmex('trial');
+            v= v.status;
         end
         
-        function v= get.status(o)
-            v = xippmex('trial',o.operator);
-        end
-        
-        function v= get.stimChannels(o)
+        function v= get.stimChannels(~)
             v = xippmex('elec','stim');
         end
         
+        function v= get.nanoChannels(~)
+            v = xippmex('elec','nano');
+        end
         
-        function v= get.microChannels(o)
+        
+        function v= get.microChannels(~)
             v = xippmex('elec','micro');
         end
         
-        function v= get.surfChannels(o)
+        function v= get.surfChannels(~)
             v = xippmex('elec','surf');
         end
         
-        function v= get.analogChannels(o)
+        function v= get.analogChannels(~)
             v = xippmex('elec','analog');
         end
         
-        function v= get.allChannels(o)
+        function v= get.allChannels(~)
             v = xippmex('elec','all');
         end
         
@@ -67,10 +68,15 @@ classdef trellis < neurostim.plugin
             o.addProperty('trialStart',[]);
             o.addProperty('trialStop',[]);
             o.addProperty('streamSettings',{});
+            
     % Example (future) streamSettings={{'port','A','channel',1:64,'stream','raw'};
     %              {'port','A','channel',1:64,'stream','lfp'};
     %              {'port','SMA','channel',3,'stream','1ksps'}};
 
+            pth = which('xippmex');
+            if isempty(pth)
+                error('The trellis plugin relies on xippmex, which could not be found. Please obtain it from your Trellis installation folder, and add it to the Matlab path');
+            end
                                                 
         end
         
@@ -137,16 +143,7 @@ classdef trellis < neurostim.plugin
             end
             if stat ~= 1; error('Xippmex Did Not Initialize');  end
             
-            
-            %% Connect to Trellis/NIP
-            tmp = o.operators;
-            if isempty(tmp)
-                error('Could not find Trellis on the network...')
-            end
-            if numel(tmp)>1
-                error('More than on Trellis on the network??');
-            end
-            o.operator = tmp;
+            o.experimentStartTime = xippmex('time')/(o.SAMPLINGFREQ/1000);
             
             %% Define recording & stim electrodes
             % Disabled for now as this only does the streaming not saving.
@@ -169,7 +166,7 @@ classdef trellis < neurostim.plugin
             
             if ~strcmpi(o.status,'stopped')
                 warning('Trellis was still recording when this experiment started');
-                xippmex('trial',o.operator,'stopped');
+                xippmex('trial','stopped');
             end
             
             tic;
@@ -183,15 +180,32 @@ classdef trellis < neurostim.plugin
             % Now start it with the file name specified by CIC. The
             % recording will run until stopped (0) and autoincrement for file names
             % is off.
-            stat = xippmex('trial',o.operator,'recording',o.cic.file,0,false);
-            if ~strcmpi(stat.status,'recording')
-                o.cic.error('Failed to start recording on Trellis');
+            o.writeToFeed('Starting Trellis recording...')
+            try
+                xippmex('trial','recording',o.cic.fullFile,0,0);
+            catch
+                o.cic.error('STOPEXPERIMENT',['Failed to start recording on Trellis. Probably the path to the file does not exist on the Trellis machine: ' o.cic.fullPath]);
+                return; % No stat if error
             end
+            
+            tic;
+            while(~strcmpi(o.status,'recording'))
+                pause (1);
+                if toc > 5 % 5 s timeout to stop
+                    o.cic.error('Failed to start recording on Trellis');
+                end
+            end
+            o.writeToFeed(['Trellis is now recording to ' o.cic.fullFile])
             
         end
         function afterExperiment(o)
             % Close the UDP link
+            stat= xippmex('trial','stopped');
+            if ~strcmpi(stat.status,'stopped')
+                o.cic.error('STOPEXPERIMENT','Stop recording on Trellis failed...?');
+            end
             xippmex('close');
+            o.writeToFeed('Trellis has stopped recording.')
         end
         
         function beforeTrial(o)
@@ -199,14 +213,14 @@ classdef trellis < neurostim.plugin
             if ~isempty(o.trialBit)
                 digout(o,o.trialBit,true);
             end
-            o.trialStart = xippmex('time')/(o.SAMPLINGFREQ/1000); % Time in ms since NIP on
+            o.trialStart = (xippmex('time')/(o.SAMPLINGFREQ/1000)-o.experimentStartTime); % Time in ms since experiment started
         end
         function afterTrial(o)
             % unset trial bit
             if ~isempty(o.trialBit)
                 digout(o,o.trialBit,false);
             end
-            o.trialStop = xippmex('time')/(o.SAMPLINGFREQ/1000); % Time in ms since NIP on
+            o.trialStop = (xippmex('time')/(o.SAMPLINGFREQ/1000)-o.experimentStartTime); % Time in ms since experiment started
         end
     end
 end

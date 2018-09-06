@@ -252,7 +252,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('Message','TRIALID %d-%d',o.cic.condition,o.cic.trial);
             
             o.eyeClockTime = Eyelink('TrackerTime');
-            o.writeToFeed(num2str(o.eyeClockTime/100));
+            %o.writeToFeed(num2str(o.eyeClockTime/100));
             
         end
         
