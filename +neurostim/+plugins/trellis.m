@@ -72,6 +72,7 @@ classdef trellis < neurostim.plugin
             o.addProperty('trialStart',[]);
             o.addProperty('trialStop',[]);
             o.addProperty('streamSettings',{});
+            o.addProperty('drive',{}); % Optional - change output drive on the Trellis machine {'Z:\','C:\'} will change the Z:\ in the neurostim file to C:\ for Trellis
             
     % Example (future) streamSettings={{'port','A','channel',1:64,'stream','raw'};
     %              {'port','A','channel',1:64,'stream','lfp'};
@@ -205,8 +206,16 @@ classdef trellis < neurostim.plugin
             % recording will run until stopped (0) and autoincrement for file names
             % is off.
             o.writeToFeed('Starting Trellis recording...')
+            if isempty(o.drive)
+                % Save to the "same" location as Neurostim
+                 filename = o.cic.fullFile;
+            else
+                % Save to a different drive , but the same directory
+                filename = strrep(o.cic.fullFile,o.drive{1},o.drive{2});
+            end
+               
             try
-                xippmex('trial','recording',o.cic.fullFile,0,0);
+                xippmex('trial','recording',filename,0,0);
             catch
                 o.cic.error('STOPEXPERIMENT',['Failed to start recording on Trellis. Probably the path to the file does not exist on the Trellis machine: ' o.cic.fullPath]);
                 return; % No stat if error
