@@ -68,7 +68,7 @@ classdef sound < neurostim.plugin
         
         
         function delete(o) %#ok<INUSD>
-            PsychPortAudio('Close');
+            clear PsychPortAudio;
         end
     end
 end

@@ -414,7 +414,7 @@ classdef starstim < neurostim.stimulus
         
         function afterExperiment(o)
             
-            if o.tmr.isvalid
+        if isvalid(o.tmr)
                 o.tmr.stop; % Stop the timer
             end
             rampDown(o); % Just to be sure (inc case the experiment was terminated early)..

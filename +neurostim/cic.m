@@ -23,6 +23,7 @@ classdef cic < neurostim.plugin
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         fileOverwrite           = false; % Allow output file overwrite.
+        useConsoleColor         = false; % Set to true to allow plugins and stimuli use different colors to write to the console. There is some time-cost to this (R2018a), hence the default is false.
         saveEveryN              = 10;
         saveEveryBlock          = false;
         keyBeforeExperiment     = true;
@@ -44,8 +45,7 @@ classdef cic < neurostim.plugin
             'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
             'pluginSlack',0); % see plugin.m
         
-        flipTime;   % storing the frame flip time.
-        getFlipTime@logical = false; %flag to notify whether to get the frame flip time.
+        flipCallbacks={}; %List of stimuli that have requested to be to called immediately after the flip, each as s.postFlip(flipTime).
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
@@ -394,7 +394,6 @@ classdef cic < neurostim.plugin
             c.propsToInform = varargin;
         end
         
-        
         function showDesign(c,factors)
             if nargin<2
                 factors = [];
@@ -606,7 +605,7 @@ classdef cic < neurostim.plugin
             % Provide basic information about the CIC
             for i=1:numel(c)
                 disp(char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
-                    ['Stimuli:' num2str(c(i).nrStimuli) ' Blocks: ' num2str(c(i).nrBlocks) ' Conditions: [' num2str([c(i).blocks.nrConditions]) '] Trials: [' num2str([c(i).blocks.nrTrials]) ']' ],...
+                    ['Stimuli: ' num2str(c(i).nrStimuli) ', Blocks: ' num2str(c(i).nrBlocks) ', Conditions: [' strtrim(sprintf('%d ',[c(i).blocks.nrConditions])) '], Trials: [' strtrim(sprintf('%d ',[c(i).blocks.nrTrials])) ']' ],...
                     ['File: ' c.fullFile '.mat']));
             end
         end
@@ -670,12 +669,20 @@ classdef cic < neurostim.plugin
             p.addParameter('weights',[],@isnumeric);
             p.addParameter('latinSquareRow',[],@isnumeric); % The latin square row number
             
-            %% First create the blocks and blockFlow
-            isblock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
-            % Store the blocks
-            c.blocks = [varargin{isblock}];
+            % check the block inputs
+            isBlock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
+            % store the blocks
+            c.blocks = [varargin{isBlock}];
             
-            args = varargin(~isblock);
+            % make sure that all block objects are unique, i.e., *not* handles
+            % to the same object (otherwise becomes a problem for counters)
+            names = arrayfun(@(x) x.name,c.blocks,'uniformoutput',false);
+            if numel(unique(names)) ~= numel(c.blocks)
+                error('Duplicate block object(s) detected. Use the "nrRepeats" or "weights" arguments of c.run() to repeat blocks.');
+            end
+            
+            % create the blocks and blockFlow
+            args = varargin(~isBlock);
             parse(p,args{:});
             if isempty(p.Results.weights)
                 c.blockFlow.weights = ones(size(c.blocks));
@@ -757,10 +764,9 @@ classdef cic < neurostim.plugin
                 Screen('Flip',c.mainWindow);
                 % 
                 if c.saveEveryBlock
-                    tic
+                    ttt=tic;
                     c.saveData;
-                    tmpT = toc;
-                    c.writeToFeed('Saving the file took %f s',tmpT);
+                    c.writeToFeed('Saving the file took %f s',toc(ttt));
                 end                
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
@@ -791,11 +797,9 @@ classdef cic < neurostim.plugin
             collectPropMessage(c);
             collectFrameDrops(c);
             if rem(c.trial,c.saveEveryN)==0
-                tic
+                ttt=tic;
                 c.saveData;
-                tmpT = toc;
-                c.writeToFeed('Saving the file took %f s',tmpT);
-                
+                c.writeToFeed('Saving the file took %f s',toc(ttt));
             end
         end
         
@@ -834,7 +838,7 @@ classdef cic < neurostim.plugin
             %Check input
             if ~(exist('block1','var') && isa(block1,'neurostim.block'))
                 help('neurostim/cic/run');
-                error('You must supply at least one block of trials.');
+                error('You must supply at least one block of trials, e.g., c.run(myBlock1,myBlock2)');
             end
             
             %Log the experimental script as a string
@@ -845,7 +849,7 @@ classdef cic < neurostim.plugin
                     c.experiment = stack(1).file;
                 end
             catch
-                warning(['Tried to read experimental script  (', stack(runCaller).file ' for logging, but failed']);
+                warning(['Tried to read experimental script  (', stack(1).file ' for logging, but failed']);
             end
             
             if isempty(c.subject)
@@ -1002,7 +1006,6 @@ classdef cic < neurostim.plugin
                         if c.frame == 1
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
                             c.firstFrame = locFIRSTFRAMETIME;% log it
-                            c.flipTime=0;
                         else
                             if missed>ITSAMISS
                                 c.frameDrop = [c.frame-1 missed]; % Log frame and delta
@@ -1012,9 +1015,13 @@ classdef cic < neurostim.plugin
                             end
                         end
                         
-                        if c.getFlipTime
-                            c.flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;% Used by stimuli to log their onset
-                            c.getFlipTime=false;
+                        
+                        %Stimuli should set and log their onsets/offsets as soon as they happen, in case other
+                        %properties in any afterFrame() depend on them. So, send the flip time those who requested it
+                        if ~isempty(c.flipCallbacks)
+                            flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
+                            cellfun(@(s) s.afterFlip(flipTime),c.flipCallbacks);
+                            c.flipCallbacks = {};
                         end
                         
                         % The current frame has been flipped. Process
@@ -1031,6 +1038,7 @@ classdef cic < neurostim.plugin
                         Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
                     end
                     c.trialStopTime = ptbStimOn*1000;
+                    
                     c.frame = c.frame+1;
                     
                     afterTrial(c);
@@ -1140,6 +1148,10 @@ classdef cic < neurostim.plugin
         
         %% GUI Functions
         function feed(c,style,formatSpecs,varargin)
+            if ~c.useConsoleColor
+                style = 'NOSTYLE';                
+            end
+               
             if numel(varargin)==2 && iscell(varargin{2})
                 % multi line message
                 maxChars = max(cellfun(@numel,varargin{2}));
@@ -1701,6 +1713,12 @@ classdef cic < neurostim.plugin
         function elapsed = toc(c)
             elapsed = GetSecs*1000 - c.ticTime;
         end
+    end
+    
+    methods (Access = {?neurostim.stimulus})
+        function addFlipCallback(o,s)
+            o.flipCallbacks = horzcat(o.flipCallbacks,{s});
+        end      
     end
     
     
