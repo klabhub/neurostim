@@ -13,9 +13,10 @@ c.trialDuration = 1000;
 c.iti           = 150;
 c.paradigm      = 'trellisDemo';
 c.subjectNr      =  0;
+c.dirs.output = 'c:\temp\'; %This directory needs to exist on the Trellis computer.
 
-t = plugins.trellis(c);
-
+t= plugins.trellis(c);
+t.trialBit = 3; % At the start of each trial this bit goes high. Use to align times.
 
 
 % Convpoly to create the target patch
