@@ -75,7 +75,7 @@ g.tolerance = 3;
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
 
 %Specify experimental conditions
-myFac=factorial('myFactorial',2);           %Using a 3 x 2 factorial design.  Type "help neurostim/factorial" for more options.
+myFac=design('myFactorial');           %Using a 3 x 2 factorial design.  Type "help neurostim/factorial" for more options.
 myFac.fac1.fix.X={-10 0 10};                %Three different fixation positions along horizontal meridian
 myFac.fac1.fix.Y = plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
 

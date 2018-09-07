@@ -13,8 +13,9 @@ classdef block < dynamicprops
     % Settable fields include:
     %   myBlock.nrRepeats - number of repeats of the current block
     %
-    %   myBlock.randomization - one of 'SEQUENTIAL','RANDOMWIHOUTREPLACEMENT',
-    %       RANDOMWITHREPLACEMENT', case insensitive
+    %   myBlock.randomization - one of 'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT',
+    %       RANDOMWITHREPLACEMENT', case insensitive. Sets the order in which design
+    %       obejcts will be run.
     %
     %   myBlock.weights = [a b]
     %       wherein the weights correspond to the equivalent design (i.e. a factorial or set of conditions).
@@ -73,9 +74,9 @@ classdef block < dynamicprops
     end
     
     methods
-        function v=get.design(o)
+        function v = get.design(o)
             % Current design
-            v =o.designs(o.list(o.designIx));
+            v = o.designs(o.list(o.designIx));
         end
         
         function v = get.done(o)
@@ -84,7 +85,7 @@ classdef block < dynamicprops
         end
         
         function v = get.nrPlannedTrials(o)
-            v =sum([o.designs(o.list).nrPlannedTrials]);
+            v = sum([o.designs(o.list).nrPlannedTrials]);
         end
         
         function v = get.nrTrials(o)
@@ -109,6 +110,7 @@ classdef block < dynamicprops
                 error('beforeMessage must be a string');
             end
         end
+        
         function set.afterMessage(o,fun)
             %Function must accept cic as the sole input argument and return a string
             if isa(fun,'function_handle')
@@ -119,6 +121,7 @@ classdef block < dynamicprops
                 error('afterMessage must be a string');
             end
         end
+        
         function set.beforeFunction(o,fun)
             %Function must accept cic as the sole input argument.
             if isa(fun,'function_handle')
@@ -142,10 +145,9 @@ classdef block < dynamicprops
         end
         
         function v = get.nrConditions(o)
-            nr = {o.designs.nrConditions};
-            v = sum([nr{:}]);
+            v = sum([o.designs.nrConditions]);
         end
-        
+
     end
     
     
@@ -160,8 +162,19 @@ classdef block < dynamicprops
             if ~any(isDesign)
                 error('block construction needs at least one design');
             end
+            
+            % concatenate design objects
+            d = cellfun(@(x) x(:),varargin(isDesign),'UniformOutput',false);
+            o.designs = cat(1,d{:})';
+            
+            % make sure that all design objects are unique, i.e., *not* handles
+            % to the same object (otherwise becomes a problem for counters)
+            names = arrayfun(@(x) x.name,o.designs,'UniformOutput',false);
+            if numel(unique(names)) ~= numel(o.designs)
+                error('Duplicate design object(s) detected. Use the "nrRepeats" or "weights" properties of the block object to repeat designs.');
+            end
+            
             o.name = name;
-            o.designs = [varargin{isDesign}];
             o.weights = ones(1,o.nrDesigns);
             % The remaining args are parameter/value pairs
             pv = varargin(~isDesign);
