@@ -1,12 +1,16 @@
 classdef trellis < neurostim.plugin
     properties (Constant)
         SAMPLINGFREQ = 30000; %30KHz
+        NRDIGOUT = 4; % The individual digout channels (sma)
         availableStreams = upper({'raw','stim','hi-res','lfp','spk','spkfilt','1ksps','30ksps'});
         availablePorts ='ABCD';
+       
     end
     
     properties (SetAccess=protected,GetAccess=public)
-        experimentStartTime=0;
+        experimentStartTime=0;       
+        tmr@timer; % Array of timer objects for digouts 1-5 (to handle duration of pulse)
+        currentDigout = false(1,neurostim.plugins.trellis.NRDIGOUT); % Track state of digout
     end
     
     properties (Dependent)
@@ -77,21 +81,37 @@ classdef trellis < neurostim.plugin
             if isempty(pth)
                 error('The trellis plugin relies on xippmex, which could not be found. Please obtain it from your Trellis installation folder, and add it to the Matlab path');
             end
-                                                
+            
+            % Create a timer object for each digout channel
+            for ch = 1:o.NRDIGOUT
+                o.tmr(ch) = timer('tag',['trellis_digout' num2str(ch)]);
+            end                                                                    
         end
         
-        function digout(~,channel,value)
+        function digout(o,channel,value,duration)
             % Set the digital output to the specified (TTL; 3.3V or 0V) value.
-            if channel<5 && islogical(value)
+            if nargin <4
+                duration =inf;
+            end
+            if channel<=o.NRDIGOUT && islogical(value)
                 % Single SMA out
-                xppmex('digout',channel,value);
-            elseif channel ==5 && isa(value,'uint16')
+                newDigout = o.currentDigout;
+                newDigout(channel) = value;
+                xippmex('digout',1:o.NRDIGOUT,double(newDigout));
+                o.currentDigout = newDigout;
+                if isfinite(duration)
+                    o.tmr(channel).StartDelay = duration/1000;
+                    o.tmr(channel).TimerFcn = @(~,~) digout(o,channel,~value);                                           
+                    start(o.tmr(channel));
+                end            
+            elseif channel == 5 && isa(value,'uint16')
                 % MicroD out (16 unsigned bits)
-                xppmex('digout',channel,value);
+                xippmex('digout',channel,value);
             else
                 % Must be an error.
                 error(['Channel ' num2str(channel) ' cannot be set to ' num2str(value)]);
             end
+            
         end
         
         function stream(o,varargin)
@@ -143,6 +163,7 @@ classdef trellis < neurostim.plugin
             end
             if stat ~= 1; error('Xippmex Did Not Initialize');  end
             
+            
             o.experimentStartTime = xippmex('time')/(o.SAMPLINGFREQ/1000);
             
             %% Define recording & stim electrodes
@@ -177,6 +198,9 @@ classdef trellis < neurostim.plugin
                 end
             end
             
+            xippmex('digout',1:o.NRDIGOUT,zeros(1,o.NRDIGOUT)); % ReSet digout
+            o.currentDigout = false(1,o.NRDIGOUT);
+            
             % Now start it with the file name specified by CIC. The
             % recording will run until stopped (0) and autoincrement for file names
             % is off.
@@ -192,13 +216,19 @@ classdef trellis < neurostim.plugin
             while(~strcmpi(o.status,'recording'))
                 pause (1);
                 if toc > 5 % 5 s timeout to stop
-                    o.cic.error('Failed to start recording on Trellis');
+                    o.cic.error('STOPEXPERIMENT','Failed to start recording on Trellis. Is ''remote control''  enabled in the Trellis GUI?');
                 end
             end
             o.writeToFeed(['Trellis is now recording to ' o.cic.fullFile])
             
         end
         function afterExperiment(o)
+            
+            if any(strcmpi('On',{o.tmr.Running}))
+                o.writeToFeed('Waiting for Trellis timers to finish...')
+                wait(o.tmr); % Make sure they're all done - as they will fail after the xippmex connection is closed.
+                o.writeToFeed('All Done.');
+            end
             % Close the UDP link
             stat= xippmex('trial','stopped');
             if ~strcmpi(stat.status,'stopped')
