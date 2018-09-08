@@ -5,10 +5,25 @@ classdef viewpoint < neurostim.plugins.eyetracker
   %
   %   getSamples - if true, stores eye position/sample validity on every frame.
   %   getEvents - if true, stores eye event data in eyeEvts.
-  %   eyeEvts - saves eye tracking data in its original structure format.
+  %   eyeEvts - saves Viewpoint data in its original structure format.
   %
   %   doTrackerSetup - do setup before next trial (default: true).
   %   doDriftCorrect - do drift correction before next trial (default: false).
+  %
+  %   ipAddress - IP address of the remote Viewpoint PC.
+  %   port - network port on the remote Viewpoint PC.
+  %
+  % Optional properties:
+  %
+  %   You can enable automatic retrieval of the .vpx data file from the remote
+  %   Viewpoint PC by providing ssh credentials as follows:
+  %
+  %   ssh.username - username for ssh/scp.
+  %   ssh.privateKey - private key (file name) for ssh/scp.
+  %
+  %   Note that this requires David Freedman's matlab-ssh2 package, available
+  %   from https://github.com/davidfreedman/matlab-ssh2) and that ssh/scp is
+  %   enabled on the remote Viewpoint PC.
   %
   % Commands:
   %
@@ -53,9 +68,10 @@ classdef viewpoint < neurostim.plugins.eyetracker
     %
     % e.g., 'calibration_RealRect 0.2 0.2 0.8 0.8'
     %       'gazeSpace_MouseAction Simulation' for debugging?
-    %       'setPath DATA: c:\some\path\to\save\data\to\'
     commands = {};
         
+    vpxPath@char = ''; % path to save .vpx file(s) (on the remote Viewpoint PC)
+
     vpxFile@char = 'test.vpx';
         
     getSamples@logical = true;
@@ -64,7 +80,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
     doTrackerSetup@logical = true; % do setup/calibration before the next trial
     doDriftCorrect@logical = false; % do drift correction before the next trial
     
-    % ip address and port of the Viewpoint server
+    % ip address and port of the remote Viewpoint PC
     ipAddress = '192.168.1.2';
     port = 5000;
     
@@ -86,7 +102,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
     function v = get.isConnected(~)
       % check if viewpoint is running
             
-      % FIXME: see p.25 of the viewpoint toolbox documenttion. what are the possible return values...?
+      % FIXME: see p.25 of the Viewpoint toolbox documentation. what are the possible return values...?
 
       v = Viewpoint('isConnected');
     end
@@ -94,7 +110,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
   
   methods % public methods
     function o = viewpoint(c,varargin)
-      % confirm that the ViewpointToolBox is available...
+      % confirm that the Viewpoint toolbox is available...
       assert(exist('Viewpoint.m','file') == 2, ...
                    'The Viewpoint toolbox is not available?');
                
@@ -106,7 +122,8 @@ classdef viewpoint < neurostim.plugins.eyetracker
       o.addProperty('eyeEvts',struct);
       o.addProperty('clbTargetInnerSize',[]); % inner diameter (?) of annulus
       
-%       o.addProperty('manualCalibration',false);
+%       o.addProperty('clbType','AUTO',@(x) ismember(upper(x),{'AUTO','MANUAL'}));
+%       o.addProperty('clbMatrix',[]);
     end
         
     function beforeExperiment(o)
@@ -144,23 +161,22 @@ classdef viewpoint < neurostim.plugins.eyetracker
         o.clbTargetInnerSize = o.clbTargetSize/2;
       end
       o.vp.calibrationtargetwidth = 100*o.clbTargetInnerSize/o.cic.screen.width;
-                  
-      % initialise connection to viewpoint server
+      
       if ~o.useMouse
+        % initialise connection to Viewpoint on the remote PC
         Viewpoint('setAddress',o.ipAddress,o.port);
         Viewpoint('initialize');
-      end      
-
+      end
+      
       % set sample rate
       if ~any(o.sampleRate == [90,220])
         c.error('STOPEXPERIMENT','Requested sample rate is invalid.');
       end
       % FIXME: set the sample rate, i.e., 'eyeA:videoMode 90' or 'eyeA:videoMode 220'
             
-      % open file to record data (will be renamed on copy?)
-%       [~,tmpFile] = fileparts(tempname);
-%       o.vpxFile = ['C:\Users\shaunc\Documents\' tmpFile '.vpx']; % FIXME: Viewpoint doesn't seem to be honouring setDir DATA:
-      o.vpxFile = ['C:\Users\shaunc\Documents\' o.cic.file '.vpx']; % FIXME: Viewpoint doesn't seem to be honouring setDir DATA:
+      % open file to record data
+      o.vpxFile = [o.cic.file '.vpx'];
+%       o.vpxFile = ['C:\Data\' o.cic.file '.vpx']; % FIXME: Viewpoint doesn't seem to be honouring setDir DATA:
 
       Viewpoint('command','dataFile_UnPauseUponClose 0'); % recording is paused by default
       Viewpoint('command','dataFile_Pause 1');
@@ -184,7 +200,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
 
       % should be all set up now...
       
-      Viewpoint('openFile',o.vpxFile);
+      Viewpoint('openFile',[o.vpxPath, o.vpxFile]);
       
       switch upper(o.eye)
         case 'LEFT'
@@ -206,6 +222,8 @@ classdef viewpoint < neurostim.plugins.eyetracker
       Viewpoint('stopRecording');
       Viewpoint('closeFile');
       
+      pause(0.1);
+      
       if ~isempty(o.ssh.username) && ~isempty(o.ssh.privateKey)
         writeToFeed(o,'Attempting to retrieve Viewpoint .vpx file via scp.');
         
@@ -213,25 +231,20 @@ classdef viewpoint < neurostim.plugins.eyetracker
           newFileName = [o.cic.fullFile '.vpx'];
 
           % open ssh connection... public/private key
-          o.ssh.connection = ssh2_config_publickey(o.ipAddress,o.ssh.username,o.ssh.privateKey);
+          connection = ssh2_config_publickey(o.ipAddress,o.ssh.username,o.ssh.privateKey);
 
-          % scp file from remote host
-          o.ssh.connection = scp_get(o.ssh.connection,o.vpxFile,o.cic.fullPath,o.ssh.remotePath);
+          % scp file from remote Viewpoint PC
+          connection = scp_get(connection,[o.vpxPath,o.vpxFile],o.cic.fullPath);
         
-          if o.ssh.connection.command_result
-            o.vpxFile = newFileName;
-            writeToFeed(o,['Success: transferred ' num2str(o.ssh.connection.command_result) ' bytes']);
-          else
-            writeToFeed(o,['Fail: could not transfer .vpx file (' o.vpxFile ') ' num2str(status)]);
-          end
+          o.vpxFile = newFileName;
+          writeToFeed(o,'Success: transferred .vpx file (%s).',o.vpxFile);
         
           % close ssh connection
-          o.ssh.connection = ssh2_close(o.ssh.connection);
-        catch
-          error('Viewpoint file transfer failed. Saved on Viewpoint PC as %s.',o.vpxFile);
+          connection = ssh2_close(connection);
+        catch me
+          writeToFeed(o,'Fail: could not transfer .vpx file. Saved on Viewpoint PC as %s.',[o.vpxPath,o.vpxFile]);
+          writeToFeed(o,'%s',me.message);
         end
-      else
-        o.vpxFile = [o.cic.file '.vpx']; % FIXME: shouldn't be necessary
       end
       
       Viewpoint('shutdown');      
@@ -266,14 +279,12 @@ classdef viewpoint < neurostim.plugins.eyetracker
         
         available = Viewpoint('eyeAvailable'); % returns vp.EYE_A, vp.EYE_B or vp.BOTH
         if available == o.vp.BOTH
-          o.eye = o.vp.EYE_A; % left eye?
+          o.eye = o.vp.EYE_A;
         else
           o.eye = available;
         end
       end
             
-%       Eyelink('Command','record_status_message %s%s%s',o.cic.paradigm, '_TRIAL:',num2str(o.cic.trial));
-      
       Viewpoint('message','TR:%d',o.cic.trial); % used to align clocks later
             
       Viewpoint('message','TRIALID %d-%d',o.cic.condition,o.cic.trial);
@@ -294,7 +305,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
           sample = Viewpoint('newestFloatSample');
           
 %           % apply manual calibration... default is the identity matrix
-%           xy = [sample.gx(o.eye+1), sample.gy(o.eye+1), 1]*o.calibrationMatrix; % o.eye+1, since we're indexing a MATLAB array
+%           xy = [sample.gx(o.eye+1), sample.gy(o.eye+1), 1]*o.clbMatrix; % o.eye+1, since we're indexing a MATLAB array
 %           
 %           % note: Viepoint returns gaze position in normalized screen
 %           %       coordinates... convert to neurostim's physical coordinates
@@ -330,14 +341,6 @@ classdef viewpoint < neurostim.plugins.eyetracker
       end
       
       o.commands = cat(2,o.commands,{cmd});
-
-%       if ~isempty(strfind(upper(cmd),'LINK_SAMPLE_DATA'))
-%         o.getSamples = true;
-%       end
-%       
-%       if ~isempty(strfind(upper(cmd),'LINK_EVENT_DATA'))
-%           o.getEvents = true;
-%       end
     end
     
     function keyboard(o,key,~)
@@ -351,7 +354,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
      
           [tx,ty] = o.cic.physical2Pixel(0,0);
           draw = 0; % assume neurostim has drawn a target
-          allowSetup = 0; % if it fails it fails..(we just press on, we dont want to mess up the flow)
+          allowSetup = 0; % if it fails it fails..(we just press on, we don't want to mess up the flow)
           ViewpointDoDriftCorrect(o.vp,tx/o.cic.screen.xpixels,ty/o.cic.screen.ypixels,draw,allowSetup);
 
           Viewpoint('StartRecording');
@@ -367,12 +370,15 @@ classdef viewpoint < neurostim.plugins.eyetracker
       if nargin < 4
         cm = o.clbMatrix;
       end
-      
-      % apply manual calibration... default is the identity matrix
-      tmp = [rx,ry,ones(size(rx))]*cm;
+
+      if ~isempty(cm)
+        % apply manual calibration...
+        tmp = [rx,ry,ones(size(rx))]*cm;
+        rx = tmp(:,1); ry = tmp(:,2);
+      end
       
       [nx,ny] = o.cic.pixel2Physical( ...
-            tmp(:,1)*o.cic.screen.xpixels, tmp(:,2)*o.cic.screen.ypixels);
+            rx*o.cic.screen.xpixels, ry*o.cic.screen.ypixels);
     end
     
     function [rx,ry] = ns2raw(o,nx,ny,cm)
@@ -386,8 +392,10 @@ classdef viewpoint < neurostim.plugins.eyetracker
       
       tmp = [a./o.cic.screen.xpixels,b./o.cic.screen.ypixels,ones(size(a))];
       
-      % invert manual calibration
-      tmp = tmp*inv(cm);
+      if ~isempty(cm)
+        % invert manual calibration
+        tmp = tmp*inv(cm);
+      end
       
       rx = tmp(:,1);
       ry = tmp(:,2);
