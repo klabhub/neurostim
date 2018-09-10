@@ -15,18 +15,18 @@ c = myRig;
 
 %% ============== Add stimuli ==================
 wn = stimuli.noiserastergrid(c,'grid');
-wn.size = [100,100];          %Dimensionality of raster (30 texels high, 50 wide)
+wn.size = [1,7];          %Dimensionality of raster (30 texels high, 50 wide)
 wn.height = 18;   %Width and height on screen
 wn.width = 18;
-wn.distribution = 'normal'; %Distribution from which luminance values are drawn. 
+wn.distribution = @ramp;%'normal'; %Distribution from which luminance values are drawn. 
 wn.parms = {127 40};          %{mean sd}
 wn.bounds = [0 255];
 wn.frameInterval=16.666;
 
 %Apply a guassian mask
-filt = fspecial('gaussian',wn.size(1),round(wn.size(1)/6));
-filt = (filt-min(filt(:)))/range(filt(:));
-wn.alphaMask = filt;
+% filt = fspecial('gaussian',wn.size(1),round(wn.size(1)/6));
+% filt = (filt-min(filt(:)))/range(filt(:));
+% wn.alphaMask = filt;
 
 f = stimuli.fixation(c,'fix');
 f.X = '@grid.X+sin(fix.frame/60)*8';
@@ -53,3 +53,7 @@ c.order('grid');   %Ignore this for now - we hope to remove the need for this.
 c.subject = 'easyD';
 c.run(myBlock);
 
+function vals = ramp(o)
+%vals = linspace(0,127,o.nRandels);
+vals = ones(1,o.nRandels)*127;
+vals(1) = 255;
