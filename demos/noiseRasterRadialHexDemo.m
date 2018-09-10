@@ -15,19 +15,22 @@ c = myRig; % returns s neurostim @cic object
 % white noise on a hexagonal grid
 h = neurostim.stimuli.noiserasterradialhex(c,'noise');
 h.X = '@fix.X';
-h.innerRad = 1.5;
-h.outerRad = 10.0;
-h.nTiles = 15;
+h.nRadii = 1;
+h.hexRadius = 0.5;
+h.distribution = @ramp;
+% h.innerRad = 1.5;
+% h.outerRad = 10.0;
+% h.nTiles = 15;
 
-h.distribution = 'normal'; % luminance distribution
+%h.distribution = 'normal'; % luminance distribution
 h.parms = {127, 40}; % {mean, sd}
 h.bounds = [0, 255]; % [min, max]
-
+ 
 h.frameInterval = 300.0; % milliseconds
 
-if nargin >= 1
-  h.nTiles = n;
-end
+% if nargin >= 1
+%   h.nTiles = n;
+% end
 
 % h.debug = true;
 
@@ -52,3 +55,5 @@ c.order('fix','noise');
 c.subject = 'easyD';
 c.run(myBlock);
 
+function vals = ramp(o)
+vals = linspace(0,255,o.nRandels);
