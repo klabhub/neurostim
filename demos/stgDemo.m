@@ -29,7 +29,7 @@ ptch.filled       = true;
 ptch.color        = [1 1 0];
 ptch.on           = 0;
 
-stm = stimuli.mcs(c,'stg');
+stm = stimuli.stg(c,'stg');
 %stm.fake = true;   % Set to false if you're connected to a machine with NIC running
 %stm.enabled = true;          
 

@@ -1,8 +1,8 @@
-classdef mcs < neurostim.stimulus
+classdef stg < neurostim.stimulus
     % Plugin used to communicate with the MultiChannel Systems Stimulator
     % (e.g. STG4002).
     %
-    % Constructing the stimulus object will find currently connected MCS
+    % Constructing the stimulus object will find currently connected stg
     % devices on the USB ports. The connection/initialization of the device
     % happens in the beforeExperiment() function; device parameters cannot
     % be changed after that.
@@ -53,6 +53,12 @@ classdef mcs < neurostim.stimulus
     % testing and debugging potential, too.
     %
     % BK - June 2018
+    
+    % Programming Notes
+    %  Currently a 10 second long 10 Hz sine is downloaded in full to the
+    %  device. This can take time. Using continuous mode or repeats would
+    %  be a better way to do this. Not that hard to implement... just
+    %  change the setup Trigger funcion to include the repeats.
     
     properties (SetAccess = protected)
          channelData;  % Cell array with the data last sent to each channel
@@ -152,7 +158,7 @@ classdef mcs < neurostim.stimulus
             delete(o.device);
         end
         
-        function o = mcs(c,name)
+        function o = stg(c,name)
             % Constructor. Only a name needs to be provided. This will
             % link to the first device that is found on the USB port and
             % retrieve its properties. A connection is not yet established.
@@ -160,7 +166,7 @@ classdef mcs < neurostim.stimulus
             % set, before connecting.
             %
             if nargin <2
-                name = 'mcs';
+                name = 'stg';
             end
             o = o@neurostim.stimulus(c,name);
             % Read-only properties
@@ -191,7 +197,7 @@ classdef mcs < neurostim.stimulus
             nrDevices =  o.deviceList.GetNumberOfDevices();
             if nrDevices >1
                 % For now just warn - selection could be added.
-                warning(o,'Found more than one MCS device; using the first one');
+                warning(o,'Found more than one STG device; using the first one');
             end
             
             % Initialize the selected device
@@ -252,7 +258,7 @@ classdef mcs < neurostim.stimulus
         end
         
         function beforeFrame(o)
-             thisEnabled =  neurostim.stimuli.mcs.expandSingleton(o.enabled,o.channel);
+             thisEnabled =  neurostim.stimuli.stg.expandSingleton(o.enabled,o.channel);
              start(o,intersect(find(~o.triggerSent),o.channel(thisEnabled)));
         end
         
@@ -260,7 +266,7 @@ classdef mcs < neurostim.stimulus
         end
         
         function afterTrial(o)            
-            thisPersistent=  neurostim.stimuli.mcs.expandSingleton(o.persistent,o.channel);
+            thisPersistent=  neurostim.stimuli.stg.expandSingleton(o.persistent,o.channel);
             stop(o,o.channel(~thisPersistent));
         end
         
@@ -280,7 +286,7 @@ classdef mcs < neurostim.stimulus
         function mask = chan2mask(o,channels)
             % Convert an array of  base-1 channel number to a channel bit mask
             if any(channels>o.nrChannels | channels<1)
-                error(o.cic,['MCS Channels should be between 1 and ' num2str(o.nrChannels)]);
+                error(o.cic,['stg Channels should be between 1 and ' num2str(o.nrChannels)]);
             end
             mask = uint32(0);
             for c= channels
@@ -293,7 +299,7 @@ classdef mcs < neurostim.stimulus
             % The channels shoudl be a vector of (base -1) channel numbers
              if isempty(channels);return;end
             if ~o.isConnected
-                error(o.cic,'STOPEXPERIMENT','Could not start MCS. Device not connected.'); %#ok<*CTPCT>
+                error(o.cic,'STOPEXPERIMENT','Could not start stg. Device not connected.'); %#ok<*CTPCT>
             else
                 o.device.SendStart(chan2mask(o,channels))
                 o.triggerSent(channels) = true;
@@ -305,7 +311,7 @@ classdef mcs < neurostim.stimulus
             % Channels should be a vector of base-1 channel numbers.
             if isempty(channels);return;end
             if ~o.isConnected
-                error(o.cic,'STOPEXPERIMENT','Could not stop MCS. Device not connected.');
+                error(o.cic,'STOPEXPERIMENT','Could not stop stg. Device not connected.');
             else
                 o.device.SendStop(chan2mask(o,channels))
                 o.triggerSent(channels) = false;
@@ -319,7 +325,7 @@ classdef mcs < neurostim.stimulus
                 o.device  = Mcs.Usb.CStg200xDownloadNet(); % Use download mode
                 o.device.Connect(o.deviceListEntry);
                 if ~o.isConnected
-                    error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' MCS device. Make sure MC Stimulus II is installed on your computer (www.multichannelsystems.com/software/mc-stimulus-ii).']);
+                    error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' stg device. Make sure MC Stimulus II is installed on your computer (www.multichannelsystems.com/software/mc-stimulus-ii).']);
                 end
                 o.device.DisableMultiFileMode(); % Triggers are assigned to channels, not segments. On its own this does not do anything- still need to call setupTrigger code.
             end            
@@ -428,11 +434,11 @@ classdef mcs < neurostim.stimulus
                     end
                     ramp = ones(size(time));
                     if ~isempty(o.rampUp) && o.rampUp>0
-                        stepsInRamp= round((neurostim.stimuli.mcs.expandSingleton(o.rampUp,thisChannel)/1000)/step);
+                        stepsInRamp= round((neurostim.stimuli.stg.expandSingleton(o.rampUp,thisChannel)/1000)/step);
                         ramp(1:stepsInRamp) = linspace(0,1,stepsInRamp);
                     end
                     if ~isempty(o.rampDown) && o.rampDown>0
-                        stepsInRamp= round((neurostim.stimuli.mcs.expandSingleton(o.rampDown,thisChannel)/1000)/step);
+                        stepsInRamp= round((neurostim.stimuli.stg.expandSingleton(o.rampDown,thisChannel)/1000)/step);
                         ramp(end-stepsInRamp+1:end) = linspace(1,0,stepsInRamp);
                     end
                     values = values.*ramp;
@@ -463,8 +469,8 @@ classdef mcs < neurostim.stimulus
                     o.triggerSent(thisChannel) = false;
                     
                     if ~isempty(o.syncOutChannel)
-                        o.device.ClearSyncData(neurostim.stimuli.mcs.expandSingleton(o.syncOutChannel,thisChannel)-1);
-                        o.device.SendSyncData(neurostim.stimuli.mcs.expandSingleton(o.syncOutChannel,thisChannel)-1,uint16(1),1e3*thisDuration);
+                        o.device.ClearSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1);
+                        o.device.SendSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1,uint16(1),1e3*thisDuration);
                     end               
             end
             
@@ -480,14 +486,14 @@ classdef mcs < neurostim.stimulus
         function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled,thisChanged] = channelParms(o,channel)
             % Channel is 1:nrChannels
             ix = find(o.channel == channel);
-            thisDuration = neurostim.stimuli.mcs.expandSingleton(o.duration,ix);
-            thisAmplitude = neurostim.stimuli.mcs.expandSingleton(o.amplitude,ix);
-            thisFrequency = neurostim.stimuli.mcs.expandSingleton(o.frequency,ix);
-            thisPhase = neurostim.stimuli.mcs.expandSingleton(o.phase,ix);
-            thisMean = neurostim.stimuli.mcs.expandSingleton(o.mean,ix);
-            thisFun = neurostim.stimuli.mcs.expandSingleton(o.fun,ix);
-            thisPersistent = neurostim.stimuli.mcs.expandSingleton(o.persistent,ix);
-            thisEnabled = neurostim.stimuli.mcs.expandSingleton(o.enabled,ix);
+            thisDuration = neurostim.stimuli.stg.expandSingleton(o.duration,ix);
+            thisAmplitude = neurostim.stimuli.stg.expandSingleton(o.amplitude,ix);
+            thisFrequency = neurostim.stimuli.stg.expandSingleton(o.frequency,ix);
+            thisPhase = neurostim.stimuli.stg.expandSingleton(o.phase,ix);
+            thisMean = neurostim.stimuli.stg.expandSingleton(o.mean,ix);
+            thisFun = neurostim.stimuli.stg.expandSingleton(o.fun,ix);
+            thisPersistent = neurostim.stimuli.stg.expandSingleton(o.persistent,ix);
+            thisEnabled = neurostim.stimuli.stg.expandSingleton(o.enabled,ix);
             if isnan(o.channelData{channel,1})
                 % Channel data is filled with NaN on startup. So this means
                 % no value has been sent yet. 
