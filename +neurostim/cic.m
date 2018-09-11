@@ -1076,7 +1076,13 @@ classdef cic < neurostim.plugin
         end
         
         function delete(c) %#ok<INUSD>
-            %Destructor. Release all resources. Maybe more to add here?
+            %Destructor. Tricky, because there will be many references to
+            %CIC in each of the plugins etc. So the variable will be
+            %cleared, but the object still exists. This is the reason to
+            %define experiments as functions (so that all plugins and
+            %stimuli go out of scope at the same time on return and nothing remains in the
+            %workspace)
+            
             %Screen('CloseAll');
         end
         
