@@ -55,15 +55,18 @@ classdef mcs < neurostim.stimulus
     % BK - June 2018
     
     properties (SetAccess = protected)
-        device =[]; % handle to the device, once connected.
-        assembly=[]; % The .Net assembly
-        deviceList;  % List of all devices on USB
-        deviceListEntry; % The device in the list that we will connect to (the first one, currently)
-        channelData;  % Cell array with the data last sent to each channel
+         channelData;  % Cell array with the data last sent to each channel
         channelTriggered; % Last trigger time of each channel
         
         trigger=1; % The number of the trigger that is used. (Currently only one that triggers all relevant channels)
         nrRepeatsPerTrigger=1; % 1 for now
+    end
+    
+    properties (SetAccess = protected, Transient)
+        device =[]; % handle to the device, once connected.
+        assembly=[]; % The .Net assembly
+        deviceList;  % List of all devices on USB
+        deviceListEntry; % The device in the list that we will connect to (the first one, currently)
     end
     
     properties (Dependent =true)
