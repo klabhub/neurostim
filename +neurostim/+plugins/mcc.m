@@ -3,14 +3,16 @@ classdef mcc < neurostim.plugin
     % Before using this, run the DaqTest script that is part of PTB to test
     % that your Measurement Computing hardware is working and accessible.
     %
+    % In our setup (Windows 10) I cannot get DaqTest to pass, and yet the
+    % minimal use of the MCC that we need (Digital output) works fine after
+    % installing the mccdaq and running instacal at least once.
+    % 
     % AM: I had to configure the ports as "output" for digitalOut() to
     % work, e.g.
     %       err=DaqDConfigPort(c.mcc.daq,0,0); % port A as output
- 
+    
     
     properties (Constant)
-%         AFTERFRAME=1;
-%         AFTERTRIAL=2;
         ANALOG=0;
         DIGITAL=1;
     end
