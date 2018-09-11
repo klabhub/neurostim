@@ -184,10 +184,11 @@ classdef stg < neurostim.stimulus
             
             
             %% Load the relevant NET assembly
-            here = mfilename('fullpath');
+            [here,~,~] = fileparts(mfilename('fullpath'));
+            SUBDIR = 'MultiChannelSystems'; % Subdir with .dll for MultiChannel Systems devices.
             switch computer
                 case 'PCWIN64'
-                    o.assembly = NET.addAssembly([here '\McsUsbNet.dll']);
+                    o.assembly = NET.addAssembly(fullfile(here,SUBDIR,'McsUsbNet.dll'));
                 otherwise
                     error(['Sorry, the MCS .NET libraries are not available on your platform: ' computer]);
             end
