@@ -15,7 +15,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         prms=struct;          % Structure to store all parameters
     end
     
+    methods (Static, Sealed, Access=protected)
+        function o= getDefaultScalarElement
+            o = neurostim.plugin([],'defaultScalarElement');
+        end
+    end
     methods (Access=public)
+        
         function o=plugin(c,n)
             % Create a named plugin
             if ~isvarname(n)
