@@ -7,7 +7,7 @@ classdef trellis < neurostim.plugin
        
     end
     
-    properties (SetAccess=protected,GetAccess=public)
+    properties (SetAccess=protected,GetAccess=public) 
         experimentStartTime=0;       
         tmr@timer; % Array of timer objects for digouts 1-5 (to handle duration of pulse)
         currentDigout = false(1,neurostim.plugins.trellis.NRDIGOUT); % Track state of digout
@@ -72,6 +72,7 @@ classdef trellis < neurostim.plugin
             o.addProperty('trialStart',[]);
             o.addProperty('trialStop',[]);
             o.addProperty('streamSettings',{});
+            o.addProperty('reconTime',NaN);
             o.addProperty('drive',{}); % Optional - change output drive on the Trellis machine {'Z:\','C:\'} will change the Z:\ in the neurostim file to C:\ for Trellis
             
     % Example (future) streamSettings={{'port','A','channel',1:64,'stream','raw'};
@@ -165,7 +166,7 @@ classdef trellis < neurostim.plugin
             if stat ~= 1; error('Xippmex Did Not Initialize');  end
             
             
-            o.experimentStartTime = xippmex('time')/(o.SAMPLINGFREQ/1000);
+        
             
             %% Define recording & stim electrodes
             % Disabled for now as this only does the streaming not saving.
@@ -229,6 +230,7 @@ classdef trellis < neurostim.plugin
                 end
             end
             o.writeToFeed(['Trellis is now recording to ' o.cic.fullFile])
+            o.reconTime = xippmex('time')/(o.SAMPLINGFREQ/1000);
             
         end
         function afterExperiment(o)
@@ -252,14 +254,14 @@ classdef trellis < neurostim.plugin
             if ~isempty(o.trialBit)
                 digout(o,o.trialBit,true);
             end
-            o.trialStart = (xippmex('time')/(o.SAMPLINGFREQ/1000)-o.experimentStartTime); % Time in ms since experiment started
+            o.trialStart = xippmex('time')/(o.SAMPLINGFREQ/1000); % Time in ms on the ripple clock
         end
         function afterTrial(o)
             % unset trial bit
             if ~isempty(o.trialBit)
                 digout(o,o.trialBit,false);
             end
-            o.trialStop = (xippmex('time')/(o.SAMPLINGFREQ/1000)-o.experimentStartTime); % Time in ms since experiment started
+            o.trialStop = xippmex('time')/(o.SAMPLINGFREQ/1000); % Time in ms on the ripple clock
         end
     end
 end
