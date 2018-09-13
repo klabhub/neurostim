@@ -162,11 +162,9 @@ classdef viewpoint < neurostim.plugins.eyetracker
       end
       o.vp.calibrationtargetwidth = 100*o.clbTargetInnerSize/o.cic.screen.width;
       
-      if ~o.useMouse
-        % initialise connection to Viewpoint on the remote PC
-        Viewpoint('setAddress',o.ipAddress,o.port);
-        Viewpoint('initialize');
-      end
+      % initialise connection to Viewpoint on the remote PC
+      Viewpoint('setAddress',o.ipAddress,o.port);
+      Viewpoint('initialize');
       
       % set sample rate
       if ~any(o.sampleRate == [90,220])
@@ -252,7 +250,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
         
     function beforeTrial(o)
       % do re-calibration if requested
-      if ~o.useMouse && (o.doTrackerSetup || o.doDriftCorrect)
+      if o.doTrackerSetup || o.doDriftCorrect
         % temporarily undo neurostim's transformations so viewpoint-ptb
         % can draw its targets in pixels...
         Screen('glPushMatrix',o.cic.window);

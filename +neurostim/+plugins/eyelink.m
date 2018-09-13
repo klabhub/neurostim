@@ -118,13 +118,9 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             
             %Initialise connection to Eyelink.
-            if ~o.useMouse
-                result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
-            else
-                result =0;
-            end
+            result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
             
-            if result ~=0
+            if result ~= 0
                 o.cic.error('STOPEXPERIMENT','Eyelink failed to initialize');
                 return;
             end
@@ -206,7 +202,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         
         function beforeTrial(o)
             
-            if ~o.useMouse && (o.doTrackerSetup || o.doDriftCorrect)
+            if o.doTrackerSetup || o.doDriftCorrect
                 % Prepare for Eyelink drawing.
                 
                 % The Eyelink toolbox draws its targets in pixels. Undo any
