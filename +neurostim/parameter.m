@@ -325,39 +325,29 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             data = o.log(1:o.cntr);
             time = o.time(1:o.cntr);
-            trialTime= o.eTime2TrialTime(time);
+            trialTime= o.eTime2TrialTime(time); % Time relative to firstFrame event.
             trial = o.eTime2TrialNumber(time);
             block =NaN(1,o.cntr); % Will be computed if requested
             
             %If the parameter is a stored value from flip(), use the data as the time rather than the time it was logged.
             isStimOnOrOff = ismember(o.name,{'startTime','stopTime'}) && isa(o.plg,'neurostim.stimulus');
-            isFirstFrame = strcmp(o.name,'firstFrame') && isa(o.plg,'neurostim.cic');
-            if isFirstFrame
-                %Use zeros instead
-                offset = -trialTime;
-                trialTime = zeros(size(data));
-                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
-            elseif isStimOnOrOff
+            if isStimOnOrOff
                 %Use the stored time values for all entries that were flip synced.
-                newTrialTime = trialTime;
                 tmpData = cell2mat(data);
                 isFlipSynced = ~isinf(tmpData); %Entries that are Inf weren't frame synced
-                newTrialTime(isFlipSynced) = tmpData(isFlipSynced); %Flip time (in trialTime alignment) was stored. Use it.
-                offset = newTrialTime - trialTime;
-                trialTime = newTrialTime;
-                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
-            else
-                offset = zeros(size(data));
+                % starttime /stoptime that was not flip synced wasn't
+                % really a start time (but a bookkeeping before trial start), so let's remove these
+                data(~isFlipSynced) = [];
+                time(~isFlipSynced) = [];
+                trial(~isFlipSynced) = [];
+                block(~isFlipSynced) = [];                              
+                trialTime = tmpData(isFlipSynced); %Flip time (in trialTime alignment) was stored. Use it.                
             end
-            
-            %Apply any offsets to the clock time (so that entire event is back-dated)
-            time = time + offset;
             
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set
             
-            maxTrial = o.plg.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1
-            
+            maxTrial = o.plg.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1            
             if ~isempty(p.Results.atTrialTime) || ~isempty(p.Results.after)
                 % Return values in each trial as they were defined at a
                 % certain time in that trial. By specifying atTrialTime inf,
@@ -454,7 +444,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Note: this is *not* the time of the first frame of the
             %       stimulus on each trial... for that see firstFrameTime()
             %       below.
-            %
+            %       trialTime for events (i.e. one of get()'s outputs) is 
+            %       relative to firstFrameTime, not to this trialStartTime. 
+            % 
             %       Event trialTimes returned by get() are relative to firstFrame 
             tr = [o.plg.cic.prms.trial.log{:}]; % This includes trial=0
             t = o.plg.cic.prms.trial.time;   % Start of the trial            
