@@ -13,11 +13,7 @@ classdef eyetracker < neurostim.plugin
 %   clbTargetColor - calibration target color.
 %   clbTargetSize - calibration target size.
 %   eyeToTrack - one of 'left','right','binocular' or 0,1,2.
-    
-    properties (Access=public)
-        keepExperimentSetup@logical=true;
-    end
-    
+        
     properties
         x@double=NaN; % Should have default values, otherwise behavior checking can fail.
         y@double=NaN;
