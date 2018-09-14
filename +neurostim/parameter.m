@@ -54,8 +54,8 @@ classdef parameter < handle & matlab.mixin.Copyable
         cntr=0;                     % Counter to store where in the log we are.
         capacity=0;                 % Capacity to store in log
         noLog;                      % Set this to true to skip logging
-        sticky;                     % set this to true to make value(s) sticky, i.e., across trials
-        event;                      % set this to true to indicate that this is an event,
+        sticky =false;              % set this to true to make value(s) sticky, i.e., across trials
+        event=false;                % set this to true to indicate that this is an event,
         fun =[];                    % Function to allow across parameter dependencies
         funPrms;
         funStr = '';                % The neurostim function string
@@ -165,11 +165,15 @@ classdef parameter < handle & matlab.mixin.Copyable
             % returned to the next getValue
             o.value = v;
                         
-            if o.noLog 
-               return 
+            if o.noLog || (o.event && (isempty(v) || ~isfinite(v)))
+               return; % Eitehr expliitly marked to not log, or this is an event with an empty or inf time that is not logged.
             end
             
-            % Keep a timed log.
+            if isa(v,'neurostim.plugins.adaptive')
+                v = getValue(v);
+            end
+            
+            %% Fill the log.
             o.cntr=o.cntr+1;
             % Allocate space if needed
             if o.cntr> o.capacity
@@ -177,11 +181,8 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.time      = cat(2,o.time,nan(1,o.BLOCKSIZE));
                 o.capacity = numel(o.log);
             end
-            %% Fill the log.
-            if isa(v,'neurostim.plugins.adaptive')
-                v = getValue(v);
-            end
-            if o.event && ~isempty(v) && isfinite(v)
+            
+            if o.event
                 % Events are only stored if they really occurred (i.e. time
                 % is not empty of inf). The t (time when logging started)
                 % is ignored, and instead we use the value to time the
@@ -192,6 +193,8 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.log{o.cntr}  = v;            
                 o.time(o.cntr) = t; % Avoid the function call to cic.clockTime
             end
+            
+            
         end
         
         function v = getValue(o,~)
@@ -454,7 +457,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function t = firstFrameTime(o)
             % Return the time of the first frame
-            t = [o.plg.cic.prms.firstFrame.log{:}];
+            t = o.plg.cic.prms.firstFrame.time;
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
@@ -534,10 +537,10 @@ classdef parameter < handle & matlab.mixin.Copyable
            if isEvent
                o.event = true;
                % Update the log for consistency with newer versions.
-               out = cellfun(@(x) (isempty(x) || ~isfinite(x)),o.log);
-               o.log(out) = [];
-               o.time = o.log(~out); % Backdate events
+               out = cellfun(@(x) (isempty(x) || ~isfinite(x)),o.log);               
+               o.time = [o.log{~out}]; % Backdate events
                o.log = cell(size(o.time));% No data.
+               o.cntr = numel(o.time);
            else
                o.event = false;
            end
