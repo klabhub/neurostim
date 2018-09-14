@@ -55,6 +55,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         capacity=0;                 % Capacity to store in log
         noLog;                      % Set this to true to skip logging
         sticky;                     % set this to true to make value(s) sticky, i.e., across trials
+        event;                      % set this to true to indicate that this is an event,
         fun =[];                    % Function to allow across parameter dependencies
         funPrms;
         funStr = '';                % The neurostim function string
@@ -72,7 +73,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % nm  - name of parameter
             % h = handle to the corresponding dynprop in the plugin
             % options = .validate = validation function
-            %
+            %           .event  - this is an event parameter
             % Create a parameter for a plugin/stimulu with a name and a value.
             % This is called from plugins.addProperty
             
@@ -95,6 +96,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.validate = options.validate;
             o.noLog = options.noLog;
             o.sticky = options.sticky;
+            o.event  = options.event;
             setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
@@ -179,8 +181,17 @@ classdef parameter < handle & matlab.mixin.Copyable
             if isa(v,'neurostim.plugins.adaptive')
                 v = getValue(v);
             end
-            o.log{o.cntr}  = v;
-            o.time(o.cntr) = t; % Avoid the function call to cic.clockTime
+            if o.event && ~isempty(v) && isfinite(v)
+                % Events are only stored if they really occurred (i.e. time
+                % is not empty of inf). The t (time when logging started)
+                % is ignored, and instead we use the value to time the
+                % event. See stimulus.startTime or cic.firstFrame for
+                % examples.         
+                o.time(o.cntr) = v; % Store the value as the time.                
+            else
+                o.log{o.cntr}  = v;            
+                o.time(o.cntr) = t; % Avoid the function call to cic.clockTime
+            end
         end
         
         function v = getValue(o,~)
@@ -328,43 +339,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             trialTime= o.eTime2TrialTime(time); % Time relative to firstFrame event.
             trial = o.eTime2TrialNumber(time);
             block =NaN(1,o.cntr); % Will be computed if requested
-            
-            %If the parameter is a stored value from flip(), use the data as the time rather than the time it was logged.
-            isStimOnOrOff = ismember(o.name,{'startTime','stopTime'}) && isa(o.plg,'neurostim.stimulus');
-            isFirstFrame = strcmp(o.name,'firstFrame') && isa(o.plg,'neurostim.cic');
-            if isFirstFrame
-                %Use zeros instead                
-                offset = -trialTime;
-                trialTime = zeros(size(data));
-                out = cellfun(@isempty,data);
-                data(out) = [];
-                time(out) = [];
-                trialTime(out) = [];
-                trial(out)  =[];
-                block(out) =[];
-                offset(out) =[];
-                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
-            elseif isStimOnOrOff
-                %Use the stored time values for all entries that were flip synced.
-                tmpData = cell2mat(data);
-                isFlipSynced = ~isinf(tmpData); %Entries that are Inf weren't frame synced
-                newTrialTime = tmpData(isFlipSynced);
-                % starttime /stoptime that was not flip synced wasn't
-                % really a start time (but a bookkeeping before trial start), so let's remove these
-                data(~isFlipSynced) = [];
-                time(~isFlipSynced) = [];
-                trial(~isFlipSynced) = [];
-                block(~isFlipSynced) = [];  
-                offset = newTrialTime-trialTime(isFlipSynced);
-                trialTime = newTrialTime; %Flip time (in trialTime alignment) was stored. Use it.   
-                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
-            else
-                offset = zeros(size(data));
-            end
-            
-            %Apply any offsets to the clock time (so that entire event is back-dated)
-            time = time + offset;
-            
+                       
             
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set
@@ -551,7 +526,21 @@ classdef parameter < handle & matlab.mixin.Copyable
                o.log{1} = [];
                o.time = -Inf;
            end
-
+           
+           % The event property determines what is logged and what is not.
+           % Older files do not have this.
+           isEvent = ismember(o.name,{'startTime','stopTime'}) && isa(o.plg,'neurostim.stimulus') || ...
+                        strcmp(o.name,'firstFrame') && isa(o.plg,'neurostim.cic');         
+           if isEvent
+               o.event = true;
+               % Update the log for consistency with newer versions.
+               out = cellfun(@(x) (isempty(x) || ~isfinite(x)),o.log);
+               o.log(out) = [];
+               o.time = o.log(~out); % Backdate events
+               o.log = cell(size(o.time));% No data.
+           else
+               o.event = false;
+           end
            o = neurostim.parameter(o);
         end
 

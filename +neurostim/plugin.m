@@ -105,8 +105,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);
             p.addParameter('sticky',false,@islogical);
+            p.addParameter('event',false,@islogical); 
             p.parse(varargin{:});
             
+            % Event properties store the true time of occurrence as their
+            % data, only events with a real time as data are logged and the
+            % time is backdated to match the true time of occurence.
             
             if isempty(prop) && isstruct(value)
                 % Special case to add a whole struct as properties (see

@@ -100,8 +100,8 @@ classdef stimulus < neurostim.plugin
             s.addProperty('alwaysOn',false,'validate',@islogical);
             
             %% internally-set properties
-            s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
-            s.addProperty('stopTime',Inf);   % first time the stimulus does NOT appear after being run
+            s.addProperty('startTime',Inf,'event',true);   % first time the stimulus appears on screen
+            s.addProperty('stopTime',Inf,'event',true);   % first time the stimulus does NOT appear after being run
             
             s.rsvp.active= false;
             s.rsvp.design =neurostim.design('dummy');

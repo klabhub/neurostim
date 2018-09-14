@@ -353,8 +353,8 @@ classdef cic < neurostim.plugin
             
             c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
             c.addProperty('frameDrop',[NaN NaN]);
-            c.addProperty('firstFrame',[]);
-            c.addProperty('trialStopTime',[]);
+            c.addProperty('firstFrame',[],'event',true);
+            c.addProperty('trialStopTime',[],'event',true);
             c.addProperty('condition',[]);  % Linear index, specific to a design
             c.addProperty('design',[]);
             c.addProperty('block',0);
@@ -1033,7 +1033,6 @@ classdef cic < neurostim.plugin
                 
                afterBlock(c);
             end %blocks
-            c.trialStopTime = c.clockTime;
             c.stopTime = now;
             
             DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
