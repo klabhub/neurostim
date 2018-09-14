@@ -342,6 +342,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 trialTime(out) = [];
                 trial(out)  =[];
                 block(out) =[];
+                offset(out) =[];
                 data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
             elseif isStimOnOrOff
                 %Use the stored time values for all entries that were flip synced.
