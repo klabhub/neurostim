@@ -331,18 +331,39 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             %If the parameter is a stored value from flip(), use the data as the time rather than the time it was logged.
             isStimOnOrOff = ismember(o.name,{'startTime','stopTime'}) && isa(o.plg,'neurostim.stimulus');
-            if isStimOnOrOff
+            isFirstFrame = strcmp(o.name,'firstFrame') && isa(o.plg,'neurostim.cic');
+            if isFirstFrame
+                %Use zeros instead                
+                offset = -trialTime;
+                trialTime = zeros(size(data));
+                out = cellfun(@isempty,data);
+                data(out) = [];
+                time(out) = [];
+                trialTime(out) = [];
+                trial(out)  =[];
+                block(out) =[];
+                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
+            elseif isStimOnOrOff
                 %Use the stored time values for all entries that were flip synced.
                 tmpData = cell2mat(data);
                 isFlipSynced = ~isinf(tmpData); %Entries that are Inf weren't frame synced
+                newTrialTime = tmpData(isFlipSynced);
                 % starttime /stoptime that was not flip synced wasn't
                 % really a start time (but a bookkeeping before trial start), so let's remove these
                 data(~isFlipSynced) = [];
                 time(~isFlipSynced) = [];
                 trial(~isFlipSynced) = [];
-                block(~isFlipSynced) = [];                              
-                trialTime = tmpData(isFlipSynced); %Flip time (in trialTime alignment) was stored. Use it.                
+                block(~isFlipSynced) = [];  
+                offset = newTrialTime-trialTime(isFlipSynced);
+                trialTime = newTrialTime; %Flip time (in trialTime alignment) was stored. Use it.   
+                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
+            else
+                offset = zeros(size(data));
             end
+            
+            %Apply any offsets to the clock time (so that entire event is back-dated)
+            time = time + offset;
+            
             
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set
