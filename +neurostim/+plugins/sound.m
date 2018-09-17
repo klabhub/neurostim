@@ -3,22 +3,40 @@ classdef sound < neurostim.plugin
     properties (Access=public)
         sampleRate@double = NaN;
     end
-    properties (Access=protected)
+    properties (SetAccess=protected,GetAccess=public)
         paHandle
     end
     
     
     methods (Access=public)
-        function o=sound(c)
+        function o=sound(c,latencyClass)
+            if nargin <2
+                latencyClass = 1; % Latency is a priority
+%   From PsychPortAudio('Open?'): Allows to select how aggressive PsychPortAudio should be about
+% minimizing sound latency and getting good deterministic timing, i.e. how to
+% trade off latency vs. system load and playing nicely with other sound
+% applications on the system. Level 0 means: Don't care about latency, this mode
+% works always and with all settings, plays nicely with other sound applications.
+% Level 1 (the default) means: Try to get the lowest latency that is possible
+% under the constraint of reliable playback, freedom of choice for all parameters
+% and interoperability with other applications. Level 2 means: Take full control
+% over the audio device, even if this causes other sound applications to fail or
+% shutdown. Level 3 means: As level 2, but request the most aggressive settings
+% for the given device. Level 4: Same as 3, but fail if device can't meet the
+% strictest requirements.
+%                 
+            end
             o=o@neurostim.plugin(c,'sound');
+            o.addProperty('latencyClass',latencyClass);
             
             % Sound initialization
-            InitializePsychSound(1);
+            InitializePsychSound(latencyClass>0);
             
             % Opening here instead of beforeExperiment so that the actual
             % sampleRate is available for resampling in classes that use
             % this plugin (e.g. soundFeedback)
-            o.paHandle = PsychPortAudio('Open');            
+            
+            o.paHandle = PsychPortAudio('Open',[], [], latencyClass);
             status = PsychPortAudio('GetStatus', o.paHandle);
             o.sampleRate = status.SampleRate;
             
