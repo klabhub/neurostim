@@ -948,7 +948,11 @@ classdef cic < neurostim.plugin
                         c.frame = c.frame+1;
                         
                         %% Check for end of trial
-                        if c.frame-1 >= ms2frames(c,c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
+                        if ~c.flags.trial || c.frame-1 >= ms2frames(c,c.trialDuration)  
+                            % if trial has ended (based on behaviors for
+                            % instance)
+                            % or if trialDuration has been reached, minus one frame for clearing screen
+                            % We are going to the ITI.
                             c.flags.trial=false; % This will be the last frame.
                             clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
                         else
@@ -964,7 +968,9 @@ classdef cic < neurostim.plugin
                         
                         
                         KbQueueCheck(c);
-                        
+                        % After the KB check, a behavioral requirement
+                        % can have terminated the tria. 
+                        if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
                         
                         startFlipTime = GetSecs; % Avoid function call to clocktime
                         
@@ -1053,7 +1059,7 @@ classdef cic < neurostim.plugin
             end %blocks
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
-            
+            Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
             DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
             Screen('Flip', c.mainWindow);
             
