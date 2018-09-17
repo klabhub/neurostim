@@ -754,6 +754,7 @@ classdef cic < neurostim.plugin
                     msg = c.blocks(c.block).afterMessage;
                 end
                 if ~isempty(msg)
+                    Screen('Flip',c.mainWindow); % Clear screen 
                     DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
                     waitforkey=c.blocks(c.block).afterKeyPress;
                 end
