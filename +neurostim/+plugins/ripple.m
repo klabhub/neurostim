@@ -10,7 +10,7 @@ classdef ripple < neurostim.plugin
     % Properties 
     %   trialBit - which SMA output bit to set to signal the start/stop of a trial
     %               To log this bit, you need to loop it (with a wire) to the 
-    %               digital input.
+    %               digital input. (Base-1)
     %   drive    - Map a drive on the neurostim ccomputer to a different
     %               drive on the computer running Trellis (in case they are not saving
     %               to the same place on a network)

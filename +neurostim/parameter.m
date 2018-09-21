@@ -340,26 +340,34 @@ classdef parameter < handle & matlab.mixin.Copyable
             isStimOnOrOff = ismember(o.name,{'startTime','stopTime'}) && isa(o.plg,'neurostim.stimulus');
             isFirstFrame = strcmp(o.name,'firstFrame') && isa(o.plg,'neurostim.cic');
             if isFirstFrame
-                %Use zeros instead
-                offset = -trialTime;
-                trialTime = zeros(size(data));
-                data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
+                % Trial time for first frame is zero by definition. 
+                % And the experiment time is retrieved from the stored data
+                % (in .firstFrameTime).
+                % The offset between the time when the event occurred
+                % (Screen('Flip')) and the time it was logged is stored as
+                % the data - this can be useful for someone using this.
+                time = o.firstFrameTime;
+                trial= 1:numel(time);
+                offset  = trialTime(2:end); % Store the original 
+                trialTime = zeros(size(time));                
+                block = NaN(size(time));
+                data = num2cell(offset);                
             elseif isStimOnOrOff
-                %Use the stored time values for all entries that were flip synced.
-                newTrialTime = trialTime;
-                tmpData = cell2mat(data);
-                isFlipSynced = ~isinf(tmpData); %Entries that are Inf weren't frame synced
-                newTrialTime(isFlipSynced) = tmpData(isFlipSynced); %Flip time (in trialTime alignment) was stored. Use it.
-                offset = newTrialTime - trialTime;
-                trialTime = newTrialTime;
+                %Adjust the times for all entries that were flip synced to
+                % match the time returned by Screen('Flip')
+                trialTime =cell2mat(data); % This is relative to firstFrame ptbStimOnset
+                ffTime = o.firstFrameTime;
+                time = trialTime + ffTime(trial);
+                out = isinf(trialTime); % The inf's are logging artefacts. Remove.
+                time(out) = [];
+                trial(out)= [];
+                trialTime(out) =[];
+                block(out) = [];                
                 data = cellfun(@(~) NaN,data,'uniformoutput',false); %Replace data with NaNs to force external use of trialTimes and not data
             else
-                offset = zeros(size(data));
+                % Nothing to do
             end
-            
-            %Apply any offsets to the clock time (so that entire event is back-dated)
-            time = time + offset;
-            
+                       
             % Now that we have the raw values, we can remove some of the less
             % usefel ones and fill-in some that were never set
             
@@ -466,7 +474,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         
         function t = firstFrameTime(o)
             % Return the time of the first frame
-            t = [o.plg.cic.prms.firstFrame.log{:}];
+            t = [o.plg.cic.prms.firstFrame.log{:}]; % By using the log we use the stimOnsetTime returned by Screen('flip') on the first frame.
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
