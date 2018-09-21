@@ -348,10 +348,10 @@ classdef parameter < handle & matlab.mixin.Copyable
                 % the data - this can be useful for someone using this.
                 time = o.firstFrameTime;
                 trial= 1:numel(time);
-                offset  = trialTime(2:end); % Store the original 
+                data = num2cell(trialTime(2:end));  % Store the offset (ix 1 is always nonsense) 
                 trialTime = zeros(size(time));                
                 block = NaN(size(time));
-                data = num2cell(offset);                
+                            
             elseif isStimOnOrOff
                 %Adjust the times for all entries that were flip synced to
                 % match the time returned by Screen('Flip')
