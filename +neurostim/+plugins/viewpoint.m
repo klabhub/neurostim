@@ -231,7 +231,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
           newFileName = [o.cic.fullFile '.vpx'];
 
           % open ssh connection... public/private key
-          connection = ssh2_config_publickey(o.ipAddress,o.ssh.username,o.ssh.privateKey);
+          connection = ssh2_config_publickey(o.ipAddress,o.ssh.username,o.ssh.privateKey,'nopass');
 
           % scp file from remote Viewpoint PC
           connection = scp_get(connection,[o.vpxPath,o.vpxFile],o.cic.fullPath);
