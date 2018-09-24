@@ -28,7 +28,7 @@ classdef stimulus < neurostim.plugin
         
     end
     
-    properties (Access=protected)
+    properties (SetAccess=protected, GetAccess=public)
         flags = struct('on',true);
         stimstart = false;
         stimstop = false;
@@ -155,6 +155,7 @@ classdef stimulus < neurostim.plugin
     methods (Access=private)
         
         function s = updateRSVP(s)
+            % Called from baseBeforeFrame only when the stimulus is on.
             %How many frames for item + blank (ISI)?
             nFramesPerItem = s.cic.ms2frames(s.rsvp.duration+s.rsvp.isi);
             %How many frames since the RSVP stream started?
