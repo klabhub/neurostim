@@ -242,7 +242,11 @@ classdef eyelink < neurostim.plugins.eyetracker
                     %                     o.eye = o.el.LEFT_EYE;
                     o.cic.error('STOPEXPERIMENT','eye not available')
                 else
-                    o.eye = available;
+                    if available == 0
+                        o.eye = 'LEFT';
+                    elseif available == 1
+                        o.eye = 'RIGHT';
+                    end
                 end
             end
             
