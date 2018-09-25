@@ -19,7 +19,7 @@ classdef keyResponse < neurostim.behavior
     % keys         - cell array of key characters, e.g. {'a','z'}
     % correctFun   - function that returns the index (into 'keys') of the correct key. Usually a function of some stimulus parameter(s).
     % from         - key press accepted from this time onward
-    % to          - key press allowed until this time
+    % maximumRT     - key press allowed until this time
     %
     % simWhen       - time when a simulated key press will be generated (Defaults  to empty; never)
     % simWhat       - simulated response (given at simWhen)
