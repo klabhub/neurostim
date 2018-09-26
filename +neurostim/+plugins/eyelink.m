@@ -235,14 +235,11 @@ classdef eyelink < neurostim.plugins.eyetracker
             if ~o.isRecording
                 Eyelink('StartRecording');
                 available = Eyelink('EyeAvailable'); % get eye that's tracked
-                if available == o.el.BINOCULAR
-                    o.eye = o.el.LEFT_EYE;
-                elseif available == -1
-                    %                     o.eye = available;
-                    %                     o.eye = o.el.LEFT_EYE;
-                    o.cic.error('STOPEXPERIMENT','eye not available')
-                else
-                    o.eye = available;
+                if available ==-1
+                    % No eye
+                     o.cic.error('STOPEXPERIMENT','eye not available')
+                else                   
+                    o.eye = eye2str(available);
                 end
             end
             
@@ -268,8 +265,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % get the sample in the form of an event structure
                     sample = Eyelink( 'NewestFloatSample');
                     % convert to physical coordinates
-                    [o.x,o.y] = o.cic.pixel2Physical(sample.gx(o.eye+1),sample.gy(o.eye+1));    % +1 as accessing MATLAB array
-                    o.pupilSize = sample.pa(o.eye+1);
+                    eyeNr = str2eye(o,o.eye);                    
+                    [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
+                    o.pupilSize = sample.pa(eyeNr+1);
                     o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;
                 end %
             end
@@ -313,9 +311,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.commands= {};
             else
                 o.commands = cat(2,o.commands,{commandStr});
-                if ~isempty(strfind(upper(commandStr),'LINK_SAMPLE_DATA'))
+                if ~isempty(strfind(upper(commandStr),'LINK_SAMPLE_DATA')) %#ok<STREMP>
                     o.getSamples = true;
-                elseif ~isempty(strfind(upper(commandStr),'LINK_EVENT_DATA'))
+                elseif ~isempty(strfind(upper(commandStr),'LINK_EVENT_DATA')) %#ok<STREMP>
                     o.getEvents = true;
                 end
             end
@@ -340,6 +338,25 @@ classdef eyelink < neurostim.plugins.eyetracker
                     o.doDriftCorrect = true;
             end
         end
+       
+        function str  = eye2str(o,eyeNr)
+            % Convert an eyelink number to a string that identifies the eye
+            % Matching with plugnis.eyetracker)
+            eyes = {'LEFT','RIGHT','BOTH'};
+            eyeNrs = [o.el.LEFT_EYE,o.el.RIGHT_EYE,o.el.BINOCULAR];
+            str = eyes{eyeNr ==eyeNrs};                
+        end
         
+       function nr = str2eye(o,eye)
+            % Convert a string that identifies the eye
+            %  to an eyelink number
+            eyes = {'LEFT','RIGHT','BOTH','BINOCULAR'};            
+            eyeNrs = [o.el.LEFT_EYE,o.el.RIGHT_EYE,o.el.BINOCULAR,o.el.BINOCULAR];
+            nr = eyeNrs(strcmpi(eye,eyes));                
+        end
+        
+        
+     
     end
+    
 end
