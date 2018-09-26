@@ -71,7 +71,7 @@ g.Y = 0;
 g.from = 2000;       % If fixation has not started at this time, move to the next trial
 g.to = '@dots.stopTime'; 
 g.choiceDuration   = 500;  % keep fixating the answer dot for this long
-g.saccadeDuration  = 1000; % Time allowed to go from the fixation ot the choice, after .to
+g.saccadeDuration  = 1000; % Time allowed to go from the fixation of the choice, after .to
 g.radius = 5;
 g.angles = [-90 90];  % These two angles are choice targets
 g.correctFun = '@find(dots.direction==fixThenChoose.angles)'; % Return the ix of the correct angle
