@@ -94,7 +94,7 @@ classdef (Abstract) behavior <  neurostim.plugin
         
         function v=get.duration(o)
             % Duration of the current state
-            v= o.cic.trialTime -startTime(o,o.stateName);
+            v= o.cic.trialTime -startTime(o,o.stateName);            
         end
         
         function v = get.stateName(o)
@@ -112,7 +112,7 @@ classdef (Abstract) behavior <  neurostim.plugin
         end
 
         function v = get.stopTime(o)
-            v = min(startTime(o,'FAIL'),startTime(o,'SUCCESS')); % At least one will be NaN             
+            v = min(startTime(o,'FAIL'),startTime(o,'SUCCESS')); % At least one will be inf             
         end
         
         
@@ -259,7 +259,7 @@ classdef (Abstract) behavior <  neurostim.plugin
             % This state's startTime was logged 
             v = o.iStartTime(s);        
         else
-            v= NaN;
+            v= Inf;
         end
     end
      end
