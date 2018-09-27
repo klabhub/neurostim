@@ -198,7 +198,7 @@ classdef (Abstract) behavior <  neurostim.plugin
             
             o.event = e; % Log the event driving the transition.
             
-            
+            previousStateName = o.stateName;
             %Tear down old state
             if ~isempty(o.currentState)
                 e.type = neurostim.event.EXIT; % Change the type
@@ -213,8 +213,13 @@ classdef (Abstract) behavior <  neurostim.plugin
             % Switch to new state and log the new name
             o.currentState = state; % Change the state
             oStateName = o.stateName;
+            
             o.state = oStateName; % Log time/state transition            
             o.iStartTime(oStateName) = o.cic.trialTime;
+            
+            if strcmpi(previousStateName,oStateName)
+                o.cic.error('STOPEXPERIMENT',['State ' previousStateName ' calls itself recursiuvely... that cannot end well!']);
+            end
             
             if o.verbose
                 o.writeToFeed(['Transition to ' o.state]);
