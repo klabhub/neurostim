@@ -96,7 +96,8 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
                 o.choice  = choiceXY;
                 return; %Done with setup/entry code
             end % regular only - no exit
-            if ~e.isRegular ;return;end
+           
+            if ~e.isRegular ;return;end % Not handling exit events
             
             % Guards
             inChoice = isInWindow(o,e,o.choice); % Check that we're still in the window around the original choice
