@@ -5,12 +5,13 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
     %              -> FIXATING when the eye moves inside the window
     %              ->FAIL  if t>t.from
     %               ->FAIL afterTrial
-    % FIXATING    -> FAIL if eye moves outside the window before t.to or
-    %                       does not reach CHOOSE before o.choiceFrom
+    % FIXATING    -> FAIL if eye moves outside the window before o.to or
+    %                       does not reach CHOOSE before
+    %                       o.to+o.saccadeDuration
     %             -> CHOOSE  if eye moves to the choice targets between
-    %                   t.to and t.choiceFrom.
+    %                   o.to and o.saccadeDuration
     %               ->FAIL afterTrial
-    % CHOOSE     -> FAIL if the eye leaves the first choice sooner than o.chooseDuration
+    % CHOOSE     -> FAIL if the eye leaves the first choice sooner than o.chiceDuration
     %            -> SUCCESS if the eye is still withion o.tolerance of the
     %            choice after o.choiceDuration and the choice was correct.
     %             -> SUCCESS if afterTrial and correct choice

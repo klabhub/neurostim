@@ -113,13 +113,13 @@ switch computerName
         smallWindow = false;      
         c.eye.sampleRate  = 250;
   case 'PC2017A'
-        scrNr = min(Screen('screens'));
+        scrNr = 1;%max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
         c.useConsoleColor = true;
-        Screen('Preference', 'SkipSyncTests', 2);
-        smallWindow = true;
+        %Screen('Preference', 'SkipSyncTests', 2);
+        smallWindow = false;
         
     case 'NEUROSTIMA2018'
         scrNr = max(Screen('screens'));

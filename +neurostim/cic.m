@@ -641,7 +641,7 @@ classdef cic < neurostim.plugin
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
                 if c.PROFILE
-                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'AFTEREXPERIMENT',[],'cntr',0);
+                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'AFTEREXPERIMENT',[],'cntr',0);
                 end
             end
             
@@ -1670,8 +1670,7 @@ classdef cic < neurostim.plugin
                 % No drops
                 title 'No Drops';
                 return
-            end
-            val = cat(1,val{:});
+            end           
             delta =1000*val(:,2); % How much too late...
             slack = 0.2;
             [~,~,criticalStart] = get(c.prms.firstFrame,'atTrialTime',inf);
@@ -1693,7 +1692,7 @@ classdef cic < neurostim.plugin
             nrBins = max(10,round(numel(ti)/10));
             
             histogram(ti-criticalStart(tr),nrBins,'BinLimits',[-slack*meanDuration (1+slack)*meanDuration]);%,tBins)
-            
+             
             xlabel 'Time from trial start (ms)'
             ylabel '#drops'
             
@@ -1713,7 +1712,7 @@ classdef cic < neurostim.plugin
             BLOCKSIZE = 1500;
             c.profile.(name).cntr = c.profile.(name).cntr+1;
             thisCntr = c.profile.(name).cntr;
-            if thisCntr > numel(c.profile.(name).(what))
+             if thisCntr > numel(c.profile.(name).(what))
                 c.profile.(name).(what) = [c.profile.(name).(what) nan(1,BLOCKSIZE)];
             end
             c.profile.(name).(what)(thisCntr) =  duration;
