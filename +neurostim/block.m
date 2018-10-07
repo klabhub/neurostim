@@ -184,7 +184,7 @@ classdef block < dynamicprops
         end
         
         function afterTrial(o,c)
-            allBehaviors  = behaviors(c);
+            allBehaviors  = c.behaviors;
             success = true;
             for i=1:numel(allBehaviors)
                 success = success && (~allBehaviors(i).required || allBehaviors(i).isSuccess);

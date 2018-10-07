@@ -132,7 +132,10 @@ classdef (Abstract) behavior <  neurostim.plugin
             o.currentState(o.cic.trialTime,neurostim.event(neurostim.event.AFTERTRIAL))
         end
         function beforeFrame(o)
-            if o.isOn
+            % Not using cic.trialTime or o.isOn here to squeeze the last
+            % microseconds out of the code.
+            t = (o.cic.frame-1)*1000/o.cic.screen.frameRate;            
+            if t>o.on && t < o.off
                 e= getEvent(o);% Get current events
                 if e.isRegular
                     % Only regular events are sent out by this dispatcher,
@@ -141,7 +144,7 @@ classdef (Abstract) behavior <  neurostim.plugin
                     % Derived classes can use NOOP events to indicate they
                     % should not be distributed to states (i.e. a no-op
                     % instruction).
-                    o.currentState(o.cic.trialTime,e);  % Each state is a member function- just pass the event
+                    o.currentState(t,e);  % Each state is a member function- just pass the event
                 end
             end
         end

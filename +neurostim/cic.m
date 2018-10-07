@@ -108,6 +108,8 @@ classdef cic < neurostim.plugin
     properties (Dependent)
         nrStimuli;      % The number of stimuli currently in CIC
         nrPlugins;      % The number of plugins (Excluding stimuli) currently inCIC
+        nrBehaviors     % The number of behaviors in the CIC
+        behaviors       % A plugin array consisting of only the behaviors.
         nrConditions;   % The number of conditions in this block
         nrBlocks;       % The number of blocks in this experiment
         nrTrials;       % The number of trials in the current block
@@ -142,6 +144,16 @@ classdef cic < neurostim.plugin
         
         function v= get.nrPlugins(c)
             v= length(c.plugins);
+        end
+        
+        function v = get.behaviors(c)
+            fun = @(x) (isa(x,'neurostim.behavior'));
+            isBehavior =arrayfun(fun,c.plugins);
+            v = c.plugins(isBehavior);
+        end
+        
+        function v  = get.nrBehaviors(c)
+            v = numel(c.behaviors);
         end
         
         function v= get.nrBlocks(c)
@@ -595,11 +607,7 @@ classdef cic < neurostim.plugin
             plgs = c.plugins(stay);
         end
         
-        function behs = behaviors(c)
-            allClasses = arrayfun(@class,c.plugins,'uniformoutput',false);
-            stay = ~cellfun(@isempty,regexp(allClasses,'\.behaviors\.'));
-            behs= c.plugins(stay);
-        end
+   
         
         function disp(c)
             % Provide basic information about the CIC
@@ -641,7 +649,7 @@ classdef cic < neurostim.plugin
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
                 if c.PROFILE
-                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'AFTEREXPERIMENT',[],'cntr',0);
+                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'AFTEREXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'cntr',0);
                 end
             end
             
@@ -1663,12 +1671,11 @@ classdef cic < neurostim.plugin
                     plot(1000./c.screen.frameRate*ones(1,2),ylim,'r')
                 end
             end
-            %% Framedrop report
-            figure('Name',[c.file ' - framedrop report'])
+            %% Framedrop report 
             [val,tr,ti,eTi] = get(c.prms.frameDrop);
             if size(val,1)==1
                 % No drops
-                title 'No Drops';
+                disp('*** No Framedrops!***');
                 return
             end           
             delta =1000*val(:,2); % How much too late...
@@ -1677,6 +1684,10 @@ classdef cic < neurostim.plugin
             [~,~,criticalStop] = get(c.prms.trialStopTime,'atTrialTime',inf);
             meanDuration = nanmean(criticalStop-criticalStart);
             out = (ti<(criticalStart(tr)-slack*meanDuration) | ti>(criticalStop(tr)+slack*meanDuration));
+            
+            
+            figure('Name',[c.file ' - framedrop report for stimuli'])
+            
             for i=1:c.nrStimuli
                 subplot(c.nrStimuli+2,1,i)
                 [~,~,stimstartT] = get(c.stimuli(i).prms.startTime,'atTrialTime',inf);
@@ -1704,6 +1715,31 @@ classdef cic < neurostim.plugin
             title(['median = ' num2str(nanmedian(delta))])
             xlabel 'Delta (ms)'
             ylabel '#drops'
+            
+            if c.nrBehaviors>0
+            
+            figure('Name',[c.file ' - framedrop report for behavior state changes'])
+            B = c.behaviors;
+            nrB = numel(B);
+            colors = 'rgbcmyk';
+            for i=1:nrB
+                subplot(nrB,1,i)
+                [state,stateTrial,stateStartT] = get(B(i).prms.state,'atTrialTime',[],'withDataOnly',true);
+                uStates = unique(state);
+                relativeTime  = ti(stateTrial)-stateStartT; 
+                for s=1:numel(uStates)
+                    thisState = ismember(state,uStates{s});
+                    plot(relativeTime(thisState),stateTrial(thisState),['.' colors(s)]);
+                    hold on
+                end
+                xlabel('Time from State start (ms)')
+                ylabel 'Trial'
+                title ([B(i).name '- State Transitions INTO'])
+                set(gca,'YLim',[0 max(stateTrial)+1],'YTick',1:max(stateTrial),'XLIm',[-slack*meanDuration (1+slack)*meanDuration])
+                legend (uStates)
+            end
+           
+            end            
             
         end
         
