@@ -1089,7 +1089,7 @@ classdef cic < neurostim.plugin
         end
         
         function clearOverlay(c,clear)
-            if clear
+            if clear && ~isempty(c.overlayWindow)
                 Screen('FillRect', c.overlayWindow,0,c.overlayRect); % Fill with zeros
             end
         end
@@ -1530,12 +1530,13 @@ classdef cic < neurostim.plugin
             end
             %% Open the window
             c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
-            
+            c.textWindow = c.mainWindow; % By default - changed below if needed.
             
             %% Perform initialization that requires an open window
             switch upper(c.screen.type)
                 case 'GENERIC'
                     % nothing to do
+                    
                 case 'VPIXX-M16'
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
