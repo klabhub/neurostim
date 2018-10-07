@@ -35,8 +35,8 @@ f=stimuli.fixation(c,'fix');    %Add a fixation stimulus object (named "fix") to
 f.shape = 'CIRC';               %The seemingly local variable "f" is actually a handle to the stimulus in CIC, so can alter the internal stimulus by modifying "f".               
 f.size = 0.25;
 f.color = [1 0 0];
-f.on=0;                         %What time should the stimulus come on? (all times are in ms)
-f.duration = 3000;              %How long should it be displayed?
+f.on =0;                         %What time should the stimulus come on? (all times are in ms)
+f.duration = '@dots.stopTime';  % Turn off with the dots.
 
 u = duplicate(f,'up');          % Dot for upward choices.
 u.Y = 5;                    
@@ -71,11 +71,11 @@ g.Y = 0;
 g.from = 2000;       % If fixation has not started at this time, move to the next trial
 g.to = '@dots.stopTime'; 
 g.choiceDuration   = 500;  % keep fixating the answer dot for this long
-g.saccadeDuration  = 1000; % Time allowed to go from the fixation ot the choice, after .to
+g.saccadeDuration  = 1000; % Time allowed to go from the fixation of the choice, after .to
 g.radius = 5;
 g.angles = [-90 90];  % These two angles are choice targets
 g.correctFun = '@find(dots.direction==fixThenChoose.angles)'; % Return the ix of the correct angle
-g.tolerance = 3;
+g.tolerance = 1;
 g.failEndsTrial = true;
 g.successEndsTrial  = true;
 
@@ -87,7 +87,7 @@ plugins.sound(c);           %Use the sound plugin
 % Add correct/incorrect feedback
 s= plugins.soundFeedback(c,'soundFeedback');
 s.add('waveform','correct.wav','when','afterTrial','criterion','@fixThenChoose.isSuccess');
-s.add('waveform','incorrect.wav','when','afterTrial','criterion','@~fixThenChoose.isSuccess');
+s.add('waveform','incorrect.wav','when','afterTrial','criterion','@ ~fixThenChoose.isSuccess');
 
 %% Experimental design
 c.trialDuration = inf;                        % Trials are infinite, but the saccade behavior ends the trial on success or fail.

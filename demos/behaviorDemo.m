@@ -65,7 +65,7 @@ d.noiseMode = 1;
 k = behaviors.keyResponse(c,'choice');
 % or this if you want to allow subjects to change their mind:
 %k = behaviors.multiKeyResponse(c,'choice');
-k.from = '@dots.on + dots.duration';
+k.from = '@dots.startTime + dots.duration';
 k.maximumRT= 2000;                   %Maximum allowable RT is 2000ms
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
 k.correctFun = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)

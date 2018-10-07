@@ -5,14 +5,15 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
     %              -> FIXATING when the eye moves inside the window
     %              ->FAIL  if t>t.from
     %               ->FAIL afterTrial
-    % FIXATING    -> FAIL if eye moves outside the window before t.to or
-    %                       does not reach CHOOSE before o.choiceFrom
+    % FIXATING    -> FAIL if eye moves outside the window before o.to or
+    %                       does not reach CHOOSE before
+    %                       o.to+o.saccadeDuration
     %             -> CHOOSE  if eye moves to the choice targets between
-    %                   t.to and t.choiceFrom.
+    %                   o.to and o.saccadeDuration
     %               ->FAIL afterTrial
-    % CHOOSE     -> FAIL if the eye leaves the first choice sooner than o.chooseDuration
+    % CHOOSE     -> FAIL if the eye leaves the first choice sooner than o.chiceDuration
     %            -> SUCCESS if the eye is still withion o.tolerance of the
-    %            choice after o.choiseDuration and the choice was correct.
+    %            choice after o.choiceDuration and the choice was correct.
     %             -> SUCCESS if afterTrial and correct choice
     % Note that **even before t< o.from**, the eye has to remain 
     % in the window once it is in there (no in-and-out privileges)
@@ -74,7 +75,7 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
             
         % Define the choose state by coding all its transitions            
         function choose(o,t,e) 
-             if e.isEntry
+             if e.isEntry                
                 % First time entering the Choose state.                 
                 oAngles = o.angles;
                 if numel(oAngles)==0
@@ -96,6 +97,8 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
                 o.choice  = choiceXY;
                 return; %Done with setup/entry code
             end % regular only - no exit
+           
+            if ~e.isRegular ;return;end % Not handling exit events
             
             % Guards
             inChoice = isInWindow(o,e,o.choice); % Check that we're still in the window around the original choice

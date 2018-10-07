@@ -13,8 +13,8 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
     %% Parameters:
     % keys         - cell array of key characters: {'r','g','b','y','w'} - the keys correspond to the colors of the buttons
     % correctFun   - function that returns the index (into 'keys') of the correct key. Usually a function of some stimulus parameter(s).
-    % from          - key press allowed from this time onward
-    % to          - key press allowed until this time
+    % from         - key press accepted from this time onward
+    % maximumRT     - key press allowed until this time
     %
     % simWhen       - time when a simulated key press will be generated (Defaults  to empty; never)
     % simWhat       - simulated response (given at simWhen)

@@ -31,6 +31,17 @@ classdef gabor < neurostim.stimulus
         shader;
         textureRect;
     end
+   
+    
+    methods (Static)
+        function v = tfToPhaseSpeed(tf,framerate)
+            % Convert temporal frequency in Hz to appropriate phase speed.
+            v = 2*pi*framerate*tf;
+        end
+        function v = phaseSpeedToTf(sp)
+            v = sp/(2*pi*framerate);
+        end        
+    end
     
     methods
         function o =gabor(c,name)
