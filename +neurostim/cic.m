@@ -1028,9 +1028,9 @@ classdef cic < neurostim.plugin
                         else
                             if missed>ITSAMISS
                                 c.frameDrop = [c.frame-1 missed]; % Log frame and delta
-                                if c.guiOn
-                                    c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
-                                end
+%                                 if c.guiOn
+%                                     c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
+%                                 end
                             end
                         end
                         
@@ -1082,6 +1082,7 @@ classdef cic < neurostim.plugin
             c.saveData;
             
             ListenChar(0);
+            Priority(0);
             if c.keyAfterExperiment; c.writeToFeed({'','This is the end... Press any key to continue',''}); KbWait(c.kbInfo.pressAnyKey);end
             
             Screen('CloseAll');
@@ -1687,7 +1688,7 @@ classdef cic < neurostim.plugin
                 end
             end
             %% Framedrop report 
-            [val,tr,ti,eTi] = get(c.prms.frameDrop);
+            [val,tr,ti,eTi] = get(c.prms.frameDrop,'atTrialTime',[]);
             if size(val,1)==1
                 % No drops
                 disp('*** No Framedrops!***');

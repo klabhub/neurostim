@@ -162,7 +162,7 @@ classdef gabor < neurostim.stimulus
         
         function createProcGabor(o)
             % Copied from PTB
-            debuglevel = 1;
+            debuglevel = 0;
             % Global GL struct: Will be initialized in the LoadGLSLProgramFromFiles
             global GL;
             % Make sure we have support for shaders, abort otherwise:
