@@ -118,7 +118,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             if ~isempty(o.host)
                 Eyelink('SetAddress',o.host);
-            end            
+            end
             %Initialise connection to Eyelink.
             if ~o.useMouse
                 result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
@@ -136,7 +136,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             % Tell eyelink about the o.el properties we just set.
             PsychEyelinkDispatchCallback(o.el);
             
-            %Tell Eyelink about the pixel coordinates    
+            %Tell Eyelink about the pixel coordinates
             rect=Screen(o.window,'Rect');
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
             Eyelink('Command', 'calibration_type = %s',o.clbType);
@@ -189,7 +189,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 for i=1:o.nTransferAttempts
                     writeToFeed(o,'Attempting to receive Eyelink edf file');
                     
-                     status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
+                    status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
                     if status>0
                         o.edfFile = newFileName;
                         writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
@@ -237,9 +237,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                 available = Eyelink('EyeAvailable'); % get eye that's tracked
                 if available ==-1
                     % No eye
-                     o.cic.error('STOPEXPERIMENT','eye not available')
-                else                   
-                    o.eye = eye2str(available);
+                    o.cic.error('STOPEXPERIMENT','eye not available')
+                else
+                    o.eye = eye2str(o,available);
                 end
             end
             
@@ -265,7 +265,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % get the sample in the form of an event structure
                     sample = Eyelink( 'NewestFloatSample');
                     % convert to physical coordinates
-                    eyeNr = str2eye(o,o.eye);                    
+                    eyeNr = str2eye(o,o.eye);
                     [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
                     o.pupilSize = sample.pa(eyeNr+1);
                     o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;
@@ -338,25 +338,25 @@ classdef eyelink < neurostim.plugins.eyetracker
                     o.doDriftCorrect = true;
             end
         end
-       
+        
         function str  = eye2str(o,eyeNr)
             % Convert an eyelink number to a string that identifies the eye
             % Matching with plugnis.eyetracker)
             eyes = {'LEFT','RIGHT','BOTH'};
             eyeNrs = [o.el.LEFT_EYE,o.el.RIGHT_EYE,o.el.BINOCULAR];
-            str = eyes{eyeNr ==eyeNrs};                
+            str = eyes{eyeNr ==eyeNrs};
         end
         
-       function nr = str2eye(o,eye)
+        function nr = str2eye(o,eye)
             % Convert a string that identifies the eye
             %  to an eyelink number
-            eyes = {'LEFT','RIGHT','BOTH','BINOCULAR'};            
+            eyes = {'LEFT','RIGHT','BOTH','BINOCULAR'};
             eyeNrs = [o.el.LEFT_EYE,o.el.RIGHT_EYE,o.el.BINOCULAR,o.el.BINOCULAR];
-            nr = eyeNrs(strcmpi(eye,eyes));                
+            nr = eyeNrs(strcmpi(eye,eyes));
         end
         
         
-     
+            
     end
     
 end
