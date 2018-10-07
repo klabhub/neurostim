@@ -9,6 +9,23 @@ classdef eyelink < neurostim.plugins.eyetracker
     % than the main cic.screen.color.background during calibration
     % then set c.eye.backgroundColor.
     %
+    % Use with non RGB color modes.
+    % 
+    % Eyelink toolbox can only draw to the main window, this complicates
+    % working with VPIxx and similar devices. 
+    % All drawing of graphics (calibration donut, the camera image) uses
+    % commands that are processed by the PTB pipeline. Therefore, if you
+    % are in LUM mode (i.e. a single number specifies the gray scale
+    % luminance of the pixel), you should specify eye.backroundColor etc in the same 
+    % format. 
+    % Text, however, is problematic as it does not appear to go through the
+    % pipeline (not an Eyelink specific issue), and becuase you cannot tell
+    % Eylink to write text to an overlay, you cannot use an overlay's
+    % indices either. I have not found a solution to this, and have just
+    % accepted for now that the text will appear black/dark grey in VPIXX  M16
+    % mode (BK - Oct 2018). Usually not critical anyway.
+    %
+    %
     % Properties
     %   getSamples - if true, stores eye position/sample validity on every frame.
     %   getEvents - if true, stores eye event data in eyeEvts.
@@ -105,9 +122,14 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % then use screen background
                 o.backgroundColor = o.cic.screen.color.background;
             end
+            if isempty(o.foregroundColor)
+                o.foregroundColor = o.cic.screen.color.text;
+            end
             o.el.backgroundcolour  = o.backgroundColor;
-            o.el.calibrationtargetcolour = o.clbTargetColor;
-            o.el.msgfontcolour = o.cic.screen.color.text;
+            o.el.foregroundcolour  = o.foregroundColor;
+            o.el.msgfontcolour = o.foregroundColor;
+            o.el.imgtitlecolour = o.foregroundColor;
+            o.el.calibrationtargetcolour = o.clbTargetColor;            
             
             o.el.calibrationtargetsize = o.clbTargetSize/o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)

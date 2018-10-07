@@ -71,6 +71,8 @@ classdef cic < neurostim.plugin
         %% Program Flow
         mainWindow = []; % The PTB window
         overlayWindow =[]; % The color overlay for special colormodes (VPIXX-M16)
+        overlayRect = [];
+        textWindow = []; % This is either the main or the overlay, depending on the mode.
         stage@double;
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         
@@ -745,12 +747,13 @@ classdef cic < neurostim.plugin
             base(c.pluginOrder,neurostim.stages.BEFOREBLOCK,c);
             % Draw block message and wait for keypress if requested.
             if ~isempty(msg)
-                DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
+                DrawFormattedText(c.textWindow,msg,'center','center',c.screen.color.text);
             end
             Screen('Flip',c.mainWindow);
             if waitForKey
                 KbWait(c.kbInfo.pressAnyKey,2);
             end
+            clearOverlay(c,true);
         end
         
         function afterBlock(c)
@@ -763,7 +766,7 @@ classdef cic < neurostim.plugin
                 end
                 if ~isempty(msg)
                     Screen('Flip',c.mainWindow); % Clear screen 
-                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
+                    DrawFormattedText(c.textWindow,msg,'center','center',c.screen.color.text);
                     waitforkey=c.blocks(c.block).afterKeyPress;
                 end
                 if ~isempty(c.blocks(c.block).afterFunction)
@@ -780,7 +783,7 @@ classdef cic < neurostim.plugin
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
-            
+                clearOverlay(c,true);            
         end
         
         function beforeTrial(c)
@@ -890,14 +893,15 @@ classdef cic < neurostim.plugin
             
             %% Start preparation in all plugins.
             c.window = c.mainWindow; % Allows plugins to use .window
+            locHAVEOVERLAY = ~isempty(c.overlayWindow);
             showCursor(c);
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
-            DrawFormattedText(c.mainWindow,c.beforeExperimentText, 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);            
-            Screen('Flip', c.mainWindow);
+            DrawFormattedText(c.textWindow,c.beforeExperimentText, 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);            
+            Screen('Flip', c.mainWindow);            
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
-            c.flags.experiment = true;
-            
+            clearOverlay(c,true);
+            c.flags.experiment = true;            
             FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
             if c.timing.vsyncMode==0
                 % If beamposition queries are working, then the time
@@ -919,10 +923,7 @@ classdef cic < neurostim.plugin
             end
             locPROFILE      = c.PROFILE;
             frameDeadline   = NaN;
-            locHAVEOVERLAY = ~isempty(c.overlayWindow);
-            if locHAVEOVERLAY
-                locOVERLAYRECT = Screen('Rect',c.overlayWindow)-[c.screen.xpixels/2 c.screen.ypixels/2 c.screen.xpixels/2 c.screen.ypixels/2]; % Need this to clear with FillRect
-            end
+           
             %ListenChar(-1);
             for blockCntr=1:c.nrBlocks
                 c.flags.block = true;
@@ -943,6 +944,9 @@ classdef cic < neurostim.plugin
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
                             Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            if locHAVEOVERLAY
+                                clearOverlay(c,c.itiClear);
+                            end
                         end
                     end
                     
@@ -995,7 +999,7 @@ classdef cic < neurostim.plugin
                         % Start (or schedule) the flip
                         [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
                         if clr && locHAVEOVERLAY
-                            Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
+                            clearOverlay(c,true);
                         end
                         
                         if c.timing.vsyncMode==0
@@ -1049,9 +1053,7 @@ classdef cic < neurostim.plugin
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
-                    if c.itiClear && locHAVEOVERLAY
-                        Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
-                    end
+                    clearOverlay(c,c.itiClear);                    
                     c.trialStopTime = ptbStimOn*1000;
                     
                     c.frame = c.frame+1;
@@ -1069,7 +1071,8 @@ classdef cic < neurostim.plugin
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
-            DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
+            clearOverlay(c,true);               
+            DrawFormattedText(c.textWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
             Screen('Flip', c.mainWindow);
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
@@ -1080,10 +1083,16 @@ classdef cic < neurostim.plugin
             
             ListenChar(0);
             if c.keyAfterExperiment; c.writeToFeed({'','This is the end... Press any key to continue',''}); KbWait(c.kbInfo.pressAnyKey);end
+            
             Screen('CloseAll');
             if c.PROFILE; report(c);end
         end
         
+        function clearOverlay(c,clear)
+            if clear
+                Screen('FillRect', c.overlayWindow,0,c.overlayRect); % Fill with zeros
+            end
+        end
         function saveData(c)
             filePath = horzcat(c.fullFile,'.mat');
             save(filePath,'c');
@@ -1536,7 +1545,12 @@ classdef cic < neurostim.plugin
                         % luminance.
                         c.writeToFeed(['****You can safely ignore the message about '' clearcolor'' that just appeared***']);
                     end
-                    c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
+                    % Create an overlay window to show colored items such
+                    % as a fixation point, or text.
+                    c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);                    
+                    c.overlayRect =  Screen('Rect',c.overlayWindow);
+                    c.textWindow = c.overlayWindow;
+                    Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
                     updateOverlay(c,c.screen.overlayClut);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
