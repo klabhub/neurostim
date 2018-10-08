@@ -18,8 +18,9 @@ classdef keyResponse < neurostim.behavior
     %% Parameters:
     % keys         - cell array of key characters, e.g. {'a','z'}
     % correctFun   - function that returns the index (into 'keys') of the correct key. Usually a function of some stimulus parameter(s).
-    % from         - key press accepted from this time onward
-    % to          - key press allowed until this time
+    % from         - key press accepted from this time onward, and the
+    %                   maximumRT is measured from this point 
+    % maximumRT     - key press allowed until this time
     %
     % simWhen       - time when a simulated key press will be generated (Defaults  to empty; never)
     % simWhat       - simulated response (given at simWhen)
@@ -113,12 +114,13 @@ classdef keyResponse < neurostim.behavior
             if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % No Entry/exit needed.         
             %Guards
-            tooLate = o.duration>o.maximumRT;
+            
+            tooLate = (o.cic.trialTime-o.from)>o.maximumRT;
             noKey = isempty(e.key); % hack - checek whether this is a real key press or just passage of time
             correct = e.correct;                       
-            
-            if tooLate 
-                transition(o,@o.fail,e);  %No key received this trial
+                        
+            if tooLate                   
+                transition(o,@o.fail,e);  %No key received this trial                 
             elseif ~noKey 
                 if correct
                     transition(o,@o.success,e);
@@ -126,6 +128,8 @@ classdef keyResponse < neurostim.behavior
                     transition(o,@o.fail,e);                
                 end
             end
-      end
+        end
+      
+      
     end
 end

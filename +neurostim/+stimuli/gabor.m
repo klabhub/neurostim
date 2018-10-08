@@ -31,6 +31,17 @@ classdef gabor < neurostim.stimulus
         shader;
         textureRect;
     end
+   
+    
+    methods (Static)
+        function v = tfToPhaseSpeed(tf,framerate)
+            % Convert temporal frequency in Hz to appropriate phase speed.
+            v = 2*pi*framerate*tf;
+        end
+        function v = phaseSpeedToTf(sp)
+            v = sp/(2*pi*framerate);
+        end        
+    end
     
     methods
         function o =gabor(c,name)
@@ -151,7 +162,7 @@ classdef gabor < neurostim.stimulus
         
         function createProcGabor(o)
             % Copied from PTB
-            debuglevel = 1;
+            debuglevel = 0;
             % Global GL struct: Will be initialized in the LoadGLSLProgramFromFiles
             global GL;
             % Make sure we have support for shaders, abort otherwise:

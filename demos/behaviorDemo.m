@@ -65,7 +65,7 @@ d.noiseMode = 1;
 k = behaviors.keyResponse(c,'choice');
 % or this if you want to allow subjects to change their mind:
 %k = behaviors.multiKeyResponse(c,'choice');
-k.from = '@dots.on + dots.duration';
+k.from = '@dots.startTime + dots.duration';
 k.maximumRT= 2000;                   %Maximum allowable RT is 2000ms
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
 k.correctFun = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
@@ -108,7 +108,7 @@ myDesign.conditions(:,:).fix.Y =  plugins.jitter(c,{0,4},'distribution','normal'
 % You can also repeate the condition at a later random point in the block, using the 'RANDOM' mode.
 myDesign.retry = 'IMMEDIATE';
 myDesign.maxRetry = 20;  % Each condition will be retried up to 20 times. 
-% Note that because we made the nafcResponse choice not required, a trial with the wrong
+% Note that because we made the choice not required, a trial with the wrong
 % answer will not be retried, only trials with a fixation break.
 
 %Specify a block of trials
@@ -116,7 +116,6 @@ myBlock=block('myBlock',myDesign);             %Create a block of trials using t
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
-c.order('sound','fix','dots','f1','choice','soundFeedback');   %Ignore this for now - we hope to remove the need for this.
 c.subject = 'easyD';
 c.run(myBlock);
     

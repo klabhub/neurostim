@@ -132,6 +132,11 @@ function count = cprintf(style,format,varargin)
   if ~exist('el','var') || isempty(el),  el=handle([]);  end  %#ok mlint short-circuit error ("used before defined")
   if nargin<1, showDemo(majorVersion,minorVersion); return;  end
   if isempty(style),  return;  end
+  % Allow bypassing of all potentially time consuming operations below.
+  if ischar(style) && strcmpi(style,'NOSTYLE')      
+      fprintf(1,format,varargin{:});% 1 = console      
+      return;
+  end
   if all(ishandle(style)) && length(style)~=3
       dumpElement(style);
       return;
