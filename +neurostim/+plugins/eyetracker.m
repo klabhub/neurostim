@@ -41,7 +41,7 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('eyeToTrack','left');
             o.addProperty('continuous',false);
             
-            o.addProperty('clbMatrix',[]); % manual calibration matrix (optional)
+            o.addProperty('clbMatrix',[],'sticky',true); % manual calibration matrix (optional)
         end
         
         
