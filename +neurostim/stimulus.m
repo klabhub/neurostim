@@ -277,23 +277,24 @@ classdef stimulus < neurostim.plugin
             %Should the stimulus be drawn on this frame?
             % This partially duplicates get.onFrame get.offFrame
             % code to minimize computations (and especially dynprop
-            % evaluations which can be '@' functions and slow)
-            sOn = s.on;
-            sOnFrame = inf;  %Adjusted as needed in the if/then
+            % evaluations which can be '@' functions and slow)           
             sOffFrame = inf;                
             cFrame = s.cic.frame;
             if s.alwaysOn
                 s.flags.on =true;
-            else               
+            else   
+                sOn = s.on;          
                 if isinf(sOn)
                     s.flags.on =false; %Dont bother checking the rest
                 else
-                    sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
+                    sOnFrame = round(sOn.*s.cic.screen.frameRate/1000)+1;
+                    %sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
                     if cFrame < sOnFrame % Not on yet.
                         s.flags.on = false;
                     else % Is on already or turning on. Checck that we have not
                         % reached full duration yet.
-                        sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
+                        sOffFrame = round((sOn+s.duration)*s.cic.screen.frameRate/1000);
+                        %sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
                         s.flags.on = cFrame <sOffFrame;
                     end
                 end

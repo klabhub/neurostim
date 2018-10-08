@@ -999,7 +999,7 @@ classdef cic < neurostim.plugin
                         % Start (or schedule) the flip
                         [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
                         if clr && locHAVEOVERLAY
-                            clearOverlay(c,true);
+                            Screen('FillRect', c.overlayWindow,0,c.overlayRect); % Fill with zeros;%clearOverlay(c,true);
                         end
                         
                         if c.timing.vsyncMode==0
@@ -1028,9 +1028,6 @@ classdef cic < neurostim.plugin
                         else
                             if missed>ITSAMISS
                                 c.frameDrop = [c.frame-1 missed]; % Log frame and delta
-%                                 if c.guiOn
-%                                     c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
-%                                 end
                             end
                         end
                         
