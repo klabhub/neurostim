@@ -1644,6 +1644,7 @@ classdef cic < neurostim.plugin
         function report(c)
             %% Profile report
             plgns = fieldnames(c.profile);
+            items={};
             for i=1:numel(plgns)
                 if c.profile.(plgns{i}).cntr==0;break;end
                 MAXDURATION = 3*1000/c.screen.frameRate;
