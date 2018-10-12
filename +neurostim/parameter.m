@@ -320,11 +320,12 @@ classdef parameter < handle & matlab.mixin.Copyable
             % 'struct' - set to true to return all outputs as a data structure
             %
             p =inputParser;
-            p.addParameter('atTrialTime',0,@isnumeric); % Return values at this time in the trial
+            p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial
             p.addParameter('after','',@ischar); % Return the first value after this event in the trial
             p.addParameter('trial',[],@isnumeric); % Return only values in these trials
             p.addParameter('withDataOnly',false,@islogical); % Only those values that have data
             p.addParameter('dataIsMember',{});  %Only when data is a member of the list
+            p.addParameter('dataIsNotNan',false,@islogical);%Only when data is not nan.
             p.addParameter('matrixIfPossible',true); % Convert to a [NRTRIALS N] matrix if possible
             p.addParameter('struct',false,@islogical); % Pack the output arguments into a structure.
           
@@ -442,6 +443,11 @@ classdef parameter < handle & matlab.mixin.Copyable
             if p.Results.withDataOnly
                     out  = out | cellfun(@isempty,data);
             end
+            
+            if p.Results.dataIsNotNan
+                    out  = out | cellfun(@isnan,data);
+            end
+            
             
             if ~isempty(p.Results.dataIsMember)
                     out = out | cellfun(@(x)(~ismember(x,p.Results.dataIsMember)),data);
