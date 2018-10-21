@@ -6,13 +6,10 @@ clc
 
 import neurostim.* 
 
-c = myRig; %call function myRig which constructs cic object 
-c.trialDuration = 1000;
-c.iti = 500; 
+c = myRig; %call function myRig which constructs cic object  
 
-% %url = zeroMQrr('StartConnectThread', 'tcp://101.188.50.26:5556')
 o = neurostim.plugins.openEphys(c, 'HostAddr', 'tcp://101.188.35.200:5556', 'StartMsg', 'Hello World', 'StopMsg', 'Bye', ...
-     'CreateNewDir', 1, 'AppendText', 'Sun', 'PrependText', 'Jun');  
+     'CreateNewDir', 1, 'AppendText', 'Tue', 'PrependText', 'Jun');  
 
 %Dummy stimuli for testing purposes
 f = stimuli.fixation(c,'reddot');       
