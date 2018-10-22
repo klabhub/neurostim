@@ -46,8 +46,11 @@ classdef soundFeedback < neurostim.plugins.feedback
                     % If the .wav sampleRate differs from the soundcard, we
                     % need to change the sampling rate.
                     if info.SampleRate ~= o.cic.sound.sampleRate                        
-                        % Simple resampling
-                        wave =resample(wave,linspace(0,info.Duration,info.TotalSamples),o.cic.sound.sampleRate);
+                        % Simple resampling                        
+                        if info.TotalSamples ~= numel(wave)
+                            writeToFeed(o,['The wave file ' file ' has incorrect header information? If it sounds strange, use a different wave file.']); 
+                        end                        
+                        wave =resample(wave,linspace(0,info.Duration,numel(wave)),o.cic.sound.sampleRate);
                     end
                 else
                     o.cic.error('STOPEXPERIMENT',['Sound file ' strrep(file,'\','/') ' could not be found.']);
