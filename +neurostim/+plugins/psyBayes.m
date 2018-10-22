@@ -146,6 +146,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             m = nan(3,nrO);
             sd = nan(3,nrO);
             threshold = nan(1,nrO);
+            thresholdHdr = nan(1,2,nrO);
             hdr = nan(3,2,nrO);
             conditionLabel = cell(1,nrO);
             for j=1:nrO
@@ -179,14 +180,24 @@ classdef psyBayes < neurostim.plugins.adaptive
                         else % Contiguous HDR
                             hdr(i,1,j) = x(find(ix==1,1,'first'));
                             hdr(i,2,j) = x(find(ix==1,1,'last'));
-                        end
-                        
-                        
+                        end                                                               
                     end
+                    
+                    % Fill in the priors for the vars we did not estimate.
+                    priors = {oo(j).psy.mu, oo(j).psy.sigma, oo(j).psy.lambda};
+                    for i=1:3
+                        if oo(j).vars(i)==0
+                        % Not estimated - use prior
+                        m(i,j)= priors{i};
+                        sd(i,j) = 0;
+                        hdr(i,j,:) = priors{i};
+                        end
+                    end
+                    
                     if nargout >3 && ~isempty(strfind(oo(j).psy.psychofun,'psyfun_yesno')) && ~isempty(strfind(oo(j).psy.psychofun,'psynormcdf'))
                         % Yes no function uses the cumulative normal, which we can
                         % invert to find the threshold at an arbitrary level:
-                        thresholdFun = @(theta,mu,sigma,lambda)(mu+sqrt(2)*sigma.*erfinv(2*(theta-lambda/2)./(1-lambda)-1));
+                        thresholdFun = @(theta,mu,sigma,lambda)(mu+sqrt(2)*sigma.*erfinv(2*(theta-lambda/2)./(1-lambda)-1));                                              
                         threshold(1,j) = thresholdFun(theta,m(1,j),m(2,j),m(3,j));
                         if nargout>4
                             [M,S,L] = ndgrid(oo(j).psy.mu,oo(j).psy.sigma,oo(j).psy.lambda);
@@ -204,11 +215,11 @@ classdef psyBayes < neurostim.plugins.adaptive
                             if sum(abs(diff(ix)) >2)
                                 warning('This HDR is non-contiguous');
                                 % Better return nan than the wrong limits..
-                                thresholdHdr(1,j) = NaN;
-                                thresholdHdr(2,j) = NaN;
+                                thresholdHdr(1,j,1) = NaN;
+                                thresholdHdr(1,j,2) = NaN;
                             else % Contiguous HDR
-                                thresholdHdr(1,j) = x(find(ix==1,1,'first'));
-                                thresholdHdr(2,j) = x(find(ix==1,1,'last'));
+                                thresholdHdr(1,j,2) = x(find(ix==1,1,'first'));
+                                thresholdHdr(1,j,2) = x(find(ix==1,1,'last'));
                             end
                             
                         end
