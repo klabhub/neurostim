@@ -36,7 +36,7 @@ classdef sound < neurostim.plugin
             % sampleRate is available for resampling in classes that use
             % this plugin (e.g. soundFeedback)
             
-            o.paHandle = PsychPortAudio('Open',[], [], latencyClass);
+            o.paHandle = PsychPortAudio('Open',c.hardware.sound.device, [], latencyClass);
             status = PsychPortAudio('GetStatus', o.paHandle);
             o.sampleRate = status.SampleRate;
             

@@ -477,7 +477,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             
             if p.Results.struct
-                data = struct('data',data,'trial',trial,'trialTime',trialTime,'time',time,'block',block);
+                %Return everything in a structure (done this way rather than using struct() because that function returns a struct array when "data" is a cell array)
+                tmp.data = data; tmp.trial = trial; tmp.trialTime = trialTime; tmp.time = time; tmp.block = block;
+                data = tmp;
             end
         end
         
