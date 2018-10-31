@@ -2,13 +2,15 @@ classdef sound < neurostim.plugin
     % Generic sound plugin for PTB. Add if using sound.
     properties (Access=protected)
         paHandle
+        device=-1; % -1 does autodetect of a device. 
+        % If this fails, specify a device from PsychPortAudio('GetDevices')
     end
     
     
     methods (Access=public)
         function o=sound(c)
             o=o@neurostim.plugin(c,'sound');
-            
+            o.device  =c.hardware.sound.device; % Get the default device from CIC.
             % Sound initialization
             InitializePsychSound(1);
            
@@ -16,9 +18,13 @@ classdef sound < neurostim.plugin
         
         function beforeExperiment(o)
             
-
-            o.paHandle = PsychPortAudio('Open');
-            
+        try 
+            o.paHandle = PsychPortAudio('Open',o.device);
+        catch me
+            lasterr
+            disp('Try to specify the .device from PsychPortAudio(''GetDevices'')')
+            rethrow(me)
+        end
             %Play a dummy sound (first sound wasn't playing)
             bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,[0; 0]);
             PsychPortAudio('FillBuffer', o.paHandle,bufferHandle);

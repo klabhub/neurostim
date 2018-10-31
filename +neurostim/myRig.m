@@ -70,13 +70,20 @@ switch computerName
 %         end
         c.useConsoleColor = true;
         
-    case 'XPS2013'
+    case 'NEUROSTIMM'
         scrNr=0;
         rect = Screen('rect',scrNr);
-        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
-        smallWindow = true ;
+        
+        devs = PsychPortAudio('GetDevices');
+        c.hardware.sound.device = devs(strcmpi({devs.DeviceName},'Microsoft Sound Mapper - Output')).DeviceIndex; % Automatic sound hardware detection fails on this machine. Specify device 1
+        if pin.Results.debug 
+            smallWindow = true ;
+        else
+            smallWindow = false;
+        end
         c.useConsoleColor = true;
+        Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
     case 'SURFACE2017'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
