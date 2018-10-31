@@ -1012,14 +1012,15 @@ classdef cic < neurostim.plugin
                         
                     end % Trial running
                     
-                    Priority(0);
-                    if ~c.flags.experiment || ~ c.flags.block ;break;end
-                    
+                    %Perform one last flip to clear the screen (if requested)
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
                     if c.itiClear && locHAVEOVERLAY
                         Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
                     end
                     c.trialStopTime = ptbStimOn*1000;
+                    
+                    Priority(0);
+                    if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
                     c.frame = c.frame+1;
                     
@@ -1033,7 +1034,7 @@ classdef cic < neurostim.plugin
                 
                afterBlock(c);
             end %blocks
-            c.trialStopTime = c.clockTime;
+
             c.stopTime = now;
             
             DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
