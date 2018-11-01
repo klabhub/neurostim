@@ -687,7 +687,12 @@ classdef starstim < neurostim.stimulus
                 end
                 pause(0.025); % Check status every 25 ms.
                 if toc> TIMEOUT
-                    warning(['Waiting for ' varargin{cntr} ' timed out']);
+                    if iscell(varargin{cntr})
+                        stts = [varargin{cntr}{:}];
+                    else
+                        stts = varargin{cntr};
+                    end
+                    warning(['Waiting for ' stts ' timed out']);
                     warning(['Last status was ' o.protocolStatus ]);
                     break;
                 end
