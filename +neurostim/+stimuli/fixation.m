@@ -17,7 +17,7 @@ classdef fixation < neurostim.stimulus
             o.addProperty('size',15,'validate',@isnumeric);
             o.addProperty('size2',5,'validate',@isnumeric);
             o.addProperty('color2',[0 0 0],'validate',@isnumeric);
-            o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR'}))) ;               
+            o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR','FRAME'}))) ;               
             
             o.on = 0;
         end
@@ -25,7 +25,10 @@ classdef fixation < neurostim.stimulus
         
         function beforeFrame(o)
             locSize = o.size; % Local copy, to prevent repeated expensive "getting" of NS param          
-            switch upper(o.shape)                                   
+            switch upper(o.shape)  
+                 case 'FRAME' % Rectangle 
+                    locSize2 = o.size2;
+                    Screen('FrameRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                                 
                 case 'RECT' % Rectangle 
                     locSize2 = o.size2;
                     Screen('FillRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                    
