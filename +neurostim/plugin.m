@@ -91,7 +91,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 formatSpec = ['%s: ' varargin{1}];
                 args = cat(2,{o.name},varargin(2:end));
             end            
-            o.cic.feed(o.feedStyle,formatSpec, args{:});            
+            o.cic.feed(o.feedStyle,formatSpec,o.cic.trial,o.cic.trialTime,args{:});            
         end
         
         % Needed by str2fun

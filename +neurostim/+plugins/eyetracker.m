@@ -27,6 +27,7 @@ classdef eyetracker < neurostim.plugin
         y@double=NaN;
         z@double=NaN;
         pupilSize@double;
+        valid@logical = true;
     end
     
     methods

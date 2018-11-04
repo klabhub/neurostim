@@ -11,7 +11,7 @@ classdef sound < neurostim.plugin
     methods (Access=public)
         function o=sound(c,latencyClass)
             if nargin <2
-                latencyClass = 1; % Latency is a priority
+                latencyClass = c.hardware.sound.latencyClass; % Latency is a priority
 %   From PsychPortAudio('Open?'): Allows to select how aggressive PsychPortAudio should be about
 % minimizing sound latency and getting good deterministic timing, i.e. how to
 % trade off latency vs. system load and playing nicely with other sound
@@ -30,7 +30,7 @@ classdef sound < neurostim.plugin
             o.addProperty('latencyClass',latencyClass);
             
             % Sound initialization
-            InitializePsychSound(latencyClass>0);
+            InitializePsychSound(latencyClass);
             
             % Opening here instead of beforeExperiment so that the actual
             % sampleRate is available for resampling in classes that use

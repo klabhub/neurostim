@@ -66,7 +66,6 @@ classdef eyelink < neurostim.plugins.eyetracker
     % TK, BK,  2016,2017
     properties
         el@struct;  % Information structure to communicate with Eyelink host
-        valid;
         commands = {'link_sample_data = GAZE'};
         edfFile@char = 'test.edf';
         getSamples@logical=true;
