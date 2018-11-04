@@ -249,6 +249,9 @@ classdef stg < neurostim.stimulus
         
         function beforeExperiment(o)
             % Connect to the device, and clear its memory to get a clean start..
+            if o.outputRate ~= 50000
+                o.cic.error('STOPEXPERIMENT','Sampling rate should be 50 Kjhz..... there is a bug that has not been resolved yet');
+            end
             connect(o);
             reset(o);
         end
