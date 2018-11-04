@@ -107,6 +107,11 @@ classdef cic < neurostim.plugin
         
         guiWindow;
         funPropsToMake=struct('plugin',{},'prop',{});
+        % A struct to store writeToFeed information during the trial (and
+        % write out after).
+        feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
+        feedCacheCntr=0;
+        feedCacheWriteNow = false;
     end
     
     %% Dependent Properties
@@ -1019,7 +1024,7 @@ classdef cic < neurostim.plugin
                         end
                         missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
                         
-                        if c.frame > 1 && locPROFILE
+                        if locPROFILE && c.frame > 1
                             addProfile(c,'FRAMELOOP','cic',c.toc);
                             tic(c)
                             addProfile(c,'FLIPTIME','cic',1000*(GetSecs-startFlipTime));
@@ -1181,7 +1186,25 @@ classdef cic < neurostim.plugin
         end
         
         %% GUI Functions
-        function feed(c,style,formatSpecs,varargin)
+        function feed(c,style,formatSpecs,thisTrial,thisTrialTime,varargin)
+            if c.flags.trial
+                c.feedCacheCntr= c.feedCacheCntr+1;
+                c.feedCache(c.feedCacheCntr).style = style;
+                c.feedCache(c.feedCacheCntr).formatSpecs = formatSpecs;
+                c.feedCache(c.feedCacheCntr).other = varargin;   
+                c.feedCache(c.feedCacheCntr).trialTime = thisTrialTime;   
+                c.feedCache(c.feedCacheCntr).trial = thisTrial;   
+            elseif ~c.feedCacheWriteNow
+                c.feedCacheWriteNow =true;
+                for i=1:c.feedCacheCntr
+                    feed(c,c.feedCache(i).style,c.feedCache(i).formatSpecs,c.feedCache(i).trial,c.feedCache(i).trialTime,c.feedCache(i).other{:});                    
+                end
+                c.feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
+                c.feedCacheWriteNow =false;
+                c.feedCacheCntr =0;
+            end
+                
+                
             if ~c.useConsoleColor
                 style = 'NOSTYLE';                
             end
@@ -1195,7 +1218,7 @@ classdef cic < neurostim.plugin
                 else
                     phaseStr = '(ITI)';
                 end
-                neurostim.utils.cprintf(style,'TR: %d: (T: %.0f %s) %s \n',c.trial,c.trialTime,phaseStr,varargin{1}); % First one is the plugin name
+                neurostim.utils.cprintf(style,'TR: %d: (T: %.0f %s) %s \n',thisTrial,thisTrialTime,phaseStr,varargin{1}); % First one is the plugin name
                 neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
                 for i=1:numel(varargin{2})
                     neurostim.utils.cprintf(style,'\t %s\n',varargin{end}{i}); % These are the message lines
@@ -1203,7 +1226,7 @@ classdef cic < neurostim.plugin
                 neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
             else
                 % single line
-                neurostim.utils.cprintf(style,['TR: %d (T: %.0f): ' formatSpecs '\n'],c.trial,c.trialTime,varargin{:});
+                neurostim.utils.cprintf(style,['TR: %d (T: %.0f): ' formatSpecs '\n'],thisTrial,thisTrialTime,varargin{:});
             end
         end
         
