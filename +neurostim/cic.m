@@ -45,7 +45,7 @@ classdef cic < neurostim.plugin
             'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
             'pluginSlack',0); % see plugin.m
         
-        hardware                = struct('sound',struct('device',-1),... % Sound hardware settings (device = index of audio device to use, see plugins.sound
+        hardware                = struct('sound',struct('device',-1,'latencyClass',1),... % Sound hardware settings (device = index of audio device to use, see plugins.sound
                                             'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
                                             ); % Place to store hardware default settings that can then be specified in a script like myRig.
                                         
