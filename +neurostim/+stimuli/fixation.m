@@ -28,7 +28,14 @@ classdef fixation < neurostim.stimulus
             switch upper(o.shape)  
                  case 'FRAME' % Rectangle 
                     locSize2 = o.size2;
-                    Screen('FrameRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                                 
+                    % This draws a frame using lines. The FrameRect command
+                    % (below) did not work on our vPixx monitor. Don't
+                    % understand why, but this works .
+                    Screen('DrawLine', o.window,o.color, -(locSize/2),-(locSize2/2),-(locSize/2),+(locSize2/2));
+                    Screen('DrawLine', o.window,o.color, -(locSize/2),+(locSize2/2),+(locSize/2),+(locSize2/2));
+                    Screen('DrawLine', o.window,o.color, +(locSize/2),+(locSize2/2),+(locSize/2),-(locSize2/2));
+                    Screen('DrawLine', o.window,o.color, +(locSize/2),-(locSize2/2),-(locSize/2),-(locSize2/2));
+                    %Screen('FrameRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                                 
                 case 'RECT' % Rectangle 
                     locSize2 = o.size2;
                     Screen('FillRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                    
