@@ -54,6 +54,7 @@ classdef cic < neurostim.plugin
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
+        useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
         
         %% Keyboard interaction
         kbInfo@struct= struct('keys',{[]},... % PTB numbers for each key that is handled.
@@ -1187,7 +1188,7 @@ classdef cic < neurostim.plugin
         
         %% GUI Functions
         function feed(c,style,formatSpecs,thisTrial,thisTrialTime,varargin)
-            if c.flags.trial
+            if c.flags.trial && c.useFeedCache
                 c.feedCacheCntr= c.feedCacheCntr+1;
                 c.feedCache(c.feedCacheCntr).style = style;
                 c.feedCache(c.feedCacheCntr).formatSpecs = formatSpecs;
