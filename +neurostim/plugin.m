@@ -15,7 +15,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         prms=struct;          % Structure to store all parameters
     end
     
+    methods (Static, Sealed, Access=protected)
+        function o= getDefaultScalarElement
+            o = neurostim.plugin([],'defaultScalarElement');
+        end
+    end
     methods (Access=public)
+        
         function o=plugin(c,n)
             % Create a named plugin
             if ~isvarname(n)
@@ -85,7 +91,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 formatSpec = ['%s: ' varargin{1}];
                 args = cat(2,{o.name},varargin(2:end));
             end            
-            o.cic.feed(o.feedStyle,formatSpec, args{:});            
+            o.cic.feed(o.feedStyle,formatSpec,o.cic.trial,o.cic.trialTime,args{:});            
         end
         
         % Needed by str2fun

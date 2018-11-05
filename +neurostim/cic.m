@@ -45,11 +45,16 @@ classdef cic < neurostim.plugin
             'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
             'pluginSlack',0); % see plugin.m
         
+        hardware                = struct('sound',struct('device',-1,'latencyClass',1),... % Sound hardware settings (device = index of audio device to use, see plugins.sound
+                                            'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
+                                            ); % Place to store hardware default settings that can then be specified in a script like myRig.
+                                        
         flipCallbacks={}; %List of stimuli that have requested to be to called immediately after the flip, each as s.postFlip(flipTime).
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
+        useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
         
         %% Keyboard interaction
         kbInfo@struct= struct('keys',{[]},... % PTB numbers for each key that is handled.
@@ -71,6 +76,8 @@ classdef cic < neurostim.plugin
         %% Program Flow
         mainWindow = []; % The PTB window
         overlayWindow =[]; % The color overlay for special colormodes (VPIXX-M16)
+        overlayRect = [];
+        textWindow = []; % This is either the main or the overlay, depending on the mode.
         stage@double;
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         
@@ -101,6 +108,11 @@ classdef cic < neurostim.plugin
         
         guiWindow;
         funPropsToMake=struct('plugin',{},'prop',{});
+        % A struct to store writeToFeed information during the trial (and
+        % write out after).
+        feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
+        feedCacheCntr=0;
+        feedCacheWriteNow = false;
     end
     
     %% Dependent Properties
@@ -108,6 +120,8 @@ classdef cic < neurostim.plugin
     properties (Dependent)
         nrStimuli;      % The number of stimuli currently in CIC
         nrPlugins;      % The number of plugins (Excluding stimuli) currently inCIC
+        nrBehaviors     % The number of behaviors in the CIC
+        behaviors       % A plugin array consisting of only the behaviors.
         nrConditions;   % The number of conditions in this block
         nrBlocks;       % The number of blocks in this experiment
         nrTrials;       % The number of trials in the current block
@@ -142,6 +156,16 @@ classdef cic < neurostim.plugin
         
         function v= get.nrPlugins(c)
             v= length(c.plugins);
+        end
+        
+        function v = get.behaviors(c)
+            fun = @(x) (isa(x,'neurostim.behavior'));
+            isBehavior =arrayfun(fun,c.plugins);
+            v = c.plugins(isBehavior);
+        end
+        
+        function v  = get.nrBehaviors(c)
+            v = numel(c.behaviors);
         end
         
         function v= get.nrBlocks(c)
@@ -595,11 +619,7 @@ classdef cic < neurostim.plugin
             plgs = c.plugins(stay);
         end
         
-        function behs = behaviors(c)
-            allClasses = arrayfun(@class,c.plugins,'uniformoutput',false);
-            stay = ~cellfun(@isempty,regexp(allClasses,'\.behaviors\.'));
-            behs= c.plugins(stay);
-        end
+   
         
         function disp(c)
             % Provide basic information about the CIC
@@ -641,7 +661,7 @@ classdef cic < neurostim.plugin
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
                 if c.PROFILE
-                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'AFTEREXPERIMENT',[],'cntr',0);
+                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'AFTEREXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'cntr',0);
                 end
             end
             
@@ -737,12 +757,13 @@ classdef cic < neurostim.plugin
             base(c.pluginOrder,neurostim.stages.BEFOREBLOCK,c);
             % Draw block message and wait for keypress if requested.
             if ~isempty(msg)
-                DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
+                DrawFormattedText(c.textWindow,msg,'center','center',c.screen.color.text);
             end
             Screen('Flip',c.mainWindow);
             if waitForKey
                 KbWait(c.kbInfo.pressAnyKey,2);
             end
+            clearOverlay(c,true);
         end
         
         function afterBlock(c)
@@ -754,7 +775,8 @@ classdef cic < neurostim.plugin
                     msg = c.blocks(c.block).afterMessage;
                 end
                 if ~isempty(msg)
-                    DrawFormattedText(c.mainWindow,msg,'center','center',c.screen.color.text);
+                    Screen('Flip',c.mainWindow); % Clear screen 
+                    DrawFormattedText(c.textWindow,msg,'center','center',c.screen.color.text);
                     waitforkey=c.blocks(c.block).afterKeyPress;
                 end
                 if ~isempty(c.blocks(c.block).afterFunction)
@@ -771,7 +793,7 @@ classdef cic < neurostim.plugin
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
                 end
-            
+                clearOverlay(c,true);            
         end
         
         function beforeTrial(c)
@@ -881,14 +903,15 @@ classdef cic < neurostim.plugin
             
             %% Start preparation in all plugins.
             c.window = c.mainWindow; % Allows plugins to use .window
+            locHAVEOVERLAY = ~isempty(c.overlayWindow);
             showCursor(c);
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
-            DrawFormattedText(c.mainWindow,c.beforeExperimentText, 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);            
-            Screen('Flip', c.mainWindow);
+            DrawFormattedText(c.textWindow,c.beforeExperimentText, 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);            
+            Screen('Flip', c.mainWindow);            
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
-            c.flags.experiment = true;
-            
+            clearOverlay(c,true);
+            c.flags.experiment = true;            
             FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
             if c.timing.vsyncMode==0
                 % If beamposition queries are working, then the time
@@ -910,11 +933,10 @@ classdef cic < neurostim.plugin
             end
             locPROFILE      = c.PROFILE;
             frameDeadline   = NaN;
-            locHAVEOVERLAY = ~isempty(c.overlayWindow);
-            if locHAVEOVERLAY
-                locOVERLAYRECT = Screen('Rect',c.overlayWindow)-[c.screen.xpixels/2 c.screen.ypixels/2 c.screen.xpixels/2 c.screen.ypixels/2]; % Need this to clear with FillRect
+           
+            if ~c.hardware.keyEcho
+                ListenChar(-1);
             end
-            %ListenChar(-1);
             for blockCntr=1:c.nrBlocks
                 c.flags.block = true;
                 c.block = c.blockFlow.list(blockCntr); % Logged.
@@ -934,6 +956,9 @@ classdef cic < neurostim.plugin
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
                             Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            if locHAVEOVERLAY
+                                clearOverlay(c,c.itiClear);
+                            end
                         end
                     end
                     
@@ -948,7 +973,11 @@ classdef cic < neurostim.plugin
                         c.frame = c.frame+1;
                         
                         %% Check for end of trial
-                        if c.frame-1 >= ms2frames(c,c.trialDuration)  % if trialDuration has been reached, minus one frame for clearing screen
+                        if ~c.flags.trial || c.frame-1 >= ms2frames(c,c.trialDuration)  
+                            % if trial has ended (based on behaviors for
+                            % instance)
+                            % or if trialDuration has been reached, minus one frame for clearing screen
+                            % We are going to the ITI.
                             c.flags.trial=false; % This will be the last frame.
                             clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
                         else
@@ -964,7 +993,9 @@ classdef cic < neurostim.plugin
                         
                         
                         KbQueueCheck(c);
-                        
+                        % After the KB check, a behavioral requirement
+                        % can have terminated the tria. 
+                        if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
                         
                         startFlipTime = GetSecs; % Avoid function call to clocktime
                         
@@ -980,7 +1011,7 @@ classdef cic < neurostim.plugin
                         % Start (or schedule) the flip
                         [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
                         if clr && locHAVEOVERLAY
-                            Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
+                            Screen('FillRect', c.overlayWindow,0,c.overlayRect); % Fill with zeros;%clearOverlay(c,true);
                         end
                         
                         if c.timing.vsyncMode==0
@@ -994,7 +1025,7 @@ classdef cic < neurostim.plugin
                         end
                         missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
                         
-                        if c.frame > 1 && locPROFILE
+                        if locPROFILE && c.frame > 1
                             addProfile(c,'FRAMELOOP','cic',c.toc);
                             tic(c)
                             addProfile(c,'FLIPTIME','cic',1000*(GetSecs-startFlipTime));
@@ -1009,9 +1040,6 @@ classdef cic < neurostim.plugin
                         else
                             if missed>ITSAMISS
                                 c.frameDrop = [c.frame-1 missed]; % Log frame and delta
-                                if c.guiOn
-                                    c.writeToFeed(['Missed Frame ' num2str(c.frame) ' \Delta: ' num2str(missed)]);
-                                end
                             end
                         end
                         
@@ -1034,9 +1062,7 @@ classdef cic < neurostim.plugin
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                     
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
-                    if c.itiClear && locHAVEOVERLAY
-                        Screen('FillRect', c.overlayWindow,0,locOVERLAYRECT); % Fill with zeros
-                    end
+                    clearOverlay(c,c.itiClear);                    
                     c.trialStopTime = ptbStimOn*1000;
                     
                     c.frame = c.frame+1;
@@ -1053,8 +1079,9 @@ classdef cic < neurostim.plugin
             end %blocks
             c.trialStopTime = c.clockTime;
             c.stopTime = now;
-            
-            DrawFormattedText(c.mainWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
+            Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
+            clearOverlay(c,true);               
+            DrawFormattedText(c.textWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
             Screen('Flip', c.mainWindow);
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
@@ -1064,11 +1091,18 @@ classdef cic < neurostim.plugin
             c.saveData;
             
             ListenChar(0);
+            Priority(0);
             if c.keyAfterExperiment; c.writeToFeed({'','This is the end... Press any key to continue',''}); KbWait(c.kbInfo.pressAnyKey);end
+            
             Screen('CloseAll');
             if c.PROFILE; report(c);end
         end
         
+        function clearOverlay(c,clear)
+            if clear && ~isempty(c.overlayWindow)
+                Screen('FillRect', c.overlayWindow,0,c.overlayRect); % Fill with zeros
+            end
+        end
         function saveData(c)
             filePath = horzcat(c.fullFile,'.mat');
             save(filePath,'c');
@@ -1153,7 +1187,25 @@ classdef cic < neurostim.plugin
         end
         
         %% GUI Functions
-        function feed(c,style,formatSpecs,varargin)
+        function feed(c,style,formatSpecs,thisTrial,thisTrialTime,varargin)
+            if c.flags.trial && c.useFeedCache
+                c.feedCacheCntr= c.feedCacheCntr+1;
+                c.feedCache(c.feedCacheCntr).style = style;
+                c.feedCache(c.feedCacheCntr).formatSpecs = formatSpecs;
+                c.feedCache(c.feedCacheCntr).other = varargin;   
+                c.feedCache(c.feedCacheCntr).trialTime = thisTrialTime;   
+                c.feedCache(c.feedCacheCntr).trial = thisTrial;   
+            elseif ~c.feedCacheWriteNow
+                c.feedCacheWriteNow =true;
+                for i=1:c.feedCacheCntr
+                    feed(c,c.feedCache(i).style,c.feedCache(i).formatSpecs,c.feedCache(i).trial,c.feedCache(i).trialTime,c.feedCache(i).other{:});                    
+                end
+                c.feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
+                c.feedCacheWriteNow =false;
+                c.feedCacheCntr =0;
+            end
+                
+                
             if ~c.useConsoleColor
                 style = 'NOSTYLE';                
             end
@@ -1167,7 +1219,7 @@ classdef cic < neurostim.plugin
                 else
                     phaseStr = '(ITI)';
                 end
-                neurostim.utils.cprintf(style,'TR: %d: (T: %.0f %s) %s \n',c.trial,c.trialTime,phaseStr,varargin{1}); % First one is the plugin name
+                neurostim.utils.cprintf(style,'TR: %d: (T: %.0f %s) %s \n',thisTrial,thisTrialTime,phaseStr,varargin{1}); % First one is the plugin name
                 neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
                 for i=1:numel(varargin{2})
                     neurostim.utils.cprintf(style,'\t %s\n',varargin{end}{i}); % These are the message lines
@@ -1175,7 +1227,7 @@ classdef cic < neurostim.plugin
                 neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
             else
                 % single line
-                neurostim.utils.cprintf(style,['TR: %d (T: %.0f): ' formatSpecs '\n'],c.trial,c.trialTime,varargin{:});
+                neurostim.utils.cprintf(style,['TR: %d (T: %.0f): ' formatSpecs '\n'],thisTrial,thisTrialTime,varargin{:});
             end
         end
         
@@ -1506,12 +1558,13 @@ classdef cic < neurostim.plugin
             end
             %% Open the window
             c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
-            
+            c.textWindow = c.mainWindow; % By default - changed below if needed.
             
             %% Perform initialization that requires an open window
             switch upper(c.screen.type)
                 case 'GENERIC'
                     % nothing to do
+                    
                 case 'VPIXX-M16'
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
@@ -1521,7 +1574,12 @@ classdef cic < neurostim.plugin
                         % luminance.
                         c.writeToFeed(['****You can safely ignore the message about '' clearcolor'' that just appeared***']);
                     end
-                    c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
+                    % Create an overlay window to show colored items such
+                    % as a fixation point, or text.
+                    c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);                    
+                    c.overlayRect =  Screen('Rect',c.overlayWindow);
+                    c.textWindow = c.overlayWindow;
+                    Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
                     updateOverlay(c,c.screen.overlayClut);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
@@ -1616,6 +1674,7 @@ classdef cic < neurostim.plugin
         function report(c)
             %% Profile report
             plgns = fieldnames(c.profile);
+            items={};
             for i=1:numel(plgns)
                 if c.profile.(plgns{i}).cntr==0;break;end
                 MAXDURATION = 3*1000/c.screen.frameRate;
@@ -1656,21 +1715,23 @@ classdef cic < neurostim.plugin
                     plot(1000./c.screen.frameRate*ones(1,2),ylim,'r')
                 end
             end
-            %% Framedrop report
-            figure('Name',[c.file ' - framedrop report'])
-            [val,tr,ti,eTi] = get(c.prms.frameDrop);
+            %% Framedrop report 
+            [val,tr,ti,eTi] = get(c.prms.frameDrop,'atTrialTime',[]);
             if size(val,1)==1
                 % No drops
-                title 'No Drops';
+                disp('*** No Framedrops!***');
                 return
-            end
-            val = cat(1,val{:});
+            end           
             delta =1000*val(:,2); % How much too late...
             slack = 0.2;
             [~,~,criticalStart] = get(c.prms.firstFrame,'atTrialTime',inf);
             [~,~,criticalStop] = get(c.prms.trialStopTime,'atTrialTime',inf);
             meanDuration = nanmean(criticalStop-criticalStart);
             out = (ti<(criticalStart(tr)-slack*meanDuration) | ti>(criticalStop(tr)+slack*meanDuration));
+            
+            
+            figure('Name',[c.file ' - framedrop report for stimuli'])
+            
             for i=1:c.nrStimuli
                 subplot(c.nrStimuli+2,1,i)
                 [~,~,stimstartT] = get(c.stimuli(i).prms.startTime,'atTrialTime',inf);
@@ -1686,7 +1747,7 @@ classdef cic < neurostim.plugin
             nrBins = max(10,round(numel(ti)/10));
             
             histogram(ti-criticalStart(tr),nrBins,'BinLimits',[-slack*meanDuration (1+slack)*meanDuration]);%,tBins)
-            
+             
             xlabel 'Time from trial start (ms)'
             ylabel '#drops'
             
@@ -1699,6 +1760,31 @@ classdef cic < neurostim.plugin
             xlabel 'Delta (ms)'
             ylabel '#drops'
             
+            if c.nrBehaviors>0
+            
+            figure('Name',[c.file ' - framedrop report for behavior state changes'])
+            B = c.behaviors;
+            nrB = numel(B);
+            colors = 'rgbcmyk';
+            for i=1:nrB
+                subplot(nrB,1,i)
+                [state,stateTrial,stateStartT] = get(B(i).prms.state,'atTrialTime',[],'withDataOnly',true);
+                uStates = unique(state);
+                relativeTime  = ti(stateTrial)-stateStartT; 
+                for s=1:numel(uStates)
+                    thisState = ismember(state,uStates{s});
+                    plot(relativeTime(thisState),stateTrial(thisState),['.' colors(s)]);
+                    hold on
+                end
+                xlabel('Time from State start (ms)')
+                ylabel 'Trial'
+                title ([B(i).name '- State Transitions INTO'])
+                set(gca,'YLim',[0 max(stateTrial)+1],'YTick',1:max(stateTrial),'XLIm',[-slack*meanDuration (1+slack)*meanDuration])
+                legend (uStates)
+            end
+           
+            end            
+            
         end
         
         
@@ -1706,7 +1792,7 @@ classdef cic < neurostim.plugin
             BLOCKSIZE = 1500;
             c.profile.(name).cntr = c.profile.(name).cntr+1;
             thisCntr = c.profile.(name).cntr;
-            if thisCntr > numel(c.profile.(name).(what))
+             if thisCntr > numel(c.profile.(name).(what))
                 c.profile.(name).(what) = [c.profile.(name).(what) nan(1,BLOCKSIZE)];
             end
             c.profile.(name).(what)(thisCntr) =  duration;

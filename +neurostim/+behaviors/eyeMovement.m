@@ -27,6 +27,7 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
             e = neurostim.event;  % Create an object of event type
             e.X = o.cic.eye.x;  % Fill it with relevant data from the eye tracker.
             e.Y = o.cic.eye.y;
+            e.valid = o.cic.eye.valid; % To detect blinks
         end
      end
           
@@ -36,10 +37,15 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
         % around o.X, o.Y. A different position can be checked the same way
         % by specifying the optional third input argument.
         function value= isInWindow(o,e,XY)
+            if ~e.valid
+                value = true; % Benefit of the doubt
+                return;
+            end
             nin=nargin;
             if nin < 3
                 XY = [o.X o.Y];                
             end
+            
             nrXPos = size(XY,1); 
             distance = sqrt(sum((repmat([e.X e.Y],[nrXPos 1])-XY).^2,2));            
             value= any(distance< o.tolerance);

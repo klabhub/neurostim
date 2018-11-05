@@ -24,6 +24,7 @@ classdef event
         keyNr@double;
         correct@logical;
         isBitHigh@logical;
+        valid@logical;
     end
     properties (Dependent)
         isEntry@logical;
