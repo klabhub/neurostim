@@ -103,7 +103,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             % class.
             %tic;
             parmValue = getValue(o); % This is the value that we used previously
-            [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
+                [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
             %toc
         end
         
@@ -120,6 +120,8 @@ classdef psyBayes < neurostim.plugins.adaptive
                 psybayes_plot(o(i).psy);
             end
         end
+        
+       
         
         function [m,sd,hdr,threshold,thresholdHdr]= posterior(oo,alpha,plotIt,theta)
             % function [m,sd,hdr]= posterior(oo,alpha,plotIt)
@@ -146,7 +148,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             m = nan(3,nrO);
             sd = nan(3,nrO);
             threshold = nan(1,nrO);
-            thresholdHdr = nan(1,2,nrO);
+            thresholdHdr = nan(2,nrO);
             hdr = nan(3,2,nrO);
             conditionLabel = cell(1,nrO);
             for j=1:nrO
@@ -215,11 +217,11 @@ classdef psyBayes < neurostim.plugins.adaptive
                             if sum(abs(diff(ix)) >2)
                                 warning('This HDR is non-contiguous');
                                 % Better return nan than the wrong limits..
-                                thresholdHdr(1,j,1) = NaN;
-                                thresholdHdr(1,j,2) = NaN;
+                                thresholdHdr(1,j) = NaN;
+                                thresholdHdr(2,j) = NaN;
                             else % Contiguous HDR
-                                thresholdHdr(1,j,2) = x(find(ix==1,1,'first'));
-                                thresholdHdr(1,j,2) = x(find(ix==1,1,'last'));
+                                thresholdHdr(1,j) = x(find(ix==1,1,'first'));
+                                thresholdHdr(2,j) = x(find(ix==1,1,'last'));
                             end
                             
                         end

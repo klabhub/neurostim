@@ -14,7 +14,12 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
            o.addProperty('X',0,'validate',@isnumeric); % X,Y,Z - the position of a target for the behaviour (e.g. fixation point)
            o.addProperty('Y',0,'validate',@isnumeric);
            o.addProperty('Z',0,'validate',@isnumeric);
-           o.addProperty('tolerance',1,'validate',@isnumeric);  % tolerance is the window size         
+           if hasPlugin(c,'eye')
+               defaultTolerance = c.eye.tolerance;
+           else
+                defaultTolerance = 3;
+           end
+           o.addProperty('tolerance',defaultTolerance,'validate',@isnumeric);  % tolerance is the window size         
            o.addProperty('invert',false,'validate',@isnumeric); %Invert the meaning of "in the window'
            if ~hasPlugin(c,'eye')
                warning('No eye data in CIC. This behavior control is unlikely to work');

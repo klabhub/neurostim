@@ -121,6 +121,11 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % then use screen background
                 o.backgroundColor = o.cic.screen.color.background;
             end
+            if isempty(o.clbTargetColor)
+                % If the user did not set the calibration target color 
+                % then make it maximally different from the background (5%)
+                o.clbTargetColor = max(o.backgroundColor)-0.95*o.backgroundColor;
+            end
             if isempty(o.foregroundColor)
                 o.foregroundColor = o.cic.screen.color.text;
             end

@@ -129,6 +129,22 @@ classdef (Abstract) adaptive < neurostim.plugin
             o.conditions = unique(cat(1,o.conditions,cond));
         end
         
+        
+         function values = whichParms(o,prm)
+            % For this adaptive object, find out which  conditions in some other
+            % plugin it responds to. This is useful to make sure that it is
+            % responding to the correct conditions. Especially when using a
+            % single adaptive parameter for multiple conditions.
+            %
+            % prm = a parameter in a different object. E.g.
+            % c.gabor.prms.orientation
+            % 
+            [cond,tr] = get(o.cic.prms.condition,'atTrialTime',inf);
+            stay = ismember(cond,o.conditions);
+            values= unique(get(prm,'trial',tr(stay),'atTrialTime',inf));
+            
+        end
+        
         function o= duplicate(o1,nm)
             % Duplicate an adaptive parm ; requires setting a new unique
             % id. Note that if you ask for more than one duplicate, the

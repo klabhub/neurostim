@@ -42,6 +42,7 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('clbTargetColor',[1,0,0]);
             o.addProperty('clbTargetSize',0.25);
             o.addProperty('continuous',false);
+            o.addProperty('tolerance',3); % Used to set default tolerance on behaviors.eyeMovement
         end
         
         
