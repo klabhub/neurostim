@@ -17,7 +17,7 @@ classdef fmri < neurostim.plugin
         end
         
         function beforeExperiment(o)
-            if isempty(o.scanNr)
+            if isempty(o.scanNr) || o.scanNr ==0
                 answer=[];
                 while (isempty(answer))
                     DrawFormattedText(o.cic.window,'Which scan number is about to start?' ,'center','center',o.cic.screen.color.text);

@@ -19,6 +19,7 @@ classdef cic < neurostim.plugin
         cursor = 'arrow';        % Cursor 'none','arrow';
         dirs                    = struct('root','','output','','calibration','')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
         subjectNr@double        = [];
+        latinSqRow@double       = [];
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
@@ -677,8 +678,8 @@ classdef cic < neurostim.plugin
             % 'ORDERED' ( a specific ordering provided by the caller) or
             % 'LATINSQUARES' - uses a balanced latin square design, (even
             % number of blocks only). The row number can be provide as the
-            % 'latinSquareRow' argument. If not, the user is prompted to enter
-            % the number.
+            % 'c.latinSqRow' property. If this is empty, the user is prompted to enter
+            % the row number.
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
             % 'blockOrder' - the ordering of blocks
@@ -687,7 +688,6 @@ classdef cic < neurostim.plugin
             p.addParameter('blockOrder',[],@isnumeric); %  A specific order of blocks
             p.addParameter('nrRepeats',1,@isnumeric);
             p.addParameter('weights',[],@isnumeric);
-            p.addParameter('latinSquareRow',[],@isnumeric); % The latin square row number
             
             % check the block inputs
             isBlock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
@@ -717,11 +717,9 @@ classdef cic < neurostim.plugin
                 end
                 allLS = neurostim.utils.ballatsq(nrUBlocks);
                 
-                if isempty(p.Results.latinSquareRow)
+                if isempty(c.latinSqRow) || c.latinSqRow==0
                     lsNr = input(['Latin square group number (1-' num2str(size(allLS,1)) ')'],'s');
-                    lsNr = str2double(lsNr);
-                else
-                    lsNr = p.Results.latinSquareRow;
+                    lsNr = str2double(lsNr);                
                 end
                 if isnan(lsNr)  || lsNr>size(allLS,1) || lsNr <1
                     error(['The Latin Square group ' num2str(lsNr) ' does not exist for ' num2str(nrUBlocks) ' conditions/blocks']);
