@@ -7,7 +7,7 @@ classdef fmri < neurostim.plugin
     methods
         function o = fmri(c)
             o = o@neurostim.plugin(c,'fmri');
-            o.addProperty('scanNr',0);
+            o.addProperty('scanNr',[]);
             o.addProperty('preTriggers',10);
             o.addProperty('trigger',0);
             o.addProperty('triggerKey','t');
@@ -17,15 +17,17 @@ classdef fmri < neurostim.plugin
         end
         
         function beforeExperiment(o)
-            answer=[];
-            while (isempty(answer))
-                DrawFormattedText(o.cic.window,'Which scan number is about to start?' ,'center','center',o.cic.screen.color.text);
-                Screen('Flip',o.cic.window);
-                disp('*****************************************')
-                commandwindow;
-                answer = input('Which scan number is about to start (for logging purposes)?');
+            if isempty(o.scanNr)
+                answer=[];
+                while (isempty(answer))
+                    DrawFormattedText(o.cic.window,'Which scan number is about to start?' ,'center','center',o.cic.screen.color.text);
+                    Screen('Flip',o.cic.window);
+                    disp('*****************************************')
+                    commandwindow;
+                    answer = input('Which scan number is about to start (for logging purposes)?');
+                end
+                o.scanNr =answer;
             end
-            o.scanNr =answer;
         end
         
         function beforeTrial(o)
@@ -38,7 +40,7 @@ classdef fmri < neurostim.plugin
                 DrawFormattedText(o.cic.window,'Start the scanner now ...' ,'center','center',o.cic.screen.color.text);
                 Screen('Flip',o.cic.window);
                 % Wait until the first trigger has been received
-                while o.trigger ==0                    
+                while o.trigger ==0
                     WaitSecs(0.1);
                     o.cic.KbQueueCheck;
                 end
