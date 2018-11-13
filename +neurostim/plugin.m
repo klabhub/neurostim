@@ -177,20 +177,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % aligned to. If this is not specified, the time of the first frame in the
             % first trial is used. This only needs to be specified once on first construction
             % of the table, not on subsequent calls that add columns.
-            %
+            % atTrialTime  = Defaults to Inf. Time at which the properties
+            % are evaluated. 
             % Example (From experiments/bart/cardgame)
-            % tbl = getBIDSTable(c,'alignTime',alignTime,...
-            %                       'properties',{'trial','block'},...
-            %                       'propertyNames',containers.Map('block','StimType'),...
-            %                       'propertyDescription',{'Trial numbers','Stimulation Type in Block'},...
-            %                       'propertyLevels',{'',containers.Map(cellfun(@num2str,num2cell(1:numel(c.blocks)),'uniformoutput',false),{c.blocks.name})},...
-            %                      'eventTimes',{'firstFrame','trialStopTime'},...
-            %                      'eventNames',containers.Map('firstFrame','Onset'),...
-            %                      'eventDescription',{'Trial start time','Trial stop time'});
-            % tbl = addvars(tbl,tbl.trialStopTime-tbl.Onset,'NewVariableNames',{'Duration'});
-            % tbl.Properties.VariableUnits{end} = 's';
-            % tbl.Properties.VariableDescriptions{end} = 'Trial Duration';
-            % Cardgame Parameters
+            % tbl = getBIDSTable(c); % Setuo the basic sturcture (trials,
+            % blocks etc)
+            %  Cardgame Parameters
             % tbl = getBIDSTable(c.card,tbl,'properties',{'rewardFraction','guess','outcome','correct'},...
             %                                 'propertyDescription',{'Fraction of trials in which subject received reward', 'The subject''s guess','The card value ','Whether the subject guessed correctly or not'},...
             %                                  'propertyProcessing',containers.Map('outcome',@(v)([v{:}]')),...
@@ -216,12 +208,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('eventTimes',{},@iscell);% Cell array of event times to extract - one per trial
             p.addParameter('eventNames',containers.Map,@(x) (isa(x,'containers.Map'))); % Map properties to names to use in the table
             p.addParameter('eventDescriptions',{},@iscell);
-            p.addParameter('alignTime','');
+            p.addParameter('atTrialTime',Inf,@isnumeric);
+            p.addParameter('alignTime',[]);
             p.parse(varargin{:});
             tbl = p.Results.tbl;
             
-            if isempty(tbl)
+            if isempty(tbl.Properties.Description) % Check Description as the table data is still empty on the firs recursive call 
                 % Setup basic table properties on first construction
+                tbl.Properties.Description = o.cic.file;
                 tbl.Properties.DimensionNames = {'Trial','Variables'};
                 tbl = addprop(tbl,'VariableLevels','Variable');
                 if isempty(p.Results.alignTime)
@@ -232,6 +226,17 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
                 tbl = addprop(tbl,'AlignTime','Table');
                 tbl.Properties.CustomProperties.AlignTime = alignTime;
+                
+                % Recursive call to this function to setup trial and block 
+                tbl = getBIDSTable(o,tbl,'atTrialTime',0,'properties',{'trial','block','blockCntr'},...
+                                    'propertyDescription',{'Trial numbers','Block Number','Block Counter'},...
+                                    'eventTimes',{'firstFrame','trialStopTime'},...
+                                    'eventNames',containers.Map({'firstFrame','trialStopTime'},{'Onset','Offset'}),...
+                                    'eventDescription',{'Trial start time','Trial stop time'});
+                tbl = addvars(tbl,tbl.Offset-tbl.Onset,'NewVariableNames',{'Duration'});
+                tbl.Properties.VariableUnits{end} = 's';
+                tbl.Properties.VariableDescriptions{end} = 'Trial Duration';
+                return;
             else
                 alignTime = tbl.Properties.CustomProperties.AlignTime;
             end
@@ -283,7 +288,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
             %%  Add the properties to the table.
             for i= 1:numel(p.Results.properties)
-                [v] = get(o.prms.(p.Results.properties{i}),'atTrialTime',inf);
+                [v] = get(o.prms.(p.Results.properties{i}),'atTrialTime',p.Results.atTrialTime);
                 
                 
                 if isKey(p.Results.propertyProcessing,p.Results.properties{i})
@@ -318,7 +323,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
             %% Add the event times
             for i = 1:numel(p.Results.eventTimes)
-                [~,~,~,time] = get(o.prms.(p.Results.eventTimes{i}),'atTrialTime',inf);
+                [~,~,~,time] = get(o.prms.(p.Results.eventTimes{i}));
                 time = (time-alignTime)/1000;
                 if isKey(p.Results.eventNames,p.Results.eventTimes{i})
                     thisName = p.Results.eventNames(p.Results.eventTimes{i});

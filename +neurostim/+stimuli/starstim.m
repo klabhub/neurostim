@@ -164,7 +164,9 @@ classdef starstim < neurostim.stimulus
     end
     
     methods % Public
-        
+        function o= loadobj(o)
+            o.mustExit = false;
+        end
         function abort(o)
             stop(o);
         end
@@ -177,7 +179,7 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 return;
             end
-            if o.mustExit
+           if o.mustExit
                 onExit(o);
             end
         end
