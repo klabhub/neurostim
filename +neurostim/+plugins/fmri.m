@@ -11,7 +11,7 @@ classdef fmri < neurostim.plugin
             o.addProperty('preTriggers',10);
             o.addProperty('trigger',0);
             o.addProperty('triggerKey','t');
-            
+            o.addProperty('triggersComplete',[]);
             o.addKey('t');
             
         end
@@ -53,6 +53,7 @@ classdef fmri < neurostim.plugin
                     end
                     Screen('Flip',o.cic.window);
                 end
+                o.triggersComplete = true;
                 Screen('Flip',o.cic.window);
             end
         end

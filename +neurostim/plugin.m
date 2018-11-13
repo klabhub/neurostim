@@ -2,9 +2,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     % Base class for plugins. Includes logging, functions, etc.
     %
     properties (SetAccess=public)
-        cic;  % Pointer to CIC    
+        cic;  % Pointer to CIC
         overlay@logical=false; % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
-        window;    
+        window;
         feedStyle = '[0 0.5 0]'; % Command line color for writeToFeed messages.
     end
     
@@ -81,17 +81,17 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         % specifying the o.feedStyle: see styles defined in cprintf.
         function writeToFeed(o,varargin)
             nin =nargin;
-            if nin==1                
+            if nin==1
                 formatSpec ='%s';
                 args = {o.name};
             elseif nin==2
                 formatSpec ='%s: %s';
-                args = {o.name,varargin{1}};                
+                args = {o.name,varargin{1}};
             elseif nargin>2
                 formatSpec = ['%s: ' varargin{1}];
                 args = cat(2,{o.name},varargin(2:end));
-            end            
-            o.cic.feed(o.feedStyle,formatSpec,o.cic.trial,o.cic.trialTime,args{:});            
+            end
+            o.cic.feed(o.feedStyle,formatSpec,o.cic.trial,o.cic.trialTime,args{:});
         end
         
         % Needed by str2fun
@@ -148,8 +148,198 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             o.prms.(parm.name) = duplicate(parm,o,h);
         end
         
+        
+        
+        function tbl = getBIDSTable(o,varargin)
+            % Create a table that can be used to generate a BIDS .tsv file
+            % from the properties and events in a plugin.
+            % INPUT
+            % plg =  the plugin/stimulus
+            % tbl = Pass a previously constructed table to concatenate.
+            % Parameter/Value pairs:
+            % properties - Cell array of properties to extract- one value per trial.
+            % propertyNames - containers.Map object to rename a property
+            %                       to something else in the table. Optional.
+            %                    containers.Map('mySillyName','A better Name')
+            % propertyUnits - cell array of chars that specify the units for each
+            %                   property. Optional. e.g. {'m','cd/m2'}
+            % propertyLevels  - Cell array of containers.Map objects that specify the
+            %                   relationship between levels (e.g. a number in the table
+            %                  )and what that level means. Optional.
+            % propertyDescription - longer description of what each column means
+            % propertyProcessing - a containers.Map with anonymous functions that take
+            %                   the raw property value and process it. The processed value is stored.
+            % eventTimes   = cell array of properties whose time is stored in the
+            % table.
+            % eventNames  - containers.Map object to rename event times
+            % eventDescriptions - cell array of longer descriptions
+            % alignTime - the absolute (experiment) time that all event times should be
+            % aligned to. If this is not specified, the time of the first frame in the
+            % first trial is used. This only needs to be specified once on first construction
+            % of the table, not on subsequent calls that add columns.
+            %
+            % Example (From experiments/bart/cardgame)
+            % tbl = getBIDSTable(c,'alignTime',alignTime,...
+            %                       'properties',{'trial','block'},...
+            %                       'propertyNames',containers.Map('block','StimType'),...
+            %                       'propertyDescription',{'Trial numbers','Stimulation Type in Block'},...
+            %                       'propertyLevels',{'',containers.Map(cellfun(@num2str,num2cell(1:numel(c.blocks)),'uniformoutput',false),{c.blocks.name})},...
+            %                      'eventTimes',{'firstFrame','trialStopTime'},...
+            %                      'eventNames',containers.Map('firstFrame','Onset'),...
+            %                      'eventDescription',{'Trial start time','Trial stop time'});
+            % tbl = addvars(tbl,tbl.trialStopTime-tbl.Onset,'NewVariableNames',{'Duration'});
+            % tbl.Properties.VariableUnits{end} = 's';
+            % tbl.Properties.VariableDescriptions{end} = 'Trial Duration';
+            % Cardgame Parameters
+            % tbl = getBIDSTable(c.card,tbl,'properties',{'rewardFraction','guess','outcome','correct'},...
+            %                                 'propertyDescription',{'Fraction of trials in which subject received reward', 'The subject''s guess','The card value ','Whether the subject guessed correctly or not'},...
+            %                                  'propertyProcessing',containers.Map('outcome',@(v)([v{:}]')),...
+            %                                  'propertyLevels',{'',containers.Map({'-1','1'},{'Low','High'}),'',containers.Map({'-1','0','1'},{'Incorrect','N/A','Correct'})});
+            %
+            %
+            % Panas Parameters
+            % tbl = getBIDSTable(c.panas,tbl,'properties',{'word','when','answer'},...
+            %                                 'propertyDescription',{'Quality','Time Period','Subject Answer'},...
+            %                                 'propertyProcessing',containers.Map({'word','when'},{@(v) ({c.panas.words{v}}'),@(v) ({c.panas.whens{v}}')}));
+            %
+            % See also saveBIDS and sib2bids
+            %
+            % BK  -Nov 2018
+            p=inputParser;
+            p.addOptional('tbl',table,@istable);
+            p.addParameter('properties',{},@iscell);  % Cell array of property values to extract - one per trial
+            p.addParameter('propertyNames',containers.Map,@(x) (isa(x,'containers.Map'))); % Map properties to names to use in the table
+            p.addParameter('propertyUnits',{},@iscell);
+            p.addParameter('propertyLevels',{},@iscell);
+            p.addParameter('propertyDescriptions',{},@iscell);
+            p.addParameter('propertyProcessing',containers.Map,@(x) (isa(x,'containers.Map'))); % Specify processing (a funciton handle) to apply to a propoerty
+            p.addParameter('eventTimes',{},@iscell);% Cell array of event times to extract - one per trial
+            p.addParameter('eventNames',containers.Map,@(x) (isa(x,'containers.Map'))); % Map properties to names to use in the table
+            p.addParameter('eventDescriptions',{},@iscell);
+            p.addParameter('alignTime','');
+            p.parse(varargin{:});
+            tbl = p.Results.tbl;
+            
+            if isempty(tbl)
+                % Setup basic table properties on first construction
+                tbl.Properties.DimensionNames = {'Trial','Variables'};
+                tbl = addprop(tbl,'VariableLevels','Variable');
+                if isempty(p.Results.alignTime)
+                    % No special event specified. Use first frame event in first trial
+                    [~,~,~,alignTime] = get(o.cic.prms.firstFrame,'trial',1);
+                else
+                    alignTime = p.Results.alignTime;
+                end
+                tbl = addprop(tbl,'AlignTime','Table');
+                tbl.Properties.CustomProperties.AlignTime = alignTime;
+            else
+                alignTime = tbl.Properties.CustomProperties.AlignTime;
+            end
+            
+            
+            
+            %% Parse the inputs and supply empty units/levels/descriptions if those
+            % were not provided.
+            if isempty(p.Results.propertyUnits)
+                units = cell(1,numel(p.Results.properties));
+                [units{:}] = deal('');
+            else
+                units = p.Results.propertyUnits;
+                if numel(units) ~= numel(p.Results.properties)
+                    error('Each property needs a propertyUnits entry. Specify '''' for properties that don''t have units')
+                end
+            end
+            
+            if isempty(p.Results.propertyLevels)
+                levels = cell(1,numel(p.Results.properties));
+                [levels{:}] = deal('');
+            else
+                levels= p.Results.propertyLevels;
+                if numel(levels) ~= numel(p.Results.properties)
+                    error('Each property needs a propertyLevel entry. Specify '''' for properties that don''t have levels')
+                end
+            end
+            
+            if isempty(p.Results.propertyDescriptions)
+                propDescriptions = cell(1,numel(p.Results.properties));
+                [propDescriptions{:}] = deal('');
+            else
+                propDescriptions = p.Results.propertyDescriptions;
+                if numel(propDescriptions) ~= numel(p.Results.properties)
+                    error('Each property needs a propertyDescriptions entry.')
+                end
+            end
+            
+            if isempty(p.Results.eventDescriptions)
+                evtDescriptions = cell(1,numel(p.Results.properties));
+                [evtDescriptions{:}] = deal('');
+            else
+                evtDescriptions = p.Results.eventDescriptions;
+                if numel(evtDescriptions) ~= numel(p.Results.eventTimes)
+                    error('Each event needs a eventDescriptions entry.')
+                end
+            end
+            
+            
+            %%  Add the properties to the table.
+            for i= 1:numel(p.Results.properties)
+                [v] = get(o.prms.(p.Results.properties{i}),'atTrialTime',inf);
+                
+                
+                if isKey(p.Results.propertyProcessing,p.Results.properties{i})
+                    fun = p.Results.propertyProcessing(p.Results.properties{i});
+                    v= fun(v);
+                end
+                
+                
+                if isKey(p.Results.propertyNames,p.Results.properties{i})
+                    thisName = p.Results.propertyNames(p.Results.properties{i});
+                else
+                    thisName= p.Results.properties{i};
+                end
+                
+                tbl= addvars(tbl,v,'NewVariableNames',thisName);
+                if isempty(tbl.Properties.VariableUnits)
+                    tbl.Properties.VariableUnits = units(i); % Create teh first one
+                else
+                    tbl.Properties.VariableUnits{end} = units{i}; % Once one has been creatd the table object adds empties- replace
+                end
+                if isempty(tbl.Properties.CustomProperties.VariableLevels)
+                    tbl.Properties.CustomProperties.VariableLevels = levels(i); % Create teh first one
+                else
+                    tbl.Properties.CustomProperties.VariableLevels{end} = levels{i}; % Once one has been creatd the table object adds empties- replace
+                end
+                if isempty(tbl.Properties.VariableDescriptions)
+                    tbl.Properties.VariableDescriptions= propDescriptions(i); % Create teh first one
+                else
+                    tbl.Properties.VariableDescriptions{end} = propDescriptions{i}; % Once one has been creatd the table object adds empties- replace
+                end
+            end
+            
+            %% Add the event times
+            for i = 1:numel(p.Results.eventTimes)
+                [~,~,~,time] = get(o.prms.(p.Results.eventTimes{i}),'atTrialTime',inf);
+                time = (time-alignTime)/1000;
+                if isKey(p.Results.eventNames,p.Results.eventTimes{i})
+                    thisName = p.Results.eventNames(p.Results.eventTimes{i});
+                else
+                    thisName= p.Results.eventTimes{i};
+                end
+                tbl= addvars(tbl,time,'NewVariableNames',thisName);
+                if isempty(tbl.Properties.VariableUnits)
+                    tbl.Properties.VariableUnits = {'s'};
+                else
+                    tbl.Properties.VariableUnits{end} = 's';
+                end
+                if isempty(tbl.Properties.VariableDescriptions)
+                    tbl.Properties.VariableDescriptions= evtDescriptions(i); % Create teh first one
+                else
+                    tbl.Properties.VariableDescriptions{end} = evtDescriptions{i}; % Once one has been creatd the table object adds empties- replace
+                end
+            end
+            
+        end
     end
-    
     
     % Only the (derived) class designer should have access to these
     % methods.
@@ -193,7 +383,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 o.window = o.cic.overlayWindow;
             else
                 o.window = o.cic.mainWindow;
-            end            
+            end
             beforeExperiment(o);
         end
         
@@ -226,7 +416,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         
         function beforeExperiment(~)
             %NOP
-        end        
+        end
         
         function beforeBlock(~)
             %NOP
@@ -250,7 +440,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         
         function afterBlock(~)
             %NOP
-        end        
+        end
         function afterExperiment(~)
             %NOP
         end
@@ -271,22 +461,22 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     for o=oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseBeforeExperiment(o);
-                        if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end
                     end
                     % All plugins BEFOREEXPERIMENT functions have been processed,
                     % store the current parameter values as the defaults.
                     setCurrentParmsToDefault(oList);
                 case neurostim.stages.BEFOREBLOCK
-                     for o= oList
+                    for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseBeforeBlock(o);
-                        if c.PROFILE; addProfile(c,'BEFOREBLOCK',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'BEFOREBLOCK',o.name,c.clockTime-ticTime);end
                     end
                 case neurostim.stages.BEFORETRIAL
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseBeforeTrial(o);
-                        if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end
                     end
                 case neurostim.stages.BEFOREFRAME
                     Screen('glLoadIdentity', c.window);
@@ -297,31 +487,31 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         Screen('glPushMatrix',c.window);
                         baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class
                         Screen('glPopMatrix',c.window);
-                        if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end
                     end
                 case neurostim.stages.AFTERFRAME
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseAfterFrame(o);
-                        if c.PROFILE; addProfile(c,'AFTERFRAME',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'AFTERFRAME',o.name,c.clockTime-ticTime);end
                     end
                 case neurostim.stages.AFTERTRIAL
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseAfterTrial(o);
-                        if c.PROFILE; addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'AFTERTRIAL',o.name,c.clockTime-ticTime);end
                     end
                 case neurostim.stages.AFTERBLOCK
-                     for o= oList
+                    for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseAfterBlock(o);
-                        if c.PROFILE; addProfile(c,'AFTERBLOCK',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'AFTERBLOCK',o.name,c.clockTime-ticTime);end
                     end
                 case neurostim.stages.AFTEREXPERIMENT
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseAfterExperiment(o);
-                        if c.PROFILE; addProfile(c,'AFTEREXPERIMENT',o.name,c.clockTime-ticTime);end;
+                        if c.PROFILE; addProfile(c,'AFTEREXPERIMENT',o.name,c.clockTime-ticTime);end
                     end
                 otherwise
                     error('?');
