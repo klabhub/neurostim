@@ -231,11 +231,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 tbl = getBIDSTable(o,tbl,'atTrialTime',0,'properties',{'trial','block','blockCntr'},...
                                     'propertyDescription',{'Trial numbers','Block Number','Block Counter'},...
                                     'eventTimes',{'firstFrame','trialStopTime'},...
-                                    'eventNames',containers.Map({'firstFrame','trialStopTime'},{'Onset','Offset'}),...
+                                    'eventNames',containers.Map({'firstFrame','trialStopTime'},{'onset','offset'}),...
                                     'eventDescription',{'Trial start time','Trial stop time'});
-                tbl = addvars(tbl,tbl.Offset-tbl.Onset,'NewVariableNames',{'Duration'});
+                tbl = addvars(tbl,tbl.offset-tbl.onset,'NewVariableNames',{'duration'});
                 tbl.Properties.VariableUnits{end} = 's';
                 tbl.Properties.VariableDescriptions{end} = 'Trial Duration';
+                tbl = movevars(tbl,'duration','Before','offset'); %BIDS wants Onset first, then Duration
                 return;
             else
                 alignTime = tbl.Properties.CustomProperties.AlignTime;
@@ -286,7 +287,34 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             end
             
             
-            %%  Add the properties to the table.
+            %% Add the event times
+            for i = 1:numel(p.Results.eventTimes)
+                [~,~,~,time] = get(o.prms.(p.Results.eventTimes{i}));
+                time = (time-alignTime)/1000;
+                if isKey(p.Results.eventNames,p.Results.eventTimes{i})
+                    thisName = p.Results.eventNames(p.Results.eventTimes{i});
+                else
+                    thisName= p.Results.eventTimes{i};
+                end
+                tbl= addvars(tbl,time,'NewVariableNames',thisName);
+                if isempty(tbl.Properties.VariableUnits)
+                    tbl.Properties.VariableUnits = {'s'};
+                else
+                    tbl.Properties.VariableUnits{end} = 's';
+                end
+                if isempty(tbl.Properties.CustomProperties.VariableLevels)
+                    tbl.Properties.CustomProperties.VariableLevels = {[]}; % Create the first one -events are times so no levels needed.
+                  % Once one has been creatd the table object adds empties
+                end
+               
+                if isempty(tbl.Properties.VariableDescriptions)
+                    tbl.Properties.VariableDescriptions= evtDescriptions(i); % Create teh first one
+                else
+                    tbl.Properties.VariableDescriptions{end} = evtDescriptions{i}; % Once one has been creatd the table object adds empties- replace
+                end
+            end
+            
+              %%  Add the properties to the table.
             for i= 1:numel(p.Results.properties)
                 [v] = get(o.prms.(p.Results.properties{i}),'atTrialTime',p.Results.atTrialTime);
                 
@@ -321,27 +349,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
             end
             
-            %% Add the event times
-            for i = 1:numel(p.Results.eventTimes)
-                [~,~,~,time] = get(o.prms.(p.Results.eventTimes{i}));
-                time = (time-alignTime)/1000;
-                if isKey(p.Results.eventNames,p.Results.eventTimes{i})
-                    thisName = p.Results.eventNames(p.Results.eventTimes{i});
-                else
-                    thisName= p.Results.eventTimes{i};
-                end
-                tbl= addvars(tbl,time,'NewVariableNames',thisName);
-                if isempty(tbl.Properties.VariableUnits)
-                    tbl.Properties.VariableUnits = {'s'};
-                else
-                    tbl.Properties.VariableUnits{end} = 's';
-                end
-                if isempty(tbl.Properties.VariableDescriptions)
-                    tbl.Properties.VariableDescriptions= evtDescriptions(i); % Create teh first one
-                else
-                    tbl.Properties.VariableDescriptions{end} = evtDescriptions{i}; % Once one has been creatd the table object adds empties- replace
-                end
-            end
+          
             
         end
     end
