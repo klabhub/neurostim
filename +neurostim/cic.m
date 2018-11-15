@@ -20,6 +20,7 @@ classdef cic < neurostim.plugin
         dirs                    = struct('root','','output','','calibration','')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
         subjectNr@double        = [];
         latinSqRow@double       = [];
+        runNr@double            = []; % Bookkeeping
         paradigm@char           = 'test';
         clear@double            = 1;   % Clear backbuffer after each swap. double not logical
         itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
