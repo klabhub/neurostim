@@ -174,11 +174,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % eventNames  - containers.Map object to rename event times
             % eventDescriptions - cell array of longer descriptions
             % alignTime - the absolute (experiment) time that all event times should be
-            % aligned to. If this is not specified, the time of the first frame in the
-            % first trial is used. This only needs to be specified once on first construction
-            % of the table, not on subsequent calls that add columns.
-            % atTrialTime  = Defaults to Inf. Time at which the properties
-            % are evaluated. 
+            %               aligned to. If this is not specified, the time of the first frame in the
+            %               first trial is used. This only needs to be specified once on first construction
+            %               of the table, not on subsequent calls that add columns.
+            % atTrialTime  - Defaults to Inf. Time at which the properties
+            %                   are evaluated. 
+            % trial_type  - Specify which elements are used to determine
+            %               trial_type. Defaults to '' (i.e. no trial_type column). This
+            %               can be a cell array of strings with one entry per trial which
+            %               is used as is, or one of 'designs', or 'blocks' to use the
+            %                   names of the corresponding cic elements.
+            %                   (c.blocks.design, or c.blocks,
+            %                   respectively)
+            % 
             % Example (From experiments/bart/cardgame)
             % tbl = getBIDSTable(c); % Setuo the basic sturcture (trials,
             % blocks etc)
@@ -210,6 +218,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('eventDescriptions',{},@iscell);
             p.addParameter('atTrialTime',Inf,@isnumeric);
             p.addParameter('alignTime',[]);
+            p.addParameter('trial_type',{},@(x) (ischar(x) && ismember(upper(x),{'DESIGNS','BLOCKS'})) || iscell(x)); %
             p.parse(varargin{:});
             tbl = p.Results.tbl;
             
@@ -237,6 +246,30 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 tbl.Properties.VariableUnits{end} = 's';
                 tbl.Properties.VariableDescriptions{end} = 'Trial Duration';
                 tbl = movevars(tbl,'duration','Before','offset'); %BIDS wants Onset first, then Duration
+                
+                if ~isempty(p.Results.trial_type)
+                    if ischar(p.Results.trial_type) 
+                        switch upper(p.Results.trial_type)
+                            case 'DESIGNS'
+                                % Pull the names from the designs used in
+                                % each block
+                                designs = [o.cic.blocks.design];
+                                blockDesignNames = {designs.name}';
+                                trialTypeNames = blockDesignNames(tbl.block);% One per trial
+                            case 'BLOCKS'
+                                % Use the names of the blocks
+                                blockNames ={o.cic.blocks.name};
+                                trialTypeNames = blockNames(tbl.block); % One per trial
+                        end
+                        
+                    elseif numel(p.Results.trial_type)==height(tbl)
+                        trialTypeNames= p.Results.trial_type;
+                    else
+                        p.Results.trial_type
+                        error('This trial_type specification does not parse');
+                    end
+                    tbl = addvars(tbl,trialTypeNames,'After','duration','NewVariableNames','trial_type');
+                end 
                 return;
             else
                 alignTime = tbl.Properties.CustomProperties.AlignTime;
