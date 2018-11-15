@@ -431,7 +431,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                         end                        
                     end
                     if ~isnan(ix(tr,:))
-                        newData{tr} =  neurostim.parameter.matrixIfPossible(data(ix(tr,:)));
+                        newData{tr} =  neurostim.parameter.matrixIfPossible(data{ix(tr,:)});
                     end
                 end
                 %
