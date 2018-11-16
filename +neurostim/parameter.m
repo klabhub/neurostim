@@ -405,8 +405,10 @@ classdef parameter < handle & matlab.mixin.Copyable
                     % Find the last time this event occurred in each trial
                     [~,aTr,aTi,atETime] = get(o.plg.prms.(p.Results.after) ,'atTrialTime',inf); %#ok<ASGLU>
                     withinTrialOnly = true;
-                    atETime = atETime+p.Results.atTrialTime; % Interpret atTrialTime as the time after the .after event. 
-                    % becuase atTrialTime defaults to zero, just using
+                    if ~isempty(p.Results.atTrialTime)
+                        atETime = atETime+p.Results.atTrialTime; % Interpret atTrialTime as the time after the .after event. 
+                    end
+                    % becuase atTrialTime defaults to empty, just using
                     % .after means at the time the .after event occurred.                    
                 else
                     atETime = o.trialTime2ETime(p.Results.atTrialTime,1:maxTrial); % Conver to eTime
