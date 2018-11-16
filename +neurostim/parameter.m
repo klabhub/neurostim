@@ -340,7 +340,8 @@ classdef parameter < handle & matlab.mixin.Copyable
           
             %% Correct times 
             %If the parameter is a stored value from flip(), use the data as the time rather than the time it was logged.
-            isStimOnOrOff = ismember(o.name,{'startTime','stopTime'}) && isa(o.plg,'neurostim.stimulus');
+            isStimOnOrOff = (ismember(o.name,{'startTime','stopTime'}) && isa(o.plg,'neurostim.stimulus'));
+            isTrialStopTime = ismember(o.name,{'trialStopTime'}) && isa(o.plg,'neurostim.cic');
             isFirstFrame = strcmp(o.name,'firstFrame') && isa(o.plg,'neurostim.cic');
             if isFirstFrame
                 % Trial time for first frame is zero by definition. 
@@ -353,11 +354,30 @@ classdef parameter < handle & matlab.mixin.Copyable
                 trial= (1:numel(time))';
                 data = num2cell(trialTime(2:end));  % Store the offset (ix 1 is always nonsense) 
                 trialTime = zeros(size(time));                
-                block = NaN(size(time));                            
+                block = NaN(size(time));  
+            elseif isTrialStopTime
+                out = cellfun(@isempty,data); % Loggin error
+                data(out) = [];
+                trial(out) = [];                
+                out = [false; diff(trial)==0]; % Duplicate possible in last trial.
+                data(out) = [];
+                trial(out) = [];
+                tmpTrialTime =cell2mat(data); % This is relative to firstFrame ptbStimOnset
+                time = inf(maxTrial,1);
+                time(trial) = tmpTrialTime;               
+                trialTime = inf(maxTrial,1);
+                trialTime(trial) = tmpTrialTime-o.firstFrameTime;
+                trial = (1:maxTrial)';
+                block = nan(maxTrial,1);                
+                data = cell(maxTrial,1);
+                [data{:}] = deal(NaN);%Replace data with NaNs to force external use of trialTimes and not data             
             elseif isStimOnOrOff
                 % Adjust the times for all entries that were flip synced to
                 % match the time returned by Screen('Flip')
                 % If the start or stop never occurred the time is Inf. 
+                out = cellfun(@isempty,data);
+                data(out) = [];
+                trial(out) = [];
                 tmpTrialTime =cell2mat(data); % This is relative to firstFrame ptbStimOnset
                 out = isinf(tmpTrialTime); % The inf's are logging artefacts. Remove.
                 tmpTrialTime(out) = [];
@@ -411,7 +431,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                         end                        
                     end
                     if ~isnan(ix(tr,:))
-                        newData{tr} =  neurostim.parameter.matrixIfPossible(data(ix(tr,:)));
+                        newData{tr} =  neurostim.parameter.matrixIfPossible(data{ix(tr,:)});
                     end
                 end
                 %

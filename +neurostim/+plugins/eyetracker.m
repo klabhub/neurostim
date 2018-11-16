@@ -35,7 +35,8 @@ classdef eyetracker < neurostim.plugin
             o = o@neurostim.plugin(c,'eye'); % Always eye such that it can be accessed through cic.eye
             
             o.addProperty('eyeClockTime',[]);
-            o.addProperty('hardwareModel',[]);
+            o.addProperty('hardwareModel','');
+            o.addProperty('softwareVersion','');
             o.addProperty('sampleRate',1000,'validate',@isnumeric);
             o.addProperty('backgroundColor',[]);
             o.addProperty('foregroundColor',[]);

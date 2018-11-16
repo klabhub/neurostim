@@ -11,13 +11,13 @@ classdef fmri < neurostim.plugin
             o.addProperty('preTriggers',10);
             o.addProperty('trigger',0);
             o.addProperty('triggerKey','t');
-            
+            o.addProperty('triggersComplete',[]);
             o.addKey('t');
             
         end
         
         function beforeExperiment(o)
-            if isempty(o.scanNr)
+            if isempty(o.scanNr) || o.scanNr ==0
                 answer=[];
                 while (isempty(answer))
                     DrawFormattedText(o.cic.window,'Which scan number is about to start?' ,'center','center',o.cic.screen.color.text);
@@ -53,6 +53,7 @@ classdef fmri < neurostim.plugin
                     end
                     Screen('Flip',o.cic.window);
                 end
+                o.triggersComplete = true;
                 Screen('Flip',o.cic.window);
             end
         end
