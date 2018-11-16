@@ -1526,14 +1526,14 @@ classdef cic < neurostim.plugin
             switch upper(c.screen.colorMode)
                 case 'LINLUT'
                     % Load a gamma table that linearizes each gun
-                    % Dont do this for VPIXX etc. monitor types.
+                    % Dont do this for VPIXX etc. monitor types.(although this should work, LUM works better; not recommended).
                     dac = ScreenDacBits(c.screen.number);
                     iGamma = InvertGammaTable(c.screen.calibration.gammaInput,c.screen.calibration.gammaTable,2.^dac);
                     Screen('LoadNormalizedGammaTable',c.screen.number,iGamma);
                 case 'LUM'
                     % The user specifies luminance values per gun as color.
                     % Calibrateed responses are based on the extended gamma
-                    % function fits. (although this should work, LUM works better; not recommended).
+                    % function fits. 
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SimpleGamma');
                 case 'XYZ'
                     % The user specifies tristimulus values as color.
@@ -1572,7 +1572,7 @@ classdef cic < neurostim.plugin
                         % The warning is wrong; with the new graphics
                         % pipeline setup it works fine as a calibrated
                         % luminance.
-                        c.writeToFeed(['****You can safely ignore the message about '' clearcolor'' that just appeared***']);
+                        c.writeToFeed('****You can safely ignore the message about '' clearcolor'' that just appeared***');
                     end
                     % Create an overlay window to show colored items such
                     % as a fixation point, or text.
@@ -1591,8 +1591,8 @@ classdef cic < neurostim.plugin
                     % Nothing to do.
                 case 'LUM'
                     % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
-                    PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.gamma);
-                    if isnan(c.screen.calibration.bias)
+                    PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.ns.gamma);
+                    if isnan(c.screen.calibration.ns.bias)
                         % Only gamma defined
                         PsychColorCorrection('SetColorClampingRange',c.mainWindow,0,1); % In non-extended mode, luminance is between [0 1]
                     else
@@ -1600,7 +1600,7 @@ classdef cic < neurostim.plugin
                         % out = bias + gain * ((lum-minLum)./(maxLum-minLum)) ^1./gamma )
                         % where each parameter can be specified per gun
                         % (i.e. c.calibration.bias= [ 0 0.1 0])
-                        PsychColorCorrection('SetExtendedGammaParameters', c.mainWindow, c.screen.calibration.min, c.screen.calibration.max, c.screen.calibration.gain,c.screen.calibration.bias);
+                        PsychColorCorrection('SetExtendedGammaParameters', c.mainWindow, c.screen.calibration.ns.min, c.screen.calibration.ns.max, c.screen.calibration.ns.gain,c.screen.calibration.ns.bias);
                         % This mode accepts luminances between min and max
                     end
                 case {'XYZ','XYL'}
@@ -1614,50 +1614,7 @@ classdef cic < neurostim.plugin
             PsychColorCorrection('SetColorClampingRange',c.mainWindow,0,1); % Final pixel value is between [0 1]
             
             %% Perform additional setup routines
-            Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            
-            %% Setup the GUI.
-            %
-            %             if any(strcmpi(c.plugins,'gui'))%if gui is added
-            %
-            %                 guiScreen = setdiff(Screen('screens'),[c.screen.number 0]);
-            %                 if isempty(guiScreen)
-            %                     %                    error('You need two screens to show a gui...');
-            %                     guiScreen = 0;
-            %                     guiRect = [800 0 1600 600];
-            %
-            %                 else
-            %                     guiRect  = Screen('GlobalRect',guiScreen);
-            %                     %                 if ~isempty(.screen.xorigin)
-            %                     %                     guiRect(1) =o.screen.xorigin;
-            %                     %                 end
-            %                     %                 if ~isempty(o.screen.yorigin)
-            %                     %                     guiRect(2) =o.screen.yorigin;
-            %                     %                 end
-            %                     %                 if ~isempty(o.screen.xpixels)
-            %                     %                     guiRect(3) =guiRect(1)+ o.screen.xpixels;
-            %                     %                 end
-            %                     %                 if ~isempty(o.screen.ypixels)
-            %                     %                     guiRect(4) =guiRect(2)+ o.screen.ypixels;
-            %                     %                 end
-            %                 end
-            %                 if isempty(c.mirrorPixels)
-            %                     c.mirrorPixels=Screen('Rect',guiScreen);
-            %                 end
-            %                 c.guiWindow  = PsychImaging('OpenWindow',guiScreen,c.screen.color.background,guiRect);
-            %
-            %                 % TODO should this be separate for the mirrorWindow?
-            %                 switch upper(c.screen.colorMode)
-            %                     case 'XYL'
-            %                         PsychColorCorrection('SetSensorToPrimary', c.guiWindow, cal);
-            %
-            %                     case 'RGB'
-            %                         Screen(c.guiWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            %                 end
-            %             end
-            %
-            
-            
+            Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);                        
             
         end
     end

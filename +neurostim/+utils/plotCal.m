@@ -8,15 +8,20 @@ function plotCal(cal)
     % Put up a plot of the essential data
     figure; clf;
     subplot(2,2,1);
-    plot(SToWls(cal.S_device), cal.P_device);
+    colors = 'rgb';
+    nrGuns  =cal.nDevices;
+    
+    for i=1:nrGuns
+        plot(SToWls(cal.S_device), cal.P_device(:,i),colors(i));
+        hold on
+    end
     xlabel('Wavelength (nm)');
+    
     ylabel('Radiance (W/m^2 sr nm)');
     title('Phosphor spectra');
     axis([380, 780, -Inf, Inf]);
     
     subplot(2,2,2);
-    colors = 'rgb';
-    nrGuns  =cal.nDevices;
     for i=1:nrGuns
         plot(cal.rawdata.rawGammaInput, cal.rawdata.rawGammaTable(:,i), [colors(i) '*']);
         hold on
