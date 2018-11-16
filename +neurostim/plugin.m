@@ -216,9 +216,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('eventTimes',{},@iscell);% Cell array of event times to extract - one per trial
             p.addParameter('eventNames',containers.Map,@(x) (isa(x,'containers.Map'))); % Map properties to names to use in the table
             p.addParameter('eventDescriptions',{},@iscell);
+            p.addParameter('eventGetArgs',{'atTrialTime',Inf},@iscell); % Passed to neurostim.parameter.get to select a subset of events
             p.addParameter('atTrialTime',Inf,@isnumeric);
             p.addParameter('alignTime',[]);
-            p.addParameter('trial_type',{},@(x) (ischar(x) && ismember(upper(x),{'DESIGNS','BLOCKS'})) || iscell(x)); %
+            p.addParameter('trial_type',{},@(x) (ischar(x) && ismember(upper(x),{'BLOCKS'})) || iscell(x)); %
             p.parse(varargin{:});
             tbl = p.Results.tbl;
             
@@ -249,16 +250,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 
                 if ~isempty(p.Results.trial_type)
                     if ischar(p.Results.trial_type) 
-                        switch upper(p.Results.trial_type)
-                            case 'DESIGNS'
-                                % Pull the names from the designs used in
-                                % each block
-                                designs = [o.cic.blocks.design];
-                                blockDesignNames = {designs.name}';
-                                trialTypeNames = blockDesignNames(tbl.block);% One per trial
+                        switch upper(p.Results.trial_type)                            
                             case 'BLOCKS'
                                 % Use the names of the blocks
-                                blockNames ={o.cic.blocks.name};
+                                blockNames ={o.cic.blocks.name}';
                                 trialTypeNames = blockNames(tbl.block); % One per trial
                         end
                         
@@ -322,7 +317,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
             %% Add the event times
             for i = 1:numel(p.Results.eventTimes)
-                [~,~,~,time] = get(o.prms.(p.Results.eventTimes{i}));
+                [~,~,~,time] = get(o.prms.(p.Results.eventTimes{i}),p.Results.eventGetArgs{:});
                 time = (time-alignTime)/1000;
                 if isKey(p.Results.eventNames,p.Results.eventTimes{i})
                     thisName = p.Results.eventNames(p.Results.eventTimes{i});

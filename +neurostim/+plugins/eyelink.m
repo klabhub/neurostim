@@ -142,7 +142,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.el.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
             end
             
-            if ~isempty(o.host)
+            if ~isempty(o.host)  &&  Eyelink('IsConnected')==0
                 Eyelink('SetAddress',o.host);
             end
             %Initialise connection to Eyelink.
