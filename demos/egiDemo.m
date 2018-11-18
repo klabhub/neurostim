@@ -27,7 +27,7 @@ if isempty(c.pluginsByClass('eyetracker'))
 end
 
 %% ============== Add Recording ==================
-plugins.egi(c);           % Use the egi plugin
+ plugins.egi(c);           % Use the egi plugin
 
 %% ============== Add stimuli ==================
 
@@ -43,7 +43,7 @@ f.duration = Inf;               %How long should it be displayed?
 d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
 d.X = '@fix.X';                 %Parameters can be set to arbitrary, dynamic functions using this string format. To refer to other stimuli/plugins, use their name (here "fix" is the fixation point).
 d.Y = '@fix.Y';                 %Here, wherever the fixation point goes, so too will the dots, even if it changes in real-time.       
-d.on = '@f1.startTime+500';     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
+d.on = '@f1.startTime.Fixating+500';     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
 d.duration = 1000;
 d.color = [1 1 1];
 d.size = 2;
@@ -55,16 +55,15 @@ d.noiseMode = 1;
 %% ========== Add required behaviours =========
 
 %Subject's 2AFC response
-k = plugins.nafcResponse(c,'choice');
-k.on = '@dots.on + dots.duration';
-k.deadline = '@choice.on + 2000';                   %Maximum allowable RT is 2000ms
+k = behaviors.keyResponse(c,'choice');
+k.from= '@dots.on + dots.duration';
+k.maximumRT = 2000;                   %Maximum allowable RT is 2000ms
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
-k.keyLabels = {'up', 'down'};
-k.correctKey = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
+k.correctFun = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
 
 %Maintain gaze on the fixation point until the dots disappear
-g = plugins.fixate(c,'f1');
-g.from = '@f1.startTime';
+g = behaviors.fixate(c,'f1');
+g.from = Inf; % 
 g.to = '@dots.stopTime';
 g.X = '@fix.X';
 g.Y = '@fix.Y';
@@ -77,16 +76,14 @@ c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC r
 %Specify experimental conditions
 myFac=design('myFactorial');           %Using a 3 x 2 factorial design.  Type "help neurostim/factorial" for more options.
 myFac.fac1.fix.X={-10 0 10};                %Three different fixation positions along horizontal meridian
-myFac.fac1.fix.Y = plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
-
 myFac.fac2.dots.direction={-90 90};         %Two dot directions
+myFac.conditions(:).fix.Y = plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
 
 %Specify a block of trials
 myBlock=block('myBlock',myFac);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
 myBlock.nrRepeats=1;
 
 %% Run the experiment.
-c.order('fix','dots','f1','choice','liquid','Eyelink','gui');   %Ignore this for now - we hope to remove the need for this.
 c.subject = '0';
 c.run(myBlock);
     

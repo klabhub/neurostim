@@ -74,14 +74,14 @@ switch computerName
         scrNr=0;
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
-        
+        InitializePsychSound(1)
         devs = PsychPortAudio('GetDevices');
         c.hardware.sound.device = devs(strcmpi({devs.DeviceName},'Microsoft Sound Mapper - Output')).DeviceIndex; % Automatic sound hardware detection fails on this machine. Specify device 1
-        if pin.Results.debug 
+        %if pin.Results.debug 
             smallWindow = true ;
-        else
-            smallWindow = false;
-        end
+        %else
+        %    smallWindow = false;
+        %end
         c.useConsoleColor = true;
         Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
     case 'SURFACE2017'
@@ -120,13 +120,13 @@ switch computerName
         smallWindow = false;      
         c.eye.sampleRate  = 250;
   case 'PC2017A'
-        scrNr = max(Screen('screens'));
+        scrNr = 1;%max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
         c.useConsoleColor = true;
-        Screen('Preference', 'SkipSyncTests', 2);
-        smallWindow = true;
+        %Screen('Preference', 'SkipSyncTests', 2);
+        smallWindow = false;
         
     case 'NEUROSTIMA2018'
         scrNr = max(Screen('screens'));

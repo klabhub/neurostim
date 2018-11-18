@@ -158,7 +158,7 @@ classdef design <handle & matlab.mixin.Copyable
             factor = 1:o.nrFactors;
             v = sum(~cellfun(@isempty,o.factorSpecs(factor,:)),2)';
             if isempty(v)
-                v= numel(o.conditionSpecs);
+                v= max(1,numel(o.conditionSpecs)); % At least 1 condition
             end
             if numel(v)==1
                 v= [v 1];

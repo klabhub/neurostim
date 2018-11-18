@@ -18,6 +18,8 @@ classdef eyetracker < neurostim.plugin
     properties (Access=public)
         useMouse@logical=false;
         keepExperimentSetup@logical=true;
+        eye@char='LEFT'; %LEFT,RIGHT, or BOTH
+      
     end
     
     properties
@@ -25,6 +27,7 @@ classdef eyetracker < neurostim.plugin
         y@double=NaN;
         z@double=NaN;
         pupilSize@double;
+        valid@logical = true;
     end
     
     methods
@@ -32,14 +35,15 @@ classdef eyetracker < neurostim.plugin
             o = o@neurostim.plugin(c,'eye'); % Always eye such that it can be accessed through cic.eye
             
             o.addProperty('eyeClockTime',[]);
-            o.addProperty('hardwareModel',[]);
+            o.addProperty('hardwareModel','');
+            o.addProperty('softwareVersion','');
             o.addProperty('sampleRate',1000,'validate',@isnumeric);
             o.addProperty('backgroundColor',[]);
             o.addProperty('foregroundColor',[]);
             o.addProperty('clbTargetColor',[1,0,0]);
             o.addProperty('clbTargetSize',0.25);
-            o.addProperty('eyeToTrack','left');
             o.addProperty('continuous',false);
+            o.addProperty('tolerance',3); % Used to set default tolerance on behaviors.eyeMovement
         end
         
         
@@ -55,18 +59,4 @@ classdef eyetracker < neurostim.plugin
         end
     end
     
-    methods (Access=protected)
-        function trackedEye(o)
-            if ischar(o.eyeToTrack)
-                switch lower(o.eyeToTrack)
-                    case {'left','l'}
-                        o.eyeToTrack = 0;
-                    case {'right','r'}
-                        o.eyeToTrack = 1;
-                    case {'binocular','b','binoc'}
-                        o.eyeToTrack = 2;
-                end
-            end
-        end
-    end
 end

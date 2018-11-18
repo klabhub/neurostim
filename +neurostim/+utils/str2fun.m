@@ -16,29 +16,49 @@ function [f,h] = str2fun(str,c)
     
     str = str(2:end);
     
-    %Find the unique parameter class objects and store their handles
-    plgAndProp = regexp(str,'(\<[a-zA-Z_]+\w*\.\w+)','match');
+    % Find the unique parameter class objects and store their handles
+    % For behaviors we want to allow usage like
+    % f1.startTime.fixating in ns functions. 
+    % The code below translates this into the function call f1.startTime(''fixating'')
+    plgAndProp = regexp(str,'(\<[a-zA-Z_]+\w*)\.([\w\.]+)','match');    
     plgAndProp = unique(plgAndProp);
-    if ~isempty(plgAndProp)
+    getLabel = cell(size(plgAndProp));
+    h  = cell(size(plgAndProp));
+    if ~isempty(plgAndProp)        
         for i=1:numel(plgAndProp)
-            plg = cell2mat(regexp(plgAndProp{i},'(\<[a-zA-Z_]+\w*\.)','match'));
-            prm = strrep(plgAndProp{i},plg,'');
-            plg = plg(1:end-1);
-            
-            %Make sure plugin and property exists
-            if ~(isprop(c,plg) && isprop(c.(plg),prm))
-                c.error('STOPEXPERIMENT',horzcat('No such plugin or property: ',[plg,'.',prm]));
-            end
+            itms = strsplit(plgAndProp{i},'.');
+            plg = itms{1};
+            prm = itms{2};
+            if numel(itms)==2
+                prop = '';
+                %Make sure plugin and parameter exists
+                if isempty(prop) && ~(isprop(c,plg) && isprop(c.(plg),prm))
+                    c.error('STOPEXPERIMENT',horzcat('No such plugin or property: ',plgAndProp{i}));
+                end
+            else% Special case for behaviors: behavior.startTime.fixating
+                prop = itms{3}; % This is the state whose startTime is requested
+                % Make sure this behavior exists
+                 if ~isprop(c,plg) || ~isa(c.(plg),'neurostim.behavior')
+                    c.error('STOPEXPERIMENT',horzcat('No such behavior : ',plg, '. Cannot parse ',plgAndProp{i}));
+                 end
+            end               
             
             %Get the handle of the relevant object (neurostim.paramter or neurostim.plugin)
             if isfield(c.(plg).prms,prm)
-                %It's a ns parameter. Use the param handle.
-                h{i} = c.(plg).prms.(prm); %#ok<AGROW> Array of parameters.
-                getLabel{i} = 'getValue()';
+                %It's a ns parameter (dynprop). Use the param handle.
+                h{i} = c.(plg).prms.(prm); % Array of handles.
+                getLabel{i} = 'getValue()';% Array of parameters.
+                if ~isempty(prop)
+                    c.error('STOPEXPERIMENT',horzcat('Cannot access the struct dynamic property: ',plgAndProp{i}));
+                end
             else
                 %It's just a regular property. Use the plugin handle.
-                h{i} = c.(plg);
-                getLabel{i} = prm;
+                h{i} = c.(plg);% Array of handles.
+                if isempty(prop) % Regular property
+                    getLabel{i} = prm;% Array of parameters.
+                else % Information on the state of a behavior
+                    getLabel{i} = [prm '(''' prop ''')'];% Turn the call into a function
+                end                
             end
         end
         

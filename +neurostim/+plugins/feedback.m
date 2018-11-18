@@ -44,6 +44,7 @@ classdef feedback < neurostim.plugin
     properties
         afterFrameQueue=[]; % Feedback items that need to be checked/delivered after evey frame
         afterTrialQueue=[]; % Feedback items that need to be checked/delivered after evey trial
+        beforeTrialQueue=[];
     end
     
     properties (SetObservable, AbortSet)
@@ -75,7 +76,7 @@ classdef feedback < neurostim.plugin
             %Add a new feedback item
             p = inputParser;                             
             p.KeepUnmatched = true;
-            p.addParameter('when','AFTERTRIAL', @(x) any(strcmpi(x,{'AFTERTRIAL','AFTERFRAME'})));  % When the criterion should be evaluated (and the fedback delivered) (must be a CIC event)
+            p.addParameter('when','AFTERTRIAL', @(x) any(strcmpi(x,{'BEFORETRIAL','AFTERTRIAL','AFTERFRAME'})));  % When the criterion should be evaluated (and the fedback delivered) (must be a CIC event)
             p.addParameter('criterion',false);                                                      % Boolean function that determines whether the feedback will be delivered
             p.addParameter('repeat',false);                                                         %If false, will be delivered once only. If true, will deliver it whenever criterion is true
             p.parse(varargin{:});            
@@ -96,6 +97,8 @@ classdef feedback < neurostim.plugin
                 o.afterTrialQueue = [o.afterTrialQueue o.nItems];
             elseif strcmpi(p.Results.when,'AFTERFRAME')
                 o.afterFrameQueue = [o.afterFrameQueue o.nItems];
+            elseif strcmpi(p.Results.when,'BEFORETRIAL')
+                o.beforeTrialQueue = [o.beforeTrialQueue o.nItems];          
             else
                 o.cic.error('STOPEXPERIMENT',['The ' p.Results.when ' feedback delivery time has not been implemented yet?']);                
             end
@@ -113,6 +116,7 @@ classdef feedback < neurostim.plugin
             for i=1:o.nItems
                 o.(['item' num2str(i) 'delivered']) = false;
             end
+             deliverPending(o,o.beforeTrialQueue);
         end
         
         function deliverPending(o,queue)
