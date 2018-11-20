@@ -854,8 +854,9 @@ classdef cic < neurostim.plugin
             % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
-            
-            
+           
+            c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.            
+                
             %Check input
             if ~(exist('block1','var') && isa(block1,'neurostim.block'))
                 help('neurostim/cic/run');
@@ -910,7 +911,7 @@ classdef cic < neurostim.plugin
             Screen('Flip', c.mainWindow);            
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             clearOverlay(c,true);
-            c.flags.experiment = true;            
+         
             FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
             if c.timing.vsyncMode==0
                 % If beamposition queries are working, then the time
@@ -937,6 +938,8 @@ classdef cic < neurostim.plugin
                 ListenChar(-1);
             end
             for blockCntr=1:c.nrBlocks
+                if ~c.flags.experiment;break;end % in case a plugin has generated a STOPEXPERIMENT error
+                
                 c.flags.block = true;
                 c.block = c.blockFlow.list(blockCntr); % Logged.
                 c.blockCntr= blockCntr;

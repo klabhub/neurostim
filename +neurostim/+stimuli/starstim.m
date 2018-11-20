@@ -436,7 +436,7 @@ classdef starstim < neurostim.stimulus
             else
                 MatNICMarkerCloseLSL(o.markerStream);
                 o.markerStream = [];
-                close(o.sock);
+                close(o)
             end
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
             
@@ -670,7 +670,7 @@ classdef starstim < neurostim.stimulus
                 delete(timrs)
             end
             unloadProtocol(o);
-            close(o.sock);
+            close(o)            
             o.mustExit = false;
         end
         
@@ -746,6 +746,14 @@ classdef starstim < neurostim.stimulus
             if dcCurrent> currentThreshold
                 o.cic.error('STOPEXPERIMENT','DC Current not conserved. Please check starstim.mean');
                 ok = false;
+            end
+        end
+        
+        function close(o)
+            % Close connection with NIC
+            if isa(o.sock,'java.net.Socket')
+                close(o.sock)                
+                %else probably failed to create a sock...or fake
             end
         end
     end
