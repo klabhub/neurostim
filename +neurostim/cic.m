@@ -47,9 +47,10 @@ classdef cic < neurostim.plugin
             'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
             'pluginSlack',0); % see plugin.m
         
-        hardware                = struct('sound',struct('device',-1,'latencyClass',1),... % Sound hardware settings (device = index of audio device to use, see plugins.sound
-                                            'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
-                                            ); % Place to store hardware default settings that can then be specified in a script like myRig.
+        hardware                = struct('sound',struct('device',-1,'latencyClass',1) ... % Sound hardware settings (device = index of audio device to use, see plugins.sound
+                                            ,'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
+                                            ,'textEcho',false ... % ECho drawFormattedText to the command line.
+                                        ); % Place to store hardware default settings that can then be specified in a script like myRig.
                                         
         flipCallbacks={}; %List of stimuli that have requested to be to called immediately after the flip, each as s.postFlip(flipTime).
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
@@ -310,7 +311,7 @@ classdef cic < neurostim.plugin
                 frInterval=Screen('GetFlipInterval',c.guiWindow)*1000;
                 if isempty(c.guiFlipEvery)
                     c.guiFlipEvery=ceil(frInterval*0.95/(1000/c.screen.frameRate));
-                elseif c.guiFlipEvery<ceil(frInterval*0.95/(1000/c.screen.frameRate));
+                elseif c.guiFlipEvery<ceil(frInterval*0.95/(1000/c.screen.frameRate))
                     error('GUI flip interval is too small; this will cause frame drops in experimental window.')
                 end
             end
@@ -329,7 +330,11 @@ classdef cic < neurostim.plugin
                     if isnumeric(val{j})
                         val{j} = num2str(val{j});
                     elseif islogical(val{j})
-                        if (val{j});val{j} = 'true';else val{j}='false';end
+                        if (val{j})
+                            val{j} = 'true';
+                        else
+                            val{j}='false';
+                        end
                     end
                     if isa(val{j},'function_handle')
                         val{j} = func2str(val{j});
@@ -458,7 +463,7 @@ classdef cic < neurostim.plugin
             %
             % BK  - Apr 2016
             if nargin<3
-                push =false;
+                push =false; %#ok<NASGU>
                 if nargin <2
                     silent = false;
                 end
@@ -536,7 +541,7 @@ classdef cic < neurostim.plugin
                         showCursor(c,'none');
                     end
                 otherwise
-                    error(c,'STOPEXPERIMENT',['Unknown key ' key '. Did you forget to specify a callback function (check addKey)?']);
+                    c.error('STOPEXPERIMENT',['Unknown key ' key '. Did you forget to specify a callback function (check addKey)?']);
             end
         end
         
@@ -714,7 +719,7 @@ classdef cic < neurostim.plugin
             if strcmpi(p.Results.randomization,'LATINSQUARES')
                 nrUBlocks = numel(c.blocks);
                 if ~(rem(nrUBlocks,2)==0)
-                    error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrBlocks)]);
+                    error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrUBlocks)]);
                 end
                 allLS = neurostim.utils.ballatsq(nrUBlocks);
                 
@@ -756,7 +761,7 @@ classdef cic < neurostim.plugin
             base(c.pluginOrder,neurostim.stages.BEFOREBLOCK,c);
             % Draw block message and wait for keypress if requested.
             if ~isempty(msg)
-                DrawFormattedText(c.textWindow,msg,'center','center',c.screen.color.text);
+                c.drawFormattedText(msg);
             end
             Screen('Flip',c.mainWindow);
             if waitForKey
@@ -775,7 +780,7 @@ classdef cic < neurostim.plugin
                 end
                 if ~isempty(msg)
                     Screen('Flip',c.mainWindow); % Clear screen 
-                    DrawFormattedText(c.textWindow,msg,'center','center',c.screen.color.text);
+                    c.drawFormattedText(msg);
                     waitforkey=c.blocks(c.block).afterKeyPress;
                 end
                 if ~isempty(c.blocks(c.block).afterFunction)
@@ -823,7 +828,6 @@ classdef cic < neurostim.plugin
                 c.writeToFeed('Saving the file took %f s',toc(ttt));
             end
         end
-        
         
         
         function error(c,command,msg)
@@ -907,7 +911,7 @@ classdef cic < neurostim.plugin
             showCursor(c);
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
-            DrawFormattedText(c.textWindow,c.beforeExperimentText, 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);            
+            c.drawFormattedText(c.beforeExperimentText);            
             Screen('Flip', c.mainWindow);            
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             clearOverlay(c,true);
@@ -1084,7 +1088,7 @@ classdef cic < neurostim.plugin
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
             clearOverlay(c,true);               
-            DrawFormattedText(c.textWindow, 'This is the end...', 'center', 'center', c.screen.color.text, [], [], [], [], [], [0 0 c.screen.xpixels c.screen.ypixels]);
+            c.drawFormattedText('This is the end...');
             Screen('Flip', c.mainWindow);
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
@@ -1095,7 +1099,7 @@ classdef cic < neurostim.plugin
             
             ListenChar(0);
             Priority(0);
-            if c.keyAfterExperiment; c.writeToFeed({'','This is the end... Press any key to continue',''}); KbWait(c.kbInfo.pressAnyKey);end
+            if c.keyAfterExperiment; c.writeToFeed({'','Press any key to close the screen',''}); KbWait(c.kbInfo.pressAnyKey);end
             
             Screen('CloseAll');
             if c.PROFILE; report(c);end
@@ -1147,7 +1151,7 @@ classdef cic < neurostim.plugin
             % removeKeyStrokes(c,key)
             % removes keys (cell array of strings) from cic. These keys are
             % no longer listened to.
-            if ischar(key) || iscellstr(key)
+            if ischar(key) || iscellstr(key) || isstring(key)
                 key = KbName(key);
             end
             ix = ismember(key,c.kbInfo.keys);
@@ -1450,7 +1454,32 @@ classdef cic < neurostim.plugin
     end
     
     methods (Access=private)
-        
+         function drawFormattedText(c,text,varargin)
+            % Wrapper around PTB function that can send an echo to the
+            % command line (useful if the experimenter cannot see the
+            % subject screen)
+            p = inputParser;
+            p.addParameter('left','center') % The sx parameter in PTB
+            p.addParameter('top','center') % The sy parameter in PTB
+            p.addParameter('wrapAt',[]) % The wrapAt parameter in PTB            
+            p.addParameter('flipHorizontal',0) % The flipHorizontal parameter in PTB
+            p.addParameter('flipVertical',0) % The flipVertical parameter in PTB
+            p.addParameter('vSpacing',1) % The vSpacing parameter in PTB
+            p.addParameter('rightToLeft',0) % The righttoleft parameter in PTB
+            p.addParameter('winRect',[0 0 c.screen.xpixels c.screen.ypixels]) % The winRect parameter in PTB
+            p.parse(varargin{:});
+            
+            DrawFormattedText(c.textWindow,text, p.Results.left, p.Results.top, c.screen.color.text, p.Results.wrapAt, p.Results.flipHorizontal, p.Results.flipVertical, p.Results.vSpacing, p.Results.rightToLeft, p.Results.winRect);                          
+            if c.hardware.textEcho
+                  if ~c.useConsoleColor
+                      style = 'NOSTYLE';                
+                  else
+                      style = 'MAGENTA';
+                 end
+                neurostim.utils.cprintf(style,'Screen Message: %s\n',text);
+            end
+            
+         end
         function KbQueueStop(c)
             for kb=1:numel(c.kbInfo.activeKb)
                 KbQueueStop(c.kbInfo.activeKb{kb});
@@ -1648,7 +1677,7 @@ classdef cic < neurostim.plugin
                 
                 for j=1:nPlots
                     subplot(nPerRow,nPerCol,j);
-                    vals{i,j} = c.profile.(plgns{i}).(items{j});
+                    vals{i,j} = c.profile.(plgns{i}).(items{j}); %#ok<AGROW>
                     out =isinf(vals{i,j}) | isnan(vals{i,j});
                     thisVals= min(vals{i,j}(~out),MAXDURATION);
                     hist(thisVals,100);
@@ -1659,7 +1688,7 @@ classdef cic < neurostim.plugin
             if numel(plgns)>1
                 figure('Name','Total','position',[680   530   818   420]);
                 clf
-                frameItems = find(~cellfun(@isempty,strfind(items,'FRAME')));
+                frameItems = find(~cellfun(@isempty,strfind(items,'FRAME'))); %#ok<STRCLFH>
                 cntr=1;
                 for j=frameItems'
                     subplot(1,2,cntr);
@@ -1676,7 +1705,7 @@ classdef cic < neurostim.plugin
                 end
             end
             %% Framedrop report 
-            [val,tr,ti,eTi] = get(c.prms.frameDrop,'atTrialTime',[]);
+            [val,tr,ti,eTi] = get(c.prms.frameDrop,'atTrialTime',[]); %#ok<ASGLU>
             if size(val,1)==1
                 % No drops
                 disp('*** No Framedrops!***');
