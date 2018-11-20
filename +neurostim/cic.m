@@ -643,6 +643,11 @@ classdef cic < neurostim.plugin
             c.flags.trial =false;
         end
         
+        function endExperiment(c)
+            % End the experiment (used by other plugisn to terminate)
+            c.flags.experiment =false;
+        end
+        
         function o = add(c,o)
             % Add a plugin.
             if ~isa(o,'neurostim.plugin')

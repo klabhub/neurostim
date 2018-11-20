@@ -3,7 +3,9 @@ classdef fmri < neurostim.plugin
     % number of triggers has been recorded. During the scan the plugin
     % only logs the incoming triggers.
     %
-    
+    properties
+        lastTrigger = -Inf;
+    end
     methods
         function o = fmri(c)
             o = o@neurostim.plugin(c,'fmri');
@@ -12,6 +14,8 @@ classdef fmri < neurostim.plugin
             o.addProperty('trigger',0);
             o.addProperty('triggerKey','t');
             o.addProperty('triggersComplete',[]);
+            o.addProperty('untilLastTrigger',false);                        
+            o.addProperty('maximumTR',3);
             o.addKey('t');
             
         end
@@ -58,12 +62,27 @@ classdef fmri < neurostim.plugin
             end
         end
         
+        function afterTrial(o)
+            if o.untilLastTrigger 
+                delay = 2*o.maximumTR;% If no trigger for more than 2 * maximum TR then the scanner is not scanning
+                delta = o.cic.clockTime - o.lastTrigger;
+                if delta > delay *1000
+                    % More than 2 maximumTR durations have gone by since
+                    % the last trigger was received. This means the scanner
+                    % stopped. End the experiment
+                    o.writeToFeed(['Scanner stopped ' num2str(delta/1000) 's ago. Experiment done.']);
+                    endExperiment(o.cic);
+                end
+            end
+        end
+        
         % Catch trigger keys. Could be extended with generic user
         % responses.
         function keyboard(o,key)
             switch upper(key)
                 case 'T'
                     o.trigger = o.trigger+1;
+                    o.lastTrigger = o.cic.clockTime;
             end
         end
     end
