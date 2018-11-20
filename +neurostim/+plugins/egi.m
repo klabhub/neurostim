@@ -48,9 +48,7 @@ classdef egi < neurostim.plugin
             [status,err] = NetStation('Event',code,o.cic.clockTime/1000,1/1000,varargin{:},'TTIM',o.cic.trialTime);
             o.eventCode = code; % Log the generation of the event here.
             o.checkStatusOk(status,err);
-%             if ~o.cic.guiOn
-%                 o.writeToFeed(['NetStation: ' code ]);
-%             end
+            o.writeToFeed(['NetStation: ' code ]);
         end
         
         function beforeExperiment(o)            

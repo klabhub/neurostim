@@ -77,7 +77,7 @@ classdef liquid < neurostim.plugins.feedback
         end
         
         function report(o)
-            %Provide an update of performance to the GUI.
+            %Provide an update of performance to the user.
             o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total duration: ',num2str(o.totalDelivered)));
         end
     end

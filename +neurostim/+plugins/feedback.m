@@ -166,7 +166,7 @@ classdef feedback < neurostim.plugin
         
         function report(o) %#ok<MANU>
             %Overload in child class. Called at the end of the trial to
-            %provide some info to the GUI. e.g. number of rewards,
+            %provide some info to the user. e.g. number of rewards,
             %proportion correct etc.
         end
     end

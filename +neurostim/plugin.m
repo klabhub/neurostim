@@ -74,7 +74,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             endTrial(o.cic);
         end
         
-        %% GUI Functions
+        %% User output Functions
         % writeToFeed(o,messageAsString)
         % writeToFeed(o,formatSpec, variables)  (as in sprintf)
         % Note that the style of the feed can be adjusted per plugin by

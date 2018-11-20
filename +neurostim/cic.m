@@ -315,6 +315,7 @@ classdef cic < neurostim.plugin
                     error('GUI flip interval is too small; this will cause frame drops in experimental window.')
                 end
             end
+                        
         end
         
         
@@ -807,7 +808,7 @@ classdef cic < neurostim.plugin
             % Call before trial on the current block.
             % This sets up all condition dependent stimulus properties (i.e. those in the design object that is currently active in the block)
             beforeTrial(c.blocks(c.block),c);
-            c.blockTrial = c.blockTrial+1;  % For logging and gui only
+            c.blockTrial = c.blockTrial+1;  % For logging and user output only
             % Calls before trial on all plugins, in pluginOrder.
             base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
         end
@@ -1193,7 +1194,7 @@ classdef cic < neurostim.plugin
             ms = frames*(1000/c.screen.frameRate);
         end
         
-        %% GUI Functions
+        %% User output Functions
         function feed(c,style,formatSpecs,thisTrial,thisTrialTime,varargin)
             if c.flags.trial && c.useFeedCache
                 c.feedCacheCntr= c.feedCacheCntr+1;
@@ -1451,13 +1452,11 @@ classdef cic < neurostim.plugin
             end
         end
         
-    end
-    
-    methods (Access=private)
-         function drawFormattedText(c,text,varargin)
+        function drawFormattedText(c,text,varargin)
             % Wrapper around PTB function that can send an echo to the
             % command line (useful if the experimenter cannot see the
-            % subject screen)
+            % subject screen). Needs to be public to allow (some) plugins
+            % access.
             p = inputParser;
             p.addParameter('left','center') % The sx parameter in PTB
             p.addParameter('top','center') % The sy parameter in PTB
@@ -1480,6 +1479,10 @@ classdef cic < neurostim.plugin
             end
             
          end
+    end
+    
+    methods (Access=private)
+         
         function KbQueueStop(c)
             for kb=1:numel(c.kbInfo.activeKb)
                 KbQueueStop(c.kbInfo.activeKb{kb});
