@@ -14,8 +14,7 @@ classdef fmri < neurostim.plugin
             o.addProperty('trigger',0);
             o.addProperty('triggerKey','t');
             o.addProperty('triggersComplete',[]);
-            o.addProperty('untilLastTrigger',false);                        
-            o.addProperty('maximumTR',3);
+            o.addProperty('maxTriggerTime',inf); % If no Triggers for x s, the experiment ends
             o.addKey('t');
             
         end
@@ -63,10 +62,10 @@ classdef fmri < neurostim.plugin
         end
         
         function afterTrial(o)
-            if o.untilLastTrigger 
-                delay = 2*o.maximumTR;% If no trigger for more than 2 * maximum TR then the scanner is not scanning
+            maxDelay = o.maxTriggerTime;
+            if maxDelay > 0 && ~isinf(maxDelay)
                 delta = o.cic.clockTime - o.lastTrigger;
-                if delta > delay *1000
+                if delta > maxDelay *1000
                     % More than 2 maximumTR durations have gone by since
                     % the last trigger was received. This means the scanner
                     % stopped. End the experiment
