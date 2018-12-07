@@ -27,7 +27,11 @@ classdef fmri < neurostim.plugin
                     Screen('Flip',o.cic.window);
                     disp('*****************************************')
                     commandwindow;
-                    answer = input('Which scan number is about to start (for logging purposes)?');
+                    answer = input('Which scan number is about to start (for logging purposes)?','s');
+                    answer = str2double(answer);
+                    if isnan(answer)
+                        answer = []; % Try again.
+                    end
                 end
                 o.scanNr =answer;
             end
