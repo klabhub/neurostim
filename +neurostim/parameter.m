@@ -525,7 +525,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             %  t = firstFrameTime(o)
             % Return the time of the first frame in each trial, as a column
             % vector.
-            t = [o.plg.cic.prms.firstFrame.log{:}]'; % By using the log we use the stimOnsetTime returned by Screen('flip') on the first frame.
+            t = [o.plg.cic.prms.firstFrame.log{:}]'; % By using the log we use the stimOnsetTime returned by Screen('flip') on the first frame.                               
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
@@ -548,7 +548,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Returns a [nrTrials nrTimes] matrix/vector of trial
             % times for a given (vector of) experiment times.
             tr = eTime2TrialNumber(o,eventTime);
-            trStartT = firstFrameTime(o);
+            trStartT = firstFrameTime(o);                
             trTime = eventTime - trStartT(tr);
         end
         
@@ -609,7 +609,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                o.log{1} = [];
                o.time = -Inf;
            end
-
+           
            o = neurostim.parameter(o);
         end
 

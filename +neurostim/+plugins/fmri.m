@@ -11,12 +11,11 @@ classdef fmri < neurostim.plugin
             o = o@neurostim.plugin(c,'fmri');
             o.addProperty('scanNr',[]);
             o.addProperty('preTriggers',10);
-            o.addProperty('trigger',0);
+            o.addProperty('trigger',0,'sticky',true); % Keep the same value across trials
             o.addProperty('triggerKey','t');
-            o.addProperty('triggersComplete',[]);
+            o.addProperty('triggersComplete',[],'sticky',true);
             o.addProperty('maxTriggerTime',inf); % If no Triggers for x s, the experiment ends
-            o.addKey('t');
-            
+            o.addKey('t');            
         end
         
         function beforeExperiment(o)

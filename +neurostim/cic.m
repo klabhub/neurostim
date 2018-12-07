@@ -1665,9 +1665,31 @@ classdef cic < neurostim.plugin
         function v = clockTime
             v = GetSecs*1000;
         end
+                                
+        function o = loadobj(o)
+           % If the last trial does not reach firstFrame, then
+           % the trialTime (which is relative to firstFrame) cannot be calculated 
+           % This happens, for instance, when endExperiment is called by a plugin 
+           % during an ITI.
+           
+           % Add a fake firstFrame to fix this.
+           lastTrial = o.prms.trial.cntr-1; % trial 0 is logged as well, so -1
+           nrFF = o.prms.firstFrame.cntr-1;
+           if nrFF > 0 && lastTrial == nrFF +1 
+                    % The last trial did not make it to the firstFrame event. 
+                    % generate a fake firstFrame.
+                    t = [o.prms.firstFrame.log{:}];
+                    mTimeBetweenFF = median(diff(t));
+                    fakeFF = t(end) + mTimeBetweenFF;
+                    storeInLog(o.prms.firstFrame,fakeFF,NaN)
+            end
+                        
+        end
     end
     
     methods
+        
+        
         function report(c)
             %% Profile report
             plgns = fieldnames(c.profile);
