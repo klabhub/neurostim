@@ -31,6 +31,9 @@ classdef fmri < neurostim.plugin
                 % Get scan number information
                 if isempty(o.scanNr) || o.scanNr ==0
                     answer=[];
+                    if ~o.cic.hardware.keyEcho
+                       ListenChar(0); % Need to echo now
+                    end                        
                     while (isempty(answer))
                         o.cic.drawFormattedText('Which scan number is about to start?');
                         Screen('Flip',o.cic.window);
@@ -42,6 +45,9 @@ classdef fmri < neurostim.plugin
                             answer = []; % Try again.
                         end
                     end
+                    if ~o.cic.hardware.keyEcho
+                       ListenChar(-1); %Set it back to no echo
+                    end    
                     o.scanNr =answer;
                 end
                 
