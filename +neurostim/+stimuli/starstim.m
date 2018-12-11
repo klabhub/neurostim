@@ -164,9 +164,7 @@ classdef starstim < neurostim.stimulus
     end
     
     methods % Public
-        function o= loadobj(o)
-            o.mustExit = false;
-        end
+       
         function abort(o)
             stop(o);
         end
@@ -755,6 +753,13 @@ classdef starstim < neurostim.stimulus
                 close(o.sock)                
                 %else probably failed to create a sock...or fake
             end
+        end
+    end
+    
+    methods (Static)
+        function o= loadobj(o)
+            o.mustExit = false;
+           
         end
     end
     
