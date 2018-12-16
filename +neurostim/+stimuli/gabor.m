@@ -31,6 +31,17 @@ classdef gabor < neurostim.stimulus
         shader;
         textureRect;
     end
+   
+    
+    methods (Static)
+        function v = tfToPhaseSpeed(tf,framerate)
+            % Convert temporal frequency in Hz to appropriate phase speed.
+            v = 2*pi*framerate*tf;
+        end
+        function v = phaseSpeedToTf(sp)
+            v = sp/(2*pi*framerate);
+        end        
+    end
     
     methods
         function o =gabor(c,name)
@@ -151,7 +162,7 @@ classdef gabor < neurostim.stimulus
         
         function createProcGabor(o)
             % Copied from PTB
-            debuglevel = 1;
+            debuglevel = 0;
             % Global GL struct: Will be initialized in the LoadGLSLProgramFromFiles
             global GL;
             % Make sure we have support for shaders, abort otherwise:
@@ -178,8 +189,7 @@ classdef gabor < neurostim.stimulus
             % Create a purely virtual procedural texture of size width x height virtual pixels.            % Attach the Shader to it to define its appearance:
             o.texture = Screen('SetOpenGLTexture', o.window, [], 0, GL.TEXTURE_RECTANGLE_EXT, o.width, o.height, 1, o.shader);
             % Query and return its bounding rectangle:
-            o.textureRect = Screen('Rect', o.texture);
-            o.textureRect=CenterRectOnPoint(o.textureRect,0,0);
+            o.textureRect= [-o.width -o.height o.width o.height]./2;
             
         end
     end

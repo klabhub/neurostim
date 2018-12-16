@@ -52,7 +52,7 @@ void main()
     contrast            = auxParameters1[0];
     flickerPhase        = auxParameters1[1];
     
-    orientation         = radians(90-sizeAngleFilterMode.z);
+    orientation         = radians(90.0-sizeAngleFilterMode.z);
     color               = modulateColor;
     
 }

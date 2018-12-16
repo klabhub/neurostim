@@ -27,7 +27,7 @@ d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
 d.X = 0;
 d.Y = 0;
 d.on = 0;
-d.duration = 500;
+d.duration = 1500;
 d.color = [1 1 1];
 d.size = 2;
 d.nrDots = 200;
@@ -38,12 +38,11 @@ d.noiseMode = 1;
 %% ========== Add required behaviours =========
 
 %Subject's 2AFC response
-k = plugins.nafcResponse(c,'choice');
-k.on = '@dots.on + dots.duration';
-k.deadline = '@choice.on + 1000';                    %Maximum allowable RT is 1000ms
+k = behaviors.keyResponse(c,'choice');
+k.from= '@dots.on + dots.duration';
+k.maximumRT = 1000;                    %Maximum allowable RT is 1000ms
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
-k.keyLabels = {'up', 'down'};
-k.correctKey = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
+k.correctFun = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
 
 %% ========== Specify feedback/rewards ========= 
 % Play a correct/incorrect sound for the 2AFC task

@@ -44,6 +44,7 @@ classdef feedback < neurostim.plugin
     properties
         afterFrameQueue=[]; % Feedback items that need to be checked/delivered after evey frame
         afterTrialQueue=[]; % Feedback items that need to be checked/delivered after evey trial
+        beforeTrialQueue=[];
     end
     
     properties (SetObservable, AbortSet)
@@ -75,9 +76,9 @@ classdef feedback < neurostim.plugin
             %Add a new feedback item
             p = inputParser;                             
             p.KeepUnmatched = true;
-            p.addParameter('when','AFTERTRIAL', @(x) any(strcmpi(x,{'AFTERTRIAL','AFTERFRAME'})));  % When the criterion should be evaluated (and the fedback delivered) (must be a CIC event)
+            p.addParameter('when','AFTERTRIAL', @(x) any(strcmpi(x,{'BEFORETRIAL','AFTERTRIAL','AFTERFRAME'})));  % When the criterion should be evaluated (and the fedback delivered) (must be a CIC event)
             p.addParameter('criterion',false);                                                      % Boolean function that determines whether the feedback will be delivered
-            p.addParameter('delivered',false);
+            p.addParameter('repeat',false);                                                         %If false, will be delivered once only. If true, will deliver it whenever criterion is true
             p.parse(varargin{:});            
             
             
@@ -90,10 +91,14 @@ classdef feedback < neurostim.plugin
             for i=1:numel(flds)
                 o.addProperty([thisItem lower(flds{i})],p.Results.(flds{i}));                
             end
+            o.addProperty([thisItem 'delivered'],false);
+            
             if strcmpi(p.Results.when,'AFTERTRIAL')
                 o.afterTrialQueue = [o.afterTrialQueue o.nItems];
             elseif strcmpi(p.Results.when,'AFTERFRAME')
                 o.afterFrameQueue = [o.afterFrameQueue o.nItems];
+            elseif strcmpi(p.Results.when,'BEFORETRIAL')
+                o.beforeTrialQueue = [o.beforeTrialQueue o.nItems];          
             else
                 o.cic.error('STOPEXPERIMENT',['The ' p.Results.when ' feedback delivery time has not been implemented yet?']);                
             end
@@ -103,11 +108,17 @@ classdef feedback < neurostim.plugin
         
         function beforeTrial(o)
             %Reset flags for all items.
+            reset(o);
+        end
+        
+        function reset(o)
+            %Reset flags for all items.
             for i=1:o.nItems
                 o.(['item' num2str(i) 'delivered']) = false;
             end
+             deliverPending(o,o.beforeTrialQueue);
         end
-          
+        
         function deliverPending(o,queue)
             %Which feedback items should be delivered now?            
             for i=queue                
@@ -118,9 +129,12 @@ classdef feedback < neurostim.plugin
                 
                 % ... and that the criterion is satisfied.
                 if o.(['item' num2str(i) 'criterion'])
-                  o.deliver(i);
-                  o.(['item' num2str(i) 'delivered']) = true;
-                end                
+                    o.deliver(i);
+                    o.(['item' num2str(i) 'delivered']) = true; %Logs delivery
+                    if o.(['item' num2str(i) 'repeat'])
+                        o.(['item' num2str(i) 'delivered']) = false; %Reset to allow repeat
+                    end
+                end
             end
         end
         
@@ -152,7 +166,7 @@ classdef feedback < neurostim.plugin
         
         function report(o) %#ok<MANU>
             %Overload in child class. Called at the end of the trial to
-            %provide some info to the GUI. e.g. number of rewards,
+            %provide some info to the user. e.g. number of rewards,
             %proportion correct etc.
         end
     end

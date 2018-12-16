@@ -1,1 +1,0 @@
-stash@{0}: WIP on master: bea43b2 Better organisation for adamsConfig.m: Eyelink and MCC plugins now added in the config file and do not need to be added in each experiment file.

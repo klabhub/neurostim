@@ -121,14 +121,6 @@ classdef design <handle & matlab.mixin.Copyable
     
     methods  %/get/set
         
-        function v=size(o)
-            % The number of levels.
-            v= o.nrLevels;
-            if isempty(v)
-                v = [o.nrConditions 1];
-            end
-        end
-        
         function v= get.done(o)
             % Returns true if the currentTrialIx points to zero or the last
             % trial.
@@ -166,7 +158,7 @@ classdef design <handle & matlab.mixin.Copyable
             factor = 1:o.nrFactors;
             v = sum(~cellfun(@isempty,o.factorSpecs(factor,:)),2)';
             if isempty(v)
-                v= numel(o.conditionSpecs);
+                v= max(1,numel(o.conditionSpecs)); % At least 1 condition
             end
             if numel(v)==1
                 v= [v 1];
@@ -236,14 +228,15 @@ classdef design <handle & matlab.mixin.Copyable
                         if isempty(v)
                             % If a previous dplicate removal makes the
                             % FactorSpecs in v empty, then we'er done
+                            % pruning v.
                             break;
                         else
                             % Check for duplicates and remove
-                            duplicateSetting = ~cellfun(@isempty,strfind(v(:,1),o.conditionSpecs{cond}{i,1})) &  ~cellfun(@isempty,strfind(v(:,2),o.conditionSpecs{cond}{i,2}));
+                            duplicateSetting = strcmpi(o.conditionSpecs{cond}{i,1},v(:,1)) & strcmpi(o.conditionSpecs{cond}{i,2},v(:,2));                            
                             v(duplicateSetting,:) = []; %#ok<AGROW> %Rmove seting that came from factor specs (or previous condition spec)
-                        end
-                         v = cat(1,v,o.conditionSpecs{cond}(i,:)); % Combine condition with factor specs and previous condition specs.
-                    end                   
+                        end                         
+                    end
+                    v = cat(1,v,o.conditionSpecs{cond}); % Combine condition with factor specs (in v; pruned of duplcates).
                 end
             end
         end
@@ -389,6 +382,7 @@ classdef design <handle & matlab.mixin.Copyable
             conds=ones(1,o.nrConditions);
             conds=cumsum(conds);
             weighted=repelem(conds(:),o.weights(:));
+            weighted=weighted(:);
             switch upper(o.randomization)
                 case 'SEQUENTIAL'
                     o.list=weighted;
@@ -405,10 +399,18 @@ classdef design <handle & matlab.mixin.Copyable
             % subsasgn to create special handling of .weights .conditions, and
             % .facN design specifications.
             handled = false; % If not handled here, we call the builtin below.
+
             if strcmpi(S(1).type,'.')
                 if strcmpi(S(1).subs,'WEIGHTS')
                     handled =true;
-                    if numel(V) ==1 ||  (ndims(V)==o.nrFactors && all(size(V)==o.nrLevels))
+                    
+                    %If a vector of weights (i.e. a one-factor design), make a
+                    %column vector (to match up with the nLevels x 1 output of o.nrLevels
+                    if isvector(V)
+                        V = V(:);
+                    end
+                    
+                    if numel(V) ==1 || isequal(size(V),o.nrLevels)
                         o.weights = V;
                     else
                         error(['These weights [' num2str(size(V)) '] do not match the design [' num2str(size(o)) ']']);
@@ -511,25 +513,37 @@ classdef design <handle & matlab.mixin.Copyable
                             error(['Some conditions do not fit in the [' num2str(lvls) '] factorial. Use a separate design for these conditions']);
                         end
                         %% Everything should match, lets assign
+
+                        % we know the number of factors and the number of
+                        % levels for each... initialize o.conditionSpecs if
+                        % it hasn't been initialized already
+                        if isempty(o.conditionSpecs)
+                          o.conditionSpecs = cell(o.nrLevels);
+                        end
+                        
                         for i=1:size(ix,1)
                             trgSub = neurostim.utils.vec2cell(ix(i,:));
-                            if numel(V)==1
+                            if numel(V) == 1
                                 srcSub = {1};
                             else
-                                srcSub  =trgSub;
+                                srcSub = trgSub;
                             end
                             thisV = V{srcSub{:}};
                             if isa(thisV,'neurostim.plugins.adaptive')
                                 thisV.belongsTo(o.name,o.lvl2cond(ix(i,:))); % Tell the adaptive to listen to this design/level combination
                             end
-                            if ndims(o.conditionSpecs)<numel(trgSub) || any(size(o.conditionSpecs)<[trgSub{:}]) || isempty(o.conditionSpecs(trgSub{:}))
-                                % new spec for this condition
-                                o.conditionSpecs{trgSub{:}} = {plg,prm,thisV};
-                            else
-                                % add to previous
-                                
-                                o.conditionSpecs{trgSub{:}} = cat(1,o.conditionSpecs{trgSub{:}},{plg,prm,thisV});
+
+                            % add to previous, or replace if it refers to the same property
+                            curSpecs = o.conditionSpecs{trgSub{:}};
+                            if ~isempty(curSpecs)
+                                %Check if we need to remove an existing value for this property
+                                isPlgMatch = cellfun(@(curSpecs) strcmp(curSpecs,plg),curSpecs(:,1));
+                                isPrmMatch = cellfun(@(curSpecs) strcmp(curSpecs,prm),curSpecs(:,2));
+                                curSpecs(isPlgMatch&isPrmMatch,:) = []; %Remove any matching line item
                             end
+
+                            %Add this property to the list for this condition
+                            o.conditionSpecs{trgSub{:}} = cat(1,curSpecs,{plg,prm,thisV});
                         end
                     else
                         %% Conditions-only design, specified one at a time
