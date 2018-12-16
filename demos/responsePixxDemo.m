@@ -1,12 +1,12 @@
 function responsePixxDemo
-% reaction time experiment using the responsePixx
+% Reaction time experiment using the responsePixx
 
 %% Prerequisites. 
 import neurostim.*
 
 %% Setup CIC and the stimuli.
 c = myRig;   
-c.trialDuration = '@responsePixx.stopTime'; 
+c.trialDuration = '@pixx.stopTime'; 
 c.screen.color.background = 0.5*ones(1,3);
 
 % Add a Gabor stimulus . 
@@ -19,26 +19,21 @@ g.orientation = 0;
 g.mask ='GAUSS';
 g.duration = 250;
 
-v = neurostim.plugins.responsePixx(c,'responsePixx');
+v = behaviors.pixxResponse(c,'pixx');
 v.on = 0;
 v.off= Inf;
 v.successEndsTrial = true;
+v.keys= {'b','r'}; % Allow use of b and r buttons
+v.lit = {'b','r'}; % light them up
+v.correctFun = '@1'; % ix=1 ('b') is the "correct" one...
+v.maximumRT = 1000;
 
-c.addPropsToInform('responsePixx.correct','responsePixx.pressedButton','responsePixx.stopTime')
+c.addPropsToInform('pixx.correct','pixx.button','pixx.stopTime')
+
 %% Define conditions and blocks, then run. 
-% One simple button press block; press the button that lights up...
-d = design('press');
-d.fac1.responsePixx.correctButtons= 1:5;
-d.fac1.responsePixx.lit = 1:5;
-blk = block('press',d);
-blk.nrRepeats = 1;
-
 r = design('rt');
 r.conditions(1).gabor.on= plugins.jitter(c,{250,1250});
-r.conditions(1).responsePixx.lit = plugins.responsePixx.BLUE;
-r.conditions(1).responsePixx.allowedButtons =plugins.responsePixx.BLUE;
 rblk = block('rt',r);
 rblk.nrRepeats = 100;
-
 c.run(rblk);
 end 

@@ -3,10 +3,34 @@ classdef mcc < neurostim.plugin
     % Before using this, run the DaqTest script that is part of PTB to test
     % that your Measurement Computing hardware is working and accessible.
     %
+    % In our setup (Windows 10) I cannot get DaqTest to pass, and yet the
+    % minimal use of the MCC that we need (Digital output) works fine after
+    % installing the mccdaq and running instacal at least once.
+    % 
     % AM: I had to configure the ports as "output" for digitalOut() to
     %     work, e.g.
     %       err = DaqDConfigPort(c.mcc.daq,0,0); % port A as output
     % SC: added test to identify the correct HID interface on Linux
+    %
+    % Recording Analog data:
+    %  Specify an aInOptions struct to specify which analog channels should
+    %  be read from the MCC device. This struct is the same as the one
+    %  discussed in DaqAInScan. For instance:     
+    %   options.channel = [0 ];    % Reord channel 0-1 in differential mode
+    %   options.range   = [0];     % 20 V range. 
+    %   options.f = 1000;          % 1 Khz sampling rate
+    %   options.count = Inf;       % Keep sampling until buffer full
+    %   options.trigger = 0;        % 1 means wait for trigger input (to
+    %                                   synchronize with some other event)
+    %    c.mcc.aInOptions = options; % Assing to mcc plugin in cic.
+    %   c.mcc.aInTimeOut = 1; % Wait at most 1 s to collect all data after
+    %   the end of a trial.
+    % 
+    % Data will be transferred from the device after evry trial (to avoid buffer 
+    % overruns on the device) and storedin the mcc.aInData property. 
+    % The time of the first sample is stored in mcc.aInTime. Concatenating 
+    % the elements in  mcc.aInData should result in a continuous data stream.
+    % BK November 2018
     
     properties (Constant)
         ANALOG=0;
@@ -16,13 +40,14 @@ classdef mcc < neurostim.plugin
         devices;
         daq;
         mapList;
-        timer;
+        timer;        
     end
     
     
     properties (Dependent)
         product@char;
         status@struct;
+        aIn@logical; 
     end
     
     methods
@@ -33,8 +58,15 @@ classdef mcc < neurostim.plugin
         function v = get.status(o)
             v = DaqGetStatus(o.daq);
         end
+        function v = get.aIn(o)
+            v  = ~isempty(o.aInOptions);
+        end 
     end
     methods
+        function reset(o)
+            DaqReset(o.daq);
+        end 
+
         function o = mcc(c,varargin)
             % Be default we use the first (often the only) available MCC
             % device.
@@ -48,8 +80,13 @@ classdef mcc < neurostim.plugin
             p.addParameter('serialNumber','');
             p.parse(varargin{:})
             args = p.Results;
+ 
+            o = o@neurostim.plugin(c,'mcc');
             
-            o  = o@neurostim.plugin(c,'mcc');
+            o.addProperty('aInOptions',[]);
+            o.addProperty('aInData',[]);
+            o.addProperty('aInStartTime',[]);
+            o.addProperty('aInTimeOut',1); % Timeout for Analaog In in seconds.
             
             % check what is there...
             o.devices = PsychHID('Devices');
@@ -67,7 +104,7 @@ classdef mcc < neurostim.plugin
             else
               % windows... the above should work on Windows also, but for
               % backwards compatability we keep this for now
-              o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0'), o.devices));    %DaqDeviceIndex
+              o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0') & strcmpi(device.manufacturer,'mcc'), o.devices));    %DaqDeviceIndex
             end
             
             if isempty(o.daq)
@@ -83,7 +120,20 @@ classdef mcc < neurostim.plugin
             o.mapList.when = [];
         end
         
-        function map(o,type,channel,prop,when)
+        function beforeExperiment(o)
+            if o.aIn               
+                % Setup scanning of analog input                
+                DaqAInScanBegin(o.daq,o.aInOptions); % Not storing parms return to make sure data and parms always match                               
+            end
+        end
+        
+        function afterExperiment(o)
+             if o.aIn                          
+                DaqAInScanEnd(o.daq,o.aInOptions);                
+             end
+        end
+           
+        function map(o,type,channel,prop, when)
             % Map a channel to a named dynamic property.
             % INPUT
             %   type = 'ANALOG' or 'DIGITAL'
@@ -119,11 +169,11 @@ classdef mcc < neurostim.plugin
                 newValue = bitset(current,mod(channel,8),value);
                 DaqDOut(o.daq,port-1,newValue);
                 
-                if size(varargin) == 1
+                if size(varargin) == 1 
                     duration = varargin{1};
                     % timer function may override other functions when time is met
                     % and could cause problems for time-critical tasks
-                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current));
+                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current)); %#ok<CPROPLC>
                     start(o.timer);
                 end
             else
@@ -169,6 +219,13 @@ classdef mcc < neurostim.plugin
             if ix
                 read(o,ix);
             end
+                        
+            if o.aIn
+                o.aInOptions.ReleaseTime = GetSecs + o.aInTimeOut; 
+                [parms,o.aInData]  = DaqAInScanContinue(o.daq,o.aInOptions,true);
+                o.aInStartTime = parms.times(1); % Time of the first report.
+            end
+            
         end
         
         function afterFrame(o)

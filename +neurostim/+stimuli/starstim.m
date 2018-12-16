@@ -116,6 +116,9 @@ classdef starstim < neurostim.stimulus
                 v = ' Fake OK';
             else
                 [~, v] = MatNICQueryStatus(o.sock);
+                if isempty(v) || (isnumeric(v) && v==0)
+                    v= 'error/unknown';
+                end
             end
         end
         
@@ -124,6 +127,9 @@ classdef starstim < neurostim.stimulus
                 v = ' Fake Protocol OK';
             else
                 [~, v] = MatNICQueryStatusProtocol(o.sock);
+                 if isempty(v) || (isnumeric(v) && v==0)
+                    v= 'error/unknown';
+                end
             end
         end
         
@@ -132,14 +138,11 @@ classdef starstim < neurostim.stimulus
                 v =true;
             else
                 stts = o.protocolStatus;
-                if isempty(stts) || ~ischar(stts)
+                if isempty(stts) || ~ischar(stts) || strcmpi(stts,'error/unknown')
                     v =false;
                 else
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP'});
-                end
-                if o.debug
-                    o.writeToFeed(stts);
-                end
+                end                
             end
             
         end
@@ -153,10 +156,7 @@ classdef starstim < neurostim.stimulus
                     v =true; % No protcol status means it is not running...??
                 else
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_PAUSED', 'CODE_STATUS_IDLE'});
-                end
-                if o.debug
-                    o.writeToFeed(stts);
-                end
+                end                
             end
         end               
         
@@ -164,7 +164,9 @@ classdef starstim < neurostim.stimulus
     end
     
     methods % Public
-        
+        function o= loadobj(o)
+            o.mustExit = false;
+        end
         function abort(o)
             stop(o);
         end
@@ -177,7 +179,7 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 return;
             end
-            if o.mustExit
+           if o.mustExit
                 onExit(o);
             end
         end
@@ -197,7 +199,9 @@ classdef starstim < neurostim.stimulus
             o.addProperty('z',NaN);
             o.addProperty('type','tACS');%tACS, tDCS, tRNS
             o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED'
-   
+            o.addProperty('path',''); % Set to the folder on the starstim computer where data should be stored. 
+            % If path is empty, the path of the neurostim output file is
+            % used (which may not exist on the remote starstim computer).
             
             o.addProperty('amplitude',NaN);            
             o.addProperty('mean',NaN);
@@ -207,6 +211,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('sham',false);
             o.addProperty('shamDuration',0); % 0 ms means rampup, and immediately ramp down.
             o.addProperty('enabled',true);
+            o.addProperty('montage',ones(1,o.NRCHANNELS));%
             
             
             o.addProperty('marker',''); % Used to log markers sent to NIC
@@ -251,16 +256,23 @@ classdef starstim < neurostim.stimulus
                 % This only makes sense if both the Neurostim computer and
                 % the NIC computer have access to the same path. Otherwise
                 % NIC will complain... 
-                pth = o.cic.fullFile; % This is without the extension
-                if ~exist(pth,'dir')
-                    mkdir(pth);
+                if isempty(o.path)
+                    pth = o.cic.fullFile; % This is without the extension
+                    if ~exist(pth,'dir')
+                        mkdir(pth);
+                    end
+                else
+                    pth = o.path;
                 end
                 ret  = MatNICConfigurePathFile (pth, o.sock); % Specify target directory
                 o.checkRet(ret,'PathFile');
                 % File format : % YYYYMMDD_[subject].edf
                 % Always generate .easy file, and edf file (NIC requires
                 % it), and generate .stim when stimulating.
-                ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,true,true,true,false,o.sock);
+                % Change in 4.07:
+                % patientName, recordEasy, recordNedf, recordSD, recordEDF,
+                % socket  (no more STIM file)
+                ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,true,false,true,o.sock);
                 o.checkRet(ret,'FileNameAndTypes');
                 [ret,o.markerStream] = MatNICMarkerConnectLSL('Neurostim');
                 o.checkRet(ret,'Please enable the Neurostim Marker Stream in NIC');
@@ -301,7 +313,7 @@ classdef starstim < neurostim.stimulus
         end
         
         function unloadProtocol(o)
-            if o.fake || ~ischar(o.protocolStatus) || strcmpi(o.protocolStatus,'CODE_STATUS_IDLE') || strcmpi(o.protocolStatus,'CODE_STATUS_STIMULATION_FULL')
+            if o.fake || ~ischar(o.protocolStatus) || ismember(o.protocolStatus,{'CODE_STATUS_IDLE','CODE_STATUS_STIMULATION_FULL','error/unknown'})
                 return; % No protocol loaded.
             end
             ret = MatNICUnloadProtocol(o.sock);
@@ -385,7 +397,7 @@ classdef starstim < neurostim.stimulus
         function afterTrial(o)
             switch upper(o.mode)
                 case 'BLOCKED'
-                    if o.cic.blockDone
+                    if o.cic.blockDone && o.enabled
                         rampDown(o);
                     end
                 case 'TRIAL'
@@ -405,8 +417,9 @@ classdef starstim < neurostim.stimulus
         
         function afterExperiment(o)
             
-            
-            o.tmr.stop; % Stop the timer
+        if isvalid(o.tmr)
+                o.tmr.stop; % Stop the timer
+            end
             rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
@@ -423,7 +436,7 @@ classdef starstim < neurostim.stimulus
             else
                 MatNICMarkerCloseLSL(o.markerStream);
                 o.markerStream = [];
-                close(o.sock);
+                close(o)
             end
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
             
@@ -434,12 +447,12 @@ classdef starstim < neurostim.stimulus
 %             beforeExperiment(o);
 %             loadProtocol(o);            
 %             start(o);
-            %%
-            o.mean = [-1000 1000 0 0 0 0 0 0];
-            %for i=1:10               
-               rampUp(o,250);
-             %   wait(o.tmr)
-            %end
+%             %%
+%             o.mean = [-1000 1000 0 0 0 0 0 0];
+%             %for i=1:10               
+%                rampUp(o,250);
+%              %   wait(o.tmr)
+%             %end
         end
     end
     
@@ -466,9 +479,9 @@ classdef starstim < neurostim.stimulus
             end
         end
         
-        function v = perChannel(o,v)
+        function v = perChannel(o,v)            
             if isscalar(v)
-                v = v*ones(1,o.NRCHANNELS);
+                v = v*o.montage;
             end
         end
         
@@ -487,9 +500,9 @@ classdef starstim < neurostim.stimulus
                 case 'TACS'
                     msg{1} = sprintf('Ramping tACS up in %d ms to:',o.transition);
                     msg{2} = sprintf('\tCh#%d',1:o.NRCHANNELS);
-                    msg{3} = sprintf('\t%d mA',o.amplitude);
-                    msg{4} = sprintf('\t%d Hz',o.frequency);
-                    msg{5} = sprintf('\t%d o ',o.phase);
+                    msg{3} = sprintf('\t%d mA',perChannel(o,o.amplitude));
+                    msg{4} = sprintf('\t%d Hz',perChannel(o,o.frequency));
+                    msg{5} = sprintf('\t%d o ',perChannel(o,o.phase));
                     if ~o.fake                                                                         
                         [ret] = MatNICOnlinetACSChange(perChannel(o,o.amplitude), perChannel(o,o.frequency), perChannel(o,o.phase), o.NRCHANNELS, o.transition, o.sock);                        
                         o.checkRet(ret,msg);
@@ -657,7 +670,7 @@ classdef starstim < neurostim.stimulus
                 delete(timrs)
             end
             unloadProtocol(o);
-            close(o.sock);
+            close(o)            
             o.mustExit = false;
         end
         
@@ -676,7 +689,12 @@ classdef starstim < neurostim.stimulus
                 end
                 pause(0.025); % Check status every 25 ms.
                 if toc> TIMEOUT
-                    warning(['Waiting for ' varargin{cntr} ' timed out']);
+                    if iscell(varargin{cntr})
+                        stts = [varargin{cntr}{:}];
+                    else
+                        stts = varargin{cntr};
+                    end
+                    warning(['Waiting for ' stts ' timed out']);
                     warning(['Last status was ' o.protocolStatus ]);
                     break;
                 end
@@ -717,7 +735,7 @@ classdef starstim < neurostim.stimulus
             minF = max(o.frequency,0.01); % Lowest frequency 0.01Hz.
             t = repmat((0:0.1:(1/minF))',[1 o.NRCHANNELS]); % One cycle for all.                            
             nrT = size(t,1);
-            acCurrent = repmat(o.amplitude,[nrT 1]).*sin(pi/180*repmat(perChannel(o,o.phase),[nrT 1]) + 2*pi*t.*repmat(perChannel(o,o.frequency),[nrT,1]));
+            acCurrent = repmat(perChannel(o,o.amplitude),[nrT 1]).*sin(pi/180*repmat(perChannel(o,o.phase),[nrT 1]) + 2*pi*t.*repmat(perChannel(o,o.frequency),[nrT,1]));
             currentThreshold = 1;% 1 muA excess is probably an error
             if any(abs(sum(acCurrent,2))>currentThreshold)
                 o.cic.error('STOPEXPERIMENT','AC Current not conserved. Please check starstim.amplitude , .frequency , and .phase numbers');
@@ -728,6 +746,14 @@ classdef starstim < neurostim.stimulus
             if dcCurrent> currentThreshold
                 o.cic.error('STOPEXPERIMENT','DC Current not conserved. Please check starstim.mean');
                 ok = false;
+            end
+        end
+        
+        function close(o)
+            % Close connection with NIC
+            if isa(o.sock,'java.net.Socket')
+                close(o.sock)                
+                %else probably failed to create a sock...or fake
             end
         end
     end

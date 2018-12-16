@@ -51,6 +51,7 @@ switch computerName
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',60,'screenNumber',scrNr);
         smallWindow = false;
+        c.useConsoleColor = true;
         
     case 'KLAB-U'        
          %if pin.Results.debug
@@ -67,14 +68,22 @@ switch computerName
 %             smallWindow = false;        
 %              Screen('Preference', 'SkipSyncTests', 0);
 %         end
+        c.useConsoleColor = true;
         
-        
-    case 'XPS2013'
+    case 'NEUROSTIMM'
         scrNr=0;
         rect = Screen('rect',scrNr);
-        Screen('Preference', 'SkipSyncTests', 2); % Not in production mode; this is just to run without requiring accurate timing.
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',34.5,'frameRate',60,'screenNumber',scrNr);
-        smallWindow = true ;
+        InitializePsychSound(1)
+        devs = PsychPortAudio('GetDevices');
+        c.hardware.sound.device = devs(strcmpi({devs.DeviceName},'Microsoft Sound Mapper - Output')).DeviceIndex; % Automatic sound hardware detection fails on this machine. Specify device 1
+        %if pin.Results.debug 
+            smallWindow = true ;
+        %else
+        %    smallWindow = false;
+        %end
+        c.useConsoleColor = true;
+        Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
     case 'SURFACE2017'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
@@ -82,6 +91,7 @@ switch computerName
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
         smallWindow = true;
         c.dirs.output= 'c:/temp';
+        c.useConsoleColor = true;
     case '2014B'
         scrNr = 2;
         rect = Screen('rect',scrNr);
@@ -102,6 +112,7 @@ switch computerName
         c.timing.vsyncMode =0;
         c.timing.frameSlack = 0.1;
         c.eye.sampleRate  = 250;
+        c.useConsoleColor = true;
    case 'PTB-P-UBUNTU'
         c = rig(c,'keyboardNumber',[],'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         
@@ -109,17 +120,35 @@ switch computerName
         smallWindow = false;      
         c.eye.sampleRate  = 250;
   case 'PC2017A'
+        scrNr = 1;%max(Screen('screens'));
+        fr = Screen('FrameRate',scrNr);
+        rect = Screen('rect',scrNr);
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        c.useConsoleColor = true;
+        %Screen('Preference', 'SkipSyncTests', 2);
+        smallWindow = false;
+        
+    case 'NEUROSTIMA2018'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        c.useConsoleColor = true;
         Screen('Preference', 'SkipSyncTests', 2);
-        smallWindow = true;
+        smallWindow = true;        
+    case 'PC-2018D'
+        scrNr = max(Screen('screens'));
+        fr = Screen('FrameRate',scrNr);
+        rect = Screen('rect',scrNr);
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        c.useConsoleColor = true;
+        Screen('Preference', 'SkipSyncTests', 0);
+        smallWindow = false;
     case 'ROOT-PC'
         c = rig(c,'xpixels',1280,'ypixels',1024,'screenWidth',40,'frameRate',85,'screenNumber',max(Screen('screens')));
         smallWindow = false;    
     otherwise
-        warning('This computer is not recognised. Using default settings.');
+        warning('a:b','This computer (%s) is not recognised. Using default settings.\nHint: edit neurostim.myRig to prevent this warning.',computerName);
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);

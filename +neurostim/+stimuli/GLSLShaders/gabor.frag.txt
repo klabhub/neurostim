@@ -31,26 +31,33 @@ uniform int multiGaborsN;
 void main()
 {
     /* Query current output texel position wrt. to Center of Gabor: */
-    vec2 pos = gl_TexCoord[0].xy;
+    vec2 pos;
+    vec2 coeff;
+    float sv;
+    float ev;
+   float alpha;
+    float tmp;
+    float tev;
+    float factor;
+    
+
+    pos = gl_TexCoord[0].xy;
+    sv =0.0;
 
     /* Compute (x,y) distance weighting coefficients, based on rotation angle: */
     /* Note that this is a constant for all fragments, but we can not do it in */
     /* the vertex shader, because the vertex shader does not have sufficient   */
     /* numeric precision on some common hardware out there. */
-    
-    vec2 coeff;
-    float sv=0;
+   
     /* Evaluate sine grating at requested position, angle and phase: */
-    for (int i =0;i<multiGaborsN;i++){
+    for (int i=0;i<multiGaborsN;i++){
         coeff = vec2(cos(orientation+multiGaborsOriOffset[i]), sin(orientation+multiGaborsOriOffset[i])) * freqTwoPi;        
         sv = sv + sin(dot(coeff, pos) + phase + multiGaborsPhaseOffset[i]);
     }
-
     /* Compute exponential hull for the gabor: */
-    float ev;float alpha;float tmp;
     if (mask==1){
         /* Gabor mask : Sigma = [stdev */
-        ev = exp(-0.5 *dot(pos, pos) / (sigma1 * sigma1));
+        ev = exp(-0.5*dot(pos, pos) / (sigma1 * sigma1));
         alpha =1.0;
     }else if (mask==2){
         /* Hard circular mask: sigmae = outer*/
@@ -58,17 +65,17 @@ void main()
         alpha = ev; /* This makes the part of the texture outside the circle completely transparent */
     }else if (mask==3){
         /* Annulus  Sigma  = [inner outer]*/
-        float tmp;
+        
         tmp = sqrt(dot(pos,pos));
         ev  = float((tmp>=sigma1) && (tmp<=sigma2)); 
         alpha = ev; /* This makes the part of the texture outside the circle completely transparent */        
     }else if (mask==4){
         /* Gabor truncated at 3 sigma. */
         tmp = dot(pos, pos) / (sigma1 * sigma1);        
-        if (tmp>9){
+        if (tmp>9.0){
             /* Truncate at 3 sigma and make transparent */
-            alpha = 0; 
-            ev =0;
+            alpha = 0.0; 
+            ev =0.0;
         }else{
             ev = exp(-0.5*tmp);
             alpha =1.0;
@@ -80,7 +87,6 @@ void main()
     }
 
     /* Temporal envelope */
-    float tev;
     if (flickerMode==1){
         /*none */
         tev =1.0;
@@ -95,7 +101,6 @@ void main()
         tev =1.0;
     }
 
-    float factor;
     factor =  1.0 +contrast * ev * sv * tev;
     if (colorMode==1 || colorMode==3){
         /*  RGB or LUM */

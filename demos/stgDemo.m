@@ -29,7 +29,7 @@ ptch.filled       = true;
 ptch.color        = [1 1 0];
 ptch.on           = 0;
 
-stm = stimuli.mcs(c,'stg');
+stm = stimuli.stg(c,'stg');
 %stm.fake = true;   % Set to false if you're connected to a machine with NIC running
 %stm.enabled = true;          
 
@@ -46,7 +46,7 @@ stm = stimuli.mcs(c,'stg');
 % they are specified as scalars), but by specifing the .channel we limit
 % stimulation to that channel alone. Setting .channel = [1 2] would apply
 % the same stimulation to both channels. 
-stm.channel = 1; % Only the channels specified here will be used.
+stm.channel = [1 2]; % Only the channels specified here will be used.
 stm.on = 500; % Stimulation will be triggered 500 ms after trial onset
 stm.currentMode = false; % If you're hooked up to an oscilloscope you want voltage mode. 
 stm.rampUp = 500; % Ramp up/down in 500 ms
@@ -59,25 +59,26 @@ stm.amplitude = 1500; % mV % This will be used for both the noise function and t
 
 % Define a noise function with output that depends on the amplitude/mean
 % set per trial
-% noise  = @(x,o)(o.amplitude*rand(size(x))+o.mean);
+ noise  = @(x,o)(o.amplitude*rand(size(x))+o.mean);
 % Design : half of trials get noise stimulation , the other half get 40Hz
 % tACS. The patch changes color with stimulation type
-% d =design('DUMMY'); 
-% d.fac1.stg.fun = {noise,'tACS'};  
-% d.fac1.stg.frequency = [NaN 40];
-% d.fac1.stg.mean    = [-750 0];
-% d.fac1.patch.color  = {[1 1 0], [1 0 0 ]};
+d =design('DUMMY'); 
+d.fac1.stg.channel = [1, 2];
+d.fac1.stg.fun = {noise,'tACS'};  
+d.fac1.stg.frequency = [NaN 40];
+d.fac1.stg.mean    = [-750 0];
+d.fac1.patch.color  = {[1 1 0], [1 0 0 ]};
 % 
-% d.randomization = 'RANDOMWITHREPLACEMENT';
-% blck=block('dummyBlock',d); 
-% blck.nrRepeats  = 15;
-% c.trialDuration = 2500; 
-% c.iti= 250;
-% c.addPropsToInform('stg.amplitude','stg.frequency','stg.duration','stg.fun')
-% c.run(blck); 
+d.randomization = 'SEQUENTIAL';
+blck=block('dummyBlock',d); 
+blck.nrRepeats  = 2;
+c.trialDuration = 2500; 
+c.iti= 250;
+c.addPropsToInform('stg.amplitude','stg.frequency','stg.duration','stg.fun')
+c.run(blck); 
 % 
 
-
+return
 %% Stimulation extends across trials.
 % Here we setup a blocked design in which stimulation runs throughout one
 % block of trials (including ITI) and then another block has only sham

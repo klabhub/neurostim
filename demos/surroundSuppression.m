@@ -87,20 +87,18 @@ myBlock=block('myBlock',myDesign);
 myBlock.nrRepeats=10;
     
 %Subject's 2AFC response
-k = plugins.nafcResponse(c,'choice');
-k.on = 0; '@ f1.to';
-k.deadline = Inf; '@ f1.to + 3000';
+k = behaviors.keyResponse(c,'choice');
+k.from= 0; 
+k.maximumRT= Inf; 
 k.keys = {'a' 'l'};
-k.keyLabels = {'left', 'right'};
-k.correctKey = '@ (sign(testGab.X)>0)*(double(testGab.contrast>reference.contrast)+ 1) + (sign(testGab.X)<0)*(double(testGab.contrast<reference.contrast)+ 1)';  %Function returns 1 or 2
-
+k.correctFun = '@ (sign(testGab.X)>0)*(double(testGab.contrast>reference.contrast)+ 1) + (sign(testGab.X)<0)*(double(testGab.contrast<reference.contrast)+ 1)';  %Function returns 1 or 2
 c.trialDuration = '@choice.stopTime'; % Trial ends once the subjects makes a choice (i.e. answers the nAFC)
 plugins.sound(c);
 % 
 %     Add correct/incorrect feedback
 s = plugins.soundFeedback(c,'soundFeedback');
-s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.success & choice.correct');
-s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.success & ~choice.correct');
+s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.isSuccess & choice.correct');
+s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.isSallalllalllaaaalalllallauccess & ~choice.correct');
 
 c.run(myBlock);
  

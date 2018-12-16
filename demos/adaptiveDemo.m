@@ -7,7 +7,7 @@ function adaptiveDemo
 % The demo can use QUEST or a Staircase procedure to estimate the threshold
 % for correct detection, separately for +45 and -45 degree oriented gratings.
 %
-% The demo can use  key presses, or simulate an ideal observer with a
+% The demo can use  key presses, or simulate an observer with a
 % fixed threshold by setting pianola to true.
 %
 % BK  - Nov 2016.
@@ -20,9 +20,11 @@ pianola = true; % Set this to true to simulate responses, false to provide your 
 % Define a simulated observer with different thresholds for the two
 % conditions. This should be visible when you run this demo with pianola=true; one orientation
 % should converge on a low contrast, the other on a high contrast.
-%simulatedObserver = '@grating.contrast>(0.1+0.5*(cic.condition-1))';
+% Note that this function should return the keyIndex of the correct key (so
+% 1 for 'a', 2 for 'l')
+%simulatedObserver = '@(grating.contrast<(0.1+0.5*(cic.condition-1)))+1.0';
 % Or use this one for an observer with some zero mean gaussian noise on the threshold
-simulatedObserver = '@grating.contrast> (0.05*randn + (0.1+0.5*(cic.condition-1)))';
+simulatedObserver = '@(grating.contrast< (0.05*randn + (0.1+0.5*(cic.condition-1))))+1.0';
 %% Setup the controller 
 c= myRig;
 c.trialDuration = Inf;
@@ -56,12 +58,15 @@ g.duration         = 500;
   
 %% Setup user responses
 % Take the user response (Press 'a'  to report detection on the left, press 'l'  for detection on the right)
-k = plugins.nafcResponse(c,'choice');
-k.on = '@grating.on + grating.duration';
-k.deadline = '@choice.on + 2000';         %Maximum allowable RT is 2000ms
+k = behaviors.keyResponse(c,'choice');
+k.from = '@grating.on + grating.duration';
+k.maximumRT = 2000;         %Maximum allowable RT is 2000ms
 k.keys = {'a' 'l'};                       %Press 'a' for "left" motion, 'l' for "right"
-k.keyLabels = {'left', 'right'};          % Label for bookkeeping.
-k.correctKey = '@double(grating.X> 0) + 1';   %Function to define what the correct key is in each trial .It returns the index of the correct response (i.e., key 1 ('a' when X<0 and 2 'l' when X>0)
+k.correctFun = '@double(grating.X> 0) + 1';   %Function to define what the correct key is in each trial .It returns the index of the correct response (i.e., key 1 ('a' when X<0 and 2 'l' when X>0)
+if pianola
+    k.simWhat =  simulatedObserver;   % This function will provide a simulated answer
+    k.simWhen = '@grating.on + grating.duration+50';  % At this time.
+end
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
 
 
@@ -73,8 +78,6 @@ nrLevels = d.nrLevels;
 % We also want to change some parameters
 % in an "adaptive" way. You do this by assigning values
 % to the .conditions field of the design object .
-
-
 if strcmpi(method,'QUEST')
     % To estimate threshold adaptively, the Quest method can be used. We need
     % to define two functions to map the random intensity variable with values between
@@ -98,28 +101,12 @@ if strcmpi(method,'QUEST')
     % Please note that you should not use repmat for this purpose as it will repmat the
     % handles to the Quest object, not the object itself. In other words, if you used repmat you'd still use the
     % same Quest object for both orientations and could not estimate a
-    % separate threshold per orientation. 
-   
-    if ~pianola
-        d.conditions(:,1).grating.contrast = duplicate(plugins.quest(c, '@choice.correct','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i),[nrLevels 1]);
-    else
-        % If you'd like to see Quest in action, without pressing buttons, we
-        % can simulate responses with this trialResult function (note that we also have
-        % to set c.trialDuration < Inf for this to work, otherwise CIC keeps waiting for a button press)
-        d.conditions(:,1).grating.contrast = duplicate(plugins.quest(c, simulatedObserver,'guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i),[nrLevels 1]);
-        c.trialDuration = 150;
-    end
+    % separate threshold per orientation.    
+    d.conditions(:,1).grating.contrast = duplicate(plugins.quest(c, '@choice.correct','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i),[nrLevels 1]);   
 elseif strcmpi(method,'STAIRCASE')
     % As an alternative adaptive threshold estimation procedure, consider the 1-up 1-down staircase with fixed 0.01 stepsize on contrast.
     % With user responses, you use:
-    if ~pianola
-        d.conditions(:,1).grating.contrast = duplicate(plugins.nDown1UpStaircase(c,'@choice.correct',rand,'min',0,'max',1,'weights',[1 1],'delta',0.1),[nrLevels 1]);
-    else
-        %  For a pianola version of the demo, we simulate responses at the end
-        %  of the trial
-        d.conditions(:,1).grating.contrast = duplicate(plugins.nDown1UpStaircase(c,simulatedObserver,rand,'min',0,'max',1,'weights',[1 1],'delta',0.05),[nrLevels 1]);
-        c.trialDuration = 150;
-    end
+    d.conditions(:,1).grating.contrast = duplicate(plugins.nDown1UpStaircase(c,'@choice.correct',rand,'min',0,'max',1,'weights',[1 1],'delta',0.1),[nrLevels 1]);
 end
 
 % If you;d want to assign a different jitter object per condition (i.e. the

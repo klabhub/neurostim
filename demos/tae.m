@@ -34,7 +34,7 @@ g.orientation       = 15;
 g.mask              ='CIRCLE';
 g.frequency         = 3;
 g.duration          = 1500;
-g.on                = '@fixation.startTime +250'; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
+g.on                = '@fixation.startTime.FIXATING +250'; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
 
 % Duplicate the Gabor serve as a test stimulus 
  g2= duplicate(g,'testGabor');
@@ -54,8 +54,8 @@ f.on                = 0;                % On from the start of the trial
 
 
 %% Behavioral control
-fix = plugins.fixate(c,'fixation');
-fix.from            = '@fixation.startTime';  % Require fixation from the moment fixation starts (i.e. once you look at it, you have to stay).
+fix = behaviors.fixate(c,'fixation');
+fix.from            = 2000;  % If fixation has not been achieved at this time, move to the next trial
 fix.to              = '@testGabor.stopTime';   % Require fixation until testGabor has been shown.
 fix.X               = 0;
 fix.Y               = 0; 
@@ -63,11 +63,10 @@ fix.tolerance       = 2;
 
 
 %Subject's 2AFC response
-k = plugins.nafcResponse(c,'choice');
-k.on                = '@testGabor.stopTime';    % Responses are accepted only after test stimulus presenation
-k.deadline          = Inf;                      % There is no time pressure to give an answer.
+k = behaviors.keyResponse(c,'choice');
+k.from              = '@testGabor.stopTime';    % Responses are accepted only after test stimulus presenation
+k.maximumRT         = Inf;                      % There is no time pressure to give an answer.
 k.keys              = {'a' 'l'};
-k.keyLabels         = {'ccw', 'cw'};
 if simulatedObserver
     k.simWhen = 1500;% When should the simulated observer press a key.
     k.simWhat =  '@double(mod(testGabor.orientation,180) < 90)+1'; % Which key should the simulated observer press?  (Perfect observer key==1 for ccw, key==2 for cw) - this observer has no TAE!
@@ -128,10 +127,9 @@ if c.nrTrials <10
 end
 
 %% Retrieve parameters and responses from the CIC object.
-[cw,tr]  = get(c.choice.prms.pressedInd,'atTrialTime',inf); % Last value in the trial is the answer
-out =isnan(cw);
-cw = cw(~out)==2; % 2 means CW.
-tr = tr(~out);
+[cw,tr]  = get(c.choice.prms.keyIx,'atTrialTime',inf,'withDataOnly',true); % Last value in the trial is the answer
+cw = cw==2; % 2 means CW.
+
 % Get values from the trials where we have key presses. (And values after
 % the start of the stimulus to make sure we get the values that were
 % actually used. 'atTrialTime', inf would work too.
