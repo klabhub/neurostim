@@ -155,19 +155,6 @@ classdef newera <  neurostim.plugins.liquid
       o.totalDelivered = o.totalDelivered + volume; % ml
     end
     
-    function report(o)
-       % report back to the gui?
-       volume = o.qryvol();
-       
-       msg = sprintf('Delivered: %i (%.1f per trial); Total volume: %.2f', o.nrDelivered,round(o.nrDelivered./o.cic.trial,1),volume);
-       o.writeToFeed(msg);
-    end
-  end % protected methods
-  
-  %
-  % low(er) level pump interface...
-  %
-  methods (Access = public)
     function [err,status] = open(o)
       fopen(o.dev);
 
@@ -198,6 +185,19 @@ classdef newera <  neurostim.plugins.liquid
       delete(o.dev);
     end
     
+    function report(o)
+       % report back to the gui?
+       volume = o.qryvol();
+       
+       msg = sprintf('Delivered: %i (%.1f per trial); Total volume: %.2f', o.nrDelivered,round(o.nrDelivered./o.cic.trial,1),volume);
+       o.writeToFeed(msg);
+    end
+  end % protected methods
+  
+  %
+  % low(er) level pump interface...
+  %
+  methods (Access = public)
     function ms = ml2ms(o,ml)
       ms = 1e3*60*ml/o.rate;
     end
