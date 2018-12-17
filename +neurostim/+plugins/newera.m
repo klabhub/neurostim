@@ -193,7 +193,7 @@ classdef newera <  neurostim.plugins.liquid
       fclose(o.dev);
     end
 
-    function sdelete(o)
+    function delete(o)
       % delete the serial interface device
       try
         o.sclose(); % fails if o.dev is invalid or is already closed
