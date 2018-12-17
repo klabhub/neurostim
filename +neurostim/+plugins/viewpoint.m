@@ -60,8 +60,6 @@ classdef viewpoint < neurostim.plugins.eyetracker
     
   properties
     vp@struct;
-
-    valid;
         
     % custom viewpoint config commands...
     %
