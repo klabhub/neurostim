@@ -273,13 +273,13 @@ classdef viewpoint < neurostim.plugins.eyetracker
         Viewpoint('startRecording');
         
         available = Viewpoint('eyeAvailable'); % returns vp.EYE_A, vp.EYE_B or vp.BOTH
-        if available == o.vp.BOTH
-          o.eye = o.vp.EYE_A;
+        if available == -1
+          o.cic.error('STOPEXPERIMENT','eye not available')
         else
-          o.eye = available;
+          o.eye = eye2str(o,available);
         end
       end
-            
+      
       Viewpoint('message','TR:%d',o.cic.trial); % used to align clocks later
             
       Viewpoint('message','TRIALID %d-%d',o.cic.condition,o.cic.trial);
@@ -299,6 +299,8 @@ classdef viewpoint < neurostim.plugins.eyetracker
           % get the most recent sample...
           sample = Viewpoint('newestFloatSample');
           
+          idx = str2eye(o,o.eye);
+          
 %           % apply manual calibration... default is the identity matrix
 %           xy = [sample.gx(o.eye+1), sample.gy(o.eye+1), 1]*o.clbMatrix; % o.eye+1, since we're indexing a MATLAB array
 %           
@@ -309,9 +311,9 @@ classdef viewpoint < neurostim.plugins.eyetracker
 % %             sample.gy(o.eye+1)*o.cic.screen.ypixels); % +1 as accessing MATLAB array
 %           [o.x,o.y] = o.cic.pixel2Physical( ...
 %             xy(1)*o.cic.screen.xpixels, xy(2)*o.cic.screen.ypixels);
-          [o.x,o.y] = o.raw2ns(sample.gx(o.eye+1), sample.gy(o.eye+1)); % o.eye+1, since we're indexing a MATLAB array
+          [o.x,o.y] = o.raw2ns(sample.gx(idx+1), sample.gy(idx+1)); % idx+1, since we're indexing a MATLAB array
 
-          o.pupilSize = sample.pa(o.eye+1);  
+          o.pupilSize = sample.pa(idx+1);
 
           o.valid = isnumeric(o.x) && isnumeric(o.y) && o.pupilSize >0; % FIXME: only if configured to measure pupil size...
 %         end
@@ -359,6 +361,21 @@ classdef viewpoint < neurostim.plugins.eyetracker
       end
     end
 
+    function str = eye2str(o,eyeNr)
+      % convert a Viewpoint number to a string that identifies the eye
+      % (matching with plugins.eyetracker)
+      eyes = {'LEFT','RIGHT','BOTH'};
+      eyeNrs = [o.vp.EYE_A,o.vp.EYE_B,o.vp.BOTH];
+      str = eyes{eyeNr == eyeNrs};
+    end
+        
+    function nr = str2eye(o,eye)
+      % convert a string that identifies the eye to a Viewpoint number
+      eyes = {'LEFT','RIGHT','BOTH','BINOCULAR'};
+      eyeNrs = [o.vp.EYE_A,o.vp.EYE_B,o.vp.BOTH,o.vp.BOTH];
+      nr = eyeNrs(strcmpi(eye,eyes));
+    end
+    
     function [nx,ny] = raw2ns(o,rx,ry,cm)
       % convert Viewpoint's normalized screen coords to neurostim's physical coords
       
