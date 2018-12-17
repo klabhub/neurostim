@@ -48,7 +48,7 @@ classdef newera <  neurostim.plugins.liquid
 %      o.addProperty('volume',0.010,'validate',@isreal); % ml
       o.addProperty('rate',10.0,'validate',@isreal); % ml per minute
       
-      o.addProperty('trigger','OF','validate',@(x) validatestring(x,{'OF','LE'}));
+      o.addProperty('trigger','','validate',@(x) validatestring(x,{'','OF','LE'})); % LE = level trigger?
     end
 
     function beforeExperiment(o)
@@ -61,7 +61,7 @@ classdef newera <  neurostim.plugins.liquid
 
       % check that the pump is present,
       try
-        [err,status] = o.open();
+        [err,status] = o.sopen();
       catch
         o.cic.error('CONTINUE','Liquid reward added but the NewEra pump isn''t responding.');
       end
@@ -81,15 +81,14 @@ classdef newera <  neurostim.plugins.liquid
         
       o.beforeExperiment@neurostim.plugins.liquid()
       
-      if ~isempty(o.mcc)
-        o.trigger = 'LE'; % level trigger
+      if ~isempty(o.trigger)
+        o.settrg(o.trigger);
       end
-      o.settrg(o.trigger);
     end
        
     function afterExperiment(o)
       % close the pump
-      o.close();
+      o.sclose();
     end    
   end
   
@@ -128,7 +127,7 @@ classdef newera <  neurostim.plugins.liquid
     end
           
     function deliver(o,item)
-      if numel(o.mcc) == 1
+      if ~isempty(o.trigger)
         o.deliver@neurostim.plugins.liquid(item);
         return
       end
@@ -154,37 +153,7 @@ classdef newera <  neurostim.plugins.liquid
       o.nrDelivered = o.nrDelivered + 1;
       o.totalDelivered = o.totalDelivered + volume; % ml
     end
-    
-    function [err,status] = open(o)
-      fopen(o.dev);
-
-      % query the pump
-      [err,status,~] = o.sndcmd(''); % send a CR... no command
-      assert(err == 0);
-      
-%       % beep once so we know the pump is alive...
-%       err = o.beep(1);
-%       assert(err == 0);
-    end
-
-    function close(o)
-      [~,status,~] = o.sndcmd(''); % send a CR... no command
-
-      if status ~= 0, % 0 = stopped
-        o.stop(); % stop the pump...
-      end
-      
-      fclose(o.dev);
-    end
-
-    function delete(o)
-      try
-        o.close(); % fails if o.dev is invalid or is already closed
-      catch
-      end
-      delete(o.dev);
-    end
-    
+        
     function report(o)
        % report back to the gui?
        volume = o.qryvol();
@@ -198,6 +167,41 @@ classdef newera <  neurostim.plugins.liquid
   % low(er) level pump interface...
   %
   methods (Access = public)
+    function [err,status] = sopen(o)
+      % open the serial interface
+      
+      fopen(o.dev);
+
+      % query the pump
+      [err,status,~] = o.sndcmd(''); % send a CR... no command
+      assert(err == 0);
+      
+%       % beep once so we know the pump is alive...
+%       err = o.beep(1);
+%       assert(err == 0);
+    end
+
+    function sclose(o)
+      % close the serial interface
+      
+      [~,status,~] = o.sndcmd(''); % send a CR... no command
+
+      if status ~= 0, % 0 = stopped
+        o.stop(); % stop the pump...
+      end
+      
+      fclose(o.dev);
+    end
+
+    function sdelete(o)
+      % delete the serial interface device
+      try
+        o.close(); % fails if o.dev is invalid or is already closed
+      catch
+      end
+      delete(o.dev);
+    end
+    
     function ms = ml2ms(o,ml)
       ms = 1e3*60*ml/o.rate;
     end
