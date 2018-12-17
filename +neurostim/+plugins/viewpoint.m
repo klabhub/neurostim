@@ -60,7 +60,6 @@ classdef viewpoint < neurostim.plugins.eyetracker
     
   properties
     vp@struct;
-    eye = 'LEFT'; % LEFT, RIGHT or BOTH
 
     valid;
         
