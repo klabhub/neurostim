@@ -520,6 +520,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end
                     end
                 case neurostim.stages.BEFOREFRAME
+                    Screen('glPushMatrix',c.window);
                     Screen('glLoadIdentity', c.window);
                     Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
                     Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
@@ -530,6 +531,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         Screen('glPopMatrix',c.window);
                         if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end
                     end
+                    Screen('glPopMatrix',c.window);
                 case neurostim.stages.AFTERFRAME
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end

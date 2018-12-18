@@ -1774,7 +1774,7 @@ classdef cic < neurostim.plugin
                     % restore the color range setting
                     Screen('ColorRange', c.mainWindow, colorRange);
                       
-                    c.overlayRect = Screen('Rect',c.overlayWindow)-[c.screen.xpixels/2 c.screen.ypixels/2 c.screen.xpixels/2 c.screen.ypixels/2]; % need this for c.clearOverlay()
+                    c.overlayRect = Screen('Rect',c.overlayWindow);
                     
                     % retrieve low-level OpenGl texture handle for the overlay window
                     overlayTexture = Screen('GetOpenGLTexture', c.mainWindow, c.overlayWindow);
@@ -1906,7 +1906,7 @@ classdef cic < neurostim.plugin
             if numel(plgns)>1
                 figure('Name','Total','position',[680   530   818   420]);
                 clf
-                frameItems = find(~cellfun(@isempty,strfind(items,'FRAME'))); %#ok<STRCLFH>
+                frameItems = find(~cellfun(@isempty,strfind(items,'FRAME')));
                 cntr=1;
                 for j=frameItems'
                     subplot(1,2,cntr);
