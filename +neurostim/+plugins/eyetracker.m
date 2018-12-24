@@ -13,13 +13,18 @@ classdef eyetracker < neurostim.plugin
 %   clbTargetColor - calibration target color.
 %   clbTargetSize - calibration target size.
 %   eyeToTrack - one of 'left','right','binocular' or 0,1,2.
-        
+
+    properties (Access=public)
+        eye@char='LEFT'; %LEFT,RIGHT, or BOTH  
+    end
+    
     properties
         x@double=NaN; % Should have default values, otherwise behavior checking can fail.
         y@double=NaN;
         z@double=NaN;
         
         pupilSize@double;
+        valid@logical = true;
     end
     
     methods
@@ -27,17 +32,18 @@ classdef eyetracker < neurostim.plugin
             o = o@neurostim.plugin(c,'eye'); % Always eye such that it can be accessed through cic.eye
             
             o.addProperty('eyeClockTime',[]);
-            
-            o.addProperty('hardwareModel',[]);
+            o.addProperty('hardwareModel','');
+            o.addProperty('softwareVersion','');
             o.addProperty('sampleRate',1000,'validate',@isnumeric);
             o.addProperty('backgroundColor',[]);
             o.addProperty('foregroundColor',[]);
             o.addProperty('clbTargetColor',[1,0,0]);
             o.addProperty('clbTargetSize',0.25);
-            o.addProperty('eyeToTrack','left');
             o.addProperty('continuous',false);
             
             o.addProperty('clbMatrix',[],'sticky',true); % manual calibration matrix (optional)
+
+            o.addProperty('tolerance',3); % Used to set default tolerance on behaviors.eyeMovement
         end
         
         function afterFrame(o)
@@ -79,20 +85,5 @@ classdef eyetracker < neurostim.plugin
           x = xy(:,1);
           y = xy(:,2);
         end
-    end
-    
-    methods (Access=protected)
-        function trackedEye(o)
-            if ischar(o.eyeToTrack)
-                switch lower(o.eyeToTrack)
-                    case {'left','l'}
-                        o.eyeToTrack = 0;
-                    case {'right','r'}
-                        o.eyeToTrack = 1;
-                    case {'binocular','b','binoc'}
-                        o.eyeToTrack = 2;
-                end
-            end
-        end
-    end
+    end    
 end

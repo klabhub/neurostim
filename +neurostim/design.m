@@ -158,7 +158,7 @@ classdef design <handle & matlab.mixin.Copyable
             factor = 1:o.nrFactors;
             v = sum(~cellfun(@isempty,o.factorSpecs(factor,:)),2)';
             if isempty(v)
-                v= numel(o.conditionSpecs);
+                v= max(1,numel(o.conditionSpecs)); % At least 1 condition
             end
             if numel(v)==1
                 v= [v 1];
@@ -232,7 +232,7 @@ classdef design <handle & matlab.mixin.Copyable
                             break;
                         else
                             % Check for duplicates and remove
-                            duplicateSetting = ~cellfun(@isempty,strfind(v(:,1),o.conditionSpecs{cond}{i,1})) &  ~cellfun(@isempty,strfind(v(:,2),o.conditionSpecs{cond}{i,2}));
+                            duplicateSetting = strcmpi(o.conditionSpecs{cond}{i,1},v(:,1)) & strcmpi(o.conditionSpecs{cond}{i,2},v(:,2));                            
                             v(duplicateSetting,:) = []; %#ok<AGROW> %Rmove seting that came from factor specs (or previous condition spec)
                         end                         
                     end
