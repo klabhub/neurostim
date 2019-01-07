@@ -139,12 +139,16 @@ classdef cic < neurostim.plugin
         nrTrialsTotal;   % Number of trials total (all blocks)
         date;           % Date of the experiment.
         blockDone;      % Is the current block done?
+        hasValidWindow; % Is the Main Window valid? 
     end
     
     %% Public methods
     % set and get methods for dependent properties
     methods
-        
+        function v = get.hasValidWindow(c)
+            v = Screen(c.mainWindow,'WindowKind')>0;
+        end
+            
         function v = get.blockDone(c)
             v = c.blocks(c.block).done;
         end
