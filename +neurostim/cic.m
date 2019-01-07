@@ -31,6 +31,7 @@ classdef cic < neurostim.plugin
         keyBeforeExperiment     = true;
         keyAfterExperiment      = true;
         beforeExperimentText    = 'Press any key to start...'; % Shown at the start of an experiment
+        afterExperimentText     = 'This is the end...';
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
             'width',[],'height',[],...
             'color',struct('text',[1 1 1],...
@@ -1098,7 +1099,7 @@ classdef cic < neurostim.plugin
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
             clearOverlay(c,true);               
-            c.drawFormattedText('This is the end...');
+            c.drawFormattedText(c.afterExperimentText);
             Screen('Flip', c.mainWindow);
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);

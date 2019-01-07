@@ -115,7 +115,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             o.addProperty('trialOutcome','','validate',@(x) (ischar(x) && strncmpi(x,'@',1))); % The function used to evaluate trial outcome. Specified by the user.
             o.addProperty('conditions',[]);% The condition that this adaptive parameter belongs to. Will be set by design.m
             o.addProperty('design',''); % This parm belongs to paramters in this design. (Set by design.m)
-            
+            o.addProperty('ignoreN',0); % Used to ignore the first N trials (set to 1 to ignroe the first, often missed trial)
             o.uid = u;
             o.trialOutcome = funStr;
             
@@ -188,12 +188,16 @@ classdef (Abstract) adaptive < neurostim.plugin
             % updated when "their" condition/design is the currently active
             % one.
             if isempty(o.design) || (strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions))% Check that this adaptive belongs to the current condition
-                % Call the derived class function to update it                
-                correct = o.trialOutcome; % Evaluate the function that the user provided.
-                if numel(correct)>1 
-                    error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
-                end
-                update(o,correct); % Pass it to the derived class to update                                        
+               if o.cic.trial > o.ignoreN 
+                    % Call the derived class function to update it                
+                    correct = o.trialOutcome; % Evaluate the function that the user provided.
+                    if numel(correct)>1 
+                        error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
+                    end
+                    update(o,correct); % Pass it to the derived class to update                                        
+               else
+                   % Ignoring this trial                       
+               end
             end
         end 
     end
