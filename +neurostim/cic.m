@@ -93,8 +93,8 @@ classdef cic < neurostim.plugin
         plugins;    % Vector of plugin handles.
         pluginOrder; % Vector of plugin handles, sorted by execution order
         
-        blocks@neurostim.block;     % Struct array with .nrRepeats .randomization .conditions
-        blockFlow =struct('list',[],'weights',[],'randomization','','latinSquareRow',[]);
+        
+        flow@neurostim.block = neurostim.block;
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
@@ -139,7 +139,6 @@ classdef cic < neurostim.plugin
         trialTime;      % Time elapsed (ms) since the start of the trial
         nrTrialsTotal;   % Number of trials total (all blocks)
         date;           % Date of the experiment.
-        blockDone;      % Is the current block done?
         hasValidWindow; % Is the Main Window valid? 
     end
     
@@ -150,12 +149,9 @@ classdef cic < neurostim.plugin
             v = Screen(c.mainWindow,'WindowKind')>0;
         end
             
-        function v = get.blockDone(c)
-            v = c.blocks(c.block).done;
-        end
         
         function v=get.nrTrialsTotal(c)
-            v= sum([c.blocks(c.blockFlow.list).nrPlannedTrials]) + sum([c.blocks.nrRetried]);
+            v= c.flow.nrTrials; 
         end
         
         function v= get.nrStimuli(c)
@@ -177,22 +173,15 @@ classdef cic < neurostim.plugin
         end
         
         function v= get.nrBlocks(c)
-            v = numel(c.blockFlow.list);
+            v = c.flow.nrBlocks;
         end
         
         function v= get.nrTrials(c)
-            if c.block
-                v= c.blocks(c.block).nrTrials;
-            else
-                v=0;
-            end
+            v= c.flow.nrTrials;            
         end
+        
         function v= get.nrConditions(c)
-            if c.block
-                v= c.blocks(c.block).nrConditions;
-            else
-                v=0;
-            end
+            v = c.flow.nrConditions;
         end
         function v = get.center(c)
             [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
@@ -224,7 +213,7 @@ classdef cic < neurostim.plugin
         end
         
         function v = get.blockName(c)
-            v = c.blocks(c.block).name;
+            v = c.flow.name;
         end
         
         function set.subject(c,value)
@@ -296,7 +285,7 @@ classdef cic < neurostim.plugin
         
     end
     
-    methods (Access=private)
+    methods (Access={?neurostim.block})
         function checkFrameRate(c)
             
             if isempty(c.screen.frameRate)
@@ -431,18 +420,7 @@ classdef cic < neurostim.plugin
             c.propsToInform = varargin;
         end
         
-        function showDesign(c,factors)
-            if nargin<2
-                factors = [];
-            end
-            for b=1:numel(c.blocks)
-                blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
-                for d=1:numel(c.blocks(b).designs)
-                    show(c.blocks(b).designs(d),factors,blockStr);
-                end
-            end
-        end
-        
+       
         function write(c,label,value)
             if ~isfield(c.prms,label)
                 c.addProperty(label,value);
@@ -636,11 +614,9 @@ classdef cic < neurostim.plugin
         
         function disp(c)
             % Provide basic information about the CIC
-            for i=1:numel(c)
-                disp(char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
-                    ['Stimuli: ' num2str(c(i).nrStimuli) ', Blocks: ' num2str(c(i).nrBlocks) ', Conditions: [' strtrim(sprintf('%d ',[c(i).blocks.nrConditions])) '], Trials: [' strtrim(sprintf('%d ',[c(i).blocks.nrTrials])) ']' ],...
+            disp(char(['CIC. Started at ' datestr(c.startTime,'HH:MM:SS') ],...
+                    ['Stimuli: ' num2str(c.nrStimuli) ', Blocks: ' num2str(c.flow.nrBlocks) ', Conditions: [' strtrim(sprintf('%d ',[c.flow.nrConditions])) '], Trials: [' strtrim(sprintf('%d ',[c.flow.nrTrials])) ']' ],...
                     ['File: ' c.fullFile '.mat']));
-            end
         end
         
         function endTrial(c)
@@ -685,162 +661,8 @@ classdef cic < neurostim.plugin
             
         end
         
-        %% -- Specify conditions -- %%
-        function setupExperiment(c,varargin)
-            % setupExperiment(c,block1,...blockEnd,'input',...)
-            % Creates an experimental session
-            % Inputs:
-            % blocks - input blocks directly created from block('name')
-            % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT',
-            % 'ORDERED' ( a specific ordering provided by the caller) or
-            % 'LATINSQUARES' - uses a balanced latin square design, (even
-            % number of blocks only). The row number can be provide as the
-            % 'c.latinSqRow' property. If this is empty, the user is prompted to enter
-            % the row number.
-            % 'nrRepeats' - number of repeats total
-            % 'weights' - weighting of blocks
-            % 'blockOrder' - the ordering of blocks
-            p=inputParser;
-            p.addParameter('randomization','SEQUENTIAL',@(x)any(strcmpi(x,{'SEQUENTIAL','RANDOMWITHOUTREPLACEMENT','ORDERED','LATINSQUARES'})));
-            p.addParameter('blockOrder',[],@isnumeric); %  A specific order of blocks
-            p.addParameter('nrRepeats',1,@isnumeric);
-            p.addParameter('weights',[],@isnumeric);
-            
-            % check the block inputs
-            isBlock = cellfun(@(x) isa(x,'neurostim.block'),varargin);
-            % store the blocks
-            c.blocks = [varargin{isBlock}];
-            
-            % make sure that all block objects are unique, i.e., *not* handles
-            % to the same object (otherwise becomes a problem for counters)
-            names = arrayfun(@(x) x.name,c.blocks,'uniformoutput',false);
-            if numel(unique(names)) ~= numel(c.blocks)
-                error('Duplicate block object(s) detected. Use the "nrRepeats" or "weights" arguments of c.run() to repeat blocks.');
-            end
-            
-            % create the blocks and blockFlow
-            args = varargin(~isBlock);
-            parse(p,args{:});
-            if isempty(p.Results.weights)
-                c.blockFlow.weights = ones(size(c.blocks));
-            else
-                c.blockFlow.weights = p.Results.weights;
-            end
-            
-            if strcmpi(p.Results.randomization,'LATINSQUARES')
-                nrUBlocks = numel(c.blocks);
-                if ~(rem(nrUBlocks,2)==0)
-                    error(['Latin squares randomization only works with an even number of blocks, not ' num2str(nrUBlocks)]);
-                end
-                allLS = neurostim.utils.ballatsq(nrUBlocks);
-                
-                if isempty(c.latinSqRow) || c.latinSqRow==0
-                    lsNr = input(['Latin square group number (1-' num2str(size(allLS,1)) ')'],'s');
-                    lsNr = str2double(lsNr);                
-                end
-                if isnan(lsNr)  || lsNr>size(allLS,1) || lsNr <1
-                    error(['The Latin Square group ' num2str(lsNr) ' does not exist for ' num2str(nrUBlocks) ' conditions/blocks']);
-                end
-                blockOrder = allLS(lsNr,:);
-                c.blockFlow.latinSquareRow = lsNr;
-            else
-                blockOrder = p.Results.blockOrder;
-                c.blockFlow.latinSquareRow = NaN;
-            end
-            
-            c.blockFlow.randomization = p.Results.randomization;
-            singleRepeatList = repelem((1:numel(c.blocks)),c.blockFlow.weights);
-            c.blockFlow.list =[];
-            for i=1:p.Results.nrRepeats
-                switch upper(c.blockFlow.randomization)
-                    case {'ORDERED','LATINSQUARES'}
-                        c.blockFlow.list = cat(2,c.blockFlow.list,blockOrder);
-                    case 'SEQUENTIAL'
-                        c.blockFlow.list = cat(2,c.blockFlow.list,singleRepeatList);
-                    case 'RANDOMWITHREPLACEMENT'
-                        c.blockFlow.list =cat(2,c.blockFlow.list,datasample(singleRepeatList,numel(singleRepeatList)));
-                    case 'RANDOMWITHOUTREPLACEMENT'
-                        c.blockFlow.list= cat(2,c.blockFlow.list,Shuffle(singleRepeatList));
-                end
-            end
-        end
-        
-        function beforeBlock(c)
-            % Setup the randomziation in each block
-            [msg,waitForKey] = beforeBlock(c.blocks(c.block),c);
-            % Calls beforeBlock on all plugins, in pluginOrder.
-            base(c.pluginOrder,neurostim.stages.BEFOREBLOCK,c);
-            % Draw block message and wait for keypress if requested.
-            if ~isempty(msg)
-                c.drawFormattedText(msg);
-            end
-            Screen('Flip',c.mainWindow);
-            if waitForKey
-                KbWait(c.kbInfo.pressAnyKey,2);
-            end
-            clearOverlay(c,true);
-        end
-        
-        function afterBlock(c)
+          
              
-                waitforkey = false;
-                if isa(c.blocks(c.block).afterMessage,'function_handle')
-                    msg = c.blocks(c.block).afterMessage(c);
-                else
-                    msg = c.blocks(c.block).afterMessage;
-                end
-                if ~isempty(msg)
-                    Screen('Flip',c.mainWindow); % Clear screen 
-                    c.drawFormattedText(msg);
-                    waitforkey=c.blocks(c.block).afterKeyPress;
-                end
-                if ~isempty(c.blocks(c.block).afterFunction)
-                    c.blocks(c.block).afterFunction(c);
-                    waitforkey=c.blocks(c.block).afterKeyPress;
-                end
-                Screen('Flip',c.mainWindow);
-                % 
-                if c.saveEveryBlock
-                    ttt=tic;
-                    c.saveData;
-                    c.writeToFeed('Saving the file took %f s',toc(ttt));
-                end                
-                if waitforkey
-                    KbWait(c.kbInfo.pressAnyKey,2);
-                end
-                clearOverlay(c,true);            
-        end
-        
-        function beforeTrial(c)
-            % Restore default values
-            setDefaultParmsToCurrent(c.pluginOrder);
-            
-            % Call before trial on the current block.
-            % This sets up all condition dependent stimulus properties (i.e. those in the design object that is currently active in the block)
-            beforeTrial(c.blocks(c.block),c);
-            c.blockTrial = c.blockTrial+1;  % For logging and user output only
-            % Calls before trial on all plugins, in pluginOrder.
-            base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
-        end
-        
-        
-        function afterTrial(c)
-            % Calls after trial on all the plugins
-            base(c.pluginOrder,neurostim.stages.AFTERTRIAL,c);
-            % Calls afterTrial on the current block/design.
-            % This assesses 'success' of the behavior and updates the design
-            % if needed (i.e. retrying failed trials)
-            afterTrial(c.blocks(c.block),c);
-            collectPropMessage(c);
-            collectFrameDrops(c);
-            if rem(c.trial,c.saveEveryN)==0
-                ttt=tic;
-                c.saveData;
-                c.writeToFeed('Saving the file took %f s',toc(ttt));
-            end
-        end
-        
-        
         function error(c,command,msg)
             switch (command)
                 case 'STOPEXPERIMENT'
@@ -856,27 +678,26 @@ classdef cic < neurostim.plugin
         
         %% Main function to run an experiment. All input args are passed to
         % setupExperiment.
-        function run(c,block1,varargin)
+        function run(c,flw)
             % Run an experimental session (i.e. one or more blocks of trials);
             %
             % Inputs:
-            % list of blocks, created using myBlock = block('name');
+            %  A flow object 
             %
             % e.g.
             %
-            % c.run(myBlock1,myBlock2,'randomization','SEQUENTIAL');
-            %
-            % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
-            % 'nrRepeats' - number of repeats total
-            % 'weights' - weighting of blocks
-           
-            c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.            
+            % c.run(flow);
+            
+            
+             
+            
                 
             %Check input
-            if ~(exist('block1','var') && isa(block1,'neurostim.block'))
+            if ~exist('flw','var') || ~isa(flw,'neurostim.block')
                 help('neurostim/cic/run');
-                error('You must supply at least one block of trials, e.g., c.run(myBlock1,myBlock2)');
+                error('You must supply a top-level flow/block element. ');
             end
+            c.flow= flw;
             
             %Log the experimental script as a string
             try
@@ -902,6 +723,8 @@ classdef cic < neurostim.plugin
                 end
             end
             
+            
+            c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.            
             c.stage = neurostim.cic.RUNNING; % Enter RUNNING stage; property functions, validation  will now be active
             
             %Construct any function properties by setting them again (this time the actual anonymous functions will be constructed)
@@ -911,7 +734,7 @@ classdef cic < neurostim.plugin
             
             %% Set up order and blocks
             order(c,c.pluginOrder);
-            setupExperiment(c,block1,varargin{:});
+            beforeExperiment(c.flow);% initialization of blocks and trials
             %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);
             checkFrameRate(c);
@@ -952,23 +775,12 @@ classdef cic < neurostim.plugin
             if ~c.hardware.keyEcho
                 ListenChar(-1);
             end
-            for blockCntr=1:c.nrBlocks
-                if ~c.flags.experiment;break;end % in case a plugin has generated a STOPEXPERIMENT error
-                
-                c.flags.block = true;
-                c.block = c.blockFlow.list(blockCntr); % Logged.
-                c.blockCntr= blockCntr;
-                
-                beforeBlock(c);
-                
-                %% Start the trials in the block
-                c.blockTrial =0;
-                while ~c.blocks(c.block).done
-                    c.trial = c.trial+1;
-                    
-                    beforeTrial(c); % Get all plugins ready for the next trial
-                    
-                    %ITI - wait
+            
+            while c.flags.experiment 
+                  c.trial = c.trial+1;
+                  beforeTrial(c.flow)                  
+                  
+                   %ITI - wait
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
@@ -977,12 +789,10 @@ classdef cic < neurostim.plugin
                                 clearOverlay(c,c.itiClear);
                             end
                         end
-                    end
-                    
+                    end                    
                     c.frame=0;
                     c.flags.trial = true;
-                    PsychHID('KbQueueFlush');
-                    
+                    PsychHID('KbQueueFlush');                    
                     Priority(MaxPriority(c.mainWindow));
                     %draw = nan(1,1000); % Commented out. See drawingFinished code below
                     while (c.flags.trial && c.flags.experiment)
@@ -1001,7 +811,7 @@ classdef cic < neurostim.plugin
                             clr = c.clear;
                         end
                         
-                        
+                        %% Call the drawing code in the plugins
                         base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
                         % This commented out code allows measuring the draw
                         % times.
@@ -1011,7 +821,7 @@ classdef cic < neurostim.plugin
                         
                         KbQueueCheck(c);
                         % After the KB check, a behavioral requirement
-                        % can have terminated the tria. 
+                        % can have terminated the trial. 
                         if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
                         
                         startFlipTime = GetSecs; % Avoid function call to clocktime
@@ -1075,26 +885,24 @@ classdef cic < neurostim.plugin
                         
                     end % Trial running
                     
-                    %Perform one last flip to clear the screen (if requested)
-                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
-                    clearOverlay(c,c.itiClear);                    
-                    c.trialStopTime = ptbStimOn*1000;
-                    
-                    Priority(0);
-                    if ~c.flags.experiment || ~ c.flags.block ;break;end
-                    
+                    %Perform one last flip and clear the screen (if requested)
+                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
                     c.frame = c.frame+1;
+                    clearOverlay(c,c.itiClear);                    
+                    c.trialStopTime = ptbStimOn*1000;                    
+                    Priority(0);
+                    if ~c.flags.experiment ;break;end
                     
-                    afterTrial(c);
-                end % one block
+                    
+                      % Calls afterTrial on the current block/design.
+                    % This assesses 'success' of the behavior and updates the design
+                    % if needed (i.e. retrying failed trials)
+                    afterTrial(c.flow);
+                    
                 
                 Screen('glLoadIdentity', c.mainWindow);
-                if ~c.flags.experiment;break;end
-                
-                %% Perform afterBlock message/function
-                
-               afterBlock(c);
-            end %blocks
+              
+            end %flow
 
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
@@ -1468,6 +1276,8 @@ classdef cic < neurostim.plugin
             % subject screen). Needs to be public to allow (some) plugins
             % access.
             p = inputParser;
+            p.addParameter('flip',false);  % Screen(flip)?
+            p.addParameter('waitForKey',false);
             p.addParameter('left','center') % The sx parameter in PTB
             p.addParameter('top','center') % The sy parameter in PTB
             p.addParameter('wrapAt',[]) % The wrapAt parameter in PTB            
@@ -1488,6 +1298,13 @@ classdef cic < neurostim.plugin
                 neurostim.utils.cprintf(style,'Screen Message: %s\n',text);
             end
             
+            if p.Results.flip
+                   Screen('Flip',c.mainWindow);
+                   if p.Results.waitForKey
+                       KbWait(c.kbInfo.pressAnyKey,2);
+                   end
+            end
+                
          end
     end
     

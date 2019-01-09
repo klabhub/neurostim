@@ -82,12 +82,12 @@ g.tolerance = 3;
 
 %% ========== Specify feedback/rewards ========= 
 % Play a correct/incorrect sound for the 2AFC task
-plugins.sound(c);           %Use the sound plugin
+%plugins.sound(c);           %Use the sound plugin
 
 % Add correct/incorrect feedback
-s= plugins.soundFeedback(c,'soundFeedback');
-s.add('waveform','correct.wav','when','afterTrial','criterion','@choice.correct');
-s.add('waveform','incorrect.wav','when','afterTrial','criterion','@ ~choice.correct');
+%s= plugins.soundFeedback(c,'soundFeedback');
+%s.add('waveform','correct.wav','when','afterTrial','criterion','@choice.correct');
+%s.add('waveform','incorrect.wav','when','afterTrial','criterion','@ ~choice.correct');
 
 %% Experimental design
 c.trialDuration = Inf; '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
@@ -104,18 +104,23 @@ myDesign.conditions(:,:).fix.Y =  plugins.jitter(c,{0,4},'distribution','normal'
 % By default, an incorrect answer is simply ignored (i.e. the condition is not repeated).
 % This corresponds to myDesign.retry ='IGNORE';
 % To repeat a condition immediately if the behavioral requiremnts are not met (e.g. during trainig) , specify
-% myDesign.retry = 'IMMEDIATE' 
+
 % You can also repeate the condition at a later random point in the block, using the 'RANDOM' mode.
-myDesign.retry = 'IMMEDIATE';
-myDesign.maxRetry = 20;  % Each condition will be retried up to 20 times. 
+
 % Note that because we made the choice not required, a trial with the wrong
 % answer will not be retried, only trials with a fixation break.
 
 %Specify a block of trials
-myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
-myBlock.nrRepeats=10;
+A=neurostim.block(c,'A');
+A.addTrials(myDesign,'retry','RANDOMINBLOCK','maxRetry',20,'nrRepeats',10);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
+B=neurostim.block(c,'B');
+B.addTrials(myDesign,'retry','IMMEDIATE','maxRetry',20,'nrRepeats',10);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
+
+C=neurostim.block(c,'C');
+C.addBlock(A);
+C.addBlock(B);
 
 %% Run the experiment.
 c.subject = 'easyD';
-c.run(myBlock);
+c.run(A);
     
