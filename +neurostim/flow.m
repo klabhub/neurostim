@@ -1,50 +1,48 @@
-classdef block <handle
+classdef flow <handle & matlab.mixin.Copyable
     properties (GetAccess = public, SetAccess=public)
-        name@char;
-        randomization@char;
-        weights=1;
-        nrRepeats=1;
-        beforeMessage; %String to display before the start of a block (can be a function, f(cic), that returns a string)
-        afterMessage;
-        beforeFunction; % function handle which takes cic as first arg
-        afterFunction;
-        successFunction='';
-        beforeKeyPress@logical;
-        afterKeyPress@logical;
-        maxRetry;
-        retry;
-        latinSqRow;
-        order;
+        % These variables are assigned default values in the constructor
+        % (see setParms)
+        name@char;                  % Name for this element
+        randomization@char;         % Mode of randomization. SEQUENTIAL, RANDOMWITHREPLACEMENT, RANDOMWITHOUTREPLACEMENT, LATINSQUARES, ORDERED
+        latinSqRow;                 % For latin squares randomization; which row .
+        order;                      % A specific order for randomization. Used only in combination with 'ORDERED'
+        weights;                    % 1 integer number per child                 
+        nrRepeats;                  % How often to repeat each child
+        beforeMessage;              % String to display before the start of a block (can be a function, f(cic), that returns a string)
+        afterMessage;               % String to display before the start of a block (can be a function, f(cic), that returns a string)
+        beforeFunction;             % function handle that takes cic as first arg. Executes at the start of a block
+        afterFunction;              % function handle that takes cic as first arg. Executes at the end of a block
+        successFunction;            % function handle that takes cic as first arg and returns a logical to indicate whether the trial/block was terminated successfully.        
+        beforeKeyPress@logical;     % Require a keypress before starting this block.
+        afterKeyPress@logical;      % Require a keypress after completing this block.
+        retry;                      % If a trial/block fails, what should happen : IGNORE, IMMEDIATE, RANDOMINBLOCK
+        maxRetry;                   % Maximum number of times a block/trial will be retried
     end
     
     properties (GetAccess= public, SetAccess= protected)
-        parent@neurostim.block;
-        children;
-        cic@neurostim.cic;
+        parent@neurostim.flow;  % The parent element in the flow-tree
+        children;               % The children of this element. This can be one or more other neurostim.flow objects (typically a block), or a cell array with specifications per condition
+        cic@neurostim.cic;      % Handle to CIC
         
-        list=[];
-        listNr=0; % Linear index into list.
+        list=[];                % A list of numbers that specifies the order in which the child objects (blocks or trials) will be executed.
+        listNr=0;               % Current element - a linear index into list.
         
-        nrRetried = 0;
-        retryCounter=[];
-        
+        retryCounter=[];        % Tally of the number of times a condition has been retried        
     end
     
     properties (Dependent)
-        isBlockStart;
-        
-        currentChild;
-        currentSpec;
-        childNr; % Linear index into children
-        nrChildren;
-        nrList;
-        isBlock;
-        nrBlocks;
-    end
+        isBlockStart;           % True for the first element of a block        
+        currentChild;           % The current element in the flow (block)
+        currentSpec;            % The current trial specification in the flow.
+        childNr;                % Linear index into children
+        nrChildren;             % How many children (i.e. blocks or conditions)
+        nrList;                 % How many trials
+        isBlock;                % True for blocks (i.e. flows with children that are flows)
+     end
     
     methods
         function v = get.isBlock(o)
-            v = any(isa(o.children,'neurostim.block'));
+            v = any(isa(o.children,'neurostim.flow'));
         end
         
         function v = get.isBlockStart(o)
@@ -75,37 +73,49 @@ classdef block <handle
             v = numel(o.list);
         end
         
-        function v = get.nrBlocks(o)
-            if o.isBlock
-                v = o.nrChildren;
-            else
-                v = 1;
-            end
-        end
+       
         
         function v = get.name(o)
-             if o.isBlock
+            if o.isBlock
                 v = [o.name '/' o.currentChild.name];
             else
                 v = o.name;
             end
         end
         
+        function set.weights(o,v)
+            if ~ismember(numel(v), [1 o.nrChildren])
+                error(['There are ' num2str(numel(v)) ' weights, but ' num2str(o.nrChildren) ' children in this flow']);
+            end
+        end
+        
     end
     
     methods
-        function o = block(c,name,varargin)
+        function o = flow(c,varargin)
             if nargin ==0
                 % Allowing an empty block makes initialization in CIC
                 % easier.
-            else               
+            else
                 o.cic = c;
-                o.name = name;
                 o = setParms(o,true,varargin{:});  % Set all including defaults
             end
         end
         
         
+        function v = nrBlocks(o,recursive)
+            if nargin<2
+                recursive =false;
+            end
+            if o.isBlock
+                v=o.nrChildren;
+                if recursive
+                    v=v+sum(arrayfun(@nrBlocks,o.children));
+                end
+            else
+                v=0;
+            end
+        end
         function v=nrConditions(o)
             if o.isBlock
                 v= sum(arrayfun(@nrConditions,o.children));
@@ -121,9 +131,19 @@ classdef block <handle
                 v = o.nrList;
             end
         end
-        function addBlock(o,blck)
-            if isa(blck,'neurostim.block')
+        
+        function o2=duplicate(o1)
+            o2 =copyElement(o1);
+        end
+        
+        function blck = addBlock(o,blck,varargin)
+            if nargin<2 || isempty(blck)
+                blck = neurostim.flow;
+            end
+            if isa(blck,'neurostim.flow')
                 blck.parent = o;
+                blck = duplicate(blck);
+                setParms(blck,false,varargin{:});
                 o.children = cat(2,o.children,blck);
             else
                 error('Only blocks can be added as blocks to other blocks');
@@ -131,17 +151,36 @@ classdef block <handle
         end
         
         function addTrials(o,design,varargin)
-            setParms(o,false,varargin{:}); % Only set those actually specified.
             for c=1:design.nrConditions
                 o.children = cat(2,o.children,{design.specs(c)});
             end
         end
         
-        
+        function plot(o,root)
+            if nargin <2
+                f=uifigure;
+                tree= uitree(f);
+                root = uitreenode(tree,'text','root');
+                tree.SelectionChangedFcn = @(src, event)(disp(src.SelectedNodes.NodeData));
+            end
+            for i=1:o.nrChildren
+                if o.isBlock
+                    node = uitreenode(root,'text',['Block: ' o.name]);
+                    plot(o.children(i),node);
+                else
+                    uitreenode(root,'text',['Trial-' num2str(i)],'nodedata',o.children{i});
+                end
+            end
+            if nargin<2
+                expand(tree,'all')
+            end
+        end
         function shuffle(o,recursive)
             % Shuffle the list of children and set the "currentTrialIx" to
             % the first one in the list
-                        
+            if nargin<2
+                recursive = false;
+            end
             
             weighted=repmat(repelem(1:o.nrChildren,o.weights(:)),[1 o.nrRepeats])';
             switch upper(o.randomization)
@@ -151,8 +190,8 @@ classdef block <handle
                     o.list=datasample(weighted,numel(weighted));
                 case 'RANDOMWITHOUTREPLACEMENT'
                     o.list=Shuffle(weighted);
-                 case 'ORDERED'
-                     o.list = repmat(repelem(o.order,o.weights(:)),[1 o.nrRepeats])';
+                case 'ORDERED'
+                    o.list = repmat(repelem(o.order,o.weights(:)),[1 o.nrRepeats])';
                 case 'LATINSQUARES'
                     if ~(rem(o.nrChildren,2)==0)
                         error(['Latin squares randomization only works with an even number of blocks, not ' num2str(o.nrChildren)]);
@@ -160,13 +199,13 @@ classdef block <handle
                     allLS = neurostim.utils.ballatsq(o.nrChildren);
                     if isempty(o.latinSqRow) || o.latinSqRow==0
                         lsNr = input(['Latin square group number (1-' num2str(size(allLS,1)) ')'],'s');
-                        lsNr = str2double(lsNr);                
+                        lsNr = str2double(lsNr);
                     end
                     if isnan(lsNr)  || lsNr>size(allLS,1) || lsNr <1
                         error(['The Latin Square group ' num2str(lsNr) ' does not exist for ' num2str(o.nrChildren) ' conditions/blocks']);
                     end
                     blockOrder = allLS(lsNr,:);
-                    o.list  = repmat(blockOrder,[1 o.nrRepeats]); % Ignoring weights which do not make sense in LSQ                 
+                    o.list  = repmat(blockOrder,[1 o.nrRepeats]); % Ignoring weights which do not make sense in LSQ
             end
             
             o.retryCounter = zeros(o.nrChildren,1);
@@ -262,22 +301,22 @@ classdef block <handle
                 collectPropMessage(o.cic);
                 collectFrameDrops(o.cic);
                 if rem(o.cic.trial,o.cic.saveEveryN)==0
-                ttt=tic;
-                o.cic.saveData;
-                o.cic.writeToFeed('Saving the file took %f s',toc(ttt));
+                    ttt=tic;
+                    o.cic.saveData;
+                    o.cic.writeToFeed('Saving the file took %f s',toc(ttt));
                 end
             end
         end
         
         function nextChild(o)
             if o.listNr < o.nrList
-                o.listNr = o.listNr +1;                
+                o.listNr = o.listNr +1;
             else  % Last trial in a block
                 afterBlock(o);
                 if ~isempty(o.parent)
-                    nextChild(o.parent);                    
+                    nextChild(o.parent);
                 else % No parent
-                    % All done                    
+                    % All done
                     o.cic.endExperiment;
                 end
             end
@@ -286,49 +325,49 @@ classdef block <handle
         function beforeBlock(o)
             base(o.cic.pluginOrder,neurostim.stages.BEFOREBLOCK,o.cic); % Send to plugins
             % Show a beforeMessage, and execute a beforeFunction (if requested).
-               
-                if isa(o.beforeMessage,'function_handle')
-                    msg = o.beforeMessage(o.cic);
-                else
-                    msg = o.beforeMessage;
-                end
-                if ~isempty(o.beforeFunction)
-                    o.beforeFunction(o.cic);
-                end
-                % Wait for a key only if requested andif the beforeFun or
-                % message has content.
-                waitForKey = o.beforeKeyPress && (~isempty(msg) || ~isempty(o.beforeFunction));
-                
-                
-                % Draw message, flip screen, and wait for keypress if requested.
-                if ~isempty(msg)
-                    o.cic.drawFormattedText(msg,true,waitForKey);
-                end
-                clearOverlay(o.cic,true);
+            
+            if isa(o.beforeMessage,'function_handle')
+                msg = o.beforeMessage(o.cic);
+            else
+                msg = o.beforeMessage;
+            end
+            if ~isempty(o.beforeFunction)
+                o.beforeFunction(o.cic);
+            end
+            % Wait for a key only if requested andif the beforeFun or
+            % message has content.
+            waitForKey = o.beforeKeyPress && (~isempty(msg) || ~isempty(o.beforeFunction));
+            
+            
+            % Draw message, flip screen, and wait for keypress if requested.
+            if ~isempty(msg)
+                o.cic.drawFormattedText(msg,true,waitForKey);
+            end
+            clearOverlay(o.cic,true);
         end
         
         function afterBlock(o)
-                 if isa(o.afterMessage,'function_handle')
-                    msg = o.afterMessage(o.cic);
-                else
-                    msg = o.afterMessage;
-                 end
-                 if ~isempty(o.afterFunction)
-                    o.afterFunction(o.cic);                   
-                 end
-                 waitForKey = o.afterKeyPress && (~isempty(msg) || ~isempty(o.afterFunction));
-                 if ~isempty(msg)
-                    o.cic.drawFormattedText(msg,true,waitForKey);
-                 end
-                % 
-                if o.cic.saveEveryBlock
-                    ttt=tic;
-                    o.cic.saveData;
-                    o.cic.writeToFeed('Saving the file took %f s',toc(ttt));
-                end                
-               
-                clearOverlay(o.cic,true);            
+            if isa(o.afterMessage,'function_handle')
+                msg = o.afterMessage(o.cic);
+            else
+                msg = o.afterMessage;
             end
+            if ~isempty(o.afterFunction)
+                o.afterFunction(o.cic);
+            end
+            waitForKey = o.afterKeyPress && (~isempty(msg) || ~isempty(o.afterFunction));
+            if ~isempty(msg)
+                o.cic.drawFormattedText(msg,true,waitForKey);
+            end
+            %
+            if o.cic.saveEveryBlock
+                ttt=tic;
+                o.cic.saveData;
+                o.cic.writeToFeed('Saving the file took %f s',toc(ttt));
+            end
+            
+            clearOverlay(o.cic,true);
+        end
         
         function success = isSuccess(o)
             if isempty(o.successFunction) && ~o.isBlock
@@ -362,6 +401,7 @@ classdef block <handle
             p.addParameter('maxRetry',Inf,@isnumeric);
             p.addParameter('latinSqRow',0,@isnumeric);
             p.addParameter('order',[],@isnumeric);
+            p.addParameter('name','',@ischar);
             p.parse(varargin{:});
             
             fn = fieldnames(p.Results);

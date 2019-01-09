@@ -94,7 +94,7 @@ classdef cic < neurostim.plugin
         pluginOrder; % Vector of plugin handles, sorted by execution order
         
         
-        flow@neurostim.block = neurostim.block;
+        flow@neurostim.flow= neurostim.flow;
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
@@ -285,7 +285,7 @@ classdef cic < neurostim.plugin
         
     end
     
-    methods (Access={?neurostim.block})
+    methods (Access={?neurostim.flow})
         function checkFrameRate(c)
             
             if isempty(c.screen.frameRate)
@@ -693,7 +693,7 @@ classdef cic < neurostim.plugin
             
                 
             %Check input
-            if ~exist('flw','var') || ~isa(flw,'neurostim.block')
+            if ~exist('flw','var') || ~isa(flw,'neurostim.flow')
                 help('neurostim/cic/run');
                 error('You must supply a top-level flow/block element. ');
             end
