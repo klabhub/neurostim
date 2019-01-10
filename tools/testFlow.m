@@ -1,4 +1,3 @@
-%function testFlow
 %{
 Testing program flow.
 
@@ -25,27 +24,39 @@ f.X= 0;
 f.Y =0;
 %% 
 
-%Specify experimental conditions
+%First specify a (factorial) design 
 varyX=design('X');       
 varyX.fac1.fix.X=   [-10 0 10]; %Three positions along horizontal meridian
+varyX.fac2.fix.shape = {'CIRC','STAR'}; % Combined with a second factor that varies the shape
+varyX.fac2.fix.color = {[1 0 0],[0 1 0]}; % and the color
 
 varyY=design('Y');       
 varyY.fac1.fix.Y=   [-10 0 10]; %Three positions along vertical meridian
 
 
-%Specify a block of trials
-blk=neurostim.flow(c);
-blk.addTrials(varyX);
-blk.addTrials(varyY);
-blk.randomization = 'RANDOMWITHOUTREPLACEMENT';
-root = neurostim.flow(c);
-root.addBlock(blk);
-root.addBlock(blk,'nrRepeats',2)
+%% Specify a block of trials
 
+% We can generate trials based on these designs and combine them in a
+% single flow (block)
+flw=neurostim.flow(c);  % The default flow presents trials Sequentially, once each.
+flw.addTrials(varyX);
+flw.addTrials(varyY);
 
-root = neurostim.flow(c);
-h = root.addBlock([],'name','first');
-h = h.addBlock([],'name','second','nrRepeats',2);
-h.addBlock(blck,'name','third')
-c.run(blk);
-    
+% To just run each of the conditions once, sequentially:
+%c.run(flw);  % Run the flow
+
+% Now lets randomize all of the conditions
+flw.randomization = 'RANDOMWITHOUTREPLACEMENT';
+%c.run(flw);
+
+% To run the X and Y designs in separate blocks:
+% Create the flows/blocks
+x = neurostim.flow(c,'name','X','randomization','RANDOMWITHOUTREPLACEMENT'); % Conditions within the block are randomized
+x.addTrials(varyX);
+y = neurostim.flow(c,'name','Y','randomization','RANDOMWITHOUTREPLACEMENT','nrRepeats',2);  %  The y-design is randomized and each condition is shown twice
+y.addTrials(varyY);
+% Then combine in them one top flow
+flw=neurostim.flow(c);  % The default flow presents trials Sequentially, once each.
+flw.addBlock(x);  % Run the x-block first
+flw.addBlock(y);  
+c.run(flw);

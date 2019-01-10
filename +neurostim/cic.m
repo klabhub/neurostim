@@ -151,7 +151,7 @@ classdef cic < neurostim.plugin
             
         
         function v=get.nrTrialsTotal(c)
-            v= c.flow.nrTrials; 
+            v= c.flow.nrTrials(true); 
         end
         
         function v= get.nrStimuli(c)
@@ -173,15 +173,15 @@ classdef cic < neurostim.plugin
         end
         
         function v= get.nrBlocks(c)
-            v = c.flow.nrBlocks;
+            v = c.flow.nrBlocks(true);
         end
         
         function v= get.nrTrials(c)
-            v= c.flow.nrTrials;            
+            v= c.flow.nrTrials(false);            
         end
         
         function v= get.nrConditions(c)
-            v = c.flow.nrConditions;
+            v = c.flow.nrConditions(true);
         end
         function v = get.center(c)
             [x,y] = RectCenter([0 0 c.screen.xpixels c.screen.ypixels]);
@@ -383,7 +383,6 @@ classdef cic < neurostim.plugin
             c.addProperty('firstFrame',[]);
             c.addProperty('trialStopTime',[]);
             c.addProperty('condition',[]);  % Linear index, specific to a design
-            c.addProperty('design',[]);
             c.addProperty('block',0);
             c.addProperty('blockCntr',0);
             c.addProperty('blockTrial',0);
@@ -615,7 +614,10 @@ classdef cic < neurostim.plugin
         function disp(c)
             % Provide basic information about the CIC
             disp(char(['CIC. Started at ' datestr(c.startTime,'HH:MM:SS') ],...
-                    ['Stimuli: ' num2str(c.nrStimuli) ', Blocks: ' num2str(c.flow.nrBlocks) ', Conditions: [' strtrim(sprintf('%d ',[c.flow.nrConditions])) '], Trials: [' strtrim(sprintf('%d ',[c.flow.nrTrials])) ']' ],...
+                    ['Stimuli: ' num2str(c.nrStimuli) ],...
+                    ['Blocks: ' num2str(c.flow.nrBlocks) ],...
+                    ['Conditions: ' strtrim(sprintf('%d ',c.flow.nrConditions(true)))],...
+                    ['Trials: ' strtrim(sprintf('%d ',c.flow.nrTrials(true))) ],...
                     ['File: ' c.fullFile '.mat']));
         end
         
@@ -778,6 +780,7 @@ classdef cic < neurostim.plugin
             
             while c.flags.experiment 
                   c.trial = c.trial+1;
+                  c.condition = c.flow.currentCondition; % BLock specific condition nr
                   beforeTrial(c.flow)                  
                   
                    %ITI - wait
