@@ -61,7 +61,5 @@ g.duration = 250;
 %% Define conditions and blocks, then run. 
 d = design('contrast');
 d.fac1.gabor.contrast = 0:0.1:0.5; % Factorial design; single factor with five levels.
-blk = block('contrast',d);
-blk.nrRepeats = 10;
-c.run(blk);
+c.run(d,'nrRepeats',10,'randomization','randomwithoutreplacement');
 end 

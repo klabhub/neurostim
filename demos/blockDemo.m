@@ -34,25 +34,26 @@ lm =design('lum');
 % In this block we want to vary the "luminanc" of a grey patch across trials.
 lum = (0.0:0.25:1);
 lm.fac1.patch.color = lum; 
-lm.randomization  ='sequential'; % Sequence through luminance. Press 'n' to go to the next.
-lmBlck=block('lmBlock',lm);
-lmBlck.nrRepeats  = 1;
-lmBlck.beforeMessage = 'Press any Key to start the luminance block';
-lmBlck.beforeKeyPress = true;  % Subject must press key to continue 
 
+% Sequence through luminance three times
+lmBlck = flow(c,'randomization','sequential','nrRepeats',3,...
+                    'beforeMessage','Press any Key to start the luminance block',...
+                    'beforeKeyPress', true);
+lmBlck.addTrials(lm); % Add the trials from this design to the block.
 
 gr =design('greenred');
 % In this block we ramp the luminance of the red gun up from 0.5 to 30, and
 % the luminance of the green gun down from 30 to 0.5. So this should look
 % like a patch that is first green and then turns more red over time.
 gr.fac1.patch.color = num2cell([lum' fliplr(lum)' zeros(numel(lum),1)],2) ;
-gr.randomization  ='sequential'; % Sequence through luminance. Press 'n' to go to the next.
-grBlck=block('lmBlock',gr);
-grBlck.nrRepeats  = 1;
-grBlck.beforeMessage = '@[''Patch radius is : '' num2str(patch.radius)]'; % This shows how to use a Neurostim function as the message (the function should return a string).
-grBlck.beforeKeyPress = true; 
-grBlck.afterFunction = @(c) ( disp(['Subject: ' c.subject '. Done at ' num2str(datestr(now,'HH:MM:SS'))])); % Using a matlab anonymous function works too. c is a pointer to cic.
-grBlck.afterKeyPress = false; % No waiting
-
+% We'll sequence through this once, bu add some more complex block
+% messages.
+grBlck = flow(c,'randomization','sequential','nrRepeats',1,...
+                    'beforeMessage', @(c)(['Patch radius is : ' num2str(c.patch.radius)]),... % This shows how you can access parm values 
+                    'beforeKeyPress', true,...
+                    'afterFunction',@(c) ( disp(['Subject: ' c.subject '. Done at ' num2str(datestr(now,'HH:MM:SS'))])),...% Using a matlab anonymous function works too. c is a pointer to cic.
+                    'afterKeyPress',false);
+grBlck.addTrials(gr);
 %% Run the demo
-c.run(lmBlck,grBlck);
+% Each of the blocks will be run twice, in psuedo random order.
+c.run(lmBlck,grBlck,'randomization','RANDOMWITHOUTREPLACEMENT','nrRepeats',2);

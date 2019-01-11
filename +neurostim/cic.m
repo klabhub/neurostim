@@ -678,28 +678,65 @@ classdef cic < neurostim.plugin
             
         end
         
-        %% Main function to run an experiment. All input args are passed to
-        % setupExperiment.
-        function run(c,flw)
+        
+        function run(c,varargin)
             % Run an experimental session (i.e. one or more blocks of trials);
             %
             % Inputs:
-            %  A flow object 
+            % One or more neurostim.flow objects (blocks) or design objects
+            % Design objects will be combined in a single block.
             %
-            % e.g.
+            % varargin:  parm/value pairs that specify the experiment flow.
+            %           These are the same parm/value pairs that can be
+            %           specified in a flow. See neurostim.flow. 
+            %           These properties will be applied to the root level
+            %           flow (i.e. the single block when designs are
+            %           specified, or the flow that contains the blocks 
+            %           when blocks are specified (i.e. they specify how
+            %           the blocks are randomized, repeated etc.)
             %
-            % c.run(flow);
+            % EXAMPLES:
+            % The user prepares a flow object (with blocks and trials) and
+            % then calls :
+            % c.run(flow);            
+            % The user only creates a design object (a factorial) and wants
+            % to run all of those conditions in a single block:
+            % c.run(design,'nrRepeats',4,'randomization','randomwithoutreplacement');
+            % The user creates two blocks (flow objects) and wants to run
+            % these blocks each 3 times , sequentiallly
+            % c.run(flow1,flow2,'randomization','sequential','nrRepeats',3);
             
-            
-             
-            
-                
-            %Check input
-            if ~exist('flw','var') || ~isa(flw,'neurostim.flow')
-                help('neurostim/cic/run');
-                error('You must supply a top-level flow/block element. ');
+
+            ixFlows = cellfun(@(x)(isa(x,'neurostim.flow')),varargin);
+            ixDesigns = cellfun(@(x)(isa(x,'neurostim.design')),varargin);
+            if ~xor(any(ixFlows),any(ixDesigns))
+                error('To run an experiment, you must specify flows, or designs, not both or neither');
+            end
+            if any(ixFlows)
+                % User specified flows
+                flows = varargin(ixFlows);
+                if numel(flows)==1
+                    % Single flow, run as is
+                    flw = flows{1};
+                else
+                    % Create a root flow to contain these blocks
+                    flw= neurostim.flow(c);
+                    for i=1:numel(flows)
+                        flw.addBlock(flows{i});                        
+                    end
+                end
+            elseif any(ixDesigns)
+                % User specified designs, create a single block flow from
+                % the designs
+                flw = neurostim.flow(c);
+                designs = varargin(ixDesigns);
+                for i=1:numel(designs)
+                     flw.addTrials(designs{i});                        
+                end
             end
             c.flow= flw;
+            % Apply the varargin to the top-level flow
+            c.flow.setParms(false,varargin{~(ixFlows|ixDesigns)});% false means- do not set the defaults, but only what is specified here.
             
             %Log the experimental script as a string
             try
@@ -1289,6 +1326,7 @@ classdef cic < neurostim.plugin
             p.addParameter('vSpacing',1) % The vSpacing parameter in PTB
             p.addParameter('rightToLeft',0) % The righttoleft parameter in PTB
             p.addParameter('winRect',[0 0 c.screen.xpixels c.screen.ypixels]) % The winRect parameter in PTB
+            
             p.parse(varargin{:});
             
             DrawFormattedText(c.textWindow,text, p.Results.left, p.Results.top, c.screen.color.text, p.Results.wrapAt, p.Results.flipHorizontal, p.Results.flipVertical, p.Results.vSpacing, p.Results.rightToLeft, p.Results.winRect);                          

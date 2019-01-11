@@ -107,6 +107,7 @@ classdef flow <handle & matlab.mixin.Copyable
             %and trials count as 1
             v = numel(o.list);
         end
+                
     end
     
     %% Public access methods
@@ -275,7 +276,7 @@ classdef flow <handle & matlab.mixin.Copyable
             % randomization etc. (Usually followed by a call to plot(o);
             % 
             if nargin<2
-                recursive = false; % BY default only the top level is randomized.
+                recursive = false; % By default only the top level is randomized.
             end
             
             weighted=repmat(repelem(1:o.nrChildren,o.weights(:)),[1 o.nrRepeats])';
@@ -375,7 +376,9 @@ classdef flow <handle & matlab.mixin.Copyable
             [blcks,ix] = blocks(o);
             v = sum(~ismember(o.list,ix));
             if recursive
-                v= v+ sum(cellfun(@(x) (nrTrials(x,true)),blcks));
+                % Count # occurrences of blocks
+                n = arrayfun(@(t)nnz(o.list==t), ix);                                
+                v= v + sum(n.*cellfun(@(x) (nrTrials(x,true)),blcks));
             end
         end
         
@@ -384,6 +387,7 @@ classdef flow <handle & matlab.mixin.Copyable
             % CIC calls this just before starting the experiment. This
             % generates the complete order of trials 
             
+            
             % TODO Sanity checks for weights
             %              function set.weights(o,v)
             %             if ~ismember(numel(v), [1 o.nrChildren])
@@ -391,6 +395,10 @@ classdef flow <handle & matlab.mixin.Copyable
             %             end
             %         end
             %
+            
+            if ~hasChildren(o)
+                warning('No trials in one ore more blocks ... did you forget to addTrials?');
+            end
             shuffle(o,true); % recursive initialization
             
         end
@@ -398,15 +406,15 @@ classdef flow <handle & matlab.mixin.Copyable
         function beforeTrial(o)
             % CIC calls this before each trial to setup parameters for the upcoming trial
             if o.isBlock
-                % If the top level is a block, then drill down to the trial
-                if o.listNr ==1
-                    beforeBlock(o.currentChild); % Starting a new block
-                end
+                % If the top level is a block, then drill down to the trial               
                 % Step down - recursive call that eventually ends up after
                 % the else below
                 beforeTrial(o.currentChild);
             else
                 % Trial node                 
+                 if o.listNr ==1
+                    beforeBlock(o); % Starting a new block
+                end
                 % First restore default values
                 setDefaultParmsToCurrent(o.cic.pluginOrder);                
                 %Then apply the specs for this trial to the plugins.
@@ -436,7 +444,25 @@ classdef flow <handle & matlab.mixin.Copyable
              
                 % Check whether this trial was completed successfully or
                 % needs to be retried.
-                checkRetry(o);
+                
+                % Check behavior or other success measures                       
+                if isempty(o.successFunction) 
+                    % For regular trials the default definition of 'success' is
+                    % that all behaviors that were required have been completed
+                    % successfully. 
+                    allBehaviors  = o.cic.behaviors;
+                    success = true;
+                    for i=1:numel(allBehaviors)
+                        success = success && (~allBehaviors(i).required || allBehaviors(i).isSuccess);
+                    end
+                else
+                    % If the user provided a successFunction  (for this
+                    % particular block in the flow tree), then it defines
+                    % succes.
+                    success = o.successFunction(o.cic);
+                end
+            
+                setupRetry(o,success);
                 % Make sure adaptive parameters are turned off if needed.
                 checkAdaptive(o);
                 % Move to the next child in the flow (trial or block)
@@ -451,9 +477,60 @@ classdef flow <handle & matlab.mixin.Copyable
                 end
             end
         end
+        
+           function setParms(o,includeDefaults, varargin)
+            % Set the public properties of the flow object. 
+            % This is called by the constructor, hence every flow object
+            % will get these proprerties by default (but can be changed
+            % after construciton, or during construction by providing
+            % parm/value parirs).
+            % INPUT 
+            % includeDefaults = Set all properties, including the
+            % properties that are not explicitly specified in varargin (and
+            % therefore will get the default properteis speciied in the
+            % inputParser below.
+            % varargin = parm/value pairs.
+            
+            p = inputParser;
+            p.addParameter('randomization','SEQUENTIAL',@(x)(ischar(x) && ismember(upper(x),{'SEQUENTIAL','RANDOMWITHREPLACEMENT','RANDOMWITHOUTREPLACEMENT','ORDERED','LATINSQUARES'})));
+            p.addParameter('weights',1);
+            p.addParameter('nrRepeats',1);
+            p.addParameter('beforeMessage','');
+            p.addParameter('afterMessage','');
+            p.addParameter('beforeFunction',[],@(x)(isa(x,'function_handle')));
+            p.addParameter('afterFunction',[],@(x)(isa(x,'function_handle')));
+            p.addParameter('successFunction',[],@(x)(isa(x,'function_handle')));
+            p.addParameter('beforeKeyPress',false,@islogical);
+            p.addParameter('afterKeyPress',false,@islogical);
+            p.addParameter('retry','IGNORE',@(x) (ischar(x) && ismember(upper(x),{'IGNORE','IMMEDIATE','RANDOMINBLOCK'})));
+            p.addParameter('maxRetry',Inf,@isnumeric);
+            p.addParameter('latinSqRow',0,@isnumeric);
+            p.addParameter('order',[],@isnumeric);
+            p.addParameter('name','',@ischar);
+            p.parse(varargin{:});
+            
+            fn = fieldnames(p.Results);
+            for i=1:numel(fn)
+                if ~includeDefaults && ismember(fn{i},p.UsingDefaults)
+                    continue;
+                end
+                o.(fn{i}) = p.Results.(fn{i});
+            end
+        end
+        
     end
     %% Protected functions, called only by flow
     methods (Access=protected)
+        
+        function ok= hasChildren(o)
+            ok = o.nrChildren>0;
+            for i=1:o.nrChildren
+                 if isa(o.children{i},'neurostim.flow')
+                     ok = ok && hasChildren(o.children{i});
+                 end
+             end
+        end
+            
         function [blcks,ix] =blocks(o)
             % Retrieve those children that are flows (i.e. blocks of
             % trials)
@@ -501,30 +578,11 @@ classdef flow <handle & matlab.mixin.Copyable
              end
          end
         
-        function checkRetry(o)
-            % Check behavior or other success measures                       
-            if isempty(o.successFunction) && ~o.isBlock
-                % For regular trials the default definition of 'success' is
-                % that all behaviors that were required have been completed
-                % successfully. 
-                allBehaviors  = o.cic.behaviors;
-                success = true;
-                for i=1:numel(allBehaviors)
-                    success = success && (~allBehaviors(i).required || allBehaviors(i).isSuccess);
-                end
-            elseif ~isempty(o.successFunction)
-                % If the user provided a successFunction  (for this
-                % particular block in the flow tree), then it defines
-                % succes.
-                success = o.successFunction(o.cic);
-            else 
-                % If no successFunction has been defined (defualt) a block
-                % is always considered to be a success
-                success = true;
-            end
+         function setupRetry(o,success)
             
             if success || strcmpi(o.retry,'IGNORE') ||   o.retryCounter(o.childNr) >= o.maxRetry
-                %Either successful, or we are ignoring failures.
+                %Either successful, or we are ignoring failures. Nothing to
+                %do
             else
                 switch upper(o.retry)
                     case 'IMMEDIATE'
@@ -555,9 +613,7 @@ classdef flow <handle & matlab.mixin.Copyable
                 o.listNr = o.listNr +1;
             else  % Last trial at the current level.
                 afterBlock(o); % Do some afterBlock processing/messaging
-                if ~isempty(o.parent)
-                    %TODO parent? or o?
-                    checkRetry(o.parent); % Check success of the current block, based ont he successFunction of its parent.
+                if ~isempty(o.parent)                                       
                     nextChild(o.parent);
                 else % No parent
                     % All done
@@ -568,8 +624,8 @@ classdef flow <handle & matlab.mixin.Copyable
         
         function beforeBlock(o)
             % Called whenever the flow moves into a new block.
-            % Tell all plugins a new block is about to start
-            base(o.cic.pluginOrder,neurostim.stages.BEFOREBLOCK,o.cic); % Send to plugins
+            % Tell all plugins a new block is about to start          
+             base(o.cic.pluginOrder,neurostim.stages.BEFOREBLOCK,o.cic); % Send to plugins
             % Show a beforeMessage, and execute a beforeFunction (if requested).            
             if isa(o.beforeMessage,'function_handle')
                 msg = o.beforeMessage(o.cic);
@@ -584,7 +640,7 @@ classdef flow <handle & matlab.mixin.Copyable
             waitForKey = o.beforeKeyPress && (~isempty(msg) || ~isempty(o.beforeFunction));            
             % Draw message, flip screen, and wait for keypress if requested.
             if ~isempty(msg)
-                o.cic.drawFormattedText(msg,true,waitForKey);
+                o.cic.drawFormattedText(msg,'flip',true,'waitForKey',waitForKey);
             end
             clearOverlay(o.cic,true);
         end
@@ -602,7 +658,7 @@ classdef flow <handle & matlab.mixin.Copyable
             end
             waitForKey = o.afterKeyPress && (~isempty(msg) || ~isempty(o.afterFunction));
             if ~isempty(msg)
-                o.cic.drawFormattedText(msg,true,waitForKey);
+                o.cic.drawFormattedText(msg,'flip',true,'waitForKey',waitForKey);
             end
             %
             if o.cic.saveEveryBlock
@@ -611,6 +667,14 @@ classdef flow <handle & matlab.mixin.Copyable
                 o.cic.writeToFeed('Saving the file took %f s',toc(ttt));
             end            
             clearOverlay(o.cic,true);
+            
+            if isempty(o.successFunction)
+                success=true;
+            else
+                success = o.successFunction(o.cic);
+            end
+            setupRetry(o.parent,success);
+            shuffle(o); % Shuffle this block to prepare for reuse
         end
         
     
@@ -664,45 +728,7 @@ classdef flow <handle & matlab.mixin.Copyable
             end
         end
         
-        function setParms(o,includeDefaults, varargin)
-            % Set the public properties of the flow object. 
-            % This is called by the constructor, hence every flow object
-            % will get these proprerties by default (but can be changed
-            % after construciton, or during construction by providing
-            % parm/value parirs).
-            % INPUT 
-            % includeDefaults = Set all properties, including the
-            % properties that are not explicitly specified in varargin (and
-            % therefore will get the default properteis speciied in the
-            % inputParser below.
-            % varargin = parm/value pairs.
-            
-            p = inputParser;
-            p.addParameter('randomization','SEQUENTIAL',@(x)(ischar(x) && ismember(upper(x),{'SEQUENTIAL','RANDOMWITHREPLACEMENT','RANDOMWITHOUTREPLACEMENT','ORDERED','LATINSQUARES'})));
-            p.addParameter('weights',1);
-            p.addParameter('nrRepeats',1);
-            p.addParameter('beforeMessage','');
-            p.addParameter('afterMessage','');
-            p.addParameter('beforeFunction',[],@(x)(isa(x,'function_handle')));
-            p.addParameter('afterFunction',[],@(x)(isa(x,'function_handle')));
-            p.addParameter('successFunction',[],@(x)(isa(x,'function_handle')));
-            p.addParameter('beforeKeyPress',false,@islogical);
-            p.addParameter('afterKeyPress',false,@islogical);
-            p.addParameter('retry','IGNORE',@(x) (ischar(x) && ismember(upper(x),{'IGNORE','IMMEDIATE','RANDOMINBLOCK'})));
-            p.addParameter('maxRetry',Inf,@isnumeric);
-            p.addParameter('latinSqRow',0,@isnumeric);
-            p.addParameter('order',[],@isnumeric);
-            p.addParameter('name','',@ischar);
-            p.parse(varargin{:});
-            
-            fn = fieldnames(p.Results);
-            for i=1:numel(fn)
-                if ~includeDefaults && ismember(fn{i},p.UsingDefaults)
-                    continue;
-                end
-                o.(fn{i}) = p.Results.(fn{i});
-            end
-        end
+     
     end
     
     methods (Static)
