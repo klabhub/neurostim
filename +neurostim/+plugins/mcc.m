@@ -8,8 +8,9 @@ classdef mcc < neurostim.plugin
     % installing the mccdaq and running instacal at least once.
     % 
     % AM: I had to configure the ports as "output" for digitalOut() to
-    % work, e.g.
-    %       err=DaqDConfigPort(c.mcc.daq,0,0); % port A as output
+    %     work, e.g.
+    %       err = DaqDConfigPort(c.mcc.daq,0,0); % port A as output
+    % SC: added test to identify the correct HID interface on Linux
     %
     % Recording Analog data:
     %  Specify an aInOptions struct to specify which analog channels should
@@ -50,11 +51,11 @@ classdef mcc < neurostim.plugin
     end
     
     methods
-        function v= get.product(o)
+        function v = get.product(o)
             v = o.devices(o.daq).product;
         end
         
-        function v= get.status(o)
+        function v = get.status(o)
             v = DaqGetStatus(o.daq);
         end
         function v = get.aIn(o)
@@ -65,36 +66,58 @@ classdef mcc < neurostim.plugin
         function reset(o)
             DaqReset(o.daq);
         end 
-            
-        function o =mcc(c)
-            o  = o@neurostim.plugin(c,'mcc');
+
+        function o = mcc(c,varargin)
+            % Be default we use the first (often the only) available MCC
+            % device.
+            %
+            % On Linux (but not Windows?), we can handle multiple MCCs by
+            % explicitly passing the serial number of the device as a
+            % string, e.g.,
+            %
+            %   m = plugins.mcc(c,'serialNumber','01BE9719')
+            p = inputParser();
+            p.addParameter('serialNumber','');
+            p.parse(varargin{:})
+            args = p.Results;
+ 
+            o = o@neurostim.plugin(c,'mcc');
             
             o.addProperty('aInOptions',[]);
             o.addProperty('aInData',[]);
             o.addProperty('aInStartTime',[]);
             o.addProperty('aInTimeOut',1); % Timeout for Analaog In in seconds.
             
-            
-            
-            % Check what is there.
+            % check what is there...
             o.devices = PsychHID('Devices');
             
-            %Find the main MCC Interface.
-            o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0') & strcmpi(device.manufacturer,'mcc'), o.devices));    %DaqDeviceIndex
+            % find the main MCC interface...
+            if isunix()
+              idx = true(size(o.devices));
+              if ~isempty(args.serialNumber)
+                idx = arrayfun(@(device) strcmpi(device.serialNumber),args.serialNumber,o.devices);
+              end
+
+              o.daq = find(idx & ...
+                           arrayfun(@(device) strcmpi(device.manufacturer,'MCC'), o.devices) & ...
+                           arrayfun(@(device) device.interfaceID == 0, o.devices));
+            else
+              % windows... the above should work on Windows also, but for
+              % backwards compatability we keep this for now
+              o.daq  = find(arrayfun(@(device) strcmpi(device.product,'Interface 0') & strcmpi(device.manufacturer,'mcc'), o.devices));    %DaqDeviceIndex
+            end
             
             if isempty(o.daq)
                error('MCC plugin added but no device could be found.'); 
             end
             
-            err=DaqDConfigPort(o.daq,0,1); % configure digital port A for input
-            err=DaqDConfigPort(o.daq,1,0); % configure digital port B for output
+            err = DaqDConfigPort(o.daq,0,1); % configure digital port A for input
+            err = DaqDConfigPort(o.daq,1,0); % configure digital port B for output
             
             o.mapList.type = [];
             o.mapList.channel =[];
             o.mapList.prop = {};
             o.mapList.when = [];
-            
-            
         end
         
         function beforeExperiment(o)
@@ -103,7 +126,6 @@ classdef mcc < neurostim.plugin
                 DaqAInScanBegin(o.daq,o.aInOptions); % Not storing parms return to make sure data and parms always match                               
             end
         end
-        
         
         function afterExperiment(o)
              if o.aIn                          
@@ -127,7 +149,6 @@ classdef mcc < neurostim.plugin
             o.mapList.channel   = cat(2,o.mapList.channel,channel);
             o.mapList.prop      = cat(2,o.mapList.prop,prop);
             o.mapList.when      = cat(2,o.mapList.when,upper(when));
-
         end
         
         
@@ -161,12 +182,12 @@ classdef mcc < neurostim.plugin
         end
         
         % Read the digital channel now
-        function v= digitalIn(o,channel)
+        function v = digitalIn(o,channel)
             % data(1) is the 8-bit value read from port A.
             % data(2) is the 8-bit value read from port B.
             data = DaqDIn(o.daq);
             % Extract the bit of the channel
-            if channel<9
+            if channel < 9
                 v = bitget(data(1),channel);
             else
                 v = bitget(data(2),channel-8);
@@ -179,14 +200,14 @@ classdef mcc < neurostim.plugin
             % outputToggle(o,channel,value)
             % togges the output back to its previous value once time has
             % been reached
-            port = (channel>8)+1;
+            port = (channel > 8)+1;
             DaqDOut(o.daq,port-1,value);
         end
     end
     
     methods
         % Read the specified analog channel now
-        function v= analogIn(o,channel)
+        function v = analogIn(o,channel)
             % range scales differential recordings. Not using for
             % now.
             range = 0;
@@ -234,7 +255,6 @@ classdef mcc < neurostim.plugin
                 o.(o.mapList.prop{i}) = v;
             end
         end
-        
         
     end
     
