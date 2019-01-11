@@ -59,7 +59,5 @@ ptch.on           = 0;
 xyl =design('xyl');
 xyl.fac1.patch.X = 0.5*(-c.screen.width:2:c.screen.width);
 xyl.fac2.patch.Y = 0.5*(-c.screen.height:2:c.screen.height);
-blck=block('lmBlock',xyl);
-blck.nrRepeats  = 1; % Show each location once
 %% Run
-c.run(blck);
+c.run(xyl);

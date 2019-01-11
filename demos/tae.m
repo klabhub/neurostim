@@ -16,7 +16,7 @@ function tae
 
 
 import neurostim.*
-simulatedObserver =  true; % Simulate an observer to test the logic of the experiment
+simulatedObserver =  false; % Simulate an observer to test the logic of the experiment
 
 %% Setup CIC and the stimuli.
 c = myRig;                   % Create Command and Intelligence Center...
@@ -78,16 +78,17 @@ c.trialDuration = '@choice.stopTime';           % The trial duration ( a cic pro
 % We want to show a 70 degree adapter for 30 seconds, then run a block of
 % top-up trials with the same adapter, then 110 degree adpater and a block
 % of top-up trials. 
-longAdapt  =1000;
+longAdapt  =10000;
 shortAdapt = 300;
 nrRepeats   = 5;
 % Lets' first define the standard top-up blocks
 
 cw=design('cw');           % Define a factorial with one factor
 cw.fac1.testGabor.orientation  = 90+(-3:1:3); % Test Orientation. This defines the levels of factor 1 (7, with different orientations for the test)
-cw.conditions(:).adapt.orientation      = 70;          % We make sure that the adapt stimulus has the correct orientation. Using a single level for a property means it will be used for all levels of the factor.  
+cw.conditions(:).adapt.orientation      = 70;                 % We make sure that the adapt stimulus has the correct orientation. Using a single level for a property means it will be used for all levels of the factor.  
 cw.conditions(:).adapt.duration          = shortAdapt;       % Make sure the adapter duration is 3s.
-cwBlock=block('cwBlock',cw);                  % Define a block based on this factorial
+cwBlock=flow(c,'name','cw','retry','randominblock');                     % Define a block based on this factorial
+cwBlock.addTrials(cw);
 cwBlock.nrRepeats  =nrRepeats;                        % Each condition is repeated this many times in the block 
 
 % Now the block with the 110 degree adapter.
@@ -95,7 +96,8 @@ ccw=design('ccw');
 ccw.fac1.testGabor.orientation    = 90+(-3:1:3); % Test Orietation
 ccw.conditions(:).adapt.duration           = shortAdapt;
 ccw.conditions(:).adapt.orientation        = 110;
-ccwBlock=block('ccwBlock',ccw);
+ccwBlock=flow(c,'name','ccw','retry','randominblock');
+ccwBlock.addTrials(ccw);
 ccwBlock.nrRepeats = nrRepeats;
 
 % Now we define a "block" consisting of a single condition: the long
@@ -104,18 +106,21 @@ longCwFac=design('longAdaptCw');  % Define a factorial with a single factor
 longCwFac.conditions(1).testGabor.orientation    = 90; % Test Orietation
 longCwFac.conditions(1).adapt.duration =         longAdapt;  % Adapter duration  - single condition
 longCwFac.conditions(1).adapt.orientation =      70;  % Adapter orientation 
-longCwBlock = block('longAdaptCw',longCwFac);
+longCwBlock = flow(c,'name','longAdaptCw','retry','randominblock');
+longCwBlock.addTrials(longCwFac);
 longCwBlock.nrRepeats = 1;              % We'll only show this condition once. 
 longCwBlock.beforeMessage = 'Press any key to start block 1';
+longCwBlock.beforeKeyPress = true;
 
 longCcwFac=design('longAdaptCcw'); 
 longCcwFac.conditions(1).testGabor.orientation  = 90; % Test Orietation
 longCcwFac.conditions(1).adapt.duration= longAdapt;  % Adapter duration
 longCcwFac.conditions(1).adapt.orientation = 110;  % Adapter orientation
-longCcwBlock = block('longAdaptCCw',longCcwFac);
+longCcwBlock = flow(c,'name','longAdaptCCw','retry','randominblock');
+longCcwBlock.addTrials(longCcwFac); 
 longCcwBlock.nrRepeats = 1;
 longCcwBlock.beforeMessage= 'Press any key to start block 2';
-
+longCcwBlock.beforeKeyPress = true;
 %% Run the experiment   
 % Now tell CIC how we want to run these blocks (blocks are sequential
 % conditions within a block are randomized by default)

@@ -64,9 +64,6 @@ f.on                = 0;                % On from the start of the trial
 d=neurostim.design('short vs long');
 d.fac1.cic.trialDuration=[2500 5000];
 
-myBlock=neurostim.block('MyBlock',d);
-myBlock.nrRepeats=5;
-myBlock.randomization='RANDOMWITHREPLACEMENT';
 c.order('fix','gabor');
-c.run(myBlock);
+c.run(d,'nrRepeats',5,'randomization','randomwithreplacement');
 end

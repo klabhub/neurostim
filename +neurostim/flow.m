@@ -185,7 +185,7 @@ classdef flow <handle & matlab.mixin.Copyable
         end
         
     
-        function plot(o,forceConditions,root)
+        function show(o,forceConditions,root)
             % Show a tree view of this flow. 
             % If the flow has not been shuffled yet (i.e. it has conditions
             % but not yet stored the actual trial sequence), the tree shows
@@ -228,7 +228,7 @@ classdef flow <handle & matlab.mixin.Copyable
                 thisChild  =o.children{thisList(i)};
                 if isa(thisChild,'neurostim.flow')
                     node = uitreenode(root,'text',['Block: ' thisChild.name],'nodedata',thisChild);
-                    plot(thisChild,forceConditions,node);
+                    show(thisChild,forceConditions,node);
                 else
                     cntr= cntr+1;
                     condition = o.conditionsBefore+thisList(i);
@@ -273,7 +273,7 @@ classdef flow <handle & matlab.mixin.Copyable
             % 
             % This function is called by CIC before the experiment starts.
             % A user does not need to call it, but can do so to test
-            % randomization etc. (Usually followed by a call to plot(o);
+            % randomization etc. (Usually followed by a call to show(o);
             % 
             if nargin<2
                 recursive = false; % By default only the top level is randomized.
@@ -427,8 +427,10 @@ classdef flow <handle & matlab.mixin.Copyable
         function checkAdaptive(o)
             spec = o.currentChild;
             ix  = find(cellfun(@(x)(isa(x,'neurostim.plugins.adaptive')),spec(:,3)));
-            for i=ix
-                activate(spec{i,3},o.conditionNr,false);
+            if ~isempty(ix)
+                for i=ix
+                    activate(spec{i,3},o.conditionNr,false);
+                end
             end
         end
         
@@ -688,7 +690,7 @@ classdef flow <handle & matlab.mixin.Copyable
             % value to assign.
             % execute  = Toggle to execute the spec (i.e assign to the
             % relevant plugin) or to create a char that shows the
-            % assignements that would be done (used by the plot/tree view)
+            % assignements that would be done (used by the show/tree view)
             % OUTPUT
             % out = the text that shows what will be done.
             

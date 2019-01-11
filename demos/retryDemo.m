@@ -59,14 +59,12 @@ c.addPropsToInform('choice.correct')
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.
 myDesign.fac1.dots.direction=[-90 90];         %Two dot directions
-myDesign.retry = 'IMMEDIATE';                   % Try 'IGNORE','RANDOM', and 'IMMEDIATE'
-myDesign.maxRetry = 3;                          % Each condition is retried 3 times at most (per repeat in a block).
-
-myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
-myBlock.nrRepeats=1;  % Becuase a block has 1 repeat of 2 conditions, each of which can be repeated 3 times, the block will at most have 8 trials (if every answer is wrong).
 
 
 %% Run the experiment.
 c.subject = '0';
-c.run(myBlock);
+% Because a block has 1 repeat of 2 conditions, each of which can be repeated 3 times, the block will at most have 8 trials (if every answer is wrong).
+% Try 'IGNORE','RANDOM', and 'IMMEDIATE'
+ % Each condition is retried 3 times at most (per repeat in a block).
+c.run(myDesign,'maxRetry',3,'retry','immediate','nrRepeats',1);
     

@@ -76,18 +76,15 @@ fix.tolerance       = 2;
 % trial.
 % d=design('contrast');           % Define a factorial with one factor
 % d.fac1.grating.contrast = 0.1:0.2:1; % From 10 to 100% contrast
-% d.randomization = 'RANDOMWITHOUTREPLACEMENT';
 
 % Or (if the stream already varies contrast and orientation, we vary
 % nothing across trials).
 d=design('dummy');           % Define a factorial with one factor
 % Nothing to vary here but we need at least one condition
 d.conditions(1).grating.X = 0; % Dummy
-blck=block('block',d);                  % Define a block based on this factorial
-blck.nrRepeats  =10;                        % Each condition is repeated this many times 
 
 %% Run the experiment   
 c.cursor = 'arrow';
 % Now tell CIC how we want to run these blocks 
-c.run(blck);
+c.run(d,'nrRepeats',10);  % Ten repeats of each condition in the design
  

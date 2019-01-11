@@ -83,9 +83,6 @@ myDesign.fac1.referenceSurround.contrast={0,surroundContrast,0,0};
 myDesign.fac2.testGab.contrast=0.1:0.1:0.5;
 myDesign.fac3.testGab.X=[-2.5, 2.5];
 
-myBlock=block('myBlock',myDesign);
-myBlock.nrRepeats=10;
-    
 %Subject's 2AFC response
 k = behaviors.keyResponse(c,'choice');
 k.from= 0; 
@@ -98,7 +95,7 @@ plugins.sound(c);
 %     Add correct/incorrect feedback
 s = plugins.soundFeedback(c,'soundFeedback');
 s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.isSuccess & choice.correct');
-s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.isSallalllalllaaaalalllallauccess & ~choice.correct');
+s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.isSuccess & ~choice.correct');
 
-c.run(myBlock);
+c.run(myDesign,'nrRepeats',10);
  

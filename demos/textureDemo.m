@@ -65,8 +65,7 @@ switch p.Results.demo,
     f.add(1,round(255*img));
         
     % optional rsvp...
-    rsvp = design('rsvp');
-    rsvp.randomization = 'SEQUENTIAL';
+    rsvp = design('rsvp');   
     rsvp.fac1.texture.angle = linspace(0,360,N);
   case 2,
     % demo 2: multiple images...
@@ -79,8 +78,7 @@ switch p.Results.demo,
     end
     
     % optional rsvp...
-    rsvp = design('rsvp');
-    rsvp.randomization = 'SEQUENTIAL';
+    rsvp = design('rsvp');    
     rsvp.fac1.texture.id = f.texIds; %1:N;
   otherwise,
     error('Unrecognised demo ''%i''. Type ''help textureDemo'' for usage information.',p.Results.demo);
@@ -105,18 +103,14 @@ c.iti = 1000;
 
 % factorial design
 d = design('factorial');
-d.randomization = 'SEQUENTIAL';
 d.fac1.texture.id = f.texIds;
 
-% specify a block of trials
-blk = block('block',d);
-blk.nrRepeats = 10;
 
 % now run the experiment...
 % c.order('texture');
 c.subject = 'demo';
 c.paradigm = 'textureDemo';
-c.run(blk);
+c.run(d,'nrRepeats',10);
 end
 
 

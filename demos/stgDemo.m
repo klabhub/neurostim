@@ -68,14 +68,10 @@ d.fac1.stg.fun = {noise,'tACS'};
 d.fac1.stg.frequency = [NaN 40];
 d.fac1.stg.mean    = [-750 0];
 d.fac1.patch.color  = {[1 1 0], [1 0 0 ]};
-% 
-d.randomization = 'SEQUENTIAL';
-blck=block('dummyBlock',d); 
-blck.nrRepeats  = 2;
 c.trialDuration = 2500; 
 c.iti= 250;
 c.addPropsToInform('stg.amplitude','stg.frequency','stg.duration','stg.fun')
-c.run(blck); 
+c.run(d,'nrRepeats',2); 
 % 
 
 return
@@ -94,9 +90,10 @@ d.fac1.stg.duration  =  25000; % 25 s of stimulation (the estimated duration of 
 s=duplicate(d,'SHAM');
 s.fac1.stg.duration = stm.rampUp+stm.rampDown; % This ramps up then immediately down- so sham
 
-stimBlck=block('stimBlock',d); 
+stimBlck=flow(c);
+stimBlck.addTrials(d); 
 stimBlck.nrRepeats = 10;
-shamBlck = block('shamBlock',s);
+shamBlck = flow(c);
 shamBlck.nrRepeats = 10;
 c.trialDuration = 2500; 
 c.iti= 250;

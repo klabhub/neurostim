@@ -43,12 +43,9 @@ c.trialDuration = 3.0*1e3; % milliseconds
 myDesign = design('myFac');
 myDesign.fac1.fix.X = [-10, 0, 10]; 
 
-% specify a block of trials
-myBlock = block('myBlock',myDesign);
-myBlock.nrRepeats = 10;
 
 % Run the experiment.
 c.order('fix','noise');
 c.subject = 'easyD';
-c.run(myBlock);
+c.run(myDesign,'nrRepeats',10);
 

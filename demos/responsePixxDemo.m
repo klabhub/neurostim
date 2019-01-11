@@ -33,7 +33,5 @@ c.addPropsToInform('pixx.correct','pixx.button','pixx.stopTime')
 %% Define conditions and blocks, then run. 
 r = design('rt');
 r.conditions(1).gabor.on= plugins.jitter(c,{250,1250});
-rblk = block('rt',r);
-rblk.nrRepeats = 100;
-c.run(rblk);
+c.run(r,'nrRepeats',100);
 end 
