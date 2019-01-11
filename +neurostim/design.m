@@ -428,9 +428,9 @@ classdef design <handle & matlab.mixin.Copyable
                     % which does not really exist...
                     if ~strcmpi(S(2).type,'()')
                         if strcmpi(S(2).type,'.') && strcmpi(S(3).type,'.')
-                            plg     = S(2).subs;
+                            plg     = S(2).subs;                            
                             prm     = S(3).subs;
-                            error(['Conditions must be specified. e.g. d.conditions(10,:).' plg '.' prm '=...']);
+                            error(['Conditions must be specified. e.g. d.conditions(10,:).' plg '.' prm '=...']);                            
                         else
                             error('Please use .conditions(i,j) to specify conditions');
                         end
@@ -541,9 +541,9 @@ classdef design <handle & matlab.mixin.Copyable
                                 isPrmMatch = cellfun(@(curSpecs) strcmp(curSpecs,prm),curSpecs(:,2));
                                 curSpecs(isPlgMatch&isPrmMatch,:) = []; %Remove any matching line item
                             end
-
+                            assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object']);
                             %Add this property to the list for this condition
-                            o.conditionSpecs{trgSub{:}} = cat(1,curSpecs,{plg,prm,thisV});
+                            o.conditionSpecs{trgSub{:}} = cat(1,curSpecs,{plg,prm,thisV});                            
                         end
                     else
                         %% Conditions-only design, specified one at a time
@@ -555,6 +555,7 @@ classdef design <handle & matlab.mixin.Copyable
                         if  isa(V,'neurostim.plugins.adaptive')
                             V.belongsTo(o.name,ix); % Tell the adaptive to listen to this design/level combination
                         end
+                         assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object']);
                         if ix> numel(o.conditionSpecs)  || isempty(o.conditionSpecs{ix})
                             o.conditionSpecs{ix} = {plg,prm,V};
                         else
@@ -579,6 +580,7 @@ classdef design <handle & matlab.mixin.Copyable
                     factor  = str2double(S(1).subs(4:end));
                     plg     = S(2).subs;
                     prm     = S(3).subs;
+                    assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object'])
                     
                     % Allow users to use singleton or vectors to specify
                     % levels (if the parameter value of a single level is a
