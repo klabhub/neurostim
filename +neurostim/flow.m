@@ -320,9 +320,33 @@ classdef flow <handle & matlab.mixin.Copyable
             end
          end         
     end
-    
+    %% Special function for RSVP in neurostim.stimulus
+    methods (Access = {?neurostim.stimulus})
+        function beforeRSVP(o)
+            if o.isBlock
+                next(o.currentChild);
+            else
+                spec2code(o,o.currentChild,true);      
+            end                              
+        end
+        function nextRSVP(o)
+            % Move the pointer (o.listNr) to the next element in the tree.
+            if o.listNr < o.nrList
+                % More elements (trials or blocks) at the current level
+                o.listNr = o.listNr +1;
+            else  % Last trial at the current level.
+               if ~isempty(o.parent)                                       
+                    nextRSVP(o.parent);
+                else % No parent
+                    % Generate new items
+                    shuffle(o,true);
+                end
+            end            
+        end
+        
+    end
     %% Functions that CIC uses for bookkeeping/reporting
-    methods %(Access = {?neurostim.cic})
+    methods (Access = {?neurostim.cic})
         
         function v = currentCondition(o)
             % Returns a number that identifies the currently active

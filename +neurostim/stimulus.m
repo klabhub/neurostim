@@ -104,7 +104,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('stopTime',Inf);   % first time the stimulus does NOT appear after being run
             
             s.rsvp.active= false;
-            s.rsvp.design =neurostim.design('dummy');
+            s.rsvp.flow =neurostim.flow;
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
             
@@ -118,34 +118,60 @@ classdef stimulus < neurostim.plugin
         
         
         
-        function addRSVP(s,design,varargin)
+        function addRSVP(s,X,varargin)
             %           addRSVP(s,design,varargin)
             %
             %           Rapid Serial Visual Presentation
-            %           design is a factoral design (See design.m) specifying the parameter(s) to be
-            %           manipulated in the stream.
+            % INPUT 
+            % X  =  a factoral design (See design.m) or a flow
+            %       (See neurostim.flow) specifying the parameter(s) to be
+            %       manipulated in the stream.
+            %  Optional parameters [default]:
+            %   'duration'  [100]   - duration of each stimulus in the sequence (msec)
+            %   'isi'       [0]     - inter-stimulus interval (msec)
+            %   'log'       [false] - Log isi start and stop. For rapid changes this can require a lot of memory.
             %
-            %           optionalArgs = {'param1',value,'param2',value,...}
-            %
-            %           Optional parameters [default]:
-            %
-            %           'duration'  [100]   - duration of each stimulus in the sequence (msec)
-            %           'isi'       [0]     - inter-stimulus interval (msec)
-            %           'log'       [false] - Log isi start and stop. For rapid changes this can require a lot of memory.
-            
+            %   'nrRepeats' [100] -  The number of items to
+            %               prepare. This should be big enough for a single
+            %               trial (although new ones will be generated if
+            %                 needed).
+            %   'randomization'  [RANDOMWITHOUTREPLACEMENT]  - see neurostim.flow for options            
+            %   'weights'        [1] - weight of each of the conditions in the design/flow.
+            %                                   see neurostim.flow for
+            %                                   explanation
             p=inputParser;
-            p.addRequired('design',@(x) (isa(x,'neurostim.design')));
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
             p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
             p.addParameter('log',false,@islogical);
-            p.parse(design,varargin{:});
-            flds = fieldnames(p.Results);
-            for i=1:numel(flds)
-                s.rsvp.(flds{i}) = p.Results.(flds{i});
+            p.addParameter('randomization','RANDOMWITHOUTREPLACEMENT',@(x)(ischar(x) && ismember(upper(x),{'SEQUENTIAL','RANDOMWITHREPLACEMENT','RANDOMWITHOUTREPLACEMENT','ORDERED','LATINSQUARES'})));
+            p.addParameter('weights',1);
+            p.addParameter('nrRepeats',100);      
+            p.parse(varargin{:});
+            
+            s.rsvp.duration = p.Results.duration;
+            s.rsvp.isi = p.Results.isi;
+            s.rsvp.log = p.Results.log;
+            
+            if isa(X,'neurostim.design')
+                % Wrap it with a flow
+                s.rsvp.flow = neurostim.flow(s.cic,'randomization',p.Results.randomization,'weights',p.Results.weights,'nrRepeats',p.Results.nrRepeats);
+                s.rsvp.flow.addTrials(X);
+             else % it is a flow
+                s.rsvp.flow =X;
+                % Only set those parms that were explicitly set. (to avoid
+                % changing something the user set in the flow that was
+                % passed)
+                flds = {'randomization','weights','nrRepeats'};
+                for f=1:numel(flds)
+                    if ~ismember(flds{f},p.UsingDefaults)
+                        s.rsvp.flow.(flds{f}) = p.Results.(flds{f});
+                    end
+                end
             end
             
-            %Elaborate the factorial design into (sub)condition lists for RSVP
-            s.rsvp.design.shuffle;
+               
+            %Initialize the flow tree for RSVP
+            s.rsvp.flow.shuffle(true); % 
             s.rsvp.log = p.Results.log;
             s.rsvp.active = true;
         end
@@ -165,16 +191,13 @@ classdef stimulus < neurostim.plugin
             %If at the start of a new element, move the design to the
             % next "trial"
             if itemFrame==0
-                ok = beforeTrial(s.rsvp.design);
-                if ~ok
-                    % Ran out of "trials"
-                    s.rsvp.design.shuffle; % Reshuffle the list
-                end
+                beforeRSVP(s.rsvp.flow);
                 % Get current specs and apply
-                specs = s.rsvp.design.specs;
-                for sp=1:size(specs,1)
-                    s.(specs{sp,2}) = specs{sp,3};
-                end
+%                 specs = s.rsvp.design.specs;
+%                 for sp=1:size(specs,1)
+%                     s.(specs{sp,2}) = specs{sp,3};
+%                 end
+                nextRSVP(s.rsvp.flow); % Ger ready for next
             end
             
             %Blank now if it's time to do so.
@@ -255,7 +278,7 @@ classdef stimulus < neurostim.plugin
             %                         s.addRSVP(s.rsvp{:})
             %                     end
             if s.rsvp.active
-                s.rsvp.design.shuffle; % Reshuffle each trial
+                s.rsvp.flow.shuffle(true); % Reshuffle each trial
             end
             
             %Reset variables here?
