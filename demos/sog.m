@@ -50,7 +50,7 @@ stream.fac1.grating.orientation = 0:30:359; % Assign orientations
  stream =design('ovc');           % Define a factorial with two fa0ctors
  stream.fac1.grating.orientation = 0:30:359; % Assign orientations
  stream.fac2.grating.contrast = [0 0.25 0.5 1]; % Contrasts including 0
- g.addRSVP(stream,'log',true,'duration',5*1000/c.screen.frameRate,'isi',15*1000/c.screen.frameRate,'nrRepeats',100,'randomization','RANDOMWITHOUTREPLACEMENT'); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
+ g.addRSVP(stream,'log',false,'duration',5*1000/c.screen.frameRate,'isi',15*1000/c.screen.frameRate,'nrRepeats',1,'randomization','RANDOMWITHOUTREPLACEMENT'); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
 
 %% This is all you need for an rsvp stream. The rest is just to make it into a full experiment.
 
