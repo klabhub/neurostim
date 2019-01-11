@@ -322,7 +322,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             p =inputParser;
             p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial
             p.addParameter('after','',@ischar); % Return the first value after this event in the trial
-            p.addParameter('trial',[],@isnumeric); % Return only values in these trials
+            p.addParameter('trial',NaN,@isnumeric); % Return only values in these trials
             p.addParameter('withDataOnly',false,@islogical); % Only those values that have data
             p.addParameter('dataIsMember',{});  %Only when data is a member of the list
             p.addParameter('dataIsNotNan',false,@islogical);%Only when data is not nan.
@@ -458,7 +458,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             out = false(size(data));
             
             %% Prune if requested
-            if ~isempty(p.Results.trial)
+            if ~ismember('trial',p.UsingDefaults)
                 out = out | ~ismember(trial,p.Results.trial);
             end
             

@@ -780,7 +780,7 @@ classdef cic < neurostim.plugin
             
             while c.flags.experiment 
                   c.trial = c.trial+1;
-                  c.condition = c.flow.currentCondition; % BLock specific condition nr
+                  c.condition = c.flow.conditionNr; % Tree-unique condition nr
                   beforeTrial(c.flow)                  
                   
                    %ITI - wait

@@ -423,7 +423,7 @@ classdef design <handle & matlab.mixin.Copyable
                             end
                             thisV = V{srcSub{:}};
                             if isa(thisV,'neurostim.plugins.adaptive')
-                                thisV.belongsTo(o.name,o.lvl2cond(ix(i,:))); % Tell the adaptive to listen to this design/level combination
+                                thisV.active =false; % By default do not receive updates. flow changes this when needed.
                             end
 
                             % add to previous, or replace if it refers to the same property
@@ -446,7 +446,7 @@ classdef design <handle & matlab.mixin.Copyable
                         end
                         ix = ix{1};
                         if  isa(V,'neurostim.plugins.adaptive')
-                            V.belongsTo(o.name,ix); % Tell the adaptive to listen to this design/level combination
+                            V.active = false;  % Inactive by default. 
                         end
                         if ix> numel(o.conditionSpecs)  || isempty(o.conditionSpecs{ix})
                             o.conditionSpecs{ix} = {plg,prm,V};

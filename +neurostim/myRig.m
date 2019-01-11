@@ -90,9 +90,10 @@ switch computerName
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,30),'screenNumber',scrNr);
         smallWindow = true;
         c.dirs.output= 'c:/temp';
+        c.hardware.keyEcho  =true;
         c.useConsoleColor = true;
     case '2014B'
         scrNr = 2;

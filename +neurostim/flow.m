@@ -42,7 +42,7 @@ classdef flow <handle & matlab.mixin.Copyable
         parent@neurostim.flow;  % The parent element in the flow-tree
         children@cell;          % The children of this element. Each element of the cell can be a specification of a trial (which is a cell with stim parm value) or a block (a neurostim.flow object)
         cic@neurostim.cic;      % Handle to CIC
-        
+        conditionsBefore;       % Conditions in the tree before the current level. Populated by shuffle.
         list=[];                % A list of numbers that specifies the order in which the child objects (blocks or trials) will be executed.
         listNr=0;               % Current element - a linear index into list.
         
@@ -55,9 +55,13 @@ classdef flow <handle & matlab.mixin.Copyable
         childNr;                % Linear index into children
         nrChildren;             % How many children (i.e. blocks or conditions)
         nrList;                 % How many trials
+        conditionNr;            % Unique sequence number in the tree.        
     end
     
     methods   % get/set methods
+        function v=get.conditionNr(o)
+            v= currentCondition(o);
+        end
         
         function v=get.name(o)
             % Return the name of the currently active block of trials
@@ -180,7 +184,7 @@ classdef flow <handle & matlab.mixin.Copyable
         end
         
     
-        function plot(o,root)
+        function plot(o,forceConditions,root)
             % Show a tree view of this flow. 
             % If the flow has not been shuffled yet (i.e. it has conditions
             % but not yet stored the actual trial sequence), the tree shows
@@ -189,10 +193,14 @@ classdef flow <handle & matlab.mixin.Copyable
             % each individual trial.
             % Clicking on an element in the tree will show the parameter
             % values associated with the block and/or the trial.
+            % INPUT
+            % forceConditions = Toggle to force showing conditions, not trials
+            %               even when trials have been generated. [false]
             
-            % NOTE the root element should only be used by the recursive calls,
-            % not by the user.
-            if nargin <2
+            % root = No need to set.  It is the root element (used in the 
+            %               recursion, leave out or set to [] on first call). [[]]
+            
+            if nargin <3 || isempty(root)
                 % First call, create the figure and tree.
                 f=uifigure;
                 f.Position = [60 60 400 800];
@@ -200,41 +208,50 @@ classdef flow <handle & matlab.mixin.Copyable
                 tree.Position = [10 10 f.Position(3:4)-20];                
                 root = uitreenode(tree,'text','root');
                 tree.SelectionChangedFcn = @dispTree;
+                if nargin<2
+                    forceConditions = false;
+                end            
             end
             
             cntr =0;
-            if numel(o.list)==0
+            if numel(o.list)==0 || forceConditions
                 % No trials yet, display the conditions.
                 thisList = 1:o.nrChildren;
+                prefix = '';
             else
                 % We have trials and will show all...
                 thisList = o.list;
+                prefix = 'Trial';
             end
             for i=1:numel(thisList)
                 thisChild  =o.children{thisList(i)};
                 if isa(thisChild,'neurostim.flow')
                     node = uitreenode(root,'text',['Block: ' thisChild.name],'nodedata',thisChild);
-                    plot(thisChild,node);
+                    plot(thisChild,forceConditions,node);
                 else
                     cntr= cntr+1;
-                    uitreenode(root,'text',['#' num2str(cntr) ': Condition ' num2str(thisList(i))],'nodedata',spec2code(o,thisChild,false));
+                    condition = o.conditionsBefore+thisList(i);
+                    uitreenode(root,'text',[prefix '#' num2str(cntr) ': Condition ' num2str(condition)],'nodedata',spec2code(o,thisChild,false));
                 end
             end
-            if nargin<2
+            if exist('tree','var')
                 expand(tree,'all')
             end          
             
             function dispTree(src, event) %#ok<INUSD>
+            % Nested function to show the specs or the block info on the
+            % command line from the uitree. Called by the selection changed 
+            % callback
             disp(char('============================',src.SelectedNodes.Text))
             if ischar(src.SelectedNodes.NodeData)
                 disp(src.SelectedNodes.NodeData)
             else
-                o = src.SelectedNodes.NodeData;
-                fn = fieldnames(o);
+                obj = src.SelectedNodes.NodeData;
+                fn = fieldnames(obj);
                 exclude = {'parent','children','cic','currentChild'};
-                for i=1:numel(fn)
-                    if ~isempty(o.(fn{i})) && ~ismember(fn{i},exclude)
-                        v.(fn{i}) = o.(fn{i});
+                for n=1:numel(fn)
+                    if ~isempty(obj.(fn{n})) && ~ismember(fn{n},exclude)
+                        v.(fn{n}) = obj.(fn{n});
                     end
                 end
                 disp(v)
@@ -293,19 +310,26 @@ classdef flow <handle & matlab.mixin.Copyable
             if recursive
                 cellfun(@(x) shuffle(x,true),o.blocks);
             end
-         end                       
+            
+            % some preparation to make it easier to assign unique
+            % condition numbers at runtime
+            if isempty(o.parent)
+                o.conditionsBefore = 0;
+                countConditions(o,0);
+            end
+         end         
     end
     
     %% Functions that CIC uses for bookkeeping/reporting
-    methods (Access = {?neurostim.cic})
+    methods %(Access = {?neurostim.cic})
         
         function v = currentCondition(o)
             % Returns a number that identifies the currently active
-            % condition within its block (but not globally). Used by CIC
-            if o.isBlock
-                v = currentCondition(o.currentChild);
-            else
-                v= o.childNr;
+            % condition (within the tree). Used by CIC for bookkeeping   
+            if o.isBlock                
+                v=currentCondition(o.currentChild);
+            else                  
+                v = o.conditionsBefore+o.childNr;      
             end
         end
         
@@ -392,6 +416,14 @@ classdef flow <handle & matlab.mixin.Copyable
             end
         end
         
+        function checkAdaptive(o)
+            spec = o.currentChild;
+            ix  = find(cellfun(@(x)(isa(x,'neurostim.plugins.adaptive')),spec(:,3)));
+            for i=ix
+                activate(spec{i,3},o.conditionNr,false);
+            end
+        end
+        
         function afterTrial(o)
             % CIC calls this after each trial to move to the next item
             if o.isBlock
@@ -401,9 +433,12 @@ classdef flow <handle & matlab.mixin.Copyable
             else
                 % Tell all plugins to run thei afterTrial code
                 base(o.cic.pluginOrder,neurostim.stages.AFTERTRIAL,o.cic);
+             
                 % Check whether this trial was completed successfully or
                 % needs to be retried.
                 checkRetry(o);
+                % Make sure adaptive parameters are turned off if needed.
+                checkAdaptive(o);
                 % Move to the next child in the flow (trial or block)
                 nextChild(o);
                 % Provide some feedback to the experimenter 
@@ -446,6 +481,25 @@ classdef flow <handle & matlab.mixin.Copyable
             cnds = o.children(stay);
             ix = find(stay);
         end
+        
+        
+        function nr = countConditions(o,nr)
+            % Function that counts conditions per level and stores how many
+            % there are before each level (in .conditionsBefore). This
+            % simplifies runtime code to extract a unique condition number.
+            % Called by shuffle.
+             if nargin <2
+                 nr =0;
+             end
+             for i=1:o.nrChildren
+                 if isa(o.children{i},'neurostim.flow')
+                     o.children{i}.conditionsBefore = nr;
+                     nr = countConditions(o.children{i},nr);
+                 else
+                     nr = nr+1;
+                 end
+             end
+         end
         
         function checkRetry(o)
             % Check behavior or other success measures                       
@@ -583,6 +637,7 @@ classdef flow <handle & matlab.mixin.Copyable
                 plgName =spec{p,1};
                 varName = spec{p,2};
                 if isa( spec{p,3},'neurostim.plugins.adaptive')
+                    activate(spec{p,3},o.conditionNr,true); %In this trial, this adaptive should receive updates.                    
                     value = getValue(spec{p,3});
                 else
                     value =  spec{p,3};

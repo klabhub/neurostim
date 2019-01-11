@@ -119,8 +119,8 @@ end
 % d.conditions(2,1).grating.X =  plugins.jitter(c,{15,-15},'distribution','1ofN'); 
 
 % Create a block for this design and specify the repeats per design
-myBlock=block('myBlock',d);
-myBlock.nrRepeats = 10; % Because the design has 2 conditions, this results in 2*nrRepeats trials.
+myBlock=neurostim.flow(c,'name','myBlock','nrRepeats',10);
+myBlock.addTrials(d);
 c.run(myBlock);
 
 %% Do some analysis on the data

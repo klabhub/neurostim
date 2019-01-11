@@ -12,8 +12,12 @@ classdef (Abstract) adaptive < neurostim.plugin
     %
     % BK - 11/2016
     
+    properties    (SetAccess={?neurostim.design})
+        active@logical=true; % Used to bind an adaptive with a specific condition. See afterTrial below       
+    end
+    
     properties (SetAccess=protected, GetAccess=public)
-        uid@double= [];
+        uid@double= [];        
     end
     
     methods (Abstract)
@@ -114,21 +118,22 @@ classdef (Abstract) adaptive < neurostim.plugin
             o=o@neurostim.plugin(c,nm);
             o.addProperty('trialOutcome','','validate',@(x) (ischar(x) && strncmpi(x,'@',1))); % The function used to evaluate trial outcome. Specified by the user.
             o.addProperty('conditions',[]);% The condition that this adaptive parameter belongs to. Will be set by design.m
-            o.addProperty('design',''); % This parm belongs to paramters in this design. (Set by design.m)
             o.addProperty('ignoreN',0); % Used to ignore the first N trials (set to 1 to ignroe the first, often missed trial)
             o.uid = u;
-            o.trialOutcome = funStr;
-            
+            o.trialOutcome = funStr;            
         end
         
-        function belongsTo(o,dsgn,cond)
-            if ~isempty(o.design) && ~strcmpi(o.design,dsgn)
-                error('Not sure this works... one adaptive parm belongs to two designs?');
+        function activate(o,cond,toggle)
+            if toggle
+                % Activating
+                % Log condition number for safety checks...
+                o.conditions = cond;
+                o.active= true;
+            else
+                % Deactivate
+                o.active= false;                
             end
-            o.design = dsgn;
-            o.conditions = unique(cat(1,o.conditions,cond));
         end
-        
         
          function values = whichParms(o,prm)
             % For this adaptive object, find out which  conditions in some other
@@ -139,9 +144,8 @@ classdef (Abstract) adaptive < neurostim.plugin
             % prm = a parameter in a different object. E.g.
             % c.gabor.prms.orientation
             % 
-            [cond,tr] = get(o.cic.prms.condition,'atTrialTime',inf);
-            stay = ismember(cond,o.conditions);
-            values= unique(get(prm,'trial',tr(stay),'atTrialTime',inf));
+            [~,tr] = get(o.prms.conditions,'atTrialTime',inf,'withdataonly',true);
+            values= unique(get(prm,'trial',tr,'atTrialTime',inf));
             
         end
         
@@ -172,33 +176,31 @@ classdef (Abstract) adaptive < neurostim.plugin
                 newName = strrep(o1.name,num2str(o1.uid),num2str(u));
                 o =duplicate@neurostim.plugin(o1,newName);
                 o.uid = u;
-                o.design = ''; % Not yet associated with a design.
             end
         end
         
         
         function afterTrial(o)
-            % This is called after cic sends the AFTERTRIAL event
-            % (in cic.run)  
-            % An emply o.design means that the adaptive parameter was
-            % assigned directly to a plugin property (probably a jitter)
-            % and not part of a design. These get updated after every
-            % trial, irrespective of the current condition/design. 
-            % Adaptive parameters defined as part of a design only get
-            % updated when "their" condition/design is the currently active
-            % one.
-            if isempty(o.design) || (strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions))% Check that this adaptive belongs to the current condition
-               if o.cic.trial > o.ignoreN 
-                    % Call the derived class function to update it                
-                    correct = o.trialOutcome; % Evaluate the function that the user provided.
+            % This is called after flow sends the AFTERTRIAL event            
+            % A default adaptive object, for instance a jitter assigned 
+            % directly to a plugin will have active=true and will be updated each trial.
+            % When assigning an adaptive object to a design object its
+            % active property is set to false and toggled on each trial by flow 
+            % Whenever that specific object is used (i.e. the
+            % condition to which it is assigned starts), its .active
+            % is set to true (by flow) and when the trial is done flow sets
+            % it back to false. That way the adaptive only gets updated
+            % when "its" condition is run.
+            if o.active && o.cic.trial > o.ignoreN 
+                % Call the derived class function to update it                
+                correct = o.trialOutcome; % Evaluate the function that the user provided.
                     if numel(correct)>1 
                         error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
                     end
-                    update(o,correct); % Pass it to the derived class to update                                        
-               else
-                   % Ignoring this trial                       
-               end
-            end
+                    update(o,correct); % Pass it to the derived class to update                                                            
+            else
+                % Ignoring this update 
+            end            
         end 
     end
 end % classdef
