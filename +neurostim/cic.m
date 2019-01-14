@@ -924,6 +924,9 @@ classdef cic < neurostim.plugin
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
             c.drawFormattedText(c.beforeExperimentText);            
             Screen('Flip', c.mainWindow);            
+            
+            sanityChecks(c);
+            
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             clearOverlay(c,true);
          
@@ -1492,7 +1495,18 @@ classdef cic < neurostim.plugin
     end
     
     methods (Access=private)
-         
+        function sanityChecks(c)
+           % This function is called just before starting the first trial, whic his kist
+            % after running beforeExperiment in all plugins. It serves to
+            % do some error checking and provide the user with information
+            % on what is about to happen.
+            
+            % Plugin order
+            disp(['================ ' c.file ' =============================='])
+            disp('Plugin/Stimulus code will be evaluated in the following order:')
+            fprintf(1,'%s --> ', c.pluginOrder.name)
+            
+        end
         function KbQueueStop(c)
             for kb=1:numel(c.kbInfo.activeKb)
                 KbQueueStop(c.kbInfo.activeKb{kb});
