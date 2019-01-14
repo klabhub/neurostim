@@ -1505,7 +1505,7 @@ classdef cic < neurostim.plugin
             disp(['================ ' c.file ' =============================='])
             disp('Plugin/Stimulus code will be evaluated in the following order:')
             fprintf(1,'%s --> ', c.pluginOrder.name)
-            
+            disp('Parameter plugins should depend only on plugins with earlier execution (i.e. to the left)');             
         end
         function KbQueueStop(c)
             for kb=1:numel(c.kbInfo.activeKb)
