@@ -51,6 +51,11 @@ classdef stg < neurostim.stimulus
     % computer (www.multichannelsystems.com/software/mc-stimulus-ii) for
     % the drivers that come with it. That standalone app adds some useful
     % testing and debugging potential, too.
+    % 
+    % This works in the STG Download mode (stimulus is prepared in matlab,
+    % sent to the device, and hten triggered). The resolution of the
+    % sitmulus is 20 mus. This cannot be changed (in streaming mode, which
+    % ahs not been implemented yet, this is variable).
     %
     % BK - June 2018
     
@@ -66,6 +71,7 @@ classdef stg < neurostim.stimulus
         
         trigger=1; % The number of the trigger that is used. (Currently only one that triggers all relevant channels)
         nrRepeatsPerTrigger=1; % 1 for now
+        %outputRate = 50000; % Stimuli are defined at 50Khz (fixed in Download mode)
     end
     
     properties (SetAccess = protected, Transient)
@@ -100,6 +106,7 @@ classdef stg < neurostim.stimulus
             v.current = double(current)/1000; % convert to mA.
         end
         
+      
         function v = get.range(o)
             % Returns a struct with the range (maximum absolute value)
             % per channel in mV and mA.
@@ -161,9 +168,7 @@ classdef stg < neurostim.stimulus
         function o = stg(c,name)
             % Constructor. Only a name needs to be provided. This will
             % link to the first device that is found on the USB port and
-            % retrieve its properties. A connection is not yet established.
-            % Once this is done, properties such as outputRate, mode can be
-            % set, before connecting.
+            % retrieve its properties. A connection is not yet established.            
             %
             if nargin <2
                 name = 'stg';
@@ -178,7 +183,8 @@ classdef stg < neurostim.stimulus
             o.addProperty('serialNumber','');
             
             % Read/write properties.
-            o.addProperty('outputRate',50000);
+             o.addProperty('outputRate',50000);  % Not setttable in
+            % Download mode - so disable for now and use constant instead.
             o.addProperty('currentMode',true);
             
             
@@ -249,9 +255,6 @@ classdef stg < neurostim.stimulus
         
         function beforeExperiment(o)
             % Connect to the device, and clear its memory to get a clean start..
-            if o.outputRate ~= 50000
-                o.cic.error('STOPEXPERIMENT','Sampling rate should be 50 Kjhz..... there is a bug that has not been resolved yet');
-            end
             connect(o);
             reset(o);
         end
@@ -340,7 +343,9 @@ classdef stg < neurostim.stimulus
         function reset(o)
             % Make sure the device memory is cleared, and the device mode
             % is set to the current value.
+            
             o.device.SetOutputRate(uint32(o.outputRate));
+            h = o.device.GetOutputRate
             if o.currentMode
                 o.device.SetCurrentMode();
             else
