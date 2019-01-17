@@ -65,8 +65,7 @@ classdef feedback < neurostim.plugin
     
     methods (Access=public)
         function o=feedback(c,name)
-            o=o@neurostim.plugin(c,name);
-            
+            o=o@neurostim.plugin(c,name);            
             o.addProperty('nItems',0,'validate',@isnumeric);         
         end  
     end
