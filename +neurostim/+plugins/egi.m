@@ -64,6 +64,11 @@ classdef egi < neurostim.plugin
             o.stopRecording;
             o.disconnect;
         end
+        function beforeFrame(o)
+            if mod(o.cic.frame-1,10)==0
+                % o.event('FRAM','DESC','Frame','TRIA',o.cic.trial,'BLCK',o.cic.block);%,'COND',o.cic.conditionName);   
+            end
+        end
         
         function beforeTrial(o)
             % Should we sync again? Or is once enough beforeExperiment?
@@ -71,11 +76,11 @@ classdef egi < neurostim.plugin
             if mod(o.cic.trial,o.syncEveryN)==0
                 NetStation('RESETCLOCK',(o.cic.clockTime-o.clockOffset-o.fineTuneClockOffset),0);        
             end
-            o.event('BTRL','DESC','Begin trial','TRIA',o.cic.trial,'BLCK',o.cic.block,'COND',o.cic.conditionName);            
+            o.event('BTRL','DESC','Begin trial','TRIA',o.cic.trial,'BLCK',o.cic.block);%,'COND',o.cic.conditionName);            
         end
         
         function afterTrial(o)
-            o.event('ETRL','DESC','End trial','TRIA',o.cic.trial,'BLCK',o.cic.block,'COND',o.cic.conditionName);            
+            o.event('ETRL','DESC','End trial','TRIA',o.cic.trial,'BLCK',o.cic.block);%,'COND',o.cic.conditionName);            
         end
     end
     

@@ -283,7 +283,7 @@ classdef stimulus < neurostim.plugin
             if s.alwaysOn
                 s.flags.on =true;
             else   
-                sOn = s.on;          
+                sOn = +s.on;          
                 if isinf(sOn)
                     s.flags.on =false; %Dont bother checking the rest
                 else
