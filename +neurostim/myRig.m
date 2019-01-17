@@ -171,7 +171,8 @@ switch computerName
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
         c.useConsoleColor = true;
         %Screen('Preference', 'SkipSyncTests', 2);
-        smallWindow = false;
+        smallWindow = true;
+        c.hardware.keyEcho = true;
         
     case 'NEUROSTIMA2018'
         scrNr = max(Screen('screens'));

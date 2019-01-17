@@ -138,6 +138,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             end
         end
         
+        function makeSticky(o,prp)
+            % Make this property sticky (i.e. keep a value across trials).
+            if ~isfield(o.prms,prp)
+                error([prp ' is not a property of ' o.name]);
+            end
+            o.prms.(prp).sticky = true; % plugin class has setaccess to this
+        end
+        
         function duplicateProperty(o,parm)
             % First check if it is already there.
             h =findprop(o,parm.name);

@@ -44,6 +44,13 @@ classdef parameter < handle & matlab.mixin.Copyable
         BLOCKSIZE = 500; % Logs are incremented with this number of values.
     end
     
+    properties (SetAccess= {?neurostim.plugin}, GetAccess=  public)
+         sticky;                     % set this to true to make value(s) sticky, i.e., across trials   
+                                     % To do this for a previously defined
+                                     % parameter, call
+                                     % makeSticky(plugin,parameterName)
+    end
+    
     properties (SetAccess= protected, GetAccess=public)
 
         name;                       % Name of this property
@@ -54,7 +61,6 @@ classdef parameter < handle & matlab.mixin.Copyable
         cntr=0;                     % Counter to store where in the log we are.
         capacity=0;                 % Capacity to store in log
         noLog;                      % Set this to true to skip logging
-        sticky;                     % set this to true to make value(s) sticky, i.e., across trials
         fun =[];                    % Function to allow across parameter dependencies
         funPrms;
         funStr = '';                % The neurostim function string
