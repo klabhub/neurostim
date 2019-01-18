@@ -56,7 +56,6 @@ stm.persistent = false;
 stm.syncOutChannel = 2; % SyncOut Channel 2 will have a TTL out.
 stm.phase = 0;   % This will only be used for tACS mode
 stm.amplitude = 1500; % mV % This will be used for both the noise function and the tACS mode
-stm.outputRate = 1000/5;
 % Define a noise function with output that depends on the amplitude/mean
 % set per trial
  noise  = @(x,o)(o.amplitude*rand(size(x))+o.mean);

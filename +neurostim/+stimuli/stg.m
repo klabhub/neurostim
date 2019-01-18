@@ -52,26 +52,31 @@ classdef stg < neurostim.stimulus
     % the drivers that come with it. That standalone app adds some useful
     % testing and debugging potential, too.
     % 
-    % This works in the STG Download mode (stimulus is prepared in matlab,
-    % sent to the device, and hten triggered). The resolution of the
-    % sitmulus is 20 mus. This cannot be changed (in streaming mode, which
-    % ahs not been implemented yet, this is variable).
-    %
     % BK - June 2018
-    
-    % Programming Notes
+    %
+    % ## Programming notes
+    % This code uses the STG Download mode (stimulus is prepared in matlab,
+    % sent to the device, and hten triggered). The resolution of the
+    % sitmulus is 20 mus. This cannot be changed - trying to set the output
+    % rate results in strange and somewhat unpredictable changes of the
+    % stimulus shape. The support on the MCS website stated that output
+    % rate cannot be set on (some) STG devices, so this is disabled here.
+    %
     %  Currently a 10 second long 10 Hz sine is downloaded in full to the
     %  device. This can take time. Using continuous mode or repeats would
     %  be a better way to do this. Not that hard to implement... just
     %  change the setup Trigger funcion to include the repeats.
+    %
     
+    properties (Constant)
+        outputRate = 50000; % 50 Khz is fixed
+    end 
     properties (SetAccess = protected)
-         channelData;  % Cell array with the data last sent to each channel
+        channelData;  % Cell array with the data last sent to each channel
         channelTriggered; % Last trigger time of each channel
         
         trigger=1; % The number of the trigger that is used. (Currently only one that triggers all relevant channels)
-        nrRepeatsPerTrigger=1; % 1 for now
-        %outputRate = 50000; % Stimuli are defined at 50Khz (fixed in Download mode)
+        nrRepeatsPerTrigger=1; % 1 for now        
     end
     
     properties (SetAccess = protected, Transient)
@@ -182,9 +187,7 @@ classdef stg < neurostim.stimulus
             o.addProperty('product','');
             o.addProperty('serialNumber','');
             
-            % Read/write properties.
-             o.addProperty('outputRate',50000);  % Not setttable in
-            % Download mode - so disable for now and use constant instead.
+            % Read/write properties.             
             o.addProperty('currentMode',true);
             
             
@@ -344,8 +347,6 @@ classdef stg < neurostim.stimulus
             % Make sure the device memory is cleared, and the device mode
             % is set to the current value.
             
-            o.device.SetOutputRate(uint32(o.outputRate));
-            h = o.device.GetOutputRate
             if o.currentMode
                 o.device.SetCurrentMode();
             else
