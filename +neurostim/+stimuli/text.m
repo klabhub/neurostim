@@ -13,13 +13,14 @@ classdef text < neurostim.stimulus
     % NB: Currently reverts font style/size to previous after stimulus
     % draw.
     %
-    
+    %BK not sure this is working properly. Calling o.cic.drawFormattedText
+    %may be easier.
     properties
         antialiasing = 1;
     end
     
     methods
-        function o = set.antialiasing(o,value)
+        function set.antialiasing(o,value)
             if value ~= Screen('Preference','TextRenderer')
                 warning('Text antialiasing not set to screen antialiasing')
             end
@@ -120,7 +121,7 @@ classdef text < neurostim.stimulus
         end
         
         function afterTrial(o)
-            c.restoreTextPrefs;
+            o.cic.restoreTextPrefs;
         end
         
     
