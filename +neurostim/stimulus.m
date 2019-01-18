@@ -406,12 +406,12 @@ classdef stimulus < neurostim.plugin
     end
     
     methods (Access = {?neurostim.cic})
-        function afterFlip(s,flipTime)
+        function afterFlip(s,flipTime,ptbTime)
             if s.logOnset
                 s.startTime = flipTime;
                 s.logOnset = false;
                 if ~isempty(s.onsetFunction)
-                    s.onsetFunction(s,flipTime);
+                    s.onsetFunction(s,ptbTime);
                 end
             elseif s.logOffset
                 s.stopTime = flipTime;

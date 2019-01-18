@@ -18,15 +18,15 @@
 % 
 % NetStation:
 %   While the experiment runs, you should see the event markers at the top
-%   of the data display (FLIC, DIN1, plus other flags showin the start of
+%   of the data display (GRAT, DIN1, plus other flags showing the start of
 %   the trial, end of the trial etc.)
 %
-%   Once the experiment finishes, drop the NetStation MFF output file that 
-%   was generated onto the 'Event Timing Tester' application (in EGI Utils
+%   Once the experiment finishes, open the NetStation MFF output file that 
+%   was generated with the 'Event Timing Tester' application (in EGI Utils
 %   directory). 
 %   From the drop-down menus in the Event Timing Tester: 
-%       Choose 'Stim Event Code' =  'FLIC' (the name
-%       of the flicker stimulus that generates the visual stimulus and the
+%       Choose 'Stim Event Code' =  'GRAT' (the name
+%       of the gabor stimulus that generates the visual stimulus and the
 %       software events) 
 %       Chose "DIN Event Code' = 'DIN1'  (the source of the photodiode
 %       detection pulses)
@@ -35,38 +35,33 @@
 %   The relevant numbers to look at are the average, maximum, and minium
 %   offsets in the lower left window. A constant offset is fine (and should be
 %   used in the analysis to correct alignment), but variance should be
-%   minimal. Typically, events are logged with 
-%   less than 2 ms variation around this. 
+%   minimal. Typically, events are logged with less than 2 ms variation. 
 %      
 %   Positive offsets means the diode detected the event later than the
 %   software logged the event.
 % 
 % Notes.
 %
-% Order of events:
-% Neurostim: STIMON  ---[3.8 ms]--- LOGSTIMON ---[0.1 ms]---Send FLIC EVENT ---- 
-% Netstation: ---------- Netstation Receives DIN1    ------------ NetStation receives FLIC 
-% Below, in analyse, we estimate the time between STIMON and LOGSTIMON (delta).
-% In an example run it was 3.8 \pm 0.6 ms. I also looked at the time
-% between the FLIC event being sent and the stimStarTime being logged it is
-% negligible (0.1 ms). 
 % 
-% EGI's Timing Tester's offset is the difference between DIN1 time and FLIC
-% time. The Netstation TCP interface allows you to set the clock that records 
-% TCP events such as FLIC. There are a number of issues to consider.
-% First, times are stored as int32 so we should set time zero to something
-% not too far in the past. This is fine for cic.clockTime (it is zero at
-% the start of the experiment).
-% Second, there is a delay between sending an event via TCP and it being
-% registered by Netstation. NetStation.m checks whether this is below some required
-% value (e.g. 2.5 ms by default) and warns if that is not the case. I added
-% some code to measure the average delay (7 ms in KLab PTB-P) *and* reset
-% the clock time zero to effectively remove this delay. After that
-% (egi.syncronize), neurostim and egi time are synched. 
-% Third, the delay discussed above (delta) is also pretty stable and should
-% be subtracted. I added an fineTuneClockOffset parameter to the egi plugin
-% to allow users to do this. 
-% 
+% EGI's Timing Tester's offset is the difference between DIN1 time and GRAT
+% time. 
+% The time that is passed to NetStation is the time on the high-precision
+% Matlab clock that the screen was flipped to show the grating. So, if PTB
+% is working correctly (no frame synchronization errors/frame drops), this
+% is the precise moment when the top left of the screen becomes white,
+% which is detected with ~0 delay by the photodiode and timed by Netstation
+% as the DIN1 event. 
+% There is no reason why the Matlab clock (o.cic.clockTime) and the
+% Netstation clock would have the same origin so the difference between
+% them simply quantifies this difference in origin. Once we know the delay
+% we can adjust the TCP timing clock on Netstation to correct it. You do this
+% by entereing the mean offset from the Timing Tester as the
+% egi.clockOffset parameter.
+
+%
+%  After doing this there is still an offset between the physical event of
+%  stimulus onset (diode flash) and the TCP event. This is due to 
+%When e.fineTuneOff
 % With these settings in an example run the remaining offset was ~10 ms (1/85Hz), 
 % (with positive numbers signifying that the Diode was
 % detected after the TCP event (checked sign of this by delaying the FLIC
@@ -85,33 +80,48 @@
 import neurostim.*
 
 c= klabRig;
-c.trialDuration = 1200;
+c.trialDuration = 500;
 c.iti = 500;
 c.screen.color.background = [0 0 0];
 c.subject = getenv('computername');
 
 e = plugins.egi(c); % Add the EGI plugin
-e.fineTuneClockOffset = 0;%3.8; % Time between stimStart and logging stimStart.
+e.clockOffset = 11; % 
+e.syncEveryN = 10;
 
-% Convpoly to drive the photocell
-flicker = stimuli.convPoly(c,'flicker');
-flicker.radius       = 5;
-flicker.X            = -25; % Top-left corned to remove the (deterministic) CRT scan effect (0.5/framerate in the center of the monitor)
-flicker.Y            = +15;
-flicker.nSides       = 100;
-flicker.filled       = true;
-flicker.color        = 100; [1 1 1];
-flicker.duration     = 10;
-flicker.on              =plugins.jitter(c,{500,250},'distribution','normal','bounds',[0 1000]);
-flicker.onsetFunction  = @(s,t) (s.cic.egi.event(s.name(1:min(numel(s.name),4))));
+% To mimic a real experiment we generate a Gabor stimulus.
+g=stimuli.gabor(c,'grating');           
+g.color             = [0.5 0.5 0.5];
+g.contrast          = 0.25;
+g.Y                 = 0; 
+g.X                 = 0;
+g.sigma             = 3;                       
+g.phaseSpeed        = 0;
+g.orientation       = 15;
+g.mask              ='CIRCLE';
+g.frequency         = 3;
+g.on                =  plugins.jitter(c,{500,250},'distribution','normal','bounds',[0 400]); % Turn on at random times
+g.duration          = inf;   
+g.phaseSpeed        = 10;
+
+% To test onset timing, we use a small white square in the top left corner
+% of the screen that turns on/off with the stimulus (this is built-in to
+% all stimuli).
+% On a generic monitor color should be [r g b]. 
+% Size is specified as a fraction of the horizontal number of pixels in the monitor 
+diode = struct('on',true,'location','nw','color',100,'size',0.01); 
+g.diode = diode; % This will turn on at stimulus onset. The EGI AV Tester Diode should be pointed at the NorthWest corner to detect the onset.
+% Specifically for EGI interaction we also tell the stimulus to call the
+% logOnset function in the egi plugin when the stimulus first turns on in
+% each trial.
+g.onsetFunction  =@neurostim.plugins.egi.logOnset;  % This will generate events that are synched to Diode onset over TCP
 
 
 
 %% Define conditions and blockçs
 f=design('AvTester');     % Define a factorial with one factor
-
 b=block('myBlock',f); 
-b.nrRepeats  = 100;       
+b.nrRepeats  = 2500;       
 b.randomization = 'SEQUENTIAL';
 %% Run the experiment   
 c.run(b);

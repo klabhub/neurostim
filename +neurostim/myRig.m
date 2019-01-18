@@ -150,16 +150,43 @@ switch computerName
         % Presentation computer
         c = rig(c,'eyelink',false,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',133,'screenHeight',75, 'frameRate',60,'screenNumber',1);
         Screen('Preference', 'SkipSyncTests', 2);
-    case 'PTB-P'
-        Screen('Preference', 'SkipSyncTests', 0);
-        c = rig(c,'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
-        c.screen.colorMode = 'RGB';            
-        c.screen.type  = 'GENERIC';
-        smallWindow = false;
-        c.timing.vsyncMode =0;
-        c.timing.frameSlack = 0.1;
-        c.eye.sampleRate  = 250;
-        c.useConsoleColor = true;
+    case 'NEUROSTIMP'
+        c.screen.number     = 2;
+        c.screen.frameRate  = 120;
+        % Geometry
+        c.screen.xpixels    = 1920;
+        c.screen.ypixels    = 1080;
+        c.screen.xorigin    = [];
+        c.screen.yorigin    = [];
+        c.screen.width      = 52;       
+        % Color calibration
+        c.screen.colorMode  = 'LUM';
+        c.screen.calFile    = 'PTB-P-VPIXX-M16';
+        c.screen.type       = 'VPIXX-M16';
+        c.screen.colorMatchingFunctions = 'T_xyzJuddVos.mat';
+        c.screen.color.text = 4; % White on the overlay
+        % 
+        c.useConsoleColor   = true;
+        c.useFeedCache      = true;
+        c.hardware.keyEcho = true;
+        c.hardware.sound.latencyClass = 2; % Ta ke control - gives 10ms latency in PTB-P
+                
+        % Timing parameters 
+        % Make sure synctests are done 
+         Screen('Preference', 'SkipSyncTests', 0);
+        % These do not help (and seem to make thing worse)
+        %Screen('Preference', 'VBLTimestampingMode',3); % Beamposition queries work ok on PTB-P, so force their usage for Flip timing
+        %Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround        
+        c.timing.vsyncMode = 0; % 0 waits for the flip and makes timing most accurate.
+        c.timing.frameSlack = NaN;% NaN; % Not used in vsyncmode 0. A likely drop is one that is 25% late.
+        
+        % We define a standard overlay clut with R, G,B, W the first 4
+        % entries (and 0=black)
+        c.screen.overlayClut = [1 0 0; ... % .color =1 will be max saturated red
+            0 1 0; ...  % .color =2 will be max saturated green
+            0 0 1; ...
+            1 1 1;...
+            ];    %.
     case 'PTB-P-UBUNTU'
         c = rig(c,'keyboardNumber',[],'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         

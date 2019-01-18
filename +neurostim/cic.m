@@ -1068,7 +1068,7 @@ classdef cic < neurostim.plugin
                         %properties in any afterFrame() depend on them. So, send the flip time those who requested it
                         if ~isempty(c.flipCallbacks)
                             flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
-                            cellfun(@(s) s.afterFlip(flipTime),c.flipCallbacks);
+                            cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
                             c.flipCallbacks = {};
                         end
                         
