@@ -1,6 +1,5 @@
-%function egiAvTester
-% Experiment that tests timing reliability between NSPTB and EGI data
-% acquisition
+% Experiment that tests timing reliability between Matlab and EGI data
+% acquisition.
 %
 % Hardware:
 %  Connect the DIN output of the EGI AV Tester to the DIN port on the
@@ -34,7 +33,7 @@
 % 
 %   The relevant numbers to look at are the average, maximum, and minium
 %   offsets in the lower left window. A constant offset is fine (and should be
-%   used in the analysis to correct alignment), but variance should be
+%   used in the analysis to correct alignment;see below), but variance should be
 %   minimal. Typically, events are logged with less than 2 ms variation. 
 %      
 %   Positive offsets means the diode detected the event later than the
@@ -51,47 +50,64 @@
 % is the precise moment when the top left of the screen becomes white,
 % which is detected with ~0 delay by the photodiode and timed by Netstation
 % as the DIN1 event. 
+%
 % There is no reason why the Matlab clock (o.cic.clockTime) and the
-% Netstation clock would have the same origin so the difference between
+% Netstation clock would have the same origin. So the difference between
 % them simply quantifies this difference in origin. Once we know the delay
 % we can adjust the TCP timing clock on Netstation to correct it. You do this
 % by entereing the mean offset from the Timing Tester as the
 % egi.clockOffset parameter.
-
 %
-%  After doing this there is still an offset between the physical event of
-%  stimulus onset (diode flash) and the TCP event. This is due to 
-%When e.fineTuneOff
-% With these settings in an example run the remaining offset was ~10 ms (1/85Hz), 
-% (with positive numbers signifying that the Diode was
-% detected after the TCP event (checked sign of this by delaying the FLIC
-% event longer; this makes offsets more negative).
-% 
-% This implies that the FLIC Events are generated before the actual monitor
-% flip occurs, which means that time keeping in NS PTB was off by a frame?
+% So run this script once with 100 trials to estimate the offset(using Timing Tester) and
+% then enter the mean timing tester offset as the e.clockOffset parameter
+% below and then run it for a 1000 trials to confirm that the offset in
+% Timing Tester is (close to) zero.
 %
-% TODO:
-%   Add Audio tests
-%   Incorporate the NS output file in the timing test to validate alignment
-%   in Matlab too.
-%
+% See also demos/egiDemo
 % BK  -Nov 2016
+% BK - Jan 2019 - major overhaul
 
 import neurostim.*
 
-c= klabRig;
-c.trialDuration = 500;
-c.iti = 500;
+c= myRig;
+c.trialDuration = 500;  % Rapid trials to get many GRAT events in the EGI fiel
+c.iti = 150;
 c.screen.color.background = [0 0 0];
 c.subject = getenv('computername');
 
+%% Setup the EGI Plugin
 e = plugins.egi(c); % Add the EGI plugin
-e.clockOffset = 11; % 
-e.syncEveryN = 10;
-
+% On your first run, set this to 0 to measure the delay between photodiode
+% and the TCP generated GRAT event
+e.clockOffset = 0;  % In KLab rig this is 13.5 ms. 
+% If you have Netstation 3.5 or later and a NetAMP 400 or later then use
+% NTPSync mode - it is the most reliable way to keep Matlab and EGI clocks
+% synchronized.
+e.useNTPSync = true; 
+e.syncEveryN = 0;  % NTP synchronization is only done once 
+%If you have an older version or NTP does not work, you can try this:
+%e.useNTPSync =false; % 
+%e.syncEveryN = 25; % In every 25th inter trial interval the EGI TCP clock 
+                    % will be adjusted so that we're in sync again. You can
+                    % try running this as Inf, and run ~150 trials to see
+                    % how often you should sync (Look through the dealys in
+                    % the output of the EGI Timing Tester program to see
+                    % how fast the clock drifts.
+% You may receive a message that NetStation synchronization did not succceed within 2.5ms
+% and that synchronization accuracy is something larger. I dont understand
+%  the logic behind that message:  the code in Netstation tests how
+% long it takes to deliver an event to NetStation. If that is more than 2.5
+% ms it complains about lack of synchronization. But this is incorrect: the
+% mean event delivery time does not matter for synchronization. It is the
+% consistency that matters, but that is not computed. Unless you have a
+% very busy network this method should work fine. (And you can confirm by
+% looking at the TimingTester results). But for this non-NTP sync, repeated
+% synchronization is necessary every 25 trials or so.
+                    
+%%
 % To mimic a real experiment we generate a Gabor stimulus.
 g=stimuli.gabor(c,'grating');           
-g.color             = [0.5 0.5 0.5];
+g.color             = [1 1 1];
 g.contrast          = 0.25;
 g.Y                 = 0; 
 g.X                 = 0;
@@ -100,11 +116,13 @@ g.phaseSpeed        = 0;
 g.orientation       = 15;
 g.mask              ='CIRCLE';
 g.frequency         = 3;
-g.on                =  plugins.jitter(c,{500,250},'distribution','normal','bounds',[0 400]); % Turn on at random times
+g.on                = plugins.jitter(c,{500,250},'distribution','normal','bounds',[0 400]); % Turn on at random times
 g.duration          = inf;   
 g.phaseSpeed        = 10;
 
-% To test onset timing, we use a small white square in the top left corner
+%% Setup for timing test using a photo diode
+% To test onset timing, we use the .diode property of the stimulus class.
+% It presents a small white square in the top left corner
 % of the screen that turns on/off with the stimulus (this is built-in to
 % all stimuli).
 % On a generic monitor color should be [r g b]. 
@@ -113,7 +131,7 @@ diode = struct('on',true,'location','nw','color',100,'size',0.01);
 g.diode = diode; % This will turn on at stimulus onset. The EGI AV Tester Diode should be pointed at the NorthWest corner to detect the onset.
 % Specifically for EGI interaction we also tell the stimulus to call the
 % logOnset function in the egi plugin when the stimulus first turns on in
-% each trial.
+% each trial. T
 g.onsetFunction  =@neurostim.plugins.egi.logOnset;  % This will generate events that are synched to Diode onset over TCP
 
 
@@ -121,79 +139,8 @@ g.onsetFunction  =@neurostim.plugins.egi.logOnset;  % This will generate events 
 %% Define conditions and blockçs
 f=design('AvTester');     % Define a factorial with one factor
 b=block('myBlock',f); 
-b.nrRepeats  = 2500;       
+b.nrRepeats  = 500;        
 b.randomization = 'SEQUENTIAL';
 %% Run the experiment   
 c.run(b);
 
-%analyse(c.fullFile)
-% end
-% 
-% function analyse(filename)
-% load ([filename '.mat'])
-% % Retrieve the time that the flicker onset was logged.
-% % The data in this event is the actual fliptime (i.e. when PTB started the
-% % stimulus in the top left of the monitor). The event is generated a bit
-% % later; that is stored as the time of the event. Here we calculate what
-% % the difference is so that we can correct for it in interpreting the
-% % difference between photo-diode and TCP events in Netstation. 
-% 
-% 
-% [v,t,t] = get(c.flicker.prms.startTime);
-% [v,t,t] = get(c.egi.prms.startTime);
-% v=[v{:}];
-% out =isinf(v) ;
-% v(out) =[];
-% t(out) = [];
-% tr(out) = [];
-% %tr=tr-1;
-% nrTr = max(tr);
-% stimOnTime = nan(nrTr,1);
-% eventGeneratedTime = nan(nrTr,1);
-% for i=1:nrTr
-%     stay = tr ==i;
-%     [stimOnTime(i),ix]= min(v(stay));
-%     tStay = t(stay);
-%     eventGeneratedTime(i) = tStay(ix);
-% end
-% 
-% % 
-% %  [v,t,tr] = neurostim.utils.getproperty(data,'eventCode','egi','onePerTrial',false);
-% %  out = ~strcmpi(v,'FLIC');
-% %  v(out) = [];
-% %  t(out) = [];
-% %  tr(out)=[];
-% 
-% %%
-% figure(1);
-% clf
-% subplot(1,2,1);
-% plot(eventGeneratedTime,stimOnTime,'.')
-% title(strrep(filename,'\','/'))
-% axis equal
-% axis square
-% xlabel 'Trial Time (ms)'
-% ylabel 'Flip Time (ms)'
-% subplot(1,2,2);
-% bins = -15:1:15;
-% delta = eventGeneratedTime-stimOnTime;
-% [m,s] = mstd(delta);
-% hist(delta,bins)
-% xlabel '\Delta (ms)'
-% ylabel '#'
-% title (char(['Mean \Delta : ' num2str(m,3) ' \pm ' num2str(s,2)],'Subtract this from offsets in Netstation'));
-% 
-% end
-% 
-% % Function that uses the EGI plugin to send an event to Netstation. This
-% % relies ont he fact that the egi plugin has the name egi and is added to
-% % CIC in the code above. Logging different codes could be achieved by using
-% % an anonymous function like @(o,v) (sendEvent(o,v,'BLOB') as the
-% % postproces function.
-% function v= locSendEvent(c,code)
-% if nargin <2
-%     code = 'EVT';
-% end
-% %if c.flicker.on
-% o.cic.egi.event(code); % This uses the handle to the egi plugin we know exists in the o.cic handle
-% end
