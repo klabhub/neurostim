@@ -103,8 +103,7 @@ flicker.filled       = true;
 flicker.color        = 100; [1 1 1];
 flicker.duration     = 10;
 flicker.on              =plugins.jitter(c,{500,250},'distribution','normal','bounds',[0 1000]);
-
-%c.addScript('AfterFrame',@locSendEvent); % Tell CIC to call this eScript after drawing each frame.
+flicker.onsetFunction  = @(s,t) (s.cic.egi.event(s.name(1:min(numel(s.name),4))));
 
 
 
