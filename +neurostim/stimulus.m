@@ -221,7 +221,7 @@ classdef stimulus < neurostim.plugin
             % Check whether this stimulus should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
             % avoid the overhead of calling this every draw.
-            if strcmpi(s.cic.screen.type,'VPIXX-M16') && s.overlay
+            if any(strcmpi(s.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && s.overlay
                 s.window = s.cic.overlayWindow;
             else
                 s.window = s.cic.mainWindow;

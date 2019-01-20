@@ -78,6 +78,11 @@ classdef starstim < neurostim.stimulus
         impedanceType@char = 'DC'; % Set to DC or AC to measure impedance at DC or xx Hz AC.
         NRCHANNELS = 8;  % nrChannels in your device.
         debug = false;
+        
+        % EEG parms that need fast acces (and therefore not a property)        
+        eegAfterTrial = []; % Function handle fun(eeg,time,starstimObject)
+        eegAfterFrame = []; % Functiona handle fun(eeg,time,starstimObject)
+        eegStore@logical= false; % Store the eeg data in the starstim object
     end
     % Public Get, but set through functions or internally
     properties (SetAccess=protected, GetAccess= public)
@@ -85,7 +90,10 @@ classdef starstim < neurostim.stimulus
         matNICVersion;
         code@containers.Map = containers.Map('KeyType','char','ValueType','double');
         mustExit@logical = false;
-        
+       
+        lsl=[];  % The LsL library
+        inlet=[];  % An LSL inlet
+
     end
     
     % Public Get, but set through functions or internally
@@ -108,9 +116,13 @@ classdef starstim < neurostim.stimulus
         protocolStatus@char;    % Current protocol status (queries the NIC)        
         isProtocolOn@logical;
         isProtocolPaused@logical;
+        eegOnline@logical;
     end
     
     methods % get/set dependent functions
+        function v = get.eegOnline(o)
+            v = ~(isempty(o.eegAfterTrial)|| isempty(o.eegAfterFrame));
+        end
         function [v] = get.status(o)
             if o.fake
                 v = ' Fake OK';
@@ -214,6 +226,14 @@ classdef starstim < neurostim.stimulus
             
             o.addProperty('marker',''); % Used to log markers sent to NIC
             
+            
+            o.addProperty('eegChannels',[]);
+            o.addProperty('eegMaxBuffered',360);% Samples in seconds in buffer.
+            o.addProperty('eegRecover',true);  % Try to recover lost connections
+            o.addProperty('eegChunkSize',0); % nr samples per chunk (0 = use senders default)
+            o.addProperty('eeg',[]); % Collects eeg data per pull (but only if eegStore ==true)
+            o.addProperty('eegTime',[])% Starstim time corresponding to eeg data.
+            
             % Define  marker events to store in the NIC data file
             o.code('trialStart') = 1;
             o.code('rampUp') = 2;
@@ -283,6 +303,22 @@ classdef starstim < neurostim.stimulus
                 end
                 protocolSet = MatNICProtocolSet();
                 o.matNICVersion = protocolSet('MATNIC_VERSION');
+            end
+            
+            % Prepare for EEG reading
+            if ~isempty(o.eegChannels)
+                if isempty(o.lsl)
+                    o.lsl = lsl_loadlib;
+                end
+                if isempty(o.inlet)
+                    stream = lsl_resolve_byprop(o.lsl,'type','EEG');
+                    if isempty(stream)
+                        error('Failed to creat an EEG inlet');
+                    else
+                        o.inlet = lsl_inlet(stream{1},o.eegMaxBuffered,o.eegChunkSize,double(o.eegRecover));
+                        o.inlet.open_stream;% Start buffering
+                    end
+                end
             end
         end
         
@@ -389,7 +425,10 @@ classdef starstim < neurostim.stimulus
                 otherwise
                     o.cic.error(['Unknown starstim mode :' o.mode]);
             end
-            
+        end
+        
+        function afterFrame(o)   
+            handleEeg(o,o.eegAfterFrame);                        
         end
         
         function afterTrial(o)
@@ -411,11 +450,23 @@ classdef starstim < neurostim.stimulus
             
             % Send a trial start marker to the NIC
             sendMarker(o,'trialStop');
+            handleEeg(o,o.eegAfterTrial);
         end
         
+        
+        function handleEeg(o,fun)
+            % fun is a function_handle : either o.eegAfterTrial or
+            % o.eegAfterFrame                        
+            if ~isempty(fun)                    
+                    [eeg,time] = o.inlet.pull_chunk;                    
+                    eeg = eeg(o.eegChannels,:)';
+                    time = time';                    
+                    fun(eeg,time,o); % [nrSamples nrChannels]
+            end
+        end
         function afterExperiment(o)
             
-        if isvalid(o.tmr)
+            if isvalid(o.tmr)
                 o.tmr.stop; % Stop the timer
             end
             rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
