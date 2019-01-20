@@ -274,7 +274,7 @@ classdef ripple < neurostim.plugin
                     o.cic.error('STOPEXPERIMENT','Failed to start recording on Trellis. Is ''remote control''  enabled in the Trellis GUI?');
                 end
             end
-            o.startStave = o.nipTime;
+            o.startSave = o.nipTime;
             o.writeToFeed(['Trellis is now recording to ' o.cic.fullFile]);                        
         end
         function afterExperiment(o)
@@ -290,7 +290,7 @@ classdef ripple < neurostim.plugin
                 pause (1); 
                 o.cic.error('STOPEXPERIMENT','Stop recording on Trellis failed...?');
             end
-            o.stopStave = o.nipTime;            
+            o.stopSave = o.nipTime;            
             xippmex('close'); % Close the link
             o.writeToFeed('Trellis has stopped recording.');
         end
