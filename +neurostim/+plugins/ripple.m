@@ -242,7 +242,7 @@ classdef ripple < neurostim.plugin
             while(~strcmpi(o.status,'stopped'))
                 pause (1);
                 if toc > 5 % 5 s timeout to stop
-                    o.cic.error('Failed to stop Trellis?');
+                    o.cic.error('STOPEXPERIMENT','Failed to stop Trellis');
                 end
             end
             
