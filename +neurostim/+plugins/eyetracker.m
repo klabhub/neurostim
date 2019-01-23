@@ -18,6 +18,7 @@ classdef eyetracker < neurostim.plugin
     properties (Access=public)
         useMouse@logical=false;
         keepExperimentSetup@logical=true;
+        eye@char='LEFT'; % LEFT,RIGHT, or BOTH
     end
     
     properties
@@ -41,10 +42,9 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('clbTargetColor',[1,0,0]);
             o.addProperty('clbTargetSize',0.25);
             o.addProperty('continuous',false);
-            
-            o.addProperty('clbMatrix',[],'sticky',true); % manual calibration matrix (optional)
-
             o.addProperty('tolerance',3); % Used to set default tolerance on behaviors.eyeMovement
+                        
+            o.addProperty('clbMatrix',[],'sticky',true); % manual calibration matrix (optional)
         end
         
         
