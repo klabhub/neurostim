@@ -149,7 +149,8 @@ classdef eyelink < neurostim.plugins.eyetracker
             if ~o.useMouse
                 result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
             else
-                result =0;
+                result = Eyelink('InitializeDummy', 'PsychEyelinkDispatchCallback');
+                %result =0;
             end
             
             if result ~=0
