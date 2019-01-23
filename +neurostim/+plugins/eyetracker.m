@@ -1,28 +1,29 @@
 classdef eyetracker < neurostim.plugin
-% Generic eyetracker base class.
+% Generic eyetracker class for PTB.
 %
 % Properties:
+%   To be set by subclass: x,y,z - coordinates of eye position
+%                          eyeClockTime - for synchronization
 %
-%   x,y,z - eye position coordinates
-%   eyeClockTime - eye tracker time (for synchronization)
-%
-%   hardwareModel - description of eye tracker in use.
 %   sampleRate - rate of samples to be taken.
 %   backgroundColor - background colour for eyetracker functions.
-%   foregoundColor - foreground colour for eyetracker functions.
+%   c oundColor - foreground colour for eyetracker functions.
 %   clbTargetColor - calibration target color.
 %   clbTargetSize - calibration target size.
 %   eyeToTrack - one of 'left','right','binocular' or 0,1,2.
+%   useMouse - if set to true, uses the mouse coordinates as eye coordinates.
 
+    
+    
     properties (Access=public)
-        eye@char='LEFT'; %LEFT,RIGHT, or BOTH  
+        useMouse@logical=false;
+        keepExperimentSetup@logical=true;
     end
     
     properties
         x@double=NaN; % Should have default values, otherwise behavior checking can fail.
         y@double=NaN;
         z@double=NaN;
-        
         pupilSize@double;
         valid@logical = true;
     end
@@ -46,14 +47,18 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('tolerance',3); % Used to set default tolerance on behaviors.eyeMovement
         end
         
+        
+        
         function afterFrame(o)
-          [currentX,currentY,buttons] = o.cic.getMouse;
-          if buttons(1) || o.continuous
-            [currentX,currentY] = o.raw2ns(currentX,currentY);
+            if o.useMouse
+                [currentX,currentY,buttons] = o.cic.getMouse;
+                if buttons(1) || o.continuous
+                    [currentX,currentY] = o.raw2ns(currentX,currentY);
                     
-            o.x=currentX;
-            o.y=currentY;
-          end
+                    o.x=currentX;
+                    o.y=currentY;
+                end
+            end
         end
         
         function [x,y] = raw2ns(o,x,y,cm)
