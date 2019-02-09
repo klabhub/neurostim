@@ -554,7 +554,10 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Returns a [nrTrials nrTimes] matrix/vector of trial
             % times for a given (vector of) experiment times.
             tr = eTime2TrialNumber(o,eventTime);
-            trStartT = firstFrameTime(o);                
+            trStartT = firstFrameTime(o);   
+            if isempty(trStartT) &&  all(tr)==1               
+               error('This file contains 1 trial that did not even make it to the first frame. Nothing to analyze');
+            end
             trTime = eventTime - trStartT(tr);
         end
         
