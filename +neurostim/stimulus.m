@@ -354,8 +354,12 @@ classdef stimulus < neurostim.plugin
             % changing even if we change the physical screen size (e.g., 
             % when changing viewing distance) or being distorted by the
             % transforms above...
-            if s.flags.on && s.diode.on
-              Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);
+            if s.diode.on 
+                if s.flags.on 
+                    Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);
+                else
+                    Screen('FillRect',locWindow,1-s.diode.color,+s.diodePosition);
+                end
             end
             
         end
