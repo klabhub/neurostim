@@ -15,7 +15,12 @@ classdef gabor < neurostim.stimulus
     % Flicker settings (this moduldates the *amplitude* of the sine wave in
     % the gabor)
     %
-    % flickerMode = 'none','sine','square'
+    % flickerMode = 'none','sine','square',sineconctrast, squarecontrast.
+    %                   In the sine/square modes pixels change polarity
+    %                   (~contrast*sin(t)) in the sinecontrast/sinesquare
+    %                   modes, the pixels keep their polarity and only the
+    %                   Michelson contrasts of the sine changes
+    %                   (~contrast(1+sin(t)))
     % flickerFrequency = in Hz
     % flickerPhaseOffset = starting  phase of the flicker modulation.
     %
@@ -33,7 +38,7 @@ classdef gabor < neurostim.stimulus
 
     properties (Constant)
         maskTypes = {'GAUSS','CIRCLE','ANNULUS','GAUSS3'};
-        flickerTypes = {'NONE','SINE','SQUARE'};
+        flickerTypes = {'NONE','SINE','SQUARE','SINECONTRAST','SQUARECONTRAST'};
     end
     properties (Access=private)
         texture;
