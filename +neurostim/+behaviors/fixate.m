@@ -44,7 +44,7 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % Ignroe Entry/exit events.
             if t>o.from  % guard 1             
-                transition(o,@o.fail,e);
+                transition(o,@o.fail,e);     
             elseif isInWindow(o,e)  % guard 2
                 transition(o,@o.fixating,e);  %Note that there is no restriction on t so fixation can start any time  after t.on (which is when the behavior starts running)           
             end

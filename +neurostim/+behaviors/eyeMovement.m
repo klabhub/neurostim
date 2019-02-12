@@ -43,10 +43,6 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
         % around o.X, o.Y. A different position can be checked the same way
         % by specifying the optional third input argument.
         function value= isInWindow(o,e,XY)
-            if ~e.valid && o.allowBlinks
-                value = true; % Benefit of the doubt
-                return;
-            end
             nin=nargin;
             if nin < 3
                 XY = [o.X o.Y];                
@@ -58,6 +54,14 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
             if o.invert
                value = ~value;
             end
+            
+            if strcmpi(o.stateName,'FREEVIEWING') && o.required
+               
+            elseif ~e.valid && o.allowBlinks
+             	value = true; % Benefit of the doubt
+                return;
+            end
+                
         end        
     end
 end
