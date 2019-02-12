@@ -10,6 +10,15 @@ classdef gabor < neurostim.stimulus
     % 	width, height - maximum size of the gabor.
     % 	mask - one of 'GAUSS','CIRCLE','ANNULUS', 'GAUSS3' (truncated at 3
     % 	sigma)
+    %   phaseSpeed - the drift of the grating in degrees per frame
+    %
+    % Flicker settings (this moduldates the *amplitude* of the sine wave in
+    % the gabor)
+    %
+    % flickerMode = 'none','sine','square'
+    % flickerFrequency = in Hz
+    % flickerPhaseOffset = starting  phase of the flicker modulation.
+    %
     %
     %  This stimulus can also draw the sum of multiple gabors. You can
     %  choose the number and whether to randomize the phase. 
@@ -30,6 +39,8 @@ classdef gabor < neurostim.stimulus
         texture;
         shader;
         textureRect;
+        flickerPhase=0;
+        spatialPhase=0; 
     end
    
     
@@ -66,8 +77,7 @@ classdef gabor < neurostim.stimulus
             o.addProperty('phaseSpeed',0);
             
             %% Flicker 
-            o.addProperty('flickerMode','NONE','validate',@(x)(ismember(neurostim.stimuli.gabor.flickerTypes,upper(x))));
-            o.addProperty('flickerPhase',0,'validate',@isnumeric);
+            o.addProperty('flickerMode','NONE','validate',@(x)(ismember(neurostim.stimuli.gabor.flickerTypes,upper(x))));            
             o.addProperty('flickerFrequency',0,'validate',@isnumeric);
             o.addProperty('flickerPhaseOffset',0,'validate',@isnumeric);
             
@@ -126,7 +136,7 @@ classdef gabor < neurostim.stimulus
         function beforeFrame(o)
             % Draw the texture with the current parameter settings
             %Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] [,rotationAngle] [, filterMode] [, globalAlpha] [, modulateColor] [, textureShader] [, specialFlags] [, auxParameters]);
-            sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = 2; % = kPsychDontDoRotation; % Keep defaults
+            sourceRect= [];filterMode =[]; textureShader =[]; globalAlpha =[]; specialFlags = kPsychDontDoRotation; % Keep defaults
             
             %aux parameters need to have 4xn with n<=8 size
             oSigma  = +o.sigma;
@@ -142,14 +152,14 @@ classdef gabor < neurostim.stimulus
             % Draw the Gabor using the GLSL shader            
             aux = [+o.phase, +o.frequency, oSigma; +o.contrast +o.flickerPhase 0 0]';    
             Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, +o.orientation, filterMode, globalAlpha, oColor , textureShader,specialFlags, aux);            
-
+       
         end
         
         function afterFrame(o)
             % Change any or all of the parameters.
             oPhaseSpeed  = o.phaseSpeed;
             if oPhaseSpeed ~=0
-                o.phase = o.phase + oPhaseSpeed;
+                o.spatialPhase = o.spatialPhase + o.phase + oPhaseSpeed;
             end
             oFlickerFrequency = o.flickerFrequency;
             if  oFlickerFrequency~=0
