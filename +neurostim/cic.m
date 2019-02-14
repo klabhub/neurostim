@@ -118,6 +118,11 @@ classdef cic < neurostim.plugin
         feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
         feedCacheCntr=0;
         feedCacheWriteNow = false;
+        
+      
+    end
+    properties (SetAccess= private)
+        used =false; % Flag to make sure a user cannot reuse a cic object.
     end
     
     %% Dependent Properties
@@ -655,6 +660,8 @@ classdef cic < neurostim.plugin
         end
         
         function o = add(c,o)
+            assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
+            
             % Add a plugin.
             if ~isa(o,'neurostim.plugin')
                 error('Only plugin derived classes can be added to CIC');
@@ -870,7 +877,11 @@ classdef cic < neurostim.plugin
             % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
-           
+            
+            assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
+            c.used  = true;
+             
+            
             c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.            
                 
             %Check input
@@ -1900,6 +1911,7 @@ classdef cic < neurostim.plugin
             Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);                        
             
         end
+        
     end
     
     
