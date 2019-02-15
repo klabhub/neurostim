@@ -1,4 +1,4 @@
-classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract class that sets up some functionality used for
+ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract class that sets up some functionality used for
     % This is an abstract base class with some helper functions that simplifies
     % defining derived classes.
     %
@@ -58,10 +58,10 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
         % value =  wheter in the window or not.
         % allowedBlink  = currenty in a blink and blinks are allowed.
         function [value,allowedBlink]= isInWindow(o,e,XY)
-            if ~e.valid
-                allowedBlink = o.allowBlinks;
-                value= false;
-            else
+%             if ~e.valid
+%                 allowedBlink = o.allowBlinks;
+%                 value= false;
+%             else
                 allowedBlink = false;
                 nin=nargin;
                 if nin < 3
@@ -73,7 +73,7 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
                 if o.invert
                     value = ~value;
                 end                
-            end
+            %end
         end       
     end
 end
