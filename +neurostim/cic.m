@@ -1779,7 +1779,7 @@ classdef cic < neurostim.plugin
             v = GetSecs*1000;
         end
                                 
-        function o = loadobj(o)
+        function n = loadobj(o)
            % If the last trial does not reach firstFrame, then
            % the trialTime (which is relative to firstFrame) cannot be calculated 
            % This happens, for instance, when endExperiment is called by a plugin 
@@ -1795,7 +1795,20 @@ classdef cic < neurostim.plugin
                     mTimeBetweenFF = median(diff(t));
                     fakeFF = t(end) + mTimeBetweenFF;
                     storeInLog(o.prms.firstFrame,fakeFF,NaN)
-            end
+           end
+            
+           if isfield(o,'blockFlow')
+               n = neurostim.cic;
+               oldFields = fieldnames(o);
+               newFields = properties(n);
+               for i=1:numel(oldFields)
+                   if ismember(oldFields{i},newFields)
+                       n.(oldFields{i}) = o.(oldFields{i});
+                   end
+               end    
+           else
+               n=o;
+           end
                         
         end
     end
