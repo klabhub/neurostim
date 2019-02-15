@@ -27,7 +27,7 @@ classdef eyetracker < neurostim.plugin
         y@double=NaN;
         z@double=NaN;
         pupilSize@double;
-        valid@logical = true;
+        valid@logical = true;  % valid=false signals a temporary absence of data (due to a blink for instance)
     end
     
     methods

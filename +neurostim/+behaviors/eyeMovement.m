@@ -21,6 +21,7 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
            end
            o.addProperty('tolerance',defaultTolerance,'validate',@isnumeric);  % tolerance is the window size         
            o.addProperty('invert',false,'validate',@isnumeric); %Invert the meaning of "in the window'
+           o.addProperty('allowBlinks',false,'validate',@islogical);
            if ~hasPlugin(c,'eye')
                warning('No eye data in CIC. This behavior control is unlikely to work');
            end
@@ -32,7 +33,7 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
             e = neurostim.event;  % Create an object of event type
             e.X = o.cic.eye.x;  % Fill it with relevant data from the eye tracker.
             e.Y = o.cic.eye.y;
-            e.valid = o.cic.eye.valid; % To detect blinks
+            e.valid = o.cic.eye.valid; % valid==false means a blink 
         end
      end
           
@@ -42,7 +43,7 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
         % around o.X, o.Y. A different position can be checked the same way
         % by specifying the optional third input argument.
         function value= isInWindow(o,e,XY)
-            if ~e.valid
+            if ~e.valid && o.allowBlinks
                 value = true; % Benefit of the doubt
                 return;
             end

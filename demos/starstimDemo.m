@@ -5,7 +5,7 @@ c = myRig('debug',true);
 c.screen.colorMode = 'RGB'; % Allow specification of RGB luminance as color
 c.screen.color.text = [1 0 0];  % Red text 
 c.screen.color.background = [0.5 0.5 0.5]; % A high luminance background that looks "white" (same luminance for each gun)
-c.dirs.output = 'z:/klab/';
+c.dirs.output = 'c:/temp/';
 
 c.screen.type = 'GENERIC';
 c.trialDuration = 4000;

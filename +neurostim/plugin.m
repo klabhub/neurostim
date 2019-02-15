@@ -138,6 +138,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             end
         end
         
+        function makeSticky(o,prp)
+            % Make this property sticky (i.e. keep a value across trials).
+            if ~isfield(o.prms,prp)
+                error([prp ' is not a property of ' o.name]);
+            end
+            o.prms.(prp).sticky = true; % plugin class has setaccess to this
+        end
+        
         function duplicateProperty(o,parm)
             % First check if it is already there.
             h =findprop(o,parm.name);
@@ -420,7 +428,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % Check whether this plugin should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
             % avoid the overhead of calling this every draw.
-            if strcmpi(o.cic.screen.type,'VPIXX-M16') && o.overlay
+            if any(strcmpi(o.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && o.overlay
                 o.window = o.cic.overlayWindow;
             else
                 o.window = o.cic.mainWindow;
@@ -519,7 +527,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         baseBeforeTrial(o);
                         if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end
                     end
-                case neurostim.stages.BEFOREFRAME
+                case neurostim.stages.BEFOREFRAME                    
                     Screen('glLoadIdentity', c.window);
                     Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
                     Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
@@ -529,7 +537,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class
                         Screen('glPopMatrix',c.window);
                         if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end
-                    end
+                    end                    
+                    Screen('glLoadIdentity', c.window); % Guarantee identity transformation in non plugin code (i.e. in CIC)
                 case neurostim.stages.AFTERFRAME
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
