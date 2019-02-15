@@ -95,7 +95,7 @@ classdef cic < neurostim.plugin
         pluginOrder; % Vector of plugin handles, sorted by execution order
         
         
-        flow@neurostim.flow= neurostim.flow;
+        flow  = neurostim.flow;
         
         %% Logging and Saving
         startTime@double    = 0; % The time when the experiment started running
@@ -1805,7 +1805,8 @@ classdef cic < neurostim.plugin
                    if ismember(oldFields{i},newFields)
                        n.(oldFields{i}) = o.(oldFields{i});
                    end
-               end    
+               end
+               n.flow= o.blocks;
            else
                n=o;
            end

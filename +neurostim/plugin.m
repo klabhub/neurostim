@@ -10,7 +10,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     
     
     
-    properties (SetAccess=private, GetAccess=public)
+    properties (SetAccess=protected, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
     end
