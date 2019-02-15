@@ -84,12 +84,12 @@ g.required = true; % This is a required behavior. Any trial in which fixation is
 
 %% ========== Specify feedback/rewards ========= 
 % Play a correct/incorrect sound for the 2AFC task
-%plugins.sound(c);           %Use the sound plugin
+plugins.sound(c);           %Use the sound plugin
 
 % Add correct/incorrect feedback
-%s= plugins.soundFeedback(c,'soundFeedback');
-%s.add('waveform','correct.wav','when','afterTrial','criterion','@choice.correct');
-%s.add('waveform','incorrect.wav','when','afterTrial','criterion','@ ~choice.correct');
+s= plugins.soundFeedback(c,'soundFeedback');
+s.add('waveform','correct.wav','when','afterTrial','criterion','@choice.correct');
+s.add('waveform','incorrect.wav','when','afterTrial','criterion','@ ~choice.correct');
 
 %% Experimental design
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
