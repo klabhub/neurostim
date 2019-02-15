@@ -28,6 +28,7 @@ commandwindow;
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
 c = myRig;
 c.addPropsToInform('choice.correct','f1.stateName'); % Show this value on the command prompt after each trial (i.e. whether the answer was correct and whether fixation was successful).
+c.subject = 'easyD';
 
 %Make sure there is an eye tracker (or at least a virtual one)
 if isempty(c.pluginsByClass('eyetracker'))
@@ -102,21 +103,15 @@ myDesign.fac2.dots.direction=[-90 90];         %Two dot directions
 % Jitter the Y position in all conditions of the 2-factor design (you have
 % to explicitly specify two ':' to represent the two factors, a single (:) is interpreted as a single factor and will fail.)
 myDesign.conditions(:,:).fix.Y =  plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
+
+% Now we use this design to create an experiment.
 % By default, an incorrect answer is simply ignored (i.e. the condition is not repeated).
-% This corresponds to myDesign.retry ='IGNORE';
+% This corresponds to retry ='IGNORE';
 % To repeat a condition immediately if the behavioral requiremnts are not met (e.g. during trainig) , specify
-% myDesign.retry = 'IMMEDIATE' 
-% You can also repeate the condition at a later random point in the block, using the 'RANDOM' mode.
-myDesign.retry = 'IMMEDIATE';
-myDesign.maxRetry = 20;  % Each condition will be retried up to 20 times. 
+% You can also repeate the condition at a later random point in the block, using the 'RANDOMINBLOCK' mode.
 % Note that because we made the choice not required, a trial with the wrong
 % answer will not be retried, only trials with a fixation break.
 
-%Specify a block of trials
-myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
-myBlock.nrRepeats=10;
-
 %% Run the experiment.
-c.subject = 'easyD';
-c.run(myBlock);
+c.run(myDesign,'retry','IMMEDIATE','maxRetry',20,'nrRepeats',10);
     

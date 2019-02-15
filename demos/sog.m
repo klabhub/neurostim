@@ -38,16 +38,19 @@ g.on                =  '@fixation.startTime.FIXATING +250'; % Start showing 250 
 % define these "conditions" in the stream.
 stream =design('ori');           % Define a factorial with one factor
 stream.fac1.grating.orientation = 0:30:359; % Assign orientations
-stream.randomization = 'RANDOMWITHOUTREPLACEMENT'; % Randomize
-g.addRSVP(stream,'duration',5*1000/c.screen.frameRate,'isi',2*1000/c.screen.frameRate); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
+% Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
+% The remaining parameters are passed to the neurostim.flow object that
+% does the randomization. nrRepeats should be big enough to generate the
+% values for a single trial.
+% g.addRSVP(stream,'duration',5*1000/c.screen.frameRate,'isi',2*1000/c.screen.frameRate,...
+%                        'nrRepeats',100,'randomization','RANDOMWITHOUTREPLACEMENT'); 
 
 % Alternatively, you may want to stream gratings with both orientation and
 % contrast varied.
-% stream =design('ovc');           % Define a factorial with two fa0ctors
-% stream.fac1.grating.orientation = 0:30:359; % Assign orientations
-% stream.fac2.grating.contrast = [0 0.25 0.5 1]; % Contrasts including 0
-% stream.randomization = 'RANDOMWITHOUTREPLACEMENT'; % Randomize
-% g.addRSVP(stream,'log',true,'duration',5*1000/c.screen.frameRate,'isi',15*1000/c.screen.frameRate); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
+ stream =design('ovc');           % Define a factorial with two fa0ctors
+ stream.fac1.grating.orientation = 0:30:359; % Assign orientations
+ stream.fac2.grating.contrast = [0 0.25 0.5 1]; % Contrasts including 0
+ g.addRSVP(stream,'log',false,'duration',5*1000/c.screen.frameRate,'isi',15*1000/c.screen.frameRate,'nrRepeats',1,'randomization','RANDOMWITHOUTREPLACEMENT'); % Tell the stimulus that it should run this stream (in every trial). 5 frames on 2 frames off.
 
 %% This is all you need for an rsvp stream. The rest is just to make it into a full experiment.
 
@@ -76,18 +79,15 @@ fix.tolerance       = 2;
 % trial.
 % d=design('contrast');           % Define a factorial with one factor
 % d.fac1.grating.contrast = 0.1:0.2:1; % From 10 to 100% contrast
-% d.randomization = 'RANDOMWITHOUTREPLACEMENT';
 
 % Or (if the stream already varies contrast and orientation, we vary
 % nothing across trials).
 d=design('dummy');           % Define a factorial with one factor
 % Nothing to vary here but we need at least one condition
 d.conditions(1).grating.X = 0; % Dummy
-blck=block('block',d);                  % Define a block based on this factorial
-blck.nrRepeats  =10;                        % Each condition is repeated this many times 
 
 %% Run the experiment   
 c.cursor = 'arrow';
 % Now tell CIC how we want to run these blocks 
-c.run(blck);
+c.run(d,'nrRepeats',10);  % Ten repeats of each condition in the design
  

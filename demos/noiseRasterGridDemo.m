@@ -44,12 +44,8 @@ c.trialDuration = 30000;
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.
 myDesign.fac1.grid.X = [-10 0 10];  
 
-%Specify a block of trials
-myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
-myBlock.nrRepeats=10;
-
 %% Run the experiment.
 c.order('grid');   %Ignore this for now - we hope to remove the need for this.
 c.subject = 'easyD';
-c.run(myBlock);
+c.run(myDesign,'nrRepeats',10);
 

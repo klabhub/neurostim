@@ -44,10 +44,6 @@ myFac.fac1.fix.X={-10 0 10};                %Three different fixation positions 
 myFac.fac2.dots.direction={-90 90};         %Two dot directions
 myFac.conditions(:).fix.Y = plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
 
-%Specify a block of trials
-myBlock=block('myBlock',myFac);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
-myBlock.nrRepeats=1;
-
 %% Run the experiment.
-c.run(myBlock);
+c.run(myFac);
     

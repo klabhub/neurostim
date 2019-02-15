@@ -47,7 +47,6 @@ end
 % Setup some dummy conditions
 d =design('dummy');
 d.conditions(1).reddot.size = 0.1; % Define a single "condition"
-blk = block('dummy',d);
-blk.nrRepeats = 10;
-c.run(blk);
+
+c.run(d,'nrRepeats',10);
 end

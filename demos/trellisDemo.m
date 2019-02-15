@@ -38,9 +38,6 @@ lm =design('lum');
 % single color (x) as [x x x].
 lum = (0.5:2:30);
 lm.fac1.patch.color = lum; 
-lm.randomization  ='sequential'; % Sequence through luminance. Press 'n' to go to the next.
-lmBlck=block('lmBlock',lm);
-lmBlck.nrRepeats  = 1;
 
 %% Run the demo
-c.run(lmBlck);
+c.run(lm);

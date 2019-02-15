@@ -51,7 +51,5 @@ y = fliplr(x);
 l = 25*ones(size(y));
 xyl.fac1.gabor.orientation = 0:30:179;
 xyl.fac2.gabor.color = num2cell([x' y' l'],2); 
-blck=block('lmBlock',xyl);
-blck.nrRepeats  = 1; % Show each location once
 %% Run
-c.run(blck);
+c.run(xyl);

@@ -73,12 +73,12 @@ classdef design <handle & matlab.mixin.Copyable
     % assigned. For instance, to jitter all X and Y positions of the dots stimulus in all
     % conditiosn:
     % d.conditions(:).dots.X = plugins.jitter(...)
-    % d.conditions(:).dots.Y = plugins.jitter(...)
-    %
-    % But if you want to jitter X only for te second level of the second factor, use:
+    % d.conditions(:).dots.Y = pluginsitter X only for te second level of the second factor, use:
     %  d.conditions(:,2).dots.X = plugins.jitter(...)
     %
-    % Note that in this case, the adaptive plugin Jitter is shared acrosss
+    % Note that in this ca.jitter(...)
+    %
+    % But if you want to jse, the adaptive plugin Jitter is shared acrosss
     % all levels that use t (i.e. the same underlying jitter object generates the
     % values). This is desirable for Jitter, but not for some staircases.
     % To use separate staircases for each level of a factor,use the
@@ -91,56 +91,25 @@ classdef design <handle & matlab.mixin.Copyable
     % Major redesign without backward compatibility
     
     properties  (SetAccess =public, GetAccess=public)
-        randomization='RANDOMWITHOUTREPLACEMENT';
-        retry = 'IGNORE'; %IGNORE,IMMEDIATE,RANDOM
-        weights@double=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
-        maxRetry = Inf;
     end
     
     properties         (SetAccess =protected, GetAccess=public)
         name@char;                      % The name of this design; bookkeeping/logging use only.
         factorSpecs@cell={};            % A cell array of condition specifications for factorial designs
         conditionSpecs@cell ={};         % Conditions specifications that deviate from the full factorial
-        list@double;                    % The order in which conditions will be run.
-        currentTrialIx =0;                   % The condition that will be run in this trial (index in to .list)
-        retryCounter = [];
     end
     
     properties (Dependent)
         nrConditions;                   % The total number of conditions in this design
         nrFactors;                      % The number fo factors in the design
-        nrPlannedTrials;                % The total number of planned trials (takes .weights into account)
-        nrTrials;                       % The total number of trials that will be run (includes retries).
         nrLevels;                       % The levels per factor
-        done;                           % True after all conditions have been run
         levels;                         % Vector subscript (factors) for the current condition
         condition;                      % Linear index of the current condition
-        nrRetried;                      % The total number of trials that have been retried.
     end
     
     
     methods  %/get/set
         
-        function v= get.done(o)
-            % Returns true if the currentTrialIx points to zero or the last
-            % trial.
-            v = ismember(o.currentTrialIx ,[0 o.nrTrials]);
-        end
-        
-        function v = get.nrTrials(o)
-            v= numel(o.list); % All trials, including retries
-        end
-        
-        function v=get.nrPlannedTrials(o)
-            % Total number of trial in this design (this includes the
-            % effect of weighting, but not the retried-trials) (so it
-            % reflects the number of planned trials).
-            v = numel(o.list)-o.nrRetried;
-        end
-        
-        function v = get.nrRetried(o)
-            v = sum(o.retryCounter);
-        end
         
         function v= get.nrFactors(o)
             %Number of factors in the design
@@ -165,17 +134,6 @@ classdef design <handle & matlab.mixin.Copyable
             end
         end
         
-        function v = get.levels(o)
-            % The currrent condition as a subscript into
-            % the factorial design: % [2 3] = 2nd level first factor, 3rd level 2nd factor.
-            % For a non-factorial design this is [i 1] with i the condition
-            v= cond2lvl(o,o.condition);
-        end
-        
-        function v = get.condition(o)
-            % Linear index for the current condition
-            v= o.list(o.currentTrialIx);
-        end
         
     end
     
@@ -188,7 +146,7 @@ classdef design <handle & matlab.mixin.Copyable
             % specs for the current condition.
             
             if nargin <2
-                cond = o.condition;
+                cond = 1;
             end
             lvls = cond2lvl(o,cond);
             if isscalar(lvls)
@@ -269,9 +227,6 @@ classdef design <handle & matlab.mixin.Copyable
             
             if numel(f)>1
                 spcs = permute(spcs,[f others]);
-                wghts = permute(o.weights,[f others]);
-            else
-                wghts = 1;
             end
             nrY = size(spcs,1);
             nrX = size(spcs,2);
@@ -293,7 +248,7 @@ classdef design <handle & matlab.mixin.Copyable
             if nrZ>1
                 zlabel(['Factor #' num2str(f(3))])
             end
-            title([str ': ' o.name ' :' num2str(o.nrFactors) '-way design. Rand: ' o.randomization]);
+            title([str ': ' o.name ' :' num2str(o.nrFactors) '-way design.']);
             hold on
             for k=1:nrZ
                 for i=1:nrY
@@ -310,11 +265,7 @@ classdef design <handle & matlab.mixin.Copyable
                             end
                             this = char(this,strcat(spcs{i,j,k}{prm,1},'.',spcs{i,j,k}{prm,2},'=',val));
                         end
-                        if numel(wghts)>1
-                            this =char(this,['Weight=' num2str(wghts(i,j,k))]);
-                        else
-                            this =char(this,['Weight=' num2str(wghts)]);
-                        end
+                        this =char(this);
                         cndNr = ['Condition: ' num2str(sub2ind([nrY nrX nrZ],i,j,k)) ];
                         this  = char(this,cndNr);
                         text(j,i,k,this,'HorizontalAlignment','Left','Interpreter','none','VerticalAlignment','middle')
@@ -335,65 +286,7 @@ classdef design <handle & matlab.mixin.Copyable
             o2.name = nm;
         end
         
-        % Called from block/afterTrial with information ont he success of
-        % the previous trial. If success is false, the trial can be repeated
-        % at a later time.
-        function retry = afterTrial(o,success)
-            if success || strcmpi(o.retry,'IGNORE') ||   o.retryCounter(o.condition) >= o.maxRetry
-                retry = 0;
-                return; % Nothing do do: either we don't want to retry, or we've retried the max already.
-            end
-            
-            switch upper(o.retry)
-                case 'IMMEDIATE'
-                    insertIx = o.currentTrialIx +1 ;
-                case 'RANDOM'
-                    % Add the current to a random position in the list
-                    % (past tbe current), then go to the next in the
-                    % list.
-                    insertIx= randi([o.currentTrialIx+1 numel(o.list)+1]);
-                otherwise
-                    error(['Unknown retry mode: ' o.retry]);
-            end
-            % Put a new item in the list.
-            newList = cat(1,o.list(1:insertIx-1),o.list(o.currentTrialIx));
-            if insertIx<=numel(o.list)
-                newList= cat(1,newList,o.list(insertIx:end));
-            end
-            o.list = newList;
-            retry = 1;
-            o.retryCounter(o.condition) = o.retryCounter(o.condition) +1;  % Count the retries
-        end
-        
-        function ok = beforeTrial(o)
-            % Move the index to the next condition in the trial list.
-            % Returns false if this is not possible (i.e. the design has been run completely).
-            if o.currentTrialIx == numel(o.list)
-                ok = false; % No next trial possible. Caller will have to shuffle the design or pick a new one.
-            else
-                ok = true;
-                o.currentTrialIx =o.currentTrialIx +1;
-            end
-        end
-        
-        function shuffle(o)
-            % Shuffle the list of conditions and set the "currentTrialIx" to
-            % the first one in the list
-            conds=ones(1,o.nrConditions);
-            conds=cumsum(conds);
-            weighted=repelem(conds(:),o.weights(:));
-            weighted=weighted(:);
-            switch upper(o.randomization)
-                case 'SEQUENTIAL'
-                    o.list=weighted;
-                case 'RANDOMWITHREPLACEMENT'
-                    o.list=datasample(weighted,numel(weighted));
-                case 'RANDOMWITHOUTREPLACEMENT'
-                    o.list=Shuffle(weighted);
-            end
-            o.retryCounter = zeros(o.nrConditions,1);
-            o.currentTrialIx =1; % Reset the index to start at the first entry
-        end
+       
         
         function o = subsasgn(o,S,V)
             % subsasgn to create special handling of .weights .conditions, and
@@ -530,7 +423,7 @@ classdef design <handle & matlab.mixin.Copyable
                             end
                             thisV = V{srcSub{:}};
                             if isa(thisV,'neurostim.plugins.adaptive')
-                                thisV.belongsTo(o.name,o.lvl2cond(ix(i,:))); % Tell the adaptive to listen to this design/level combination
+                                thisV.active =false; % By default do not receive updates. flow changes this when needed.
                             end
                             
                             % add to previous, or replace if it refers to the same property
@@ -553,7 +446,7 @@ classdef design <handle & matlab.mixin.Copyable
                         end
                         ix = ix{1};
                         if  isa(V,'neurostim.plugins.adaptive')
-                            V.belongsTo(o.name,ix); % Tell the adaptive to listen to this design/level combination
+                            V.active = false;  % Inactive by default. 
                         end
                         assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object. You may get the desired functionality by defining a parameter in another plugin/stimulus and then use a neurostim function to define the CIC propert (e.g. c.trialDuration = ''@myStimulus.trialDuration'')']);                        
                         if ix> numel(o.conditionSpecs)  || isempty(o.conditionSpecs{ix})

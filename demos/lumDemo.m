@@ -84,19 +84,16 @@ lm =design('lum');
 % single color (x) as [x x x].
 lum = (0.5:2:30);
 lm.fac1.patch.color = lum; 
-lm.randomization  ='sequential'; % Sequence through luminance. Press 'n' to go to the next.
-lmBlck=block('lmBlock',lm);
-lmBlck.nrRepeats  = 1;
-
+lmBlck=flow(c,'nrRepeats',1,'randomization','sequential');
+lmBlck.addTrials(lm);
 
 gr =design('greenred');
 % In this block we ramp the luminance of the red gun up from 0.5 to 30, and
 % the luminance of the green gun down from 30 to 0.5. So this should look
 % like a patch that is first green and then turns more red over time.
 gr.fac1.patch.color = num2cell([lum' fliplr(lum)' zeros(numel(lum),1)],2) ;
-gr.randomization  ='sequential'; % Sequence through luminance. Press 'n' to go to the next.
-grBlck=block('lmBlock',gr);
-grBlck.nrRepeats  = 1;
+grBlck=flow(c,'nrRepeats',1,'randomization','sequential');
+grBlck.addTrials(gr);
 
 
 %% Run the demo

@@ -95,10 +95,7 @@ c.trialDuration = inf;                        % Trials are infinite, but the sac
 %Specify experimental conditions
 myDesign=design('dummy');                       %Type "help neurostim/design" for more options.
 myDesign.fac1.dots.direction = [-90 90];        % Up /Down
-myDesign.retry = 'IMMEDIATE';
-myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
-myBlock.nrRepeats=10;
 
 %% Run it
-c.run(myBlock);
+c.run(myDesign,'nrRepeats',10,'retry','immediate');
     

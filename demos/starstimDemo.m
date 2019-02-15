@@ -129,13 +129,12 @@ stm.amplitude = 1000*inout;
 d.fac1.starstim.frequency = [5 40];
 d.fac2.starstim.duration  = [1000 2000];
 d.fac3.starstim.amplitude = {500*inout, 2000*inout};
-d.randomization = 'RANDOMWITHREPLACEMENT';
-blck=block('dummyBlock',d); 
-blck.nrRepeats  = 15;
+
+
 c.trialDuration = 3000; 
 c.iti= 1000;
 c.addPropsToInform('starstim.amplitude','starstim.frequency','starstim.duration')
-c.run(blck); 
+c.run(d,'nrRepeats',15,'randomization','RANDOMWITHREPLACEMENT'); 
 
 
 

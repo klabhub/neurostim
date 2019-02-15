@@ -107,6 +107,7 @@ switch computerName
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',40,'frameRate',hz,'screenNumber',scrNr);
         smallWindow = false;
         Screen('Preference', 'SkipSyncTests', 2);
+             c.hardware.keyEcho = true;
         %         else
         %             scrNr = 1;
         %             rect = Screen('rect',scrNr);
@@ -123,20 +124,22 @@ switch computerName
         InitializePsychSound(1)
         devs = PsychPortAudio('GetDevices');
         c.hardware.sound.device = devs(strcmpi({devs.DeviceName},'Microsoft Sound Mapper - Output')).DeviceIndex; % Automatic sound hardware detection fails on this machine. Specify device 1
-        %if pin.Results.debug
+        c.hardware.keyEcho = true;
+        if pin.Results.debug 
         smallWindow = true ;
-        %else
-        %    smallWindow = false;
-        %end
+        else
+            smallWindow = false;
+        end
         c.useConsoleColor = true;
         Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
     case 'SURFACE2017'
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,30),'screenNumber',scrNr);
         smallWindow = true;
         c.dirs.output= 'c:/temp';
+        c.hardware.keyEcho  =true;
         c.useConsoleColor = true;
     case '2014B'
         scrNr = 2;

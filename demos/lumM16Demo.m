@@ -79,8 +79,6 @@ lmc =design('lumAndColor');
 lmc.fac1.grey.color = (0.5:10:10.5); % Vary the luminance  patch (on the left) with calibrated luminance.
 lmc.fac2.color.color = [0 1 2 3 4 5];  % Vary the color patch with uncalibrated color indices. 0 = transparent, 1 = red, 2= green,etc.
 lmc.randomization  ='sequential'; % Press 'n' to go to the next.
-lmcBlck=block('lmBlock',lmc);
-lmcBlck.nrRepeats  = 10;
 
 %% Run the demo
-c.run(lmcBlck);
+c.run(lmc,'nrRepeats',10);
