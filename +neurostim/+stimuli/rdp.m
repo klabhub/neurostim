@@ -6,7 +6,7 @@ classdef rdp < neurostim.stimulus
     %   size - dotsize (px)
     %   coordSystem - 0: polar
     %                 1: cartesian
-    %   speed / direction - dot speed and direction (rad) (if using polar coordinates)
+    %   speed / direction - dot speed and direction (deg) (if using polar coordinates)
     %   xspeed / yspeed - dot speed in directions x and y (if using cartesian coordinates)
     %   nrDots - number of dots
     %   coherence - dot coherence (0-1)
@@ -76,7 +76,8 @@ classdef rdp < neurostim.stimulus
             % initialise dots' lifetime
             if o.lifetime ~= Inf
                 o.framesLeft = randi(o.lifetime,o.nrDots,1);
-            else o.framesLeft = ones(o.nrDots,1).*Inf;
+            else
+                o.framesLeft = ones(o.nrDots,1).*Inf;
             end
         end
         

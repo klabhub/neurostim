@@ -18,7 +18,7 @@ import neurostim.*
 
 %% Setup CIC and the stimuli.
 c = myRig;         % Create Command and Intelligence Center...
-c.trialDuration = '@fixation.startTime+3000';
+c.trialDuration = '@fixation.startTime.FIXATING+3000';
 c.screen.color.background = [0.5 0.5 0.5]; 
 
 % Create a Gabor stimulus to adadot. 
@@ -32,7 +32,7 @@ g.phaseSpeed        = 0;
 g.orientation       = 15;
 g.mask              ='CIRCLE';
 g.frequency         = 3;
-g.on                =  '@fixation.startTime +250'; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
+g.on                =  '@fixation.startTime.FIXATING +250'; % Start showing 250 ms after the subject starts fixating (See 'fixation' object below).
 
 % We want to show a rapid stream of gratings. Use the factorial class to
 % define these "conditions" in the stream.
@@ -63,8 +63,8 @@ f.on                = 0;                % On from the start of the trial
 
 
 %% Behavioral control
-fix = plugins.fixate(c,'fixation');
-fix.from            = '@fixation.startTime';  % Require fixation from the moment fixation starts (i.e. once you look at it, you have to stay).
+fix = behaviors.fixate(c,'fixation');
+fix.from            = 2000;                 % If fixation has not been achieved at this time, move to the next trial
 fix.to              = '@grating.stopTime';   % Require fixation until testGabor has been shown.
 fix.X               = '@reddot.X';
 fix.Y               = '@reddot.Y';

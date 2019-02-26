@@ -43,7 +43,7 @@ void main()
     gl_TexCoord[0] = gl_MultiTexCoord0 -vec4(size/2.0,0,0) ;
 
     /* auxParameters0   = [o.phase, o.frequency, o.sigma, ]
-       auxParameters1   = o.peakLuminance o.flickerPhase 0 0] */
+       auxParameters1   = o.contrast o.flickerPhase 0 0] */
 
     phase               = radians(auxParameters0[0]);
     freqTwoPi           = auxParameters0[1] * 2.0 * 3.141592654;
@@ -52,7 +52,7 @@ void main()
     contrast            = auxParameters1[0];
     flickerPhase        = auxParameters1[1];
     
-    orientation         = radians(90-sizeAngleFilterMode.z);
+    orientation         = radians(90.0-sizeAngleFilterMode.z);
     color               = modulateColor;
     
 }

@@ -18,6 +18,13 @@ classdef stimulus < neurostim.plugin
     %
     %
     
+    properties
+        % Function to call on onset. Used to communicate event to external hardware. See egiDemo        
+        % This function takes a stimulus object and the flipTime (i.e. the
+        % time when the stimulus started showing on the screen) as its
+        % input
+        onsetFunction=[]; 
+    end
     
     properties (Dependent)
         off;
@@ -28,7 +35,7 @@ classdef stimulus < neurostim.plugin
         
     end
     
-    properties (Access=protected)
+    properties (SetAccess=protected, GetAccess=public)
         flags = struct('on',true);
         stimstart = false;
         stimstop = false;
@@ -155,6 +162,7 @@ classdef stimulus < neurostim.plugin
     methods (Access=private)
         
         function s = updateRSVP(s)
+            % Called from baseBeforeFrame only when the stimulus is on.
             %How many frames for item + blank (ISI)?
             nFramesPerItem = s.cic.ms2frames(s.rsvp.duration+s.rsvp.isi);
             %How many frames since the RSVP stream started?
@@ -182,7 +190,7 @@ classdef stimulus < neurostim.plugin
             if s.rsvp.log
                 if itemFrame == 0
                     s.rsvpIsi = false;
-                elseif itemFrame==startIsiFrame;
+                elseif itemFrame==startIsiFrame
                     s.rsvpIsi = true;
                 end
             end
@@ -220,7 +228,7 @@ classdef stimulus < neurostim.plugin
             % Check whether this stimulus should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
             % avoid the overhead of calling this every draw.
-            if strcmpi(s.cic.screen.type,'VPIXX-M16') && s.overlay
+            if any(strcmpi(s.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && s.overlay
                 s.window = s.cic.overlayWindow;
             else
                 s.window = s.cic.mainWindow;
@@ -276,23 +284,24 @@ classdef stimulus < neurostim.plugin
             %Should the stimulus be drawn on this frame?
             % This partially duplicates get.onFrame get.offFrame
             % code to minimize computations (and especially dynprop
-            % evaluations which can be '@' functions and slow)
-            sOn = s.on;
-            sOnFrame = inf;  %Adjusted as needed in the if/then
+            % evaluations which can be '@' functions and slow)           
             sOffFrame = inf;                
             cFrame = s.cic.frame;
             if s.alwaysOn
                 s.flags.on =true;
-            else               
+            else   
+                sOn = +s.on;          
                 if isinf(sOn)
                     s.flags.on =false; %Dont bother checking the rest
                 else
-                    sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
+                    sOnFrame = round(sOn.*s.cic.screen.frameRate/1000)+1;
+                    %sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
                     if cFrame < sOnFrame % Not on yet.
                         s.flags.on = false;
                     else % Is on already or turning on. Checck that we have not
                         % reached full duration yet.
-                        sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
+                        sOffFrame = round((sOn+s.duration)*s.cic.screen.frameRate/1000);
+                        %sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
                         s.flags.on = cFrame <sOffFrame;
                     end
                 end
@@ -345,8 +354,8 @@ classdef stimulus < neurostim.plugin
             % changing even if we change the physical screen size (e.g., 
             % when changing viewing distance) or being distorted by the
             % transforms above...
-            if s.flags.on && s.diode.on
-              Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);
+            if s.diode.on  && s.flags.on 
+                Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);                
             end
             
         end
@@ -397,10 +406,13 @@ classdef stimulus < neurostim.plugin
     end
     
     methods (Access = {?neurostim.cic})
-        function afterFlip(s,flipTime)
+        function afterFlip(s,flipTime,ptbTime)
             if s.logOnset
                 s.startTime = flipTime;
                 s.logOnset = false;
+                if ~isempty(s.onsetFunction)
+                    s.onsetFunction(s,ptbTime);
+                end
             elseif s.logOffset
                 s.stopTime = flipTime;
                 s.logOffset = false;

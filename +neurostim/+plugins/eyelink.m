@@ -9,6 +9,23 @@ classdef eyelink < neurostim.plugins.eyetracker
     % than the main cic.screen.color.background during calibration
     % then set c.eye.backgroundColor.
     %
+    % Use with non RGB color modes.
+    % 
+    % Eyelink toolbox can only draw to the main window, this complicates
+    % working with VPIxx and similar devices. 
+    % All drawing of graphics (calibration donut, the camera image) uses
+    % commands that are processed by the PTB pipeline. Therefore, if you
+    % are in LUM mode (i.e. a single number specifies the gray scale
+    % luminance of the pixel), you should specify eye.backroundColor etc in the same 
+    % format. 
+    % Text, however, is problematic as it does not appear to go through the
+    % pipeline (not an Eyelink specific issue), and becuase you cannot tell
+    % Eylink to write text to an overlay, you cannot use an overlay's
+    % indices either. I have not found a solution to this, and have just
+    % accepted for now that the text will appear black/dark grey in VPIXX  M16
+    % mode (BK - Oct 2018). Usually not critical anyway.
+    %
+    %
     % Properties
     %   getSamples - if true, stores eye position/sample validity on every frame.
     %   getEvents - if true, stores eye event data in eyeEvts.
@@ -49,8 +66,6 @@ classdef eyelink < neurostim.plugins.eyetracker
     % TK, BK,  2016,2017
     properties
         el@struct;  % Information structure to communicate with Eyelink host
-        eye='LEFT'; %LEFT,RIGHT, or BOTH
-        valid;
         commands = {'link_sample_data = GAZE'};
         edfFile@char = 'test.edf';
         getSamples@logical=true;
@@ -92,6 +107,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('eyeEvts',struct);
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
             o.addProperty('clbType','HV9');
+            o.addProperty('host','');
         end
         
         function beforeExperiment(o)
@@ -105,9 +121,19 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % then use screen background
                 o.backgroundColor = o.cic.screen.color.background;
             end
+            if isempty(o.clbTargetColor)
+                % If the user did not set the calibration target color 
+                % then make it maximally different from the background (5%)
+                o.clbTargetColor = max(o.backgroundColor)-0.95*o.backgroundColor;
+            end
+            if isempty(o.foregroundColor)
+                o.foregroundColor = o.cic.screen.color.text;
+            end
             o.el.backgroundcolour  = o.backgroundColor;
-            o.el.calibrationtargetcolour = o.clbTargetColor;
-            o.el.msgfontcolour = o.cic.screen.color.text;
+            o.el.foregroundcolour  = o.foregroundColor;
+            o.el.msgfontcolour = o.foregroundColor;
+            o.el.imgtitlecolour = o.foregroundColor;
+            o.el.calibrationtargetcolour = o.clbTargetColor;            
             
             o.el.calibrationtargetsize = o.clbTargetSize/o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
@@ -116,12 +142,15 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.el.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
             end
             
-            
+            if ~isempty(o.host)  &&  Eyelink('IsConnected')==0
+                Eyelink('SetAddress',o.host);
+            end
             %Initialise connection to Eyelink.
             if ~o.useMouse
                 result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
             else
-                result =0;
+                result = Eyelink('InitializeDummy', 'PsychEyelinkDispatchCallback');
+                %result =0;
             end
             
             if result ~=0
@@ -134,7 +163,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             % Tell eyelink about the o.el properties we just set.
             PsychEyelinkDispatchCallback(o.el);
             
-            %Tell Eyelink about the pixel coordinates    
+            %Tell Eyelink about the pixel coordinates
             rect=Screen(o.window,'Rect');
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
             Eyelink('Command', 'calibration_type = %s',o.clbType);
@@ -187,7 +216,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 for i=1:o.nTransferAttempts
                     writeToFeed(o,'Attempting to receive Eyelink edf file');
                     
-                     status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
+                    status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
                     if status>0
                         o.edfFile = newFileName;
                         writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
@@ -233,14 +262,11 @@ classdef eyelink < neurostim.plugins.eyetracker
             if ~o.isRecording
                 Eyelink('StartRecording');
                 available = Eyelink('EyeAvailable'); % get eye that's tracked
-                if available == o.el.BINOCULAR
-                    o.eye = o.el.LEFT_EYE;
-                elseif available == -1
-                    %                     o.eye = available;
-                    %                     o.eye = o.el.LEFT_EYE;
+                if available ==-1
+                    % No eye
                     o.cic.error('STOPEXPERIMENT','eye not available')
                 else
-                    o.eye = available;
+                    o.eye = eye2str(o,available);
                 end
             end
             
@@ -249,7 +275,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('Message','TRIALID %d-%d',o.cic.condition,o.cic.trial);
             
             o.eyeClockTime = Eyelink('TrackerTime');
-            o.writeToFeed(num2str(o.eyeClockTime/100));
+            %o.writeToFeed(num2str(o.eyeClockTime/100));
             
         end
         
@@ -266,8 +292,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % get the sample in the form of an event structure
                     sample = Eyelink( 'NewestFloatSample');
                     % convert to physical coordinates
-                    [o.x,o.y] = o.cic.pixel2Physical(sample.gx(o.eye+1),sample.gy(o.eye+1));    % +1 as accessing MATLAB array
-                    o.pupilSize = sample.pa(o.eye+1);
+                    eyeNr = str2eye(o,o.eye);
+                    [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
+                    o.pupilSize = sample.pa(eyeNr+1);
                     o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;
                 end %
             end
@@ -311,9 +338,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.commands= {};
             else
                 o.commands = cat(2,o.commands,{commandStr});
-                if ~isempty(strfind(upper(commandStr),'LINK_SAMPLE_DATA'))
+                if ~isempty(strfind(upper(commandStr),'LINK_SAMPLE_DATA')) %#ok<STREMP>
                     o.getSamples = true;
-                elseif ~isempty(strfind(upper(commandStr),'LINK_EVENT_DATA'))
+                elseif ~isempty(strfind(upper(commandStr),'LINK_EVENT_DATA')) %#ok<STREMP>
                     o.getEvents = true;
                 end
             end
@@ -339,5 +366,24 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
         end
         
+        function str  = eye2str(o,eyeNr)
+            % Convert an eyelink number to a string that identifies the eye
+            % Matching with plugnis.eyetracker)
+            eyes = {'LEFT','RIGHT','BOTH'};
+            eyeNrs = [o.el.LEFT_EYE,o.el.RIGHT_EYE,o.el.BINOCULAR];
+            str = eyes{eyeNr ==eyeNrs};
+        end
+        
+        function nr = str2eye(o,eye)
+            % Convert a string that identifies the eye
+            %  to an eyelink number
+            eyes = {'LEFT','RIGHT','BOTH','BINOCULAR'};
+            eyeNrs = [o.el.LEFT_EYE,o.el.RIGHT_EYE,o.el.BINOCULAR,o.el.BINOCULAR];
+            nr = eyeNrs(strcmpi(eye,eyes));
+        end
+        
+        
+            
     end
+    
 end
