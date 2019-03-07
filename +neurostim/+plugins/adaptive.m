@@ -20,13 +20,12 @@ classdef (Abstract) adaptive < neurostim.plugin
         % update(s) should change the internal state of the adaptive object using the outcome of the current
         % trial (result = TRUE/Correct or FALSE/Incorrect).
         update(s,result);
-        % getValue returns the current parameter value.
-        v= getValue(s);
+        % getAdaptValue returns the current parameter value from the adaptive algorithm.
+        v= getAdaptValue(s);
     end
     
     methods
         %% Operators to allow easy use of adaptive parameters in functions
-                
         function v = plus(x1,x2)            
             if isa(x1,'neurostim.plugins.adaptive')
                 x1 = getValue(x1);
@@ -90,10 +89,25 @@ classdef (Abstract) adaptive < neurostim.plugin
             v =rdivide(x1,x2);
         end
         
-%         function v = horzcat(varargin)
-%           Not possible becuase of the Sealed method in heterogeneous
-%         end
+        %         function v = horzcat(varargin)
+        %           Not possible becuase of the Sealed method in heterogeneous
+        %         end
         
+        function v = getValue(x1)
+            if isempty(x1.overruleValue)
+                v = getAdaptValue(x1);
+            else
+                v = x1.overruleValue;
+            end
+        end
+        function overrule(x1,newValue)
+            %Manually intervene to set the adaptive parameter to a value different
+            %from that returned by the current state of the adaptive algorithm.
+            %This ensures that update() is based on the actual value used
+            %rather than the one initially suggested.
+            %Overrided value used only for the current trial.
+            x1.overruleValue = newValue;
+        end
     end
     
     
@@ -116,11 +130,12 @@ classdef (Abstract) adaptive < neurostim.plugin
             o.addProperty('conditions',[]);% The condition that this adaptive parameter belongs to. Will be set by design.m
             o.addProperty('design',''); % This parm belongs to paramters in this design. (Set by design.m)
             o.addProperty('ignoreN',0); % Used to ignore the first N trials (set to 1 to ignroe the first, often missed trial)
+            o.addProperty('overruleValue',[]); %used to manually set the adaptive parameter value (for the rest of current trial) to something other than that returned by the adaptive algorithm. Ensures update() is based on the actual tested value. 
             o.uid = u;
             o.trialOutcome = funStr;
             
         end
-        
+
         function belongsTo(o,dsgn,cond)
             if ~isempty(o.design) && ~strcmpi(o.design,dsgn)
                 error('Not sure this works... one adaptive parm belongs to two designs?');

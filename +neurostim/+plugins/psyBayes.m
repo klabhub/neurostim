@@ -56,7 +56,8 @@ classdef psyBayes < neurostim.plugins.adaptive
             p.addParameter('rangeLambda',[0 0.5 21]); % Lapse rate
             p.addParameter('priorsMu',[0 3]);         % mean and sigma of (truncated) Student's t prior over MU
             p.addParameter('priorsLogSigma',[2.05 1.40]); % mean and sigma of (truncated) Student's t prior over log SIGMA (Inf std means flat prior)
-            p.addParameter('priorsLambda',[1 19]);  % alpha and beta parameters of beta pdf over LAMBDA
+            p.addParameter('priorsLambda',[1 19]);  % alpha and beta parameters of beta pdf over 
+            p.addParameter('gamma',0.5);            %Guess-rate when usinf psyfun_pcorrect
             p.addParameter('unitsX','deg');         % Units are used only for graphs.
             p.addParameter('unitsMu','deg');
             p.addParameter('unitsSigma','deg');
@@ -76,6 +77,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             
             % Copy the parameter settings to a struct.
             psy = [];
+            psy.gamma = p.Results.gamma;
             psy.psychofun = p.Results.psychofun;
             psy.x = p.Results.x;
             psy.range.mu = p.Results.rangeMu;     % Psychometric function mean
@@ -102,7 +104,8 @@ classdef psyBayes < neurostim.plugins.adaptive
             % specified by the user when constructing an object of this
             % class.
             %tic;
-            parmValue = getValue(o); % This is the value that we used previously
+            %parmValue = getValue(o); % This is the value that we used previously
+            parmValue = abs(o.cic.hex.sigDiff);
                 [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
             %toc
         end
