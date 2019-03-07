@@ -49,30 +49,21 @@ classdef keyResponse < neurostim.behavior
             % Add key listener for each key on the subject keyboard
             for i = 1:numel(o.keys)
                 o.addKey(o.keys{i},o.keys{i},true); % True= isSubject
-            end
-            beforeExperiment@neurostim.behavior(o);
+            end         
         end
         
         function  e =getEvent(~)
             e= neurostim.event; % Event without key - used to process time.
         end
         
-        function beforeFrame(o)
-            % The base behavior class checks events and passes them to the
-            % state in this function. The keyResponse class does this in the
-            % keyboard event handler. But for consistency and to allow
-            % derived classes to rely on a frame-loop calling of the state
-            % functions, we implement 
-            
-            
+        function beforeFrame(o)                       
             % A simulated observer (useful to test paradigms and develop
             % analysis code).
             if ~isempty(o.simWhen)
                 if o.cic.trialTime>o.simWhen
                     keyboard(o,o.keys{o.simWhat});
                 end
-            end            
-            beforeFrame@neurostim.behavior(o);
+            end                        
         end
         
         % Ths keyboard event handler (also plays the role that getEvent

@@ -55,26 +55,21 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
                 litLogic = double(cellfun(@(x) (ismember(x,o.lit)),o.keyToButtonMapper));
                 o.startLogTime = ResponsePixx('StartNow', true,litLogic,o.intensity); % Clear log
                 o.startedLogger = true;
-            end
-            
-            
-            % Calll parent beforeFrame (to simulate responses and to call
-            % the behavior class beforeFrame as well to generate events that
-            % do not depend on the keyboard)
+            end                        
+            % Calll parent beforeFrame (to simulate responses)
             beforeFrame@neurostim.behaviors.keyResponse(o);
         end
         
         
         function afterTrial(o)
             o.stopLogTime = ResponsePixx('StopNow',true);
-            o.startedLogger = false;
-            afterTrial@neurostim.behaviors.keyResponse(o);
+            o.startedLogger = false;      
         end
         
         function beforeExperiment(o)
             ResponsePixx('Close');
             ResponsePixx('Open',o.NRSAMPLES,o.BASEADDRESS,o.NRBUTTONS);
-            beforeExperiment@neurostim.behaviors.keyResponse(o); 
+            beforeExperiment@neurostim.behaviors.keyResponse(o);        
         end
         
         function afterExperiment(o)

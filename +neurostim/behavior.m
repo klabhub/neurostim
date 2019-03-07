@@ -107,31 +107,31 @@ classdef (Abstract) behavior <  neurostim.plugin
         
     end
     
-    
-    methods (Access=public)
-        
-        % Users should add functionality by defining new states, or
-        % if a different response modailty (touchbar, keypress, eye) is
-        % needed, by overloading the getEvent function.
-        % When overloading the regular plugin functions beforeXXX/afterXXX,
-        % make sure to also call the functions defined here.
-        
-        function beforeExperiment(o)
-            assert(~isempty(o.beforeTrialState),['Behavior ' o.name '''s beforeTrialState has not been defined']);
+    methods (Access =public,Sealed)
+        % By overloading the baseXXX functions (insstead of the beforeXXX) we ensure that
+        % these functions are always called, even if a derived class
+        % defines a new before/afterXXX member. The derived before/afters
+        % will simply be called after the code in this
+        % behaviors class.
+        % We do this by calling the plugin.baseXXX functions so that any
+        % functionality that is created there now (or in the future) is 
+        % also used for behaviors. 
+        % Currently only a subset of before/afters is needed in the
+        % behavior class but future expansions should follow the same
+        % logic.
+        function baseBeforeExperiment(o)
+            assert(~isempty(o.beforeTrialState),['Behavior ' o.name '''s beforeTrialState has not been defined']); 
+            baseBeforeExperiment@neurostim.plugin(o); % Call base class  in plugin (which will call beforeExperiment())
         end
-        
-        
-        function beforeTrial(o)
+                
+        function baseBeforeTrial(o)
             % Reset the internal record of state start times
             o.iStartTime = containers.Map('keyType','char','ValueType','double');
-            transition(o,o.beforeTrialState,neurostim.event(neurostim.event.NOOP));
+            transition(o,o.beforeTrialState,neurostim.event(neurostim.event.NOOP));       
+            baseBeforeTrial@neurostim.plugin(o);
         end
         
-        function afterTrial(o)
-            % Send an afterTrial  event
-            o.currentState(o.cic.trialTime,neurostim.event(neurostim.event.AFTERTRIAL))
-        end
-        function beforeFrame(o)
+        function baseBeforeFrame(o)
             % Not using cic.trialTime or o.isOn here to squeeze the last
             % microseconds out of the code.
             t = (o.cic.frame-1)*1000/o.cic.screen.frameRate;            
@@ -147,10 +147,23 @@ classdef (Abstract) behavior <  neurostim.plugin
                     o.currentState(t,e);  % Each state is a member function- just pass the event
                 end
             end
+            baseBeforeFrame@neurostim.plugin(o);
         end
         
+      
+        function baseAfterTrial(o)
+            % Send an afterTrial  event
+            o.currentState(o.cic.trialTime,neurostim.event(neurostim.event.AFTERTRIAL))      
+            baseAfterTrial@neurostim.plugin(o);
+        end                
+    end
+    
+    methods (Access=public)
         
-        
+        % Users add functionality by defining new states, or
+        % if a different response modailty (touchbar, keypress, eye) is
+        % needed, by overloading the getEvent function.
+                            
         
         % Constructor. In the non-abstract derived clases, the user must
         % set currentState to an existing state.
@@ -180,7 +193,7 @@ classdef (Abstract) behavior <  neurostim.plugin
     
     methods (Sealed)
         % To avoid the temptation to overload these member functions, they
-        % sealed,.
+        % are sealed,.
         function transition(o,futureState,e)
             % state = the state to transition into
             % e = the event that triggered this transition. This event is
@@ -190,8 +203,6 @@ classdef (Abstract) behavior <  neurostim.plugin
             
             o.event = e; % Log the event driving the transition.
            
-            
-            
             currentStateName = neurostim.behavior.state2name(o.currentState);
             futureStateName =  neurostim.behavior.state2name(futureState);
             
@@ -230,10 +241,7 @@ classdef (Abstract) behavior <  neurostim.plugin
             if o.verbose
                 o.writeToFeed(['Transition to ' o.state]);
             end
-        end
-        
-        
-        
+        end        
         
     end
     
