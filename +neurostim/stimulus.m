@@ -18,6 +18,13 @@ classdef stimulus < neurostim.plugin
     %
     %
     
+    properties
+        % Function to call on onset. Used to communicate event to external hardware. See egiDemo        
+        % This function takes a stimulus object and the flipTime (i.e. the
+        % time when the stimulus started showing on the screen) as its
+        % input
+        onsetFunction=[]; 
+    end
     
     properties (Dependent)
         off;
@@ -283,7 +290,7 @@ classdef stimulus < neurostim.plugin
             if s.alwaysOn
                 s.flags.on =true;
             else   
-                sOn = s.on;          
+                sOn = +s.on;          
                 if isinf(sOn)
                     s.flags.on =false; %Dont bother checking the rest
                 else
@@ -347,8 +354,8 @@ classdef stimulus < neurostim.plugin
             % changing even if we change the physical screen size (e.g., 
             % when changing viewing distance) or being distorted by the
             % transforms above...
-            if s.flags.on && s.diode.on
-              Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);
+            if s.diode.on  && s.flags.on 
+                Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);                
             end
             
         end
@@ -399,10 +406,13 @@ classdef stimulus < neurostim.plugin
     end
     
     methods (Access = {?neurostim.cic})
-        function afterFlip(s,flipTime)
+        function afterFlip(s,flipTime,ptbTime)
             if s.logOnset
                 s.startTime = flipTime;
                 s.logOnset = false;
+                if ~isempty(s.onsetFunction)
+                    s.onsetFunction(s,ptbTime);
+                end
             elseif s.logOffset
                 s.stopTime = flipTime;
                 s.logOffset = false;
