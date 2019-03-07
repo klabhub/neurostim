@@ -103,14 +103,11 @@ classdef psyBayes < neurostim.plugins.adaptive
             % in the parent class, using the trialResullt function
             % specified by the user when constructing an object of this
             % class.
-            %tic;
-            %parmValue = getValue(o); % This is the value that we used previously
-            parmValue = abs(o.cic.hex.sigDiff);
-                [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
-            %toc
+            parmValue = getValue(o); % This is the value that we used previously
+            [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
         end
         
-        function v =getValue(o)
+        function v =getAdaptValue(o)
             % The abstract adaptive parent class requires that we implement this.
             % Return the current best value according to Psy.
             v = psybayes(o.psy, o.method, o.vars);

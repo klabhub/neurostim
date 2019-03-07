@@ -24,6 +24,10 @@ classdef (Abstract) adaptive < neurostim.plugin
         v= getAdaptValue(s);
     end
     
+    properties (SetAccess=protected)
+        overruleValue = []; %used to manually set the adaptive parameter value (for the rest of current trial) to something other than that returned by the adaptive algorithm. Ensures update() is based on the actual tested value. 
+    end
+    
     methods
         %% Operators to allow easy use of adaptive parameters in functions
         function v = plus(x1,x2)            
@@ -130,7 +134,6 @@ classdef (Abstract) adaptive < neurostim.plugin
             o.addProperty('conditions',[]);% The condition that this adaptive parameter belongs to. Will be set by design.m
             o.addProperty('design',''); % This parm belongs to paramters in this design. (Set by design.m)
             o.addProperty('ignoreN',0); % Used to ignore the first N trials (set to 1 to ignroe the first, often missed trial)
-            o.addProperty('overruleValue',[]); %used to manually set the adaptive parameter value (for the rest of current trial) to something other than that returned by the adaptive algorithm. Ensures update() is based on the actual tested value. 
             o.uid = u;
             o.trialOutcome = funStr;
             
@@ -215,5 +218,10 @@ classdef (Abstract) adaptive < neurostim.plugin
                end
             end
         end 
+        
+        function beforeTrial(o)
+            %Reset the overruled value.
+            o.overruleValue = [];
+        end
     end
 end % classdef

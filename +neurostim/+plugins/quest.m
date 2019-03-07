@@ -80,7 +80,6 @@
             % specified by the user when constructing an object of this
             % class.
             parmValue = o.getValue; % This is the value that was used previously
-            %parmValue = abs(o.cic.hex.sigDiff);
             intensity = o.p2i(parmValue); % Converti it to Quest intensity
             o.Q=QuestUpdate(o.Q,intensity,correct); % Add the new datum .
         end
