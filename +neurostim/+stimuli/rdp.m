@@ -4,6 +4,11 @@ classdef rdp < neurostim.stimulus
     %
     % Adjustable variables:
     %   size - dotsize (px)
+    %   type - 0: square dots (default)
+    %          1: round, anit-aliased dots (favour performance)
+    %          2: round, anti-aliased dots (favour quality)
+    %          3: round, anti-aliased dots (built-in shader)
+    %          4: square dots (built-in shader)
     %   coordSystem - 0: polar
     %                 1: cartesian
     %   speed / direction - dot speed and direction (deg) (if using polar coordinates)
@@ -19,10 +24,8 @@ classdef rdp < neurostim.stimulus
     %   noiseWidth - width of gaussian/uniform noise.
     %   lifetime - lifetime of dots (in frames)
     %   maxRadius - maximum radius of aperture (px)
-    %   position - center position of aperture (X,Y pixel coordinates)
     %   dwellTime - parameter for dwelling on frame; e.g. dwellTime = 2
     %       moves twice as fast.
-    
     
     properties (Access=protected)
         x;
@@ -44,6 +47,7 @@ classdef rdp < neurostim.stimulus
         function o = rdp(c,name)
             o = o@neurostim.stimulus(c,name);
             o.addProperty('size',5,'validate',@isnumeric);
+            o.addProperty('type',0,'validate',@isnumeric);            
             o.addProperty('maxRadius',100,'validate',@isnumeric);
             o.addProperty('speed',5,'validate',@isnumeric);
             o.addProperty('xspeed',0,'validate',@isnumeric);
@@ -83,12 +87,11 @@ classdef rdp < neurostim.stimulus
         
         
         function beforeFrame(o)
-            Screen('DrawDots',o.window, [o.x o.y]', o.size, o.color);
+            Screen('DrawDots',o.window, [o.x o.y]', o.size, o.color, [0.0,0.0], o.type);
         end
         
         
         function afterFrame(o)
-            
             % reduce lifetime by 1
             if o.noiseMode ~= 1
                 o.framesLeft = o.framesLeft - 1;
