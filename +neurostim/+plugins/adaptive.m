@@ -24,7 +24,7 @@ classdef (Abstract) adaptive < neurostim.plugin
         v= getAdaptValue(s);
     end
     
-    properties (SetAccess=protected)
+    properties (SetAccess=private)
         overruleValue = []; %used to manually set the adaptive parameter value (for the rest of current trial) to something other than that returned by the adaptive algorithm. Ensures update() is based on the actual tested value. 
     end
     

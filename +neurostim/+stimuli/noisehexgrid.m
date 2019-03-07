@@ -9,6 +9,9 @@ classdef noisehexgrid < neurostim.stimuli.noiseclut
     %   hexRadius   - radius of each hexagon (default: 10),
     %   size        - the number of hexagon along one dimension (the meaning
     %                differs across shape type. You'll need to try it out)
+    %   spacing     - Control the gap between hexagons in the grid. (no gap
+    %                   by default). spacing > 1 is a gap. spacing < 1 is
+    %                   overlap.
     %
     % 2018-06-05 - Shaun L. Cloherty <s.cloherty@ieee.org>
     % 2019-07-03 - Adam Morris
@@ -27,7 +30,7 @@ classdef noisehexgrid < neurostim.stimuli.noiseclut
             o.addProperty('type','HEXAGON','validate',@(x) any(strcmpi(x,{'RECTANGLE','HEXAGON','TRIANGLE','PARALLELOGRAM'})));
             o.addProperty('hexRadius',0.5,'validate',@(x) validateattributes(x,{'numeric'},{'scalar','nonnegative'}));
             o.addProperty('size',12,'validate',@(x) validateattributes(x,{'numeric'},{'nonnegative'}));
-            
+            o.addProperty('spacing',1,'validate',@(x) validateattributes(x,{'numeric'},{'nonnegative'}));
             if exist('hexGrid.hex','class') ~=8
                 error('Could not find the hexGrid package. Clone it from github (https://github.com/SysNeuroHub/hexGrid.git) and add it to your path before using neurostim.plugins.psyBayes');
             end
@@ -70,15 +73,15 @@ classdef noisehexgrid < neurostim.stimuli.noiseclut
             xscale = o.cic.screen.xpixels./o.cic.screen.width;
             %yscale = o.cic.screen.ypixels./o.cic.screen.height;
             
-            h=hexGrid.layout;
-            h.radius = xscale*o.hexRadius;
             
             %Create a hex grid of the specified type
-            h.(lower(o.type))(o.size); %Calls functions of the hexGrid.layout class
-            centerGrid(h);
+            h=hexGrid.layout('type',o.type,'size',o.size,'radius',xscale*o.hexRadius);
+            if o.spacing ~=1
+                explode(h,o.spacing);
+            end
+
+            %Get the pixel coordinates of the wire frame
             [xc,yc]=centers(h);
-            
-            %Define the grid's origin as the center of mass
             [fx,fy]=wireFrame(h); %Hexagon edges
 
             %How many pixels do I need for the image?
@@ -140,9 +143,12 @@ classdef noisehexgrid < neurostim.stimuli.noiseclut
             %% reshape to form the image
             img = reshape(img,sz+1,sz+1);
             
+            %Store hex positions in ns units
             fx=fx';
             fy=fy';
             o.wireFrame = [fx(:),fy(:)]./xscale; %Not yet used for anything.
+            xc = xc./xscale;
+            yc = yc./xscale;
         end
         
     end % private methods
