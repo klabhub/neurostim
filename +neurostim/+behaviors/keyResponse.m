@@ -50,6 +50,7 @@ classdef keyResponse < neurostim.behavior
             for i = 1:numel(o.keys)
                 o.addKey(o.keys{i},o.keys{i},true); % True= isSubject
             end
+            beforeExperiment@neurostim.behavior(o);
         end
         
         function  e =getEvent(~)
@@ -70,8 +71,7 @@ classdef keyResponse < neurostim.behavior
                 if o.cic.trialTime>o.simWhen
                     keyboard(o,o.keys{o.simWhat});
                 end
-            end
-            
+            end            
             beforeFrame@neurostim.behavior(o);
         end
         
