@@ -1,4 +1,4 @@
-function noiseHexGridDemo(n)
+function noiseHexGridDemo
 
 import neurostim.*
 commandwindow;
@@ -16,9 +16,10 @@ h.distribution = 'normal'; % luminance distribution
 h.parms = {127, 40}; % {mean, sd}
 h.bounds = [0, 255]; % [min, max]
  
-h.frameInterval = 300.0; % milliseconds
+h.frameInterval = 100.0; % milliseconds
 
 h.debug = false;
+h.spacing = 1.2;
 
 % fixation target
 f = stimuli.fixation(c,'fix');
