@@ -1,6 +1,4 @@
-function noiseRasterRadialHexDemo(n)
-
-% 2018-06-05 - Shaun L. Cloherty <s.cloherty@ieee.org>
+function noiseHexGridDemo(n)
 
 import neurostim.*
 commandwindow;
@@ -8,28 +6,19 @@ commandwindow;
 % get rig configuration
 c = myRig; % returns s neurostim @cic object
 
-%
-% add stimuli...
-%
-
 % white noise on a hexagonal grid
-h = neurostim.stimuli.noiserasterradialhex(c,'noise');
+h = neurostim.stimuli.noisehexgrid(c,'noise');
 h.X = '@fix.X';
-h.innerRad = 1.5;
-h.outerRad = 10.0;
-h.nTiles = 15;
-
+h.type = 'triangle';
+h.size = 5;
+h.hexRadius = 2;
 h.distribution = 'normal'; % luminance distribution
 h.parms = {127, 40}; % {mean, sd}
 h.bounds = [0, 255]; % [min, max]
-
+ 
 h.frameInterval = 300.0; % milliseconds
 
-if nargin >= 1
-  h.nTiles = n;
-end
-
-% h.debug = true;
+h.debug = false;
 
 % fixation target
 f = stimuli.fixation(c,'fix');
@@ -51,4 +40,3 @@ myBlock.nrRepeats = 10;
 c.order('fix','noise');
 c.subject = 'easyD';
 c.run(myBlock);
-
