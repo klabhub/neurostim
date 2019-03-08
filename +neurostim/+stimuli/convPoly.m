@@ -20,13 +20,13 @@ classdef convPoly < neurostim.stimulus
             o.addProperty('nSides',5,'validate',@isnumeric);
             o.addProperty('filled',true,'validate',@islogical);
             o.addProperty('linewidth',10,'validate',@isnumeric); %Used only for unfilled polygon.
-            o.addProperty('vx',[],'validate',@isnumeric);        %
+            o.addProperty('vx',[],'validate',@isnumeric);        %If specified, these overrule the radius,nSides etc.
             o.addProperty('vy',[],'validate',@isnumeric);
         end
         
         function beforeFrame(o)
             
-            if isempty(o.vx) 
+            if isempty(o.vx) || isempty(o.vy) 
                 %Compute vertices
                 th = linspace(0,2*pi,o.nSides+1);
                 [o.vx,o.vy] = pol2cart(th,o.radius);
