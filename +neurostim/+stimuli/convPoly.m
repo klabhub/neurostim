@@ -20,8 +20,8 @@ classdef convPoly < neurostim.stimulus
             o.addProperty('nSides',5,'validate',@isnumeric);
             o.addProperty('filled',true,'validate',@islogical);
             o.addProperty('linewidth',10,'validate',@isnumeric); %Used only for unfilled polygon.
-            o.addProperty('vx',0,'validate',@isnumeric);        %
-            o.addProperty('vy',0,'validate',@isnumeric);
+            o.addProperty('vx',[],'validate',@isnumeric);        %
+            o.addProperty('vy',[],'validate',@isnumeric);
         end
         
         function beforeFrame(o)
