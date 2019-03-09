@@ -38,23 +38,30 @@ classdef (Abstract) eyeMovement  < neurostim.behavior    % This is an abstract c
      end
           
     
-    methods (Access=protected)
+    methods (Access = protected)
         % Helper function to determine whether the eye is in a circular window
         % around o.X, o.Y. A different position can be checked the same way
-        % by specifying the optional third input argument.
-        function value= isInWindow(o,e,XY)
-            if ~e.valid && o.allowBlinks
+        % by specifying the optional third input argument. A different
+        % tolerance can be checked by specifying the optional forth input
+        % argument.
+        function value = isInWindow(o,e,XY,tol)
+            if ~e.valid
                 value = true; % Benefit of the doubt
                 return;
             end
-            nin=nargin;
-            if nin < 3
-                XY = [o.X o.Y];                
+            
+            nin = nargin;
+            if nin < 3 || isempty(XY)
+                XY = [o.X o.Y];
+            end
+            if nin < 4 || isempty(tol)
+                tol = o.tolerance;
             end
             
             nrXPos = size(XY,1); 
             distance = sqrt(sum((repmat([e.X e.Y],[nrXPos 1])-XY).^2,2));            
-            value= any(distance< o.tolerance);
+            value = any(distance < tol);
+
             if o.invert
                value = ~value;
             end
