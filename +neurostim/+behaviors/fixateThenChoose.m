@@ -2,21 +2,20 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
    % Fixate a fixation point first, then make a saccade to a choice annulus.
    % This behavior inherits from fixate and adds new states. 
    % FREEVEIWING - each trial starts here
-    %              -> FIXATING when the eye moves inside the window
-    %              ->FAIL  if t>t.from
-    %               ->FAIL afterTrial
-    % FIXATING    -> FAIL if eye moves outside the window before o.to or
-    %                       does not reach CHOOSE before
-    %                       o.to+o.saccadeDuration
-    %             -> CHOOSE  if eye moves to the choice targets between
-    %                   o.to and o.saccadeDuration
-    %               ->FAIL afterTrial
-    % CHOOSE     -> FAIL if the eye leaves the first choice sooner than o.chiceDuration
-    %            -> SUCCESS if the eye is still withion o.tolerance of the
-    %            choice after o.choiceDuration and the choice was correct.
-    %             -> SUCCESS if afterTrial and correct choice
-    % Note that **even before t< o.from**, the eye has to remain 
-    % in the window once it is in there (no in-and-out privileges)
+   %             -> FIXATING when the eye moves inside the window
+   %             -> FAIL if t>t.from
+   %             -> FAIL afterTrial
+   % FIXATING    -> FAIL if eye moves outside the window before o.to or
+   %                does not reach CHOOSE before o.to+o.saccadeDuration
+   %             -> CHOOSE if eye moves to the choice targets between
+   %                o.to and o.saccadeDuration
+   %             -> FAIL afterTrial
+   % CHOOSE      -> FAIL if the eye leaves the first choice sooner than o.chiceDuration
+   %             -> SUCCESS if the eye is still withion o.tolerance of the
+   %                choice after o.choiceDuration and the choice was correct.
+   %             -> SUCCESS if afterTrial and correct choice
+   % Note that **even before t < o.from**, the eye has to remain
+   % in the window once it is in there (no in-and-out privileges)
   
    
    properties (Access=private)
@@ -48,8 +47,7 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
            o.addProperty('choiceIx',[]); % Log of choices (index into angles)
            o.addProperty('correctFun',''); %Function returns the currently correct choice as an index into o.angles
            o.addProperty('correct',[]); % Log of correctness
-           
-           
+                      
            o.beforeTrialState = @o.freeViewing;
        end       
    end
@@ -98,7 +96,7 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
                 return; %Done with setup/entry code
             end % regular only - no exit
            
-            if ~e.isRegular ;return;end % Not handling exit events
+            if ~e.isRegular; return; end % Not handling exit events
             
             % Guards
             inChoice = isInWindow(o,e,o.choice); % Check that we're still in the window around the original choice
@@ -123,29 +121,42 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
         % Users specify a radius and (optionally) a set of allowed angles
         % an empty set of angles means that the choice can be anywhere in
         % the annulus (continuous choice)
-        function [v,targetIx] = isInAnnulus(o,e) 
+        function [v,targetIx] = isInAnnulus(o,e,tol) 
             % Check that the eye is on the annlus within tolerance 
-            v  = abs(hypot(e.X - o.X,e.Y- o.Y)-o.radius) < o.tolerance;          
-            nrAngles =numel(o.angles);
-            if nrAngles>0 && v   
+            
+            nin = nargin;
+            if nin < 3 || isempty(tol)
+              tol = o.tolerance;
+            end
+            
+            v  = abs(hypot(e.X - o.X,e.Y- o.Y)-o.radius) < tol;          
+            nrAngles = numel(o.angles);
+            if nrAngles > 0 && v
                 targetIx = matchingTarget(o,[e.X,e.Y]);
                 v = ~isempty(targetIx) && v;
             end
+            
             if o.invert
                v = ~v;
-           end
+            end
         end
         
-        function [targetIx,XY] = matchingTarget(o,eyeXY)
+        function [targetIx,XY] = matchingTarget(o,eyeXY,tol)
             % Find the nearest target in o.angles that is within tolerance
             % from the specified X Y a position
-                oTargetXY = o.targetXY;
-                nrAngles= size(oTargetXY,1);
-                dv = oTargetXY -repmat(eyeXY,[nrAngles 1]);
-                d = sqrt(sum(dv.^2,2));
-                targetIx = find(d<o.tolerance);
-                XY = oTargetXY(targetIx,:);
-        end       
+            
+            nin = nargin;
+            if nin < 3 || isempty(tol)
+              tol = o.tolerance;
+            end
+            
+            oTargetXY = o.targetXY;
+            nrAngles = size(oTargetXY,1);
+            dv = oTargetXY - repmat(eyeXY,[nrAngles 1]);
+            d = sqrt(sum(dv.^2,2));
+            targetIx = find(d < tol);
+            XY = oTargetXY(targetIx,:);
+        end
     end
     
 end
