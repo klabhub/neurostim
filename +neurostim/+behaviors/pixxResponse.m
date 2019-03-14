@@ -68,12 +68,13 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
         function afterTrial(o)
             o.stopLogTime = ResponsePixx('StopNow',true);
             o.startedLogger = false;
+            afterTrial@neurostim.behaviors.keyResponse(o);
         end
         
         function beforeExperiment(o)
             ResponsePixx('Close');
             ResponsePixx('Open',o.NRSAMPLES,o.BASEADDRESS,o.NRBUTTONS);
-            beforeExperiment@neurostim.behavior(o); % Call initialization code in behavior (but skip the one in keyResponse)
+            beforeExperiment@neurostim.behaviors.keyResponse(o); 
         end
         
         function afterExperiment(o)

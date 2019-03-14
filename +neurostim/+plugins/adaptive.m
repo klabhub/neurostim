@@ -20,13 +20,16 @@ classdef (Abstract) adaptive < neurostim.plugin
         % update(s) should change the internal state of the adaptive object using the outcome of the current
         % trial (result = TRUE/Correct or FALSE/Incorrect).
         update(s,result);
-        % getValue returns the current parameter value.
-        v= getValue(s);
+        % getAdaptValue returns the current parameter value from the adaptive algorithm.
+        v= getAdaptValue(s);
+    end
+    
+    properties (SetAccess=private)
+        overruleValue = []; %used to manually set the adaptive parameter value (for the rest of current trial) to something other than that returned by the adaptive algorithm. Ensures update() is based on the actual tested value. 
     end
     
     methods
         %% Operators to allow easy use of adaptive parameters in functions
-                
         function v = plus(x1,x2)            
             if isa(x1,'neurostim.plugins.adaptive')
                 x1 = getValue(x1);
@@ -90,9 +93,17 @@ classdef (Abstract) adaptive < neurostim.plugin
             v =rdivide(x1,x2);
         end
         
-%         function v = horzcat(varargin)
-%           Not possible becuase of the Sealed method in heterogeneous
-%         end
+        %         function v = horzcat(varargin)
+        %           Not possible becuase of the Sealed method in heterogeneous
+        %         end
+        
+        function v = getValue(x1)
+            if isempty(x1.overruleValue)
+                v = getAdaptValue(x1);
+            else
+                v = x1.overruleValue;
+            end
+        end
         
     end
     
@@ -120,7 +131,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             o.trialOutcome = funStr;
             
         end
-        
+
         function belongsTo(o,dsgn,cond)
             if ~isempty(o.design) && ~strcmpi(o.design,dsgn)
                 error('Not sure this works... one adaptive parm belongs to two designs?');
@@ -176,6 +187,14 @@ classdef (Abstract) adaptive < neurostim.plugin
             end
         end
         
+        function overrule(x1,newValue)
+            %Manually intervene to set the adaptive parameter to a value different
+            %from that returned by the current state of the adaptive algorithm.
+            %This ensures that update() is based on the actual value used
+            %rather than the one initially suggested.
+            %Overrided value used only for the current trial.
+            x1.overruleValue = newValue;
+        end
         
         function afterTrial(o)
             % This is called after cic sends the AFTERTRIAL event
@@ -187,6 +206,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             % Adaptive parameters defined as part of a design only get
             % updated when "their" condition/design is the currently active
             % one.
+
             if isempty(o.design) || (strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions))% Check that this adaptive belongs to the current condition
                if o.cic.trial > o.ignoreN 
                     % Call the derived class function to update it                
@@ -194,11 +214,17 @@ classdef (Abstract) adaptive < neurostim.plugin
                     if numel(correct)>1 
                         error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
                     end
-                    update(o,correct); % Pass it to the derived class to update                                        
+                    update(o,correct); % Pass it to the derived class to update
+                    o.overruleValue = [];
                else
                    % Ignoring this trial                       
                end
             end
         end 
+        
+        function beforeTrial(o)
+            %Reset the overruled value.
+            o.overruleValue = [];
+        end
     end
 end % classdef

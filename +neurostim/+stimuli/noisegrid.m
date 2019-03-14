@@ -1,4 +1,4 @@
-classdef noiserastergrid < neurostim.stimuli.noiserasterclut
+classdef noisegrid < neurostim.stimuli.noiseclut
     % Stimulus class to present random noise rasters (e.g. for white-noise analysis).
     % Luminance noise values are drawn from built-in probaility distributions or returned by a user-defined function.
     % Argument specification is based on that of the jitter() plugin (though custom function specification is slightly different... TODO: unify this and jitter())
@@ -21,13 +21,13 @@ classdef noiserastergrid < neurostim.stimuli.noiserasterclut
     %   height          - height on screen (screen units)
     %   logType         - What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
     %
-    % See also noiseRasterGridDemo, noiseRasterRadialGridDemo, neurostim.stimuli.noiserasterclut, neurostim.stimuli.noiserasterradialgrid
+    % See also noiseGridDemo, noiseRadialGridDemo, neurostim.stimuli.noiseclut, neurostim.stimuli.noiseradialgrid, neurostim.stimuli.noisehexgrid
     
     
     methods (Access = public)
-        function o = noiserastergrid(c,name)
+        function o = noisegrid(c,name)
             
-            o = o@neurostim.stimuli.noiserasterclut(c,name);
+            o = o@neurostim.stimuli.noiseclut(c,name);
             
             %User-definable
             o.addProperty('size',[10 20],'validate',@(x) isnumeric(x) & ndims(x)==2); %#ok<ISMAT>
