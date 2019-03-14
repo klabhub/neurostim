@@ -60,11 +60,8 @@
         % value =  wheter in the window or not.
         % allowedBlink  = currenty in a blink and blinks are allowed.
         function [value,allowedBlink] = isInWindow(o,e,XY,tol)
-            if ~e.valid
-                 allowedBlink = o.allowBlinks;
-                 value= false;
-            else
-                allowedBlink = false;
+
+                allowedBlink = o.allowBlinks;
                 nin = nargin;
                 if nin < 3 || isempty(XY)
                     XY = [o.X o.Y];
@@ -76,11 +73,15 @@
                 nrXPos = size(XY,1);
                 distance = sqrt(sum((repmat([e.X e.Y],[nrXPos 1])-XY).^2,2));
                 value = any(distance < tol);
-
+                
+                if allowedBlink && value   %let it slide if blinking is allowd
+                	value = true;
+                end
+                
                 if o.invert
                     value = ~value;
                 end                
-            end
+%             end
         end       
     end
 end

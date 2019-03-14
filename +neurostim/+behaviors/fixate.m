@@ -49,9 +49,9 @@ classdef fixate  < neurostim.behaviors.eyeMovement
                 transition(o,@o.fail,e);     
             else
                 [inside,isAllowedBlink] = isInWindow(o,e);  % guard 2
-                if isAllowedBlink
-                        % Stay in free viewing                    
-                elseif inside
+%             	if isAllowedBlink         % Is there a need to check for blinks during freeviewing?
+%                         % Stay in free viewing               
+                if inside
                     transition(o,@o.fixating,e);  %Note that there is no restriction on t so fixation can start any time  after t.on (which is when the behavior starts running)                               
                 end
             end
@@ -71,7 +71,9 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             if complete
                  transition(o,@o.success,e);                
             elseif isAllowedBlink
-                    % OK stay in fixating state                
+                    % OK stay in fixating state
+            elseif ~o.required
+                % OK stay in fixating state
             elseif ~inside 
                 transition(o,@o.fail,e);
             end
