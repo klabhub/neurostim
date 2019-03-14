@@ -104,14 +104,7 @@ classdef (Abstract) adaptive < neurostim.plugin
                 v = x1.overruleValue;
             end
         end
-        function overrule(x1,newValue)
-            %Manually intervene to set the adaptive parameter to a value different
-            %from that returned by the current state of the adaptive algorithm.
-            %This ensures that update() is based on the actual value used
-            %rather than the one initially suggested.
-            %Overrided value used only for the current trial.
-            x1.overruleValue = newValue;
-        end
+        
     end
     
     
@@ -194,6 +187,14 @@ classdef (Abstract) adaptive < neurostim.plugin
             end
         end
         
+        function overrule(x1,newValue)
+            %Manually intervene to set the adaptive parameter to a value different
+            %from that returned by the current state of the adaptive algorithm.
+            %This ensures that update() is based on the actual value used
+            %rather than the one initially suggested.
+            %Overrided value used only for the current trial.
+            x1.overruleValue = newValue;
+        end
         
         function afterTrial(o)
             % This is called after cic sends the AFTERTRIAL event
@@ -205,6 +206,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             % Adaptive parameters defined as part of a design only get
             % updated when "their" condition/design is the currently active
             % one.
+
             if isempty(o.design) || (strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions))% Check that this adaptive belongs to the current condition
                if o.cic.trial > o.ignoreN 
                     % Call the derived class function to update it                
@@ -212,7 +214,8 @@ classdef (Abstract) adaptive < neurostim.plugin
                     if numel(correct)>1 
                         error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
                     end
-                    update(o,correct); % Pass it to the derived class to update                                        
+                    update(o,correct); % Pass it to the derived class to update
+                    o.overruleValue = [];
                else
                    % Ignoring this trial                       
                end
