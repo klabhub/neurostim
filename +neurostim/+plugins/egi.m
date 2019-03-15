@@ -105,6 +105,7 @@ classdef egi < neurostim.plugin
             for i=1:o.nrInQ
                 o.event(o.eventQ{i}{:}); % Send the queued events to netstations                
             end
+            
             o.nrInQ = 0; % Reset counter
             o.eventQ = cell(numel(o.eventQ),1);% Prealoc for next trials
             o.event('ETRL',[],[],'DESC','End trial');            
@@ -183,7 +184,7 @@ classdef egi < neurostim.plugin
             end
         end
         
-        function addToEventQueue(o,thisE)
+        function addToEventQueue(o,s,thisE)
             % Because sending event takes time we avoid doing this during
             % the time-critical periods of a trial. Each event is stored
             % here in a cell array and then all are sent to NetStation after
@@ -196,12 +197,12 @@ classdef egi < neurostim.plugin
             %       {code,startTime,duration,parm/value pairs}
             
             if o.nrInQ+1 > numel(o.eventQ)
-                 % Preallocate more space
-                 chunkSize =10;
-                 o.evenQ = cat(1,o.eventQ,cell(chunkSize,1));
-             end
-             o.eventQ{o.nrInQ+1} = thisE;  
-             o.nrInQ = o.nrInQ +1;
+              	% Preallocate more space
+              	chunkSize =10;
+              	o.evenQ = cat(1,o.eventQ,cell(chunkSize,1));
+            end
+           	o.eventQ{o.nrInQ+1} = thisE;  
+           	o.nrInQ = o.nrInQ +1;
         end
     end
     
