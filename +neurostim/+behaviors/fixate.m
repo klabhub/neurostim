@@ -70,8 +70,8 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             % Transitions
             if complete
                  transition(o,@o.success,e);                
-            elseif isAllowedBlink
-                    % OK stay in fixating state
+%             elseif isAllowedBlink
+%                     % OK stay in fixating state
             elseif ~o.required
                 % OK stay in fixating state
             elseif ~inside 
