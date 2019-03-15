@@ -60,7 +60,14 @@
         % value =  wheter in the window or not.
         % allowedBlink  = currenty in a blink and blinks are allowed.
         function [value,allowedBlink] = isInWindow(o,e,XY,tol)
-
+            
+            allowedBlink = o.allowBlinks;
+            if ~e.valid && allowedBlink && round(e.X,4) == -913.4667 && round(e.Y,4) == 902.0917
+                %I have no clue why a blink results in those X and Y
+                %coordinates, but it is a decent hack for now
+                value = true;
+            else
+            
                 allowedBlink = o.allowBlinks;
                 nin = nargin;
                 if nin < 3 || isempty(XY)
@@ -69,19 +76,17 @@
                 if nin < 4 || isempty(tol)
                     tol = o.tolerance;
                 end
-                
+
                 nrXPos = size(XY,1);
                 distance = sqrt(sum((repmat([e.X e.Y],[nrXPos 1])-XY).^2,2));
                 value = any(distance < tol);
                 
-                if allowedBlink && value   %let it slide if blinking is allowd
-                	value = true;
-                end
+               
                 
                 if o.invert
                     value = ~value;
                 end                
-%             end
+            end
         end       
     end
 end
