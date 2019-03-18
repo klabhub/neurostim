@@ -35,8 +35,9 @@ classdef sound < neurostim.plugin
             % Opening here instead of beforeExperiment so that the actual
             % sampleRate is available for resampling in classes that use
             % this plugin (e.g. soundFeedback)
-            
+            PsychPortAudio('Close'); % Start fresh (without this the next line can fail as Open can only be called once).
             o.paHandle = PsychPortAudio('Open',c.hardware.sound.device, [], latencyClass);
+                
             status = PsychPortAudio('GetStatus', o.paHandle);
             o.sampleRate = status.SampleRate;
             

@@ -184,7 +184,7 @@ classdef egi < neurostim.plugin
             end
         end
         
-        function addToEventQueue(o,s,thisE)
+        function addToEventQueue(o,thisE)
             % Because sending event takes time we avoid doing this during
             % the time-critical periods of a trial. Each event is stored
             % here in a cell array and then all are sent to NetStation after
@@ -220,11 +220,11 @@ classdef egi < neurostim.plugin
             code = [s.name(1:min(numel(s.name),2)) 'ON']; % First 2 char of name plus 'ON'
             hEgi= s.cic.egi;            
             thisE = {code,startTime,s.duration,'FLIP',startTime,'DESC',[s.name ' onset']};
-            hEgi.addToEventQueue(s,thisE);
+            hEgi.addToEventQueue(thisE);
         end
         function logOffset(s,stopTime)
             % This function sends a message to NetStation to indicate that
-            % a stimulus just disappeard from the screen (i.e. first frame flip)
+            % a stimulus just disappeard from the screen (i.e. last frame flip)
             % I use a static function to make the notation easier for the
             % user, but by using CIC I nevertheless make use of the egi
             % object that is currently loaded.
@@ -235,7 +235,7 @@ classdef egi < neurostim.plugin
             code = [s.name(1:min(numel(s.name),2)) 'OF'];
             hEgi= s.cic.egi;            
             thisE = {code,stopTime,1,'FLIP',stopTime,'DESC',[s.name ' offset']};
-            hEgi.addToEventQueue(s,thisE);
+            hEgi.addToEventQueue(thisE);
         end
     end
 end

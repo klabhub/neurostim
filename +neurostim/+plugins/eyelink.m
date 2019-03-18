@@ -57,6 +57,10 @@ classdef eyelink < neurostim.plugins.eyetracker
     %       F9: Start a drift correction immediately (assume the subject is
     %       fixating (0,0). Confirm correct fixation by pressing the space
     %       bar, or press Esc to abort drift correction and continue.
+    %       By setting F9PassThrough to true, the confirmation is skipped
+    %       (i.e. it mimics the use of F9 on the Host keyboard - an
+    %       immediate drift correct, as long as the correction is smaller
+    %       than the setting final.ini.
     %
     %       F10: Start drift correction before the next trial. (Eyelink
     %       will draw a target).
