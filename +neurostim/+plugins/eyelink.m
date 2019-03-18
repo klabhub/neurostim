@@ -10,14 +10,14 @@ classdef eyelink < neurostim.plugins.eyetracker
     % then set c.eye.backgroundColor.
     %
     % Use with non RGB color modes.
-    % 
+    %
     % Eyelink toolbox can only draw to the main window, this complicates
-    % working with VPIxx and similar devices. 
+    % working with VPIxx and similar devices.
     % All drawing of graphics (calibration donut, the camera image) uses
     % commands that are processed by the PTB pipeline. Therefore, if you
     % are in LUM mode (i.e. a single number specifies the gray scale
-    % luminance of the pixel), you should specify eye.backroundColor etc in the same 
-    % format. 
+    % luminance of the pixel), you should specify eye.backroundColor etc in the same
+    % format.
     % Text, however, is problematic as it does not appear to go through the
     % pipeline (not an Eyelink specific issue), and becuase you cannot tell
     % Eylink to write text to an overlay, you cannot use an overlay's
@@ -108,6 +108,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
             o.addProperty('clbType','HV9');
             o.addProperty('host','');
+            o.addProperty('F9PassThrough',false,@islogical); % simulate F9 press on Eyelink host to do quick drift correct
         end
         
         function beforeExperiment(o)
@@ -122,7 +123,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.backgroundColor = o.cic.screen.color.background;
             end
             if isempty(o.clbTargetColor)
-                % If the user did not set the calibration target color 
+                % If the user did not set the calibration target color
                 % then make it maximally different from the background (5%)
                 o.clbTargetColor = max(o.backgroundColor)-0.95*o.backgroundColor;
             end
@@ -133,7 +134,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.el.foregroundcolour  = o.foregroundColor;
             o.el.msgfontcolour = o.foregroundColor;
             o.el.imgtitlecolour = o.foregroundColor;
-            o.el.calibrationtargetcolour = o.clbTargetColor;            
+            o.el.calibrationtargetcolour = o.clbTargetColor;
             
             o.el.calibrationtargetsize = o.clbTargetSize/o.cic.screen.width*100; %Eyelink sizes are percentages of screen
             if isempty(o.clbTargetInnerSize)
@@ -349,13 +350,30 @@ classdef eyelink < neurostim.plugins.eyetracker
         function keyboard(o,key,~)
             switch upper(key)
                 case 'F9'
-                    % Do a manual drift correction right now
-                    Eyelink('StopRecording');
-                    [tx,ty ] = o.cic.physical2Pixel(0,0);
-                    draw = 0; % Assume NS has drawn a dot
-                    allowSetup  = 0; % If it fails it fails..(we coudl be in the middle of a trial; dont want to mess up the flow)
-                    EyelinkDoDriftCorrect(o.el,tx,ty,draw, allowSetup);
-                    Eyelink('StartRecording');
+                    % Do a manual drift correction right now, by sending an
+                    % F9 to Eyelink.
+                    if o.F9PassThrough
+                        % If the tracker has been setup to use F9 as the
+                        % online drift correct button (i.e. key_function F9
+                        % “online_dcorr_trigger” is in the final.ini), then
+                        % just sending an F9 does an immediate drift
+                        % correct without interfering with the operation on
+                        % the stimulus end (i.e. here)
+                        Eyelink('SendKeyButton', o.el.F9_KEY, 0, o.el.KB_PRESS );
+                    else
+                        % Slightly more involved drift correct. This
+                        % happens immediately but because the experimenter
+                        % has to confirm, this takes more time and can
+                        % cause a small timing error in the current trial
+                        % This is the default because it does not require a
+                        % change on the Eyelink host computer.
+                        Eyelink('StopRecording');
+                        [tx,ty ] = o.cic.physical2Pixel(0,0);
+                        draw = 0; % Assume NS has drawn a dot
+                        allowSetup  = 0; % If it fails it fails..(we coudl be in the middle of a trial; dont want to mess up the flow)
+                        EyelinkDoDriftCorrect(o.el,tx,ty,draw, allowSetup);
+                        Eyelink('StartRecording');
+                    end
                 case 'F8'
                     % Do tracker setup before next trial
                     o.doTrackerSetup  = true;
@@ -383,7 +401,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         
-            
+        
     end
     
 end
