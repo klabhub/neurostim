@@ -20,7 +20,7 @@ classdef logger < handle
     
     properties (SetAccess=public, GetAccess=public)
         %% Properties of the remote server and local client
-        host@char='localhost'; % The remote server to connect to  (empty means no remote server)
+        host@char='neurostimm.vision.rutgers.edu'; % The remote server to connect to  (empty means no remote server)
         port@double =80;
         timerPeriod@double = 2; % the remote host will check for new inputs every 2 seconds.
         
@@ -67,7 +67,12 @@ classdef logger < handle
                 setupServer(o);
             end
         end
-        
+        function delete(o)
+            if o.hasRemote
+                data  =getBytestreamFromArray('CLOSE');
+                binblockwrite(o.tcp,[double('#') 1 numel(data) data],'uint8');
+            end
+        end
         function disp(o)
             if o.isServer
                 disp(['Remote Logger for ' o.tcp.RemoteHost]);
@@ -129,24 +134,42 @@ classdef logger < handle
             o.tcp.BytesAvailableFcnMode = 'terminator';
             o.tcp.ReadAsyncMode=  'continuous';
             o.echo = true; % Server always echos
-            disp(['Waiting for a logger connection from ' o.host ]);
+            runServer(o);
+        end
+        function runServer(o)
+            tmrs = timerfind('Name','Logger');
+            stop(tmrs);
+            delete tmrs;
+            if strcmpi(o.host,'0.0.0.0')
+                hstStr = 'any host';
+            else
+                hstStr = o.host;
+            end
+            disp(['Waiting for a logger connection from ' hstStr ]);
             fopen(o.tcp); % Busy wait until the client connects
             if strcmpi(o.tcp.Status,'Open')
                 disp(['Connected to ' o.tcp.RemoteHost]);
             end
-            disp(['Starting timer to read incoming feeds'])
+            disp('Starting timer to read incoming feeds')
             tmr = timer('BusyMode','drop','ExecutionMode','FixedRate','Period',o.timerPeriod,'TimerFcn',@o.incoming,'Name','Logger');
             start(tmr);
             disp(['Timer running every '  num2str(o.timerPeriod) 's']);
         end
-        
         % The timer running on the host calls this to process the incoming
         % data.
         function incoming(o,tmr,event) %#ok<INUSD>
             if o.tcp.BytesAvailable >0
                 bytes = binblockread(o.tcp,'uint8'); % Retrieve bytestream encoded message
                 data= getArrayFromByteStream(uint8(bytes(4:end))); % Conver to Matlab vars.
-                if iscell(data)
+                if ischar(data)
+                    switch (data)
+                        case 'CLOSE'
+                            fclose(o.tcp);
+                            runServer(o);
+                        otherwise
+                            disp(data)
+                    end
+                elseif iscell(data)
                     % This was a call from the client sending a single print line (see o.print)
                     % This is not recommended - too much reading/writing.
                     print(o,data{:});
@@ -155,6 +178,9 @@ classdef logger < handle
                     % client.
                     o.cache =data; % Store it on the host
                     printCache(o); % Print it to the command line
+                else
+                    disp('Received unknown data object')
+                    data
                 end
             end
         end

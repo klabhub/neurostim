@@ -172,8 +172,8 @@ switch computerName
         
         c.dirs.calibration = here;
       
-        c.screen.number     = 0;
-        c.screen.frameRate  = 60;
+        c.screen.number     = 2;
+        c.screen.frameRate  = 120;
         % Geometry
         c.screen.xpixels    = 1920;
         c.screen.ypixels    = 1080;
