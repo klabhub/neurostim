@@ -136,10 +136,11 @@ classdef logger < handle
             o.echo = true; % Server always echos
             runServer(o);
         end
+        
         function runServer(o)
-            tmrs = timerfind('Name','Logger');
-            stop(tmrs);
-            delete tmrs;
+            tmr = timerfind('Name','Logger');
+            stop(tmr);
+            delete tmr;
             if strcmpi(o.host,'0.0.0.0')
                 hstStr = 'any host';
             else
@@ -155,6 +156,7 @@ classdef logger < handle
             start(tmr);
             disp(['Timer running every '  num2str(o.timerPeriod) 's']);
         end
+        
         % The timer running on the host calls this to process the incoming
         % data.
         function incoming(o,tmr,event) %#ok<INUSD>
