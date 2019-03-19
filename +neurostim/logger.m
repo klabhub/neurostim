@@ -20,7 +20,7 @@ classdef logger < handle
     
     properties (SetAccess=public, GetAccess=public)
         %% Properties of the remote server and local client
-        host@char='neurostimm.vision.rutgers.edu'; % The remote server to connect to  (empty means no remote server)
+        host@char=''; % The remote server to connect to  (empty means no remote server)
         port@double =80;
         timerPeriod@double = 2; % the remote host will check for new inputs every 2 seconds.
         
