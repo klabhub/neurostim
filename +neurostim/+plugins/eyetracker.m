@@ -47,7 +47,7 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('continuous',false);
             o.addProperty('tolerance',3); % Used to set default tolerance on behaviors.eyeMovement
             
-            o.addKey('b','Toggle Blink');
+            o.addKey('w','Toggle Blink');
             o.tmr = timer('name','eyetracker.blink','startDelay',200/1000,'ExecutionMode','singleShot','TimerFcn',{@o.openEye});
         end
         
@@ -66,7 +66,7 @@ classdef eyetracker < neurostim.plugin
         
          function keyboard(o,key)
             switch upper(key)
-                case 'B'
+                case 'W'
                     % Simulate a blink
                     o.valid = false;                    
                     if strcmpi(o.tmr.Running,'Off')
