@@ -410,10 +410,8 @@ classdef cic < neurostim.plugin
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
             % Set up local logger.A remote logger can be added by
-            % specifying a remote host name or ip in the experiment file.
-            c.log = neurostim.logger;
-            c.log.localCache = c.useFeedCache;
-            c.log.useColor = c.useConsoleColor;
+            % specifying a remote host name (c.log.host) or ip in the experiment file.
+            c.log = neurostim.logger;           
         end
         
         function showCursor(c,name)
@@ -885,7 +883,10 @@ classdef cic < neurostim.plugin
             assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
             c.used  = true;
             
-            setupClient(c.log); % Setup the logger
+            % Setup the logger
+            c.log.localCache = c.useFeedCache;
+            c.log.useColor = c.useConsoleColor;
+            setupClient(c.log); 
             
             c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.            
                 
@@ -1154,6 +1155,7 @@ classdef cic < neurostim.plugin
             
             Screen('CloseAll');
             if c.PROFILE; report(c);end
+            close(c.log);
         end
         
         function clearOverlay(c,clear)

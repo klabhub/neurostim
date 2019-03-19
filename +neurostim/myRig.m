@@ -188,7 +188,7 @@ switch computerName
         c.useConsoleColor   = true;
         c.useFeedCache      = true;
         c.hardware.keyEcho = true;
-        c.hardware.sound.latencyClass = 2; % Ta ke control - gives 10ms latency in PTB-P
+        c.hardware.sound.latencyClass = 2; % Take control - gives 10ms latency in PTB-P
         
         % Timing parameters
         % Make sure synctests are done
@@ -206,6 +206,7 @@ switch computerName
             0 0 1; ...
             1 1 1;...
             ];    %.
+        c.log.useColor = true;
     case 'PTB-P-UBUNTU'
         c = rig(c,'keyboardNumber',[],'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
         

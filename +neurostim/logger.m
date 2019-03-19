@@ -67,9 +67,9 @@ classdef logger < handle
                 setupServer(o);
             end
         end
-        function delete(o)
+        function close(o)
             if o.hasRemote
-                data  =getBytestreamFromArray('CLOSE');
+                data  =getByteStreamFromArray('CLOSE');
                 binblockwrite(o.tcp,[double('#') 1 numel(data) data],'uint8');
             end
         end
