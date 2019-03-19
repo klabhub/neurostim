@@ -140,7 +140,7 @@ classdef logger < handle
         function runServer(o)
             tmr = timerfind('Name','Logger');
             stop(tmr);
-            delete tmr;
+            delete(tmr);
             if strcmpi(o.host,'0.0.0.0')
                 hstStr = 'any host';
             else
