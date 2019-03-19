@@ -812,7 +812,7 @@ classdef cic < neurostim.plugin
                 if c.saveEveryBlock
                     ttt=tic;
                     c.saveData;
-                    c.writeToFeed(sprtinf('Saving the file took %f s',toc(ttt)));
+                    c.writeToFeed(spritnf('Saving the file took %f s',toc(ttt)));
                 end                
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);

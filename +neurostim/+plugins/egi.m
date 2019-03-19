@@ -168,7 +168,7 @@ classdef egi < neurostim.plugin
             [status(1),err{1}]=NetStation('FlushReadbuffer'); 
             [status(2),err{2}]=NetStation('StopRecording');
             if o.checkStatusOk(status,err)
-                o.writeToFeed(sprtinf('Stopped recording on EGI-host %s:%d',o.host,o.port));
+                o.writeToFeed(sprintf('Stopped recording on EGI-host %s:%d',o.host,o.port));
             end
         end
                    
@@ -196,6 +196,9 @@ classdef egi < neurostim.plugin
             % thisE = Cell array containing event information. 
             %       {code,startTime,duration,parm/value pairs}
             
+            if isinf(thisE{3})
+                thisE{3}=1;
+            end
             if o.nrInQ+1 > numel(o.eventQ)
               	% Preallocate more space
               	chunkSize =10;
