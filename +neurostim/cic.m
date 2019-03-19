@@ -59,6 +59,9 @@ classdef cic < neurostim.plugin
         guiOn@logical=false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
+        
+        %% Logging/experimenter feedback during the experimtn
+        log@neurostim.logger;
         useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
         
         %% Keyboard interaction
@@ -113,11 +116,6 @@ classdef cic < neurostim.plugin
         
         guiWindow;
         funPropsToMake=struct('plugin',{},'prop',{});
-        % A struct to store writeToFeed information during the trial (and
-        % write out after).
-        feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
-        feedCacheCntr=0;
-        feedCacheWriteNow = false;
         
       
     end
@@ -411,6 +409,11 @@ classdef cic < neurostim.plugin
             c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
+            % Set up local logger.A remote logger can be added by
+            % specifying a remote host name or ip in the experiment file.
+            c.log = neurostim.logger;
+            c.log.localCache = c.useFeedCache;
+            c.log.useColor = c.useConsoleColor;
         end
         
         function showCursor(c,name)
@@ -811,7 +814,7 @@ classdef cic < neurostim.plugin
                 if c.saveEveryBlock
                     ttt=tic;
                     c.saveData;
-                    c.writeToFeed('Saving the file took %f s',toc(ttt));
+                    c.writeToFeed(sprtinf('Saving the file took %f s',toc(ttt)));
                 end                
                 if waitforkey
                     KbWait(c.kbInfo.pressAnyKey,2);
@@ -844,18 +847,19 @@ classdef cic < neurostim.plugin
             if rem(c.trial,c.saveEveryN)==0
                 ttt=tic;
                 c.saveData;
-                c.writeToFeed('Saving the file took %f s',toc(ttt));
+                c.writeToFeed(sprintf('Saving the file took %f s',toc(ttt)));
             end
+            printCache(c.log);
         end
         
         
         function error(c,command,msg)
             switch (command)
-                case 'STOPEXPERIMENT'
-                    neurostim.utils.cprintf('red','\n%s\n',msg);
+                case 'STOPEXPERIMENT'                  
+                    c.writeToFeed(msg,'style','red');
                     c.flags.experiment = false;
                 case 'CONTINUE'
-                    neurostim.utils.cprintf('red','\n%s\n',msg);
+                    c.writeToFeed(msg,'style','red');                    
                 otherwise
                     error(['Rethrowing unhandled cic error: ' msg]);
             end
@@ -880,7 +884,8 @@ classdef cic < neurostim.plugin
             
             assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
             c.used  = true;
-             
+            
+            setupClient(c.log); % Setup the logger
             
             c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.            
                 
@@ -1159,7 +1164,7 @@ classdef cic < neurostim.plugin
         function saveData(c)
             filePath = horzcat(c.fullFile,'.mat');
             save(filePath,'c');
-            c.writeToFeed('Data for trials 1:%d saved to %s',c.trial,filePath);
+            c.writeToFeed(sprintf('Data for trials 1:%d saved to %s',c.trial,filePath));
         end
         
         function delete(c) %#ok<INUSD>
@@ -1238,51 +1243,8 @@ classdef cic < neurostim.plugin
             ms = frames*(1000/c.screen.frameRate);
         end
         
-        %% User output Functions
-        function feed(c,style,formatSpecs,thisTrial,thisTrialTime,varargin)
-            if c.flags.trial && c.useFeedCache
-                c.feedCacheCntr= c.feedCacheCntr+1;
-                c.feedCache(c.feedCacheCntr).style = style;
-                c.feedCache(c.feedCacheCntr).formatSpecs = formatSpecs;
-                c.feedCache(c.feedCacheCntr).other = varargin;   
-                c.feedCache(c.feedCacheCntr).trialTime = thisTrialTime;   
-                c.feedCache(c.feedCacheCntr).trial = thisTrial;   
-            elseif ~c.feedCacheWriteNow
-                c.feedCacheWriteNow =true;
-                for i=1:c.feedCacheCntr
-                    feed(c,c.feedCache(i).style,c.feedCache(i).formatSpecs,c.feedCache(i).trial,c.feedCache(i).trialTime,c.feedCache(i).other{:});                    
-                end
-                c.feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
-                c.feedCacheWriteNow =false;
-                c.feedCacheCntr =0;
-            end
-                
-                
-            if ~c.useConsoleColor
-                style = 'NOSTYLE';                
-            end
-               
-            if numel(varargin)==2 && iscell(varargin{2})
-                % multi line message
-                maxChars = max(cellfun(@numel,varargin{2}));
-                if c.flags.trial
-                    % in trial ..
-                    phaseStr = '';
-                else
-                    phaseStr = '(ITI)';
-                end
-                neurostim.utils.cprintf(style,'TR: %d: (T: %.0f %s) %s \n',thisTrial,thisTrialTime,phaseStr,varargin{1}); % First one is the plugin name
-                neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
-                for i=1:numel(varargin{2})
-                    neurostim.utils.cprintf(style,'\t %s\n',varargin{end}{i}); % These are the message lines
-                end
-                neurostim.utils.cprintf(style,'\t%s\n',repmat('-',[1 maxChars]));
-            else
-                % single line
-                neurostim.utils.cprintf(style,['TR: %d (T: %.0f): ' formatSpecs '\n'],thisTrial,thisTrialTime,varargin{:});
-            end
-        end
-        
+        %% User output Functions      
+                       
         function collectFrameDrops(c)
             nrFramedrops= c.prms.frameDrop.cntr-1-c.lastFrameDrop;
             if nrFramedrops>=1
@@ -1615,7 +1577,7 @@ classdef cic < neurostim.plugin
                   else
                       style = 'MAGENTA';
                  end
-                neurostim.utils.cprintf(style,'Screen Message: %s\n',text);
+               c.writeToFeed(sprintf('Screen Message: %s\n',text),'style',style);
             end
             
          end
@@ -1940,6 +1902,9 @@ classdef cic < neurostim.plugin
             end
                         
         end
+        
+        
+        
     end
     
     methods

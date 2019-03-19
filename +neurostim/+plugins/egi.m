@@ -117,12 +117,12 @@ classdef egi < neurostim.plugin
     methods (Access=protected)
         % Connect to a named host
         function connect(o)
-            o.writeToFeed('Trying to connect to EGI-host %s:%d',o.host,o.port);
+            o.writeToFeed(sprintf('Trying to connect to EGI-host %s:%d',o.host,o.port));
             [status,err] = NetStation('Connect',o.host,o.port);
             if o.checkStatusOk(status,err)
-                o.writeToFeed('Connected to EGI-host %s:%d',o.host,o.port);
+                o.writeToFeed(sprintf('Connected to EGI-host %s:%d',o.host,o.port));
             else
-                o.writeToFeed('Failed to connect. Make sure ECI Events for TCP port %d is checked in Netstation',o.port);
+                o.writeToFeed(sprintf('Failed to connect. Make sure ECI Events for TCP port %d is checked in Netstation',o.port));
             end
         end 
         
@@ -130,7 +130,7 @@ classdef egi < neurostim.plugin
         function disconnect(o)
             [status,err] = NetStation('Disconnect');
             if o.checkStatusOk(status,err)
-                o.writeToFeed('Disconnected from EGI-host %s:%d',o.host,o.port);
+                o.writeToFeed(sprintf('Disconnected from EGI-host %s:%d',o.host,o.port));
             end
         end
         
@@ -159,7 +159,7 @@ classdef egi < neurostim.plugin
             [status(1),err{1}]=NetStation('StartRecording');
             [status(2),err{2}]=NetStation('FlushReadbuffer'); 
             if o.checkStatusOk(status,err)
-                o.writeToFeed('Started recording on EGI-host %s:%d',o.host,o.port);
+                o.writeToFeed(sprintf('Started recording on EGI-host %s:%d',o.host,o.port));
             end
         end
         
@@ -168,7 +168,7 @@ classdef egi < neurostim.plugin
             [status(1),err{1}]=NetStation('FlushReadbuffer'); 
             [status(2),err{2}]=NetStation('StopRecording');
             if o.checkStatusOk(status,err)
-                o.writeToFeed('Stopped recording on EGI-host %s:%d',o.host,o.port);
+                o.writeToFeed(sprtinf('Stopped recording on EGI-host %s:%d',o.host,o.port));
             end
         end
                    

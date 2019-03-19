@@ -79,19 +79,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         % writeToFeed(o,formatSpec, variables)  (as in sprintf)
         % Note that the style of the feed can be adjusted per plugin by
         % specifying the o.feedStyle: see styles defined in cprintf.
-        function writeToFeed(o,varargin)
-            nin =nargin;
-            if nin==1
-                formatSpec ='%s';
-                args = {o.name};
-            elseif nin==2
-                formatSpec ='%s: %s';
-                args = {o.name,varargin{1}};
-            elseif nargin>2
-                formatSpec = ['%s: ' varargin{1}];
-                args = cat(2,{o.name},varargin(2:end));
+        function writeToFeed(o,msg,varargin)
+            p=inputParser;
+            p.KeepUnmatched = true;
+            p.PartialMatching = false;
+            p.addParameter('style',o.feedStyle,@ischar);
+            p.parse(varargin{:});
+            nin =nargin;            
+            if nin==1                                
+                msg = '';
             end
-            o.cic.feed(o.feedStyle,formatSpec,o.cic.trial,o.cic.trialTime,args{:});
+            % Send it to the logger in CIC.
+            o.cic.log.feed(o.cic.trial,p.Results.style,o.cic.trial,o.cic.trialTime,msg,o.name);
         end
         
         % Needed by str2fun

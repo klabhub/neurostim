@@ -601,9 +601,9 @@ classdef starstim < neurostim.stimulus
             waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
             if o.fake || o.debug
                 if nargin ==2
-                    o.writeToFeed('Ramping %s down to zero in %d ms after %.0f ms at peak level )',o.type, o.transition,1000*(GetSecs-tScheduled));
+                    o.writeToFeed(sprtinf('Ramping %s down to zero in %d ms after %.0f ms at peak level )',o.type, o.transition,1000*(GetSecs-tScheduled)));
                 else
-                    o.writeToFeed('Ramping %s down to zero in %d ms',o.type, o.transition);
+                    o.writeToFeed(sprintf('Ramping %s down to zero in %d ms',o.type, o.transition));
                 end
             end
             sendMarker(o,'rampDown');
