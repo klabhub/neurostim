@@ -79,7 +79,7 @@ c.subject = getenv('computername');
 e = plugins.egi(c); % Add the EGI plugin
 % On your first run, set this to 0 to measure the delay between photodiode
 % and the TCP generated GRAT event
-e.clockOffset = 0;  % In KLab rig this is 13.5 ms. 
+e.clockOffset = -37;  % In KLab rig this is 13.5 ms in vsyncMode 0 using two monitors, but 4 when using only VPIXX (and vsync 1)
 % If you have Netstation 3.5 or later and a NetAMP 400 or later then use
 % NTPSync mode - it is the most reliable way to keep Matlab and EGI clocks
 % synchronized.
@@ -127,8 +127,11 @@ g.phaseSpeed        = 10;
 % all stimuli).
 % On a generic monitor color should be [r g b]. 
 % Size is specified as a fraction of the horizontal number of pixels in the monitor 
-diode = struct('on',true,'location','nw','color',100,'size',0.01); 
-g.diode = diode; % This will turn on at stimulus onset. The EGI AV Tester Diode should be pointed at the NorthWest corner to detect the onset.
+g.diode.on = true;
+g.diode.location = 'nw';
+g.diode.color = 100;
+g.diode.size = 0.01;
+% This will turn on at stimulus onset. The EGI AV Tester Diode should be pointed at the NorthWest corner to detect the onset.
 % Specifically for EGI interaction we also tell the stimulus to call the
 % logOnset function in the egi plugin when the stimulus first turns on in
 % each trial. T
