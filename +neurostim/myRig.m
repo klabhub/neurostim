@@ -123,7 +123,7 @@ switch computerName
             c.cursor = 'arrow';
         else
             c.dirs.output = 'z:/klab/';
-            c.cursor = 'none';
+            c.cursor = 'arrow';
         end
         
         c.dirs.calibration = here;

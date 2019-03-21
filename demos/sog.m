@@ -63,6 +63,13 @@ f.on                = 0;                % On from the start of the trial
 
 
 %% Behavioral control
+
+%Make sure there is an eye tracker (or at least a virtual one)
+if isempty(c.pluginsByClass('eyetracker'))
+    e = neurostim.plugins.eyetracker(c);      %Eye tracker plugin not yet added, so use the virtual one. Mouse is used to control gaze position (click)
+    e.useMouse = true;
+end
+
 fix = behaviors.fixate(c,'fixation');
 fix.from            = 2000;                 % If fixation has not been achieved at this time, move to the next trial
 fix.to              = '@grating.stopTime';   % Require fixation until testGabor has been shown.
