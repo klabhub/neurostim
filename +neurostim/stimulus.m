@@ -24,6 +24,7 @@ classdef stimulus < neurostim.plugin
         % time when the stimulus started showing on the screen) as its
         % input
         onsetFunction=[]; 
+        offsetFunction =[];
     end
     
     properties (Dependent)
@@ -416,6 +417,9 @@ classdef stimulus < neurostim.plugin
             elseif s.logOffset
                 s.stopTime = flipTime;
                 s.logOffset = false;
+                 if ~isempty(s.offsetFunction)
+                    s.offsetFunction(s,ptbTime);
+                end
             end
         end
     end
