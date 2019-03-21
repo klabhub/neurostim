@@ -81,7 +81,9 @@
             % class.
             parmValue = o.getValue; % This is the value that was used previously
             intensity = o.p2i(parmValue); % Converti it to Quest intensity
-            o.Q=QuestUpdate(o.Q,intensity,correct); % Add the new datum .
+            if ~isempty(correct)
+                o.Q=QuestUpdate(o.Q,intensity,correct); % Add the new datum .
+            end
         end
         
         function v =getAdaptValue(o)

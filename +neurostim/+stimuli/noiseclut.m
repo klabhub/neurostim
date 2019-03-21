@@ -147,6 +147,12 @@ classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
             o.setImage(im);
             o.nRandels = o.nClutColors;
             o.clut = zeros(3,o.nRandels);
+            
+            %Evalute the randel callback function to make sure it returns the right number of clut values
+            if numel(o.callback(o))~=o.nRandels
+                error(['The supplied CLUT function, ' func2str(o.callback), ' should return a 1 x nRandels (' num2str(o.nRandels), ') vector']);
+            end
+
             if ~o.offlineMode
                 o.prep();   %This line makes the openGL textures
             end
