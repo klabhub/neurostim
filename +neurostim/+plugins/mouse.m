@@ -18,14 +18,17 @@ classdef mouse < neurostim.plugin
     valid@logical = true;  % valid=false signals a temporary absence of data (due to a blink for instance)
   end
     
+  properties (Dependent)
+    button1;
+    button2;
+  end
+  
   methods
     function o = mouse(c)
       o = o@neurostim.plugin(c,'mouse'); % always 'mouse', accessed through cic.mouse
             
       o.addProperty('hardwareModel','');
       o.addProperty('softwareVersion','');
-
-      o.addProperty('tolerance',3); % used to set default tolerance on behaviours
     end
         
     function afterFrame(o)
@@ -38,4 +41,14 @@ classdef mouse < neurostim.plugin
     end  
   end
     
-end
+  methods % get methods
+    function v = get.button1(o)
+      v = o.buttons(1);
+    end
+    
+    function v = get.button2(o)
+      v = o.buttons(2);
+    end
+  end
+  
+end % classdef
