@@ -15,7 +15,8 @@ c = myRig;
 
 %% ============== Add stimuli ==================
 wn = stimuli.noisegrid(c,'grid');
-wn.size = [30,50];          %Dimensionality of raster (30 texels high, 50 wide)
+wn.size_h = 50;  %Dimensionality of raster (30 texels high, 50 wide)
+wn.size_v = 30;
 wn.height = 9;   %Width and height on screen
 wn.width = 15;
 wn.distribution = 'normal'; %Distribution from which luminance values are drawn. 

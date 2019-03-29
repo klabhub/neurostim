@@ -10,15 +10,12 @@ c = myRig; % returns s neurostim @cic object
 h = neurostim.stimuli.noisehexgrid(c,'noise');
 h.X = '@fix.X';
 h.type = 'triangle';
-h.size = 5;
+h.sz = 4;
 h.hexRadius = 2;
 h.distribution = 'normal'; % luminance distribution
 h.parms = {127, 40}; % {mean, sd}
 h.bounds = [0, 255]; % [min, max]
- 
 h.frameInterval = 100.0; % milliseconds
-
-h.debug = false;
 h.spacing = 1.2;
 
 % fixation target
@@ -41,3 +38,4 @@ myBlock.nrRepeats = 10;
 c.order('fix','noise');
 c.subject = 'easyD';
 c.run(myBlock);
+end
