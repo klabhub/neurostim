@@ -21,7 +21,7 @@ function [f,h] = str2fun(str,c)
     % f1.startTime.fixating in ns functions. 
     % The code below translates this into the function call f1.startTime(''fixating'')
     plgAndProp = regexp(str,'(\<[a-zA-Z_]+\w*)\.([\w\.]+)','match');    
-    plgAndProp = unique(plgAndProp);
+    [plgAndProp,~,ix] = unique(plgAndProp);
     getLabel = cell(size(plgAndProp));
     h  = cell(size(plgAndProp));
     if ~isempty(plgAndProp)        
@@ -62,9 +62,9 @@ function [f,h] = str2fun(str,c)
             end
         end
         
-        %Replace each reference to them with args(i)
-        for i=1:numel(h)
-            str = regexprep(str, ['(\<' plgAndProp{i}, ')'],['args{',num2str(i),'}.' getLabel{i}]);
+        % Replace each reference to them with args{i}
+        for i=ix(:)'
+            str = regexprep(str, ['(\<' plgAndProp{i}, ')'],['args{',num2str(i),'}.' getLabel{i}],'once');
         end
     else
         h = {};
