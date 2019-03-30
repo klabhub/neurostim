@@ -31,7 +31,7 @@ classdef mouse < neurostim.plugin
       o.addProperty('softwareVersion','');
       
       o.addProperty('logXY',false,'validate',@islogical);
-      o.addProperty('xy',[],'validate',@numeric);
+      o.addProperty('xy',[],'validate',@isnumeric);
     end
         
     function afterFrame(o)
