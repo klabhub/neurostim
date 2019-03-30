@@ -15,7 +15,7 @@ classdef mouse < neurostim.plugin
   
     buttons@logical;
     
-    valid@logical = true;  % valid=false signals a temporary absence of data (due to a blink for instance)
+    valid@logical = true;  % valid=false signals a temporary absence of data
   end
     
   properties (Dependent)
@@ -29,6 +29,9 @@ classdef mouse < neurostim.plugin
             
       o.addProperty('hardwareModel','');
       o.addProperty('softwareVersion','');
+      
+      o.addProperty('logXY',false,'validate',@islogical);
+      o.addProperty('xy',[],'validate',@numeric);
     end
         
     function afterFrame(o)
@@ -38,6 +41,10 @@ classdef mouse < neurostim.plugin
       o.y = y;
       
       o.buttons = buttons;
+      
+      if o.logXY
+        o.xy = [x, y];
+      end
     end  
   end
     
