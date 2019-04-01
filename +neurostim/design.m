@@ -232,9 +232,9 @@ classdef design <handle & matlab.mixin.Copyable
                             break;
                         else
                             % Check for duplicates and remove
-                            duplicateSetting = strcmpi(o.conditionSpecs{cond}{i,1},v(:,1)) & strcmpi(o.conditionSpecs{cond}{i,2},v(:,2));                            
+                            duplicateSetting = strcmpi(o.conditionSpecs{cond}{i,1},v(:,1)) & strcmpi(o.conditionSpecs{cond}{i,2},v(:,2));
                             v(duplicateSetting,:) = []; %#ok<AGROW> %Rmove seting that came from factor specs (or previous condition spec)
-                        end                         
+                        end
                     end
                     v = cat(1,v,o.conditionSpecs{cond}); % Combine condition with factor specs (in v; pruned of duplcates).
                 end
@@ -399,7 +399,7 @@ classdef design <handle & matlab.mixin.Copyable
             % subsasgn to create special handling of .weights .conditions, and
             % .facN design specifications.
             handled = false; % If not handled here, we call the builtin below.
-
+            
             if strcmpi(S(1).type,'.')
                 if strcmpi(S(1).subs,'WEIGHTS')
                     handled =true;
@@ -473,7 +473,7 @@ classdef design <handle & matlab.mixin.Copyable
                         
                         if ischar(V) || (~iscell(V) && isscalar(V))
                             V = {V};
-                        elseif ~iscell(V) 
+                        elseif ~iscell(V)
                             nrInTrg = cellfun(@numel,ix);
                             nrInSrc = size(V);
                             match = false;
@@ -488,7 +488,7 @@ classdef design <handle & matlab.mixin.Copyable
                                 matchingDims = 1:nrMatchingDims;
                                 match = all(nrInTrg(matchingDims)==nrInSrc(matchingDims)) && all(nrInTrg(nrMatchingDims+1:end)==1) && all(nrInSrc(nrMatchingDims+1:end)==1);
                             end
-                               
+                            
                             if match
                                 % This is a matrix where each element is
                                 % intended as a level for a factor.
@@ -513,12 +513,12 @@ classdef design <handle & matlab.mixin.Copyable
                             error(['Some conditions do not fit in the [' num2str(lvls) '] factorial. Use a separate design for these conditions']);
                         end
                         %% Everything should match, lets assign
-
+                        
                         % we know the number of factors and the number of
                         % levels for each... initialize o.conditionSpecs if
                         % it hasn't been initialized already
                         if isempty(o.conditionSpecs)
-                          o.conditionSpecs = cell(o.nrLevels);
+                            o.conditionSpecs = cell(o.nrLevels);
                         end
                         
                         for i=1:size(ix,1)
@@ -532,7 +532,7 @@ classdef design <handle & matlab.mixin.Copyable
                             if isa(thisV,'neurostim.plugins.adaptive')
                                 thisV.belongsTo(o.name,o.lvl2cond(ix(i,:))); % Tell the adaptive to listen to this design/level combination
                             end
-
+                            
                             % add to previous, or replace if it refers to the same property
                             curSpecs = o.conditionSpecs{trgSub{:}};
                             if ~isempty(curSpecs)
@@ -541,7 +541,7 @@ classdef design <handle & matlab.mixin.Copyable
                                 isPrmMatch = cellfun(@(curSpecs) strcmp(curSpecs,prm),curSpecs(:,2));
                                 curSpecs(isPlgMatch&isPrmMatch,:) = []; %Remove any matching line item
                             end
-
+                            assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object. You may get the desired functionality by defining a parameter in another plugin/stimulus and then use a neurostim function to define the CIC propert (e.g. c.trialDuration = ''@myStimulus.trialDuration'')']);
                             %Add this property to the list for this condition
                             o.conditionSpecs{trgSub{:}} = cat(1,curSpecs,{plg,prm,thisV});
                         end
@@ -555,6 +555,7 @@ classdef design <handle & matlab.mixin.Copyable
                         if  isa(V,'neurostim.plugins.adaptive')
                             V.belongsTo(o.name,ix); % Tell the adaptive to listen to this design/level combination
                         end
+                        assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object. You may get the desired functionality by defining a parameter in another plugin/stimulus and then use a neurostim function to define the CIC propert (e.g. c.trialDuration = ''@myStimulus.trialDuration'')']);                        
                         if ix> numel(o.conditionSpecs)  || isempty(o.conditionSpecs{ix})
                             o.conditionSpecs{ix} = {plg,prm,V};
                         else
@@ -579,7 +580,8 @@ classdef design <handle & matlab.mixin.Copyable
                     factor  = str2double(S(1).subs(4:end));
                     plg     = S(2).subs;
                     prm     = S(3).subs;
-                    
+                    assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object. You may get the desired functionality by defining a parameter in another plugin/stimulus and then use a neurostim function to define the CIC propert (e.g. c.trialDuration = ''@myStimulus.trialDuration'')']);
+
                     % Allow users to use singleton or vectors to specify
                     % levels (if the parameter value of a single level is a
                     % vector, put it in a cell array).
@@ -598,7 +600,7 @@ classdef design <handle & matlab.mixin.Copyable
                             V = repmat(V,1,levelsPreviouslyDefined); % Copy the singleton to match previous factorSpecs.
                             thisNrLevels = levelsPreviouslyDefined;
                         elseif levelsPreviouslyDefined ==1
-                            warning(['Creating ' num2str(thisNrLevels) ' levels for ' plg '.' prm '. If you just wanted one level, use {}']);                                
+                            warning(['Creating ' num2str(thisNrLevels) ' levels for ' plg '.' prm '. If you just wanted one level, use {}']);
                             [o.factorSpecs{factor,1:thisNrLevels}] =deal(o.factorSpecs{factor,1}); % make copies of the singleton spec that was previosuly defined
                         elseif levelsPreviouslyDefined ==0
                             % New factor (e.g. fac2 was defined before fac1 )

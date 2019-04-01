@@ -11,26 +11,15 @@ classdef fmri < neurostim.plugin
             o = o@neurostim.plugin(c,'fmri');
             o.addProperty('scanNr',[]);
             o.addProperty('preTriggers',10);
-            o.addProperty('trigger',0);
+            o.addProperty('trigger',0,'sticky',true); % Keep the same value across trials
             o.addProperty('triggerKey','t');
-            o.addProperty('triggersComplete',[]);
+            o.addProperty('triggersComplete',[],'sticky',true);
             o.addProperty('maxTriggerTime',inf); % If no Triggers for x s, the experiment ends
-            o.addKey('t');
-            
+            o.addKey('t');            
         end
         
         function beforeExperiment(o)
-            if isempty(o.scanNr) || o.scanNr ==0
-                answer=[];
-                while (isempty(answer))
-                    o.cic.drawFormattedText('Which scan number is about to start?');
-                    Screen('Flip',o.cic.window);
-                    disp('*****************************************')
-                    commandwindow;
-                    answer = input('Which scan number is about to start (for logging purposes)?');
-                end
-                o.scanNr =answer;
-            end
+            
         end
         
         function beforeTrial(o)
@@ -39,7 +28,32 @@ classdef fmri < neurostim.plugin
             % interacts directly with PTB Screen and other functionality
             % which is not recommended in general (but necessary here).
             if o.cic.trial==1
-                % Wait until the requested pre triggers have been recorded
+                % Get scan number information
+                if isempty(o.scanNr) || o.scanNr ==0
+                    answer=[];
+                    if ~o.cic.hardware.keyEcho
+                       ListenChar(0); % Need to echo now
+                    end                        
+                    while (isempty(answer))
+                        o.cic.drawFormattedText('Which scan number is about to start?');
+                        Screen('Flip',o.cic.window);
+                        disp('*****************************************')
+                        commandwindow;
+                        answer = input('Which scan number is about to start (for logging purposes)?','s');
+                        answer = str2double(answer);
+                        if isnan(answer)
+                            answer = []; % Try again.
+                        end
+                    end
+                    if ~o.cic.hardware.keyEcho
+                       ListenChar(-1); %Set it back to no echo
+                    end    
+                    o.scanNr =answer;
+                end
+                
+                
+                
+                % Now wait until the requested pre triggers have been recorded
                 o.cic.drawFormattedText('Start the scanner now ...');
                 Screen('Flip',o.cic.window);
                 % Wait until the first trigger has been received

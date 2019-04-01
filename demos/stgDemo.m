@@ -51,28 +51,27 @@ stm.on = 500; % Stimulation will be triggered 500 ms after trial onset
 stm.currentMode = false; % If you're hooked up to an oscilloscope you want voltage mode. 
 stm.rampUp = 500; % Ramp up/down in 500 ms
 stm.rampDown = 500;
-stm.duration =  2000; %ms If the trial is shorter than this, the stimulation will be cutoff.
+stm.duration =  20000; %ms If the trial is shorter than this, the stimulation will be cutoff.
 stm.persistent = false;
 stm.syncOutChannel = 2; % SyncOut Channel 2 will have a TTL out.
 stm.phase = 0;   % This will only be used for tACS mode
 stm.amplitude = 1500; % mV % This will be used for both the noise function and the tACS mode
-
 % Define a noise function with output that depends on the amplitude/mean
 % set per trial
  noise  = @(x,o)(o.amplitude*rand(size(x))+o.mean);
 % Design : half of trials get noise stimulation , the other half get 40Hz
 % tACS. The patch changes color with stimulation type
 d =design('DUMMY'); 
-d.fac1.stg.channel = [1, 2];
+d.fac1.stg.channel = [1, 1];
 d.fac1.stg.fun = {noise,'tACS'};  
-d.fac1.stg.frequency = [NaN 40];
+d.fac1.stg.frequency = [NaN 10];
 d.fac1.stg.mean    = [-750 0];
 d.fac1.patch.color  = {[1 1 0], [1 0 0 ]};
 % 
 d.randomization = 'SEQUENTIAL';
 blck=block('dummyBlock',d); 
-blck.nrRepeats  = 2;
-c.trialDuration = 2500; 
+blck.nrRepeats  = 20;
+c.trialDuration = 25000; 
 c.iti= 250;
 c.addPropsToInform('stg.amplitude','stg.frequency','stg.duration','stg.fun')
 c.run(blck); 

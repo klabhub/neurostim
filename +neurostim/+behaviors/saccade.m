@@ -46,10 +46,14 @@ classdef saccade < neurostim.behaviors.fixate
             oTo= o.to;
             afterTo = t>oTo;
             saccadeMustHaveCompleted  = t>oTo+o.saccadeDuration;
-            inside = isInWindow(o,e);
+            [inside,isAllowedBlink]= isInWindow(o,e);
+            
+            
             % With these guards, code the three possible transitions listed
-            % in the description above
-            if saccadeMustHaveCompleted && inside
+            % in the description above are:
+            if isAllowedBlink                    
+                % Don't change the state if we're in a blink 
+            elseif saccadeMustHaveCompleted && inside
                 transition(o,@o.fail,e);  % Transition to the fail state. Pass the event that lead to this transition
             elseif afterTo && ~inside                
                 transition(o,@o.inFlight,e);% Transition to the inFlight state. Pass the event that lead to this transition
@@ -62,13 +66,16 @@ classdef saccade < neurostim.behaviors.fixate
             if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail          
             if ~e.isRegular ;return;end % No Entry/exit needed
             % Define guard conditions
-             insideTarget=isInWindow(o,e,[o.targetX,o.targetY]);
-             inflighTooLong = o.duration > o.saccadeDuration;                       
-             % Code transitions
-             if insideTarget
-                transition(o,@o.onTarget,e);
-            elseif inflighTooLong 
+             [insideTarget,isAllowedBlink]=isInWindow(o,e,[o.targetX,o.targetY]);
+             inflighTooLong = o.duration > o.saccadeDuration;   
+                          
+             % Code transitions                           
+            if inflighTooLong 
                 transition(o,@o.fail,e);                
+            elseif isAllowedBlink
+                 % Don't change the state if we're in an allowed blink 
+            elseif insideTarget  
+                transition(o,@o.onTarget,e);
             end
         end
         
@@ -78,11 +85,14 @@ classdef saccade < neurostim.behaviors.fixate
             if ~e.isRegular ;return;end % No Entry/exit needed.
             %Define guard conditions            
             longEnough  = o.duration >= o.targetDuration;
-            brokeTargetFixation = ~isInWindow(o,e,[o.targetX,o.targetY]);            
+            [inside,isAllowedBlink]= isInWindow(o,e,[o.targetX,o.targetY]);     
+                     
             % Code transitions
             if longEnough
                 transition(o,@o.success,e);
-            elseif brokeTargetFixation                
+            elseif isAllowedBlink                   
+                % Don't change the state if we're in an allowed  blink 
+            elseif ~inside               
                 transition(o,@o.fail,e);
             end                
         end

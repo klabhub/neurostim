@@ -6,7 +6,7 @@ classdef debug < neurostim.plugin
         function o = debug(c)
             o = o@neurostim.plugin(c,'debug');
             o.addKey('e','Toggle Erase');
-            o.addKey('c','Toggle Cursor');
+            o.addKey('c','Toggle Cursor');            
         end
         
         % handle the key strokes defined above
