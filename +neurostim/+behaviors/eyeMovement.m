@@ -26,12 +26,7 @@
             o.addProperty('X',0,'validate',@isnumeric); % X,Y,Z - the position of a target for the behaviour (e.g. fixation point)
             o.addProperty('Y',0,'validate',@isnumeric);
             o.addProperty('Z',0,'validate',@isnumeric);
-            if hasPlugin(c,'eye')
-                defaultTolerance = c.eye.tolerance;
-            else
-                defaultTolerance = 3;
-            end
-            o.addProperty('tolerance',defaultTolerance,'validate',@isnumeric);  % tolerance is the window size
+            o.addProperty('tolerance',3,'validate',@isnumeric);  % tolerance is the window size
             o.addProperty('invert',false,'validate',@isnumeric); %Invert the meaning of "in the window'
             o.addProperty('allowBlinks',false,'validate',@islogical);
             if ~hasPlugin(c,'eye')
