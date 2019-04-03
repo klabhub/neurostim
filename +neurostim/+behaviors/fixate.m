@@ -5,9 +5,10 @@ classdef fixate  < neurostim.behaviors.eyeMovement
     %             -> FIXATING when the eye moves inside the window
     %             -> FAIL if t > t.from
     %             -> FAIL afterTrial
-    % FIXATING    -> FAIL if eye moves outside the window before t.to
-    %             -> SUCCESS if eye is still inside the window at or after t.to  
-    %             -> SUUCCSS afterTrial
+    % FIXATING    -> FREEVIEWING if eye moves outside the window before o.grace
+    %             -> FAIL if eye moves outside the window after o.grace and before t.to
+    %             -> SUCCESS if eye is still inside the window at or after t.to
+    %             -> SUCCESS afterTrial
     % 
     % Eye position can enter and leave the fixation window within the grace
     % period without penalty, i.e., if the subject breaks fixation within
@@ -21,18 +22,26 @@ classdef fixate  < neurostim.behaviors.eyeMovement
     % 
     %   X,Y         - fixation position.
     %   tolerance   - radius/tolerance of the fixation window around X,Y.
-    %   grace       - can break fixation within grace (ms) without penalty (default: 0 ms).
     %   invert      - invert the definition: eye position must remain outside the
     %                 window for o.from < t < o.to.
     %   allowBlinks - ignore blinks.
     %
+    % Parameters (specific to this behavior):
+    %
+    %   grace       - can break fixation within grace (ms) without penalty (default: 0 ms).
+    %
     % BK - July 2018
+    
+    properties (Dependent)
+       isFreeViewing;
+       isFixating;
+    end
     
     % State functions
     methods
         % In the constructor, a behavior must define the beforeTrialState -
         % the state where each trial will start.
-        function o=fixate(c,name)
+        function o = fixate(c,name)
             o = o@neurostim.behaviors.eyeMovement(c,name);
             
             o.addProperty('grace',0,'validate',@isnumeric);
@@ -69,34 +78,44 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             end
         end
         
-       % A second state.  Note that there is no if(fixating) code; the only
-       % time that this code is called is when the state is 'fixating'. We
-       % only have to look forward (where to transition to), it does not
-       % matter where we came from.
-       function fixating(o,t,e)
-           if e.isAfterTrial; transition(o,@o.success,e); end % if still in this state-> success
+        % A second state.  Note that there is no if(fixating) code; the only
+        % time that this code is called is when the state is 'fixating'. We
+        % only have to look forward (where to transition to), it does not
+        % matter where we came from.
+        function fixating(o,t,e)
+            if e.isAfterTrial; transition(o,@o.success,e); end % if still in this state-> success
 
-           if ~e.isRegular; return; end % No Entry/exit needed.
+            if ~e.isRegular; return; end % No Entry/exit needed.
            
-           % Guards
-           [inside,isAllowedBlink] = isInWindow(o,e);
-           complete = t >= o.to;
+            % Guards
+            [inside,isAllowedBlink] = isInWindow(o,e);
+            complete = t >= o.to;
            
-           % Transitions
-           if complete
-               transition(o,@o.success,e);
-           elseif isAllowedBlink
-               % OK stay in fixating state
-           elseif ~inside
-               if o.duration < o.grace
-                 remove(o.iStartTime,o.stateName); % clear FIXATING startTime
-                 transition(o,@o.freeViewing,e); % return to FREEVIEWING, no penalty
-               else
-                 transition(o,@o.fail,e);
-               end
-           end
-       end
+            % Transitions
+            if complete
+                transition(o,@o.success,e);
+            elseif isAllowedBlink
+                % OK stay in fixating state
+            elseif ~inside
+                if o.duration < o.grace
+                    remove(o.iStartTime,o.stateName); % clear FIXATING startTime
+                    transition(o,@o.freeViewing,e); % return to FREEVIEWING, no penalty
+                else
+                    transition(o,@o.fail,e);
+                end
+            end
+        end
        
     end % methods
- 
+    
+    methods % get methods
+        function v = get.isFreeViewing(o)
+          v = strcmpi(o.stateName,'FREEVIEWING');
+        end
+
+        function v = get.isFixating(o)
+            v = strcmpi(o.stateName,'FIXATING');
+        end
+    end
+  
 end % classdef
