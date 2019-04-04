@@ -94,11 +94,19 @@
         
         
 %         
-        function [m,sd]= threshold(oo)
+        function [m,sd,prctiles]= threshold(oo,quantiles)
             % Return the estimated thresholds for all conditions
             % m = threshold estimate  (QuestMean)
             % sd = standard deviation estimate (QuestStd)
-            m = nan(size(oo)) ; sd =nan(size(oo));
+            % quantiles= Percentile levels at which to calculate the
+            % estimate. (QuestQuantile)
+            if nargin <2
+                quantiles = [];
+            end
+            sz = size(oo);
+            m = nan(sz) ; sd =nan(sz);
+            nrQuantiles = numel(quantiles);
+            prctiles = nan([nrQuantiles prod(sz)]);
             cntr=0;
             for o=oo
                 cntr= cntr+1;
@@ -109,8 +117,14 @@
                 x = o.i2p(o.Q.x);
                 p=sum(o.Q.pdf);
                 sd(cntr)=sqrt(sum(o.Q.pdf.*x.^2)/p-(sum(o.Q.pdf.*x)/p).^2);
+                
+                for i =1:nrQuantiles
+                    prctiles(i,cntr) = o.i2p(QuestQuantile(o.Q,quantiles(i)));
+                end
+                
             end                                  
             end
+            prctiles= reshape(prctiles,[nrQuantiles sz]);
         end
         
     end
