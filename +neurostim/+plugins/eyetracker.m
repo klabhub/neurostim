@@ -7,14 +7,14 @@ classdef eyetracker < neurostim.plugin
 %
 %   sampleRate - rate of samples to be taken.
 %   backgroundColor - background colour for eyetracker functions.
-%   c oundColor - foreground colour for eyetracker functions.
+%   foregroundColor - foreground colour for eyetracker functions.
 %   clbTargetColor - calibration target color.
 %   clbTargetSize - calibration target size.
 %   eyeToTrack - one of 'left','right','binocular' or 0,1,2.
 %   useMouse - if set to true, uses the mouse coordinates as eye coordinates.
 %
 % Keyboard:
-%   Pressing 'b' simulates a 200 ms eye blink
+%   Pressing 'w' simulates a 200 ms eye blink
     
     
     properties (Access=public)
@@ -45,9 +45,8 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('clbTargetColor',[1,0,0]);
             o.addProperty('clbTargetSize',0.25);
             o.addProperty('continuous',false);
-            o.addProperty('tolerance',3); % Used to set default tolerance on behaviors.eyeMovement
             
-            o.addKey('b','Toggle Blink');
+            o.addKey('w','Toggle Blink');
             o.tmr = timer('name','eyetracker.blink','startDelay',200/1000,'ExecutionMode','singleShot','TimerFcn',{@o.openEye});
         end
         
@@ -66,7 +65,7 @@ classdef eyetracker < neurostim.plugin
         
          function keyboard(o,key)
             switch upper(key)
-                case 'B'
+                case 'W'
                     % Simulate a blink
                     o.valid = false;                    
                     if strcmpi(o.tmr.Running,'Off')
