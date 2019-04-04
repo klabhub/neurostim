@@ -28,7 +28,7 @@ switch computerName
     case {'MU00101417X','NS2','NS3'}
         % Shaun's MacBook Pro, Marmolab Rig #1 (NS2) and the Psychophysics rig (NS3)
         c = marmolab.rigcfg();
-        
+        return
     case 'MU00043185'
         %Office PC
         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1680,'ypixels',1050,'screenWidth',42,'frameRate',60,'screenNumber',max(Screen('screens')));
