@@ -76,7 +76,7 @@ g = behaviors.fixateThenChoose(c,'fixThenChoose');
 g.X = 0; % Initial fixation
 g.Y = 0;
 g.from = 2000;       % If fixation has not started at this time, move to the next trial
-g.to = '@dots.on';   % Must maintain fixation until 100ms after the motion appears
+g.to = '@dots.on';   % Must maintain fixation until the motion appears
 g.timeout = '@dots.duration+1000'; % Trial ends if no choice is initiated within 1s of the motion finishing
 g.choiceDuration   = 500;  % keep fixating the answer dot for this long
 g.saccadeDuration  = 1000; % Time allowed to go from the fixation of the choice, after .to
@@ -122,7 +122,7 @@ try
   ix = strcmp(state,'INFLIGHT');
   rt = tt(ix) - t0(trial(ix));
   
-  fprintf(1,'  Median reaction time: %.3f ms.\n',median(rt));
+  fprintf(1,'Median reaction time: %.3f ms.\n',median(rt));
 catch
   error('Could not calculate reaction times!');
 end
