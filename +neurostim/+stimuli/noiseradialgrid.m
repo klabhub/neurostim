@@ -4,16 +4,11 @@ classdef noiseradialgrid < neurostim.stimuli.noiseclut
     %
     % See also noiseGridDemo, noiseRadialGridDemo, neurostim.stimuli.noiseclut, neurostim.stimuli.noiseradialgrid, neurostim.stimuli.noisehexgrid
   
-    properties (Dependent)
-        size
-    end
     
-    properties
-        
-    end
-    
-    methods
-        function sz = get.size(o)
+    methods (Access = protected)
+        function sz = imageSize(o)
+            %Size of the image matrix 
+            %We're obliged to define this function by abstract parent class
             %Size of the idImage matrix. Done this way so it can be accessed before runtime.
             sz = round(2*(o.cic.physical2Pixel(o.outerRad,0)-o.cic.physical2Pixel(0,0)))+1;
             sz = [sz sz];
