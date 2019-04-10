@@ -1701,8 +1701,11 @@ classdef cic < neurostim.plugin
                     % BitsPlusImagingPipelineTest(screenID);
                     % BitsPlusIdentityClutTest(screenID,1); this will
                     % create correct identity cluts.
+                    
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
+                    % TEMPORARY  FIX. STILL TO VALIDATE>
+                    oldtimeout = PsychDataPixx('PsyncTimeoutFrames' , 1);
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
@@ -1756,6 +1759,7 @@ classdef cic < neurostim.plugin
                     % nothing to do
                     
                 case 'VPIXX-M16'
+                    
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
                         % above 1 that is an integer is a 0-255 lut entry.
