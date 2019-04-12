@@ -43,7 +43,11 @@ classdef sound < neurostim.plugin
             o.sampleRate = status.SampleRate;
             
              %Play a dummy sound (first sound wasn't playing)
-            bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,[0; 0]);
+             try
+                bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,[0; 0]);
+             catch
+                error('Could not create audio output. Is your audio output device on?');
+             end
             PsychPortAudio('FillBuffer', o.paHandle,bufferHandle);
             PsychPortAudio('Start',o.paHandle);
             
