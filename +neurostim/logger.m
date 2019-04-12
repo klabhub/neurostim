@@ -85,7 +85,7 @@ classdef logger < handle
         
         function feed(o,inTrial,style,thisTrial,thisTrialTime,msg,plg)
             % This function is called from plugin.writeToFeed
-            if o.localCache || o.hasRemote
+            if inTrial && (o.localCache || o.hasRemote)
                 % Cache the info for later printing to the command line.
                 % When using a remote host, feeds must be cached.
                 o.cacheCntr= o.cacheCntr+1;
