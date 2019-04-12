@@ -24,7 +24,7 @@ if isempty(computerName)
 end
 c.dirs.output = tempdir; % Output files will be stored here.
 
-switch computerName
+switch upper(computerName)
     case {'MU00101417X','NS2','NS3'}
         % Shaun's MacBook Pro, Marmolab Rig #1 (NS2) and the Psychophysics rig (NS3)
         c = marmolab.rigcfg();
@@ -47,14 +47,7 @@ switch computerName
         c = rig(c,'xorigin',950,'yorigin',550,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
         smallWindow = true;
         
-    case 'CMBN-Presentation-Airbook.local'
-        %Airbook
-        scrNr =0;
-        rect = Screen('rect',scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',60,'screenNumber',scrNr);
-        smallWindow = false;
-        c.useConsoleColor = true;
-        
+           
     case 'KLAB-U'
         %if pin.Results.debug
         scrNr = 2;
@@ -162,13 +155,66 @@ switch computerName
             0 0 1; ...
             1 1 1;...
             ];    %.
-        c.log.useColor = true;
-    case 'PTB-P-UBUNTU'
-        c = rig(c,'keyboardNumber',[],'eyelink',pin.Results.eyelink,'outputdir','c:/temp/','mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',120,'screenNumber',1);
+  case 'NEUROSTIMP-UBUNTU'
+       
+        c.screen.color.background = [0.25 0.25 0.25];
+        c.iti                     = 500;
+        c.trialDuration           = 500;
+        c.saveEveryBlock          = true;
+        c.saveEveryN              = inf;
+        c.hardware.textEcho       = true;
         
-        c.screen.colorMode = 'RGB';
-        smallWindow = false;
-        c.eye.sampleRate  = 250;
+        c.kbInfo.experimenter    = 10;
+        c.kbInfo.subject         = 10;
+        c.kbInfo.default        = 10;
+        
+        %% Define plugins based on user selections passed to this function
+        c.subjectNr               = 0;
+        c.runNr                   = 0;
+        if pin.Results.debug
+            c.dirs.output = '/home/ktech/temp/';
+            c.cursor = 'arrow';
+        else
+            c.dirs.output = '/home/ktech/klab/';
+            c.cursor = 'arrow';
+        end
+        
+        c.dirs.calibration = here;
+      
+        c.screen.number     = 1;
+        c.screen.frameRate  = 120;
+        % Geometry
+        c.screen.xpixels    = 1920;
+        c.screen.ypixels    = 1080;
+        c.screen.xorigin    = [];
+        c.screen.yorigin    = [];
+        c.screen.width      = 52;
+        c.screen.height     = c.screen.width*c.screen.ypixels/c.screen.xpixels;
+        % Color calibration
+        c.screen.colorMode  = 'RGB';        
+        c.screen.type       = 'GENERIC';
+        %
+        c.useConsoleColor   = true;
+        c.useFeedCache      = true;
+        c.hardware.keyEcho = true;
+        c.hardware.sound.latencyClass = 2; % Ta ke control - gives 10ms latency in PTB-P
+        
+        % Timing parameters
+        % Make sure synctests are done
+        Screen('Preference', 'SkipSyncTests', 0);
+        % These do not help (and seem to make thing worse)
+        %Screen('Preference', 'VBLTimestampingMode',3); % Beamposition queries work ok on PTB-P, so force their usage for Flip timing
+        %Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
+        c.timing.vsyncMode = 1; % 0 waits for the flip and makes timing most accurate.
+        c.timing.frameSlack = NaN;% NaN; % Not used in vsyncmode 0. A likely drop is one that is 25% late.
+        c.timing.useWhen = false;
+        % We define a standard overlay clut with R, G,B, W the first 4
+        % entries (and 0=black)
+        c.screen.overlayClut = [1 0 0; ... % .color =1 will be max saturated red
+            0 1 0; ...  % .color =2 will be max saturated green
+            0 0 1; ...
+            1 1 1;...
+            ];    %.
     case 'PC2017A'
         scrNr = 1;%max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
