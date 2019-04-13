@@ -164,8 +164,8 @@ switch upper(computerName)
         c.saveEveryN              = inf;
         c.hardware.textEcho       = true;
         
-        c.kbInfo.experimenter    = 10;
-        c.kbInfo.subject         = 10;
+      %  c.kbInfo.experimenter    = 10;
+      %  c.kbInfo.subject         = 10;
         c.kbInfo.default        = 10;
         
         %% Define plugins based on user selections passed to this function
@@ -205,9 +205,9 @@ switch upper(computerName)
         % These do not help (and seem to make thing worse)
         %Screen('Preference', 'VBLTimestampingMode',3); % Beamposition queries work ok on PTB-P, so force their usage for Flip timing
         %Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
-        c.timing.vsyncMode = 1; % 0 waits for the flip and makes timing most accurate.
+        c.timing.vsyncMode = 0; % 0 waits for the flip and makes timing most accurate.
         c.timing.frameSlack = NaN;% NaN; % Not used in vsyncmode 0. A likely drop is one that is 25% late.
-        c.timing.useWhen = false;
+        c.timing.useWhen = true;
         % We define a standard overlay clut with R, G,B, W the first 4
         % entries (and 0=black)
         c.screen.overlayClut = [1 0 0; ... % .color =1 will be max saturated red

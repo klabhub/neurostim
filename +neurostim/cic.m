@@ -973,6 +973,9 @@ classdef cic < neurostim.plugin
             if ~c.hardware.keyEcho
                 ListenChar(-1);
             end
+            % We can only flush those keyboard devices that have been
+            % activated:
+            kbDeviceIndices = unique([c.kbInfo.default c.kbInfo.subject c.kbInfo.experimenter]);
             for blockCntr=1:c.nrBlocks
                 if ~c.flags.experiment;break;end % in case a plugin has generated a STOPEXPERIMENT error
                 
@@ -1002,7 +1005,7 @@ classdef cic < neurostim.plugin
                     
                     c.frame=0;
                     c.flags.trial = true;
-                    PsychHID('KbQueueFlush');
+                    PsychHID('KbQueueFlush',kbDeviceIndices);
                     
                     Priority(MaxPriority(c.mainWindow));
                     %draw = nan(1,1000); % Commented out. See drawingFinished code below
@@ -1499,7 +1502,7 @@ classdef cic < neurostim.plugin
             % (experimenter keyboard)
             clear KbCheck; % Seems to be necessary on Ubuntu
             c.kbInfo.activeKb = {}; % Use a cell to store [] for "default keyboard"
-            if ~isempty(c.kbInfo.subject) && ~isempty(c.kbInfo.experimenter)
+             if ~isempty(c.kbInfo.subject) && ~isempty(c.kbInfo.experimenter)
                 % Separate subject/experimenter keyboard defined
                 keyList = zeros(1,256);
                 if any(c.kbInfo.isSubject)
@@ -1665,8 +1668,11 @@ classdef cic < neurostim.plugin
                     % BitsPlusImagingPipelineTest(screenID);
                     % BitsPlusIdentityClutTest(screenID,1); this will
                     % create correct identity cluts.
+                    
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
+                    % TEMPORARY  FIX. STILL TO VALIDATE>
+                    oldtimeout = PsychDataPixx('PsyncTimeoutFrames' , 1);
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
@@ -1720,6 +1726,7 @@ classdef cic < neurostim.plugin
                     % nothing to do
                     
                 case 'VPIXX-M16'
+                    
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
                         % above 1 that is an integer is a 0-255 lut entry.
