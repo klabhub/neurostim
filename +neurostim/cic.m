@@ -781,9 +781,8 @@ classdef cic < neurostim.plugin
             base(c.pluginOrder,neurostim.stages.BEFOREBLOCK,c);
             % Draw block message and wait for keypress if requested.
             if ~isempty(msg)
-                c.drawFormattedText(msg);
-            end
-            Screen('Flip',c.mainWindow);
+                c.drawFormattedText(msg,'ShowNow',true);
+            end            
             if waitForKey
                 KbWait(c.kbInfo.pressAnyKey,2);
             end
@@ -800,14 +799,13 @@ classdef cic < neurostim.plugin
                 end
                 if ~isempty(msg)
                     Screen('Flip',c.mainWindow); % Clear screen 
-                    c.drawFormattedText(msg);
+                    c.drawFormattedText(msg,'ShowNow',true);
                     waitforkey=c.blocks(c.block).afterKeyPress;
                 end
                 if ~isempty(c.blocks(c.block).afterFunction)
                     c.blocks(c.block).afterFunction(c);
                     waitforkey=c.blocks(c.block).afterKeyPress;
                 end
-                Screen('Flip',c.mainWindow);
                 % 
                 if c.saveEveryBlock
                     ttt=tic;
@@ -940,9 +938,8 @@ classdef cic < neurostim.plugin
             showCursor(c);
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
-            c.drawFormattedText(c.beforeExperimentText);            
-            Screen('Flip', c.mainWindow);            
-            
+            c.drawFormattedText(c.beforeExperimentText,'ShowNow',true);            
+                        
             sanityChecks(c);
             
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
@@ -1027,17 +1024,22 @@ classdef cic < neurostim.plugin
                         
                         
                         base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
+                                                                      
                         % This commented out code allows measuring the draw
                         % times.
-                        %draw(c.frame) = Screen('DrawingFinished',c.mainWindow,1-clr,true);
-                        Screen('DrawingFinished',c.mainWindow,1-clr);
+                        % draw(c.frame) = Screen('DrawingFinished',c.mainWindow,1-clr,true);
+%                         tmp = Screen('GetWindowInfo',c.mainWindow,0); 
+%                         draw(c.frame) = tmp.GPULastFrameRenderTime;
+%                         Screen('GetWindowInfo',c.mainWindow,5); % Start GPU clock
                         
+                        Screen('DrawingFinished',c.mainWindow,1-clr);
                         
                         KbQueueCheck(c);
                         % After the KB check, a behavioral requirement
-                        % can have terminated the tria. 
+                        % can have terminated the trial. 
                         if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
-                        
+                     
+                          
                         startFlipTime = GetSecs; % Avoid function call to clocktime
                         
                         % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
@@ -1053,7 +1055,7 @@ classdef cic < neurostim.plugin
                         if c.timing.useWhen
                             % Use the when argument - better(fewer drops)
                             % on at least one Windows system (win7/Quadro
-                            % Pro/ViewPixx)
+                            % Pro/ViewPixx)                              
                             [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,c.timing.vsyncMode);
                         else
                             % Don't use the when (better on some linux
@@ -1073,11 +1075,6 @@ classdef cic < neurostim.plugin
                             ptbVbl = GetSecs;
                             ptbStimOn = ptbVbl;
                         end
-                        if c.timing.useWhen
-                           % missed is calculated by Screen('FLIP') 
-                        else
-                            missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
-                        end
                         
                         if locPROFILE && c.frame > 1
                             addProfile(c,'FRAMELOOP','cic',c.toc);
@@ -1086,8 +1083,21 @@ classdef cic < neurostim.plugin
                         end
                         
                         
-                        % Predict next frame and check frame drops
-                        frameDeadline = ptbVbl+ FRAMEDURATION;
+                        % Predict next frame and check frame drops.
+                        % This should NOT be the estimated flip time, as
+                        % PTB will wait for this time and only then
+                        % schedule the flip - so if it is too close, we
+                        % have to wait 1 extra retrace. 
+                        if c.timing.useWhen 
+                            frameDeadline = ptbVbl+ 0.5*FRAMEDURATION; 
+                        else 
+                            % But if we're not using PTB when, then we need
+                            % the predicted VBL to determine whether this
+                            % was a miss.                             
+                            missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
+                            frameDeadline = ptbVbl + FRAMEDURATION;
+                        end
+                        
                         if c.frame == 1
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
                             c.firstFrame = locFIRSTFRAMETIME;% log it
@@ -1136,9 +1146,9 @@ classdef cic < neurostim.plugin
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
             clearOverlay(c,true);               
-            c.drawFormattedText(c.afterExperimentText);
-            Screen('Flip', c.mainWindow);
             
+            c.drawFormattedText(c.afterExperimentText,'ShowNow',true);
+           
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
             c.KbQueueStop;
             %Prune the log of all plugins/stimuli and cic itself
@@ -1151,10 +1161,11 @@ classdef cic < neurostim.plugin
             end
             
             c.saveData;
+           
             
             ListenChar(0);
             Priority(0);
-            if c.keyAfterExperiment; c.writeToFeed({'','Press any key to close the screen',''}); KbWait(c.kbInfo.pressAnyKey);end
+            if c.keyAfterExperiment; c.drawFormattedText('Press any key to close the screen','ShowNow',true); KbWait(c.kbInfo.pressAnyKey);end
             
             Screen('CloseAll');
             if c.PROFILE; report(c);end
@@ -1573,6 +1584,7 @@ classdef cic < neurostim.plugin
             p.addParameter('vSpacing',1) % The vSpacing parameter in PTB
             p.addParameter('rightToLeft',0) % The righttoleft parameter in PTB
             p.addParameter('winRect',[0 0 c.screen.xpixels c.screen.ypixels]) % The winRect parameter in PTB
+            p.addParameter('showNow',false); % Call Screen('Flip') immediately 
             p.parse(varargin{:});
             
             DrawFormattedText(c.textWindow,text, p.Results.left, p.Results.top, c.screen.color.text, p.Results.wrapAt, p.Results.flipHorizontal, p.Results.flipVertical, p.Results.vSpacing, p.Results.rightToLeft, p.Results.winRect);                          
@@ -1584,7 +1596,12 @@ classdef cic < neurostim.plugin
                  end
                c.writeToFeed(sprintf('Screen Message: %s\n',text),'style',style);
             end
-            
+            if p.Results.showNow 
+                 Screen('Flip',c.mainWindow,[],0); % This will clear text from the backbuffer
+                if c.textWindow == c.overlayWindow
+                    clearOverlay(c,true); % If text is written to overlay, clear the overlay too
+                end
+            end
          end
     end
     

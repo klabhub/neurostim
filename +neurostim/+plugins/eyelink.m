@@ -113,6 +113,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('clbType','HV9');
             o.addProperty('host','');
             o.addProperty('F9PassThrough',false); % simulate F9 press on Eyelink host to do quick drift correct
+            o.addProperty('transferFile',true); % afterExperiment - transfer file from the Host to here. (Only set to false in debugging to speed things  up)
         end
         
         function beforeExperiment(o)
@@ -213,27 +214,29 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function afterExperiment(o)
-            
+                       
+            o.cic.drawFormattedText('Transfering data from Eyelink host, please wait.','ShowNow',true);            
             Eyelink('StopRecording');
-            Eyelink('CloseFile'); pause(0.1);
-            try
-                newFileName = [o.cic.fullFile '.edf'];
-                for i=1:o.nTransferAttempts
-                    writeToFeed(o,'Attempting to receive Eyelink edf file');
-                    
-                    status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
-                    if status>0
-                        o.edfFile = newFileName;
-                        writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
-                        break
-                    else
-                        o.nTransferAttempts = o.nTransferAttempts - 1;
-                        writeToFeed(o,['Fail: EDF file (' o.edfFile ')  did not transfer ' num2str(status)]);
-                        writeToFeed(o,['Retrying. ' num2str(o.nTransferAttempts) ' attempts remaining.']);
+            Eyelink('CloseFile');
+            pause(0.1);
+            if o.transferFile
+                try
+                    newFileName = [o.cic.fullFile '.edf'];
+                    for i=1:o.nTransferAttempts
+                        status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
+                        if status>0
+                            o.edfFile = newFileName;
+                            writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
+                            break
+                        else
+                            o.nTransferAttempts = o.nTransferAttempts - 1;
+                            writeToFeed(o,['Fail: EDF file (' o.edfFile ')  did not transfer ' num2str(status)]);
+                            writeToFeed(o,['Retrying. ' num2str(o.nTransferAttempts) ' attempts remaining.']);
+                        end
                     end
+                catch
+                    error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
                 end
-            catch
-                error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
             end
             Eyelink('Shutdown');
         end

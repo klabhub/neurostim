@@ -78,6 +78,7 @@ classdef egi < neurostim.plugin
         end
         
         function beforeExperiment(o)            
+            o.cic.drawFormattedText('Please wait, connecting and syncing with EGI...','ShowNow',true);
             o.connect;            
             o.synchronize; % Check that we can sync reliably
             o.startRecording;
