@@ -103,8 +103,13 @@ classdef egi < neurostim.plugin
         
         function afterTrial(o)
             % Deliver the events that were queued during the trial
+            
+            dpixxTime = cellfun(@(x)(x{2}),o.eventQ(1:o.nrInQ))/1000;
+            [ptbTime, sd, ratio] = PsychDataPixx('BoxsecsToGetsecs',dpixxTime);            
             for i=1:o.nrInQ
-                o.event(o.eventQ{i}{:}); % Send the queued events to netstations                
+                e =  o.eventQ{i};
+                e{2} = ptbTime(i)*1000;
+                o.event(e{:}); % Send the queued events to netstations                
             end
             
             o.nrInQ = 0; % Reset counter
@@ -193,7 +198,6 @@ classdef egi < neurostim.plugin
             % stored the time that the event occurrred (so NetStation
             % stores it at the right location in its datastream).           
             % INPUT
-            % stim  = stimulus object that generated the event. 
             % thisE = Cell array containing event information. 
             %       {code,startTime,duration,parm/value pairs}
             

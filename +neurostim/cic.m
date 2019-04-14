@@ -1001,6 +1001,7 @@ classdef cic < neurostim.plugin
                     
                     Priority(MaxPriority(c.mainWindow));
                     %draw = nan(1,1000); % Commented out. See drawingFinished code below
+                    perFrame = nan(1000,3);
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -1036,7 +1037,7 @@ classdef cic < neurostim.plugin
                             % In vsyncMode 1 we schedule the flip now (but
                             % then proceed asynchronously to do some
                             % non-drawing related tasks).
-                            [~,~,~,missed] =Screen('AsyncFlipBegin',c.mainWindow,frameDeadline,1-clr,0,0);
+                            Screen('AsyncFlipBegin',c.mainWindow,frameDeadline,1-clr,0,0);
                         end
                         
                         KbQueueCheck(c);
@@ -1062,7 +1063,7 @@ classdef cic < neurostim.plugin
                             % This is done synchronously; execution will
                             % wait here until after the flip has completed.
                             startFlipTime = GetSecs;
-                            [ptbVbl,ptbStimOn,flipDoneTime,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,0);
+                            Screen('Flip', c.mainWindow,frameDeadline,1-clr,0);
                             flipDuration = flipDoneTime-startFlipTime; % Inlcudes the busy wait time
                             nextVbl = ptbVbl+FRAMEDURATION;
                         end
@@ -1091,6 +1092,7 @@ classdef cic < neurostim.plugin
                         % advantages in reducing frame drops.
                         base(c.pluginOrder,neurostim.stages.AFTERFRAME,c);
                         
+                        
                         % Even in asynchronous vsync mode we have to wait
                         % for the flip to complete at some point, we do
                         % that here, at the last possible time point in the
@@ -1098,9 +1100,10 @@ classdef cic < neurostim.plugin
                         if c.timing.vsyncMode ==1
                             % This will return the timing associated with
                             % the last completed flip.
-                            startFlipTime = 0;GetSecs;
-                            [ptbVbl,ptbStimOn,flipDoneTime,missed] = Screen('AsyncFlipEnd',c.mainWindow);
-                            flipDuration = flipDoneTime-startFlipTime; % Inlcudes the busy wait time, but can be negative if the flip already completed
+                            startFlipTime = GetSecs;
+                            [ptbVbl,ptbStimOn,flipDoneTime] = Screen('AsyncFlipEnd',c.mainWindow);
+                            perFrame(c.frame,:) = [ptbVbl,ptbStimOn,flipDoneTime] ;
+                            flipDuration = flipDoneTime-startFlipTime; % Includes the busy wait time, but can be negative if the flip already completed
                             nextVbl = ptbVbl+FRAMEDURATION;
                         end
                         
@@ -1114,7 +1117,7 @@ classdef cic < neurostim.plugin
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
                             c.firstFrame = locFIRSTFRAMETIME;% log it
                         else
-                            missed =frameDeadline-ptbVbl;
+                            missed =ptbVbl-frameDeadline;
                             if missed >ITSAMISS
                                 c.frameDrop = [c.frame-1 missed]; % Log frame and delta
                             end
@@ -1136,15 +1139,17 @@ classdef cic < neurostim.plugin
                         %properties in any afterFrame() depend on them. So, send the flip time those who requested it
                         if ~isempty(c.flipCallbacks)
                             flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
-                            cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
+                            [dpixxStimOn] = PsychDataPixx('GetLastOnsetTimestamp');
+                            cellfun(@(s) s.afterFlip(flipTime,dpixxStimOn*1000),c.flipCallbacks);
                             c.flipCallbacks = {};
                         end
                         
                         
+                     
                     end % Trial running
                     
                     %Perform one last flip to clear the screen (if requested)
-                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
+                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
                     
