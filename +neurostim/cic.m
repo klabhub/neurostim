@@ -1036,7 +1036,7 @@ classdef cic < neurostim.plugin
                             % In vsyncMode 1 we schedule the flip now (but
                             % then proceed asynchronously to do some
                             % non-drawing related tasks).
-                            [~,~,~,missed] = Screen('AsyncFlipBegin',c.mainWindow,frameDeadline,1-clr,0,0);
+                            [~,~,~,missed] =Screen('AsyncFlipBegin',c.mainWindow,frameDeadline,1-clr,0,0);
                         end
                         
                         KbQueueCheck(c);
@@ -1078,7 +1078,8 @@ classdef cic < neurostim.plugin
                             tic(c)
                         end
                         
-                        % In Vsyncmode 0, the frame will have flipped by
+                       
+                          % In Vsyncmode 0, the frame will have flipped by
                         % now, we start the afterFrame functions in all
                         % plugins.
                         % In Vsyncmode 1 the frame may not have flipped
@@ -1113,7 +1114,8 @@ classdef cic < neurostim.plugin
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
                             c.firstFrame = locFIRSTFRAMETIME;% log it
                         else
-                            if (frameDeadline-ptbVbl)>ITSAMISS
+                            missed =frameDeadline-ptbVbl;
+                            if missed >ITSAMISS
                                 c.frameDrop = [c.frame-1 missed]; % Log frame and delta
                             end
                         end
@@ -1137,6 +1139,7 @@ classdef cic < neurostim.plugin
                             cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
                             c.flipCallbacks = {};
                         end
+                        
                         
                     end % Trial running
                     
@@ -1706,8 +1709,8 @@ classdef cic < neurostim.plugin
                     
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
-                    % TEMPORARY  FIX. STILL TO VALIDATE>
-                    % oldtimeout = PsychDataPixx('PsyncTimeoutFrames' , 1);
+                    % After upgrading to Win10 we seem to need this.
+                    PsychDataPixx('PsyncTimeoutFrames' , 1);
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
