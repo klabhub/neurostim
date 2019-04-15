@@ -74,7 +74,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         edfFile@char = 'test.edf';
         getSamples@logical=true;
         getEvents@logical=false;
-        nTransferAttempts = 5;
+        nTransferAttempts = 5;        
     end
     
     properties
@@ -118,22 +118,24 @@ classdef eyelink < neurostim.plugins.eyetracker
         
         function beforeExperiment(o)
             
+           
             %Initalise default Eyelink el structure and set some values.
             % first call it with the mainWindow
-            o.el=EyelinkInitDefaults(o.cic.mainWindow);
+            o.el=EyelinkInitDefaults(o.window);
             % Careful, Eyelink toolbox uses British spelling...
+            %cal = o.cic.screen.calibration;
             if isempty(o.backgroundColor)
                 % If the user did not set the background for the eyelink
-                % then use screen background
-                o.backgroundColor = o.cic.screen.color.background;
+                % then use screen background                
+                o.backgroundColor = [0 0 0];%[1 1 1]*cal.ns.lum2gun([cal.ns.max cal.ns.gamma cal.ns.bias],o.cic.screen.color.background);
             end
             if isempty(o.clbTargetColor)
                 % If the user did not set the calibration target color
                 % then make it maximally different from the background (5%)
-                o.clbTargetColor = max(o.backgroundColor)-0.95*o.backgroundColor;
+                o.clbTargetColor = [1 0 0];%o.backgroundColor-0.95*o.backgroundColor;
             end
             if isempty(o.foregroundColor)
-                o.foregroundColor = o.cic.screen.color.text;
+                o.foregroundColor = [.5 .5 .5]; %o.cic.screen.color.text;
             end
             o.el.backgroundcolour  = o.backgroundColor;
             o.el.foregroundcolour  = o.foregroundColor;
@@ -248,22 +250,50 @@ classdef eyelink < neurostim.plugins.eyetracker
                 
                 % The Eyelink toolbox draws its targets in pixels. Undo any
                 % transformations.
-                Screen('glPushMatrix',o.cic.window);
-                Screen('glLoadIdentity',o.cic.window);
+%                Screen('glPushMatrix',o.cic.window);
+                 
+%Screen('glLoadIdentity',o.rgbWindow);
                 
+%                PsychImaging(o.cic);
+
+
+ PsychImaging('PrepareConfiguration');
+             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');% 32 bit frame buffer values
+            PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');% Unrestricted color range
+             PsychImaging('AddTask', 'General', 'UseFastOffscreenWindows');
+            
+            dac = 8;
+           % Screen('LoadNormalizedGammaTable',o.cic.screen.number,repmat(linspace(0,1,2^dac)',[1 3])); % Reset gamma
+            PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'None');
+            o.el.window = PsychImaging('OpenWindow',o.cic.screen.number, [0.5 0.0 0.5],[],[],[],[],[]);
+            Screen('FillRect', o.el.window, [0.5 0.5 0.0]);
+           Screen('Flip',o.el.window);
+            
+
+                 PsychDataPixx('SetVideoMode',0);
+%                 dac = 8;
+%                 Screen('LoadNormalizedGammaTable',o.cic.screen.number,repmat(linspace(0,1,2^dac)',[1 3])); % Reset gamma
+%                 PsychImaging('PrepareConfiguration');
+%                      PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'None');
                 % Do setup or drift correct
+                
                 if o.doTrackerSetup
+                    
                     EyelinkDoTrackerSetup(o.el);
                 elseif o.doDriftCorrect
                     EyelinkDoDriftCorrect(o.el); % Using default center of screen.
                 end
-                Screen('glPopMatrix',o.cic.window); % restore neurostim transformations
+%                Screen('glPopMatrix',o.cic.window); % restore neurostim transformations
                 o.doTrackerSetup = false;
                 o.doDriftCorrect = false; % done for now
                 EyelinkClearCalDisplay(o.el);
+ 
+                Screen('Close',o.el.window);
+                 Screen('Flip',o.window);
+                PsychDataPixx('SetVideoMode',2);
                 % Eyelink clears the screen with fillrect which changes the
                 % background color. Change it back.
-                Screen('FillRect', o.cic.window, o.cic.screen.color.background);
+               % Screen('FillRect', o.cic.window, o.cic.screen.color.background);
             end
             
             
