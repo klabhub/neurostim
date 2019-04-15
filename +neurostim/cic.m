@@ -44,10 +44,7 @@ classdef cic < neurostim.plugin
             'calibration',struct('gamma',2.2,'bias',nan(1,3),'min',nan(1,3),'max',nan(1,3),'gain',nan(1,3)),...
             'overlayClut',[]);    % screen-related parameters.
         
-        timing = struct('vsyncMode',0,... % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
-            'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
-            'pluginSlack',0,...% see plugin.m
-            'useWhen',false);  %Use the when argument to Screen('Flip') or not.
+        timing = struct('vsyncMode',0); % 0 = busy wait until vbl, 1 = schedule flip asynchronously then continue                
         
         hardware                = struct('sound',struct('device',-1,'latencyClass',1) ... % Sound hardware settings (device = index of audio device to use, see plugins.sound
             ,'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
@@ -945,7 +942,6 @@ classdef cic < neurostim.plugin
             if c.keyBeforeExperiment; KbWait(c.kbInfo.pressAnyKey);end
             clearOverlay(c,true);
             
-            FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
             
             % If PTB reports that it can synchronize to the VBL
             % or if you have measured that it does, then the time
@@ -958,10 +954,14 @@ classdef cic < neurostim.plugin
             % frame too late, could still have flipped at the right
             % time... (and then windows went shopping for a bit).
             % We allow 50% of slack to account for noisy timing.
-            ITSAMISS =  0.5*FRAMEDURATION; %
+            FRAMEDURATION   = 1/c.screen.frameRate; % In seconds to match PTB convention
+            ITSAMISS        =  0.5*FRAMEDURATION; %
             locPROFILE      = c.PROFILE;
-            frameDeadline   = NaN;
-            nextVbl         = NaN;
+            WHEN            = 0; % Always flip on the next VBL
+            DONTCLEAR       = 1;
+            SYNC            = 0;
+            predictedVbl    = NaN;
+            
             if ~c.hardware.keyEcho
                 ListenChar(-1);
             end
@@ -988,20 +988,25 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
-                            Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            ptbVbl = Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                             if locHAVEOVERLAY
                                 clearOverlay(c,c.itiClear);
                             end
                         end
+                    else
+                         % FLIP at least once to get started (and predict the next vbl)
+                        [ptbVbl] = Screen('Flip', c.mainWindow,WHEN,DONTCLEAR);                        
                     end
-                    
+                    predictedVbl = ptbVbl+FRAMEDURATION; % Predict upcoming 
+                   
+                   
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush',kbDeviceIndices);
-                    
                     Priority(MaxPriority(c.mainWindow));
-                    %draw = nan(1,1000); % Commented out. See drawingFinished code below
-                    perFrame = nan(1000,3);
+                    
+                    % Timing the draw : commented out. See drawingFinished code below
+                    % draw = nan(1,1000);                     
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -1018,7 +1023,8 @@ classdef cic < neurostim.plugin
                             clr = c.clear;
                         end
                         
-                        
+                        % Call beforeFrame code in all plugins (i.e drawing
+                        % to the backbuffer). 
                         base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
                         
                         % This commented out code allows measuring the draw
@@ -1037,7 +1043,8 @@ classdef cic < neurostim.plugin
                             % In vsyncMode 1 we schedule the flip now (but
                             % then proceed asynchronously to do some
                             % non-drawing related tasks).
-                            Screen('AsyncFlipBegin',c.mainWindow,frameDeadline,1-clr,0,0);
+                            %Screen('AsyncFlipBegin', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
+                            Screen('AsyncFlipBegin',c.mainWindow,WHEN,1-clr,0,0); 
                         end
                         
                         KbQueueCheck(c);
@@ -1059,13 +1066,15 @@ classdef cic < neurostim.plugin
                         % In VSync mode 0 we start the flip and wait for it
                         % to finish before proceeding.
                         if c.timing.vsyncMode ==0
-                            % Do the flip at the first VBL after the frameDeadline
+                            % Do the flip at the next available VBL (WHEN=0)
                             % This is done synchronously; execution will
                             % wait here until after the flip has completed.
                             startFlipTime = GetSecs;
-                            Screen('Flip', c.mainWindow,frameDeadline,1-clr,0);
-                            flipDuration = flipDoneTime-startFlipTime; % Inlcudes the busy wait time
-                            nextVbl = ptbVbl+FRAMEDURATION;
+                            %Screen('Flip', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);                       
+                            [ptbVbl,ptbStimOn,flipDoneTime] = Screen('Flip', c.mainWindow,WHEN,1-clr,0,0);
+                            flipDuration = flipDoneTime-startFlipTime; % For profiling only: includes the busy wait time
+                            vblIsLate = ptbVbl-predictedVbl;
+                            predictedVbl = ptbVbl+FRAMEDURATION; % Prediction for next frame
                         end
                         
                         % Special clearing instructions for overlays
@@ -1080,7 +1089,7 @@ classdef cic < neurostim.plugin
                         end
                         
                        
-                          % In Vsyncmode 0, the frame will have flipped by
+                        % In Vsyncmode 0, the frame will have flipped by
                         % now, we start the afterFrame functions in all
                         % plugins.
                         % In Vsyncmode 1 the frame may not have flipped
@@ -1102,54 +1111,36 @@ classdef cic < neurostim.plugin
                             % the last completed flip.
                             startFlipTime = GetSecs;
                             [ptbVbl,ptbStimOn,flipDoneTime] = Screen('AsyncFlipEnd',c.mainWindow);
-                            perFrame(c.frame,:) = [ptbVbl,ptbStimOn,flipDoneTime] ;
-                            flipDuration = flipDoneTime-startFlipTime; % Includes the busy wait time, but can be negative if the flip already completed
-                            nextVbl = ptbVbl+FRAMEDURATION;
+                            flipDuration = flipDoneTime-startFlipTime; % For loggin only; includes the busy wait time, but can be negative if the flip already completed
+                            vblIsLate = ptbVbl-predictedVbl;
+                            predictedVbl = ptbVbl+FRAMEDURATION; % Prediction for next frame
                         end
                         
                         if locPROFILE
                             addProfile(c,'FLIPTIME','cic',1000*flipDuration);
                         end
-                        
-                        
+                                                
                         % check and log frame drops.
                         if c.frame == 1
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
                             c.firstFrame = locFIRSTFRAMETIME;% log it
                         else
-                            missed =ptbVbl-frameDeadline;
-                            if missed >ITSAMISS
-                                c.frameDrop = [c.frame-1 missed]; % Log frame and delta
+                            if vblIsLate >ITSAMISS
+                                c.frameDrop = [c.frame-1 vblIsLate]; % Log frame and delta
                             end
                         end
-                        
-                        % Predict next frame
-                        % Given that we always want to run at the full frame rate
-                        % the frame deadline is somewhere between the last VBL
-                        % and one frame later.
-                        % The frameDeadline should NOT be the estimated VBL time, as
-                        % PTB will wait for this time and only then
-                        % schedule the flip - so if it is too close, we
-                        % wait 1 extra retrace. We chose 0.9*FRAMEDURATION
-                        % under the assumption that 0.1* FRAMEDURATION
-                        % should always be enough to execute the flip.
-                        frameDeadline = nextVbl - 0.1*FRAMEDURATION;
                         
                         %Stimuli should set and log their onsets/offsets as soon as they happen, in case other
                         %properties in any afterFrame() depend on them. So, send the flip time those who requested it
                         if ~isempty(c.flipCallbacks)
-                            flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
-                            [dpixxStimOn] = PsychDataPixx('GetLastOnsetTimestamp');
-                            cellfun(@(s) s.afterFlip(flipTime,dpixxStimOn*1000),c.flipCallbacks);
+                            flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;                           
+                            cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
                             c.flipCallbacks = {};
-                        end
-                        
-                        
-                     
+                        end                        
                     end % Trial running
                     
                     %Perform one last flip to clear the screen (if requested)
-                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
+                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
                     

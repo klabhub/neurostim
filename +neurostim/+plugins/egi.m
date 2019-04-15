@@ -103,15 +103,9 @@ classdef egi < neurostim.plugin
         
         function afterTrial(o)
             % Deliver the events that were queued during the trial
-            
-            dpixxTime = cellfun(@(x)(x{2}),o.eventQ(1:o.nrInQ))/1000;
-            [ptbTime, sd, ratio] = PsychDataPixx('BoxsecsToGetsecs',dpixxTime);            
             for i=1:o.nrInQ
-                e =  o.eventQ{i};
-                e{2} = ptbTime(i)*1000;
-                o.event(e{:}); % Send the queued events to netstations                
-            end
-            
+                o.event(o.eventQ{i}{:}); % Send the queued events to netstations                
+            end            
             o.nrInQ = 0; % Reset counter
             o.eventQ = cell(numel(o.eventQ),1);% Prealoc for next trials
             o.event('ETRL',[],[],'DESC','End trial');            
@@ -241,7 +235,11 @@ classdef egi < neurostim.plugin
             % stopTime= flipTime in clocktime (i.e. not relative to the
             % trial)                        
             code = [s.name(1:min(numel(s.name),2)) 'OF'];
-            hEgi= s.cic.egi;            
+            hEgi= s.cic.egi;    
+            % The stopTime tells us when the flip happened that *started*
+            % the last frame for this stimulus. So the offset is one frame
+            % later.
+            stopTime  = stopTime + 1000/s.cic.screen.frameRate;
             thisE = {code,stopTime,1,'FLIP',stopTime,'DESC',[s.name ' offset']};
             hEgi.addToEventQueue(thisE);
         end
