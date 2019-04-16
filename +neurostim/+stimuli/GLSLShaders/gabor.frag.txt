@@ -98,10 +98,10 @@ void main()
         tev = sign(sin(flickerPhase));
     }else if (flickerMode ==4){
         /*sinusoidal contrast modulation*/
-        tev = 1+sin(flickerPhase);
+        tev = 1.0+sin(flickerPhase);
     }else if (flickerMode ==5){
         /* square wave contrast modualtion*/
-        tev = 1+sign(sin(flickerPhase));
+        tev = 1.0+sign(sin(flickerPhase));
     }else{
         /*throw an error - not a valid mode */
         tev =1.0;

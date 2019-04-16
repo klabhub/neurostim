@@ -49,8 +49,8 @@ classdef stimulus < neurostim.plugin
     end
     
     properties (Access=private)
-        logOnset@logical;
-        logOffset@logical;
+        logOnset@logical=false;
+        logOffset@logical=false;
     end
     
     methods
@@ -350,10 +350,14 @@ classdef stimulus < neurostim.plugin
                                
                 %Pass control to the child class
                 beforeFrame(s);                
-
+                               
             end
             Screen('glLoadIdentity', locWindow);
             
+            if s.logOnset || s.logOffset
+                % Ask for a Datapixx onset timestamp for next 'Flip':
+                PsychDataPixx('LogOnsetTimestamps', 1);
+            end
             % diode size/position is in pixels and we don't really want it
             % changing even if we change the physical screen size (e.g., 
             % when changing viewing distance) or being distorted by the
@@ -412,14 +416,14 @@ classdef stimulus < neurostim.plugin
     methods (Access = {?neurostim.cic})
         function afterFlip(s,flipTime,ptbTime)
             if s.logOnset                
-                s.writeToFeed([s.name ' on:' num2str(s.cic.frame) '(' num2str(flipTime) ',' num2str(ptbTime) ')'])
+                %DEBUG only: s.writeToFeed([s.name ' on:' num2str(s.cic.frame) '(' num2str(flipTime) ',' num2str(ptbTime) ')'])
                 s.startTime = flipTime;
                 s.logOnset = false;
                 if ~isempty(s.onsetFunction)
                     s.onsetFunction(s,ptbTime);
                 end
             elseif s.logOffset
-                s.writeToFeed([s.name ' off:' num2str(s.cic.frame) '(' num2str(flipTime) ',' num2str(ptbTime) ')'])
+                %DEBUG only: s.writeToFeed([s.name ' off:' num2str(s.cic.frame) '(' num2str(flipTime) ',' num2str(ptbTime) ')'])
                 s.stopTime = flipTime;
                 s.logOffset = false;
                  if ~isempty(s.offsetFunction)

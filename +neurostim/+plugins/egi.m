@@ -20,7 +20,7 @@ classdef egi < neurostim.plugin
     % BK - Jan 2019. Overhaul, proper timing testing.
     
     properties
-        host@char = '10.10.10.42'; % '10.10.10.42' is NetStation default.
+        host@char = '10.10.10.42'; % '10.10.10.42' is NetStation default. (Note that this is NOT the IP of the amp)
         port@double = 55513; % Default port for connection to NetStation.
         syncLimit  = 2.5; % Limits for acceptable sync (in ms).       
     end
@@ -78,6 +78,7 @@ classdef egi < neurostim.plugin
         end
         
         function beforeExperiment(o)            
+            o.cic.drawFormattedText('Please wait, connecting and syncing with EGI...','ShowNow',true);
             o.connect;            
             o.synchronize; % Check that we can sync reliably
             o.startRecording;
@@ -104,8 +105,7 @@ classdef egi < neurostim.plugin
             % Deliver the events that were queued during the trial
             for i=1:o.nrInQ
                 o.event(o.eventQ{i}{:}); % Send the queued events to netstations                
-            end
-            
+            end            
             o.nrInQ = 0; % Reset counter
             o.eventQ = cell(numel(o.eventQ),1);% Prealoc for next trials
             o.event('ETRL',[],[],'DESC','End trial');            
@@ -192,7 +192,6 @@ classdef egi < neurostim.plugin
             % stored the time that the event occurrred (so NetStation
             % stores it at the right location in its datastream).           
             % INPUT
-            % stim  = stimulus object that generated the event. 
             % thisE = Cell array containing event information. 
             %       {code,startTime,duration,parm/value pairs}
             
@@ -236,7 +235,11 @@ classdef egi < neurostim.plugin
             % stopTime= flipTime in clocktime (i.e. not relative to the
             % trial)                        
             code = [s.name(1:min(numel(s.name),2)) 'OF'];
-            hEgi= s.cic.egi;            
+            hEgi= s.cic.egi;    
+            % The stopTime tells us when the flip happened that *started*
+            % the last frame for this stimulus. So the offset is one frame
+            % later.
+            stopTime  = stopTime + 1000/s.cic.screen.frameRate;
             thisE = {code,stopTime,1,'FLIP',stopTime,'DESC',[s.name ' offset']};
             hEgi.addToEventQueue(thisE);
         end

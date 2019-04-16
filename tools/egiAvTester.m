@@ -79,7 +79,7 @@ c.subject = getenv('computername');
 e = plugins.egi(c); % Add the EGI plugin
 % On your first run, set this to 0 to measure the delay between photodiode
 % and the TCP generated GRAT event
-e.clockOffset = -37;  % In KLab rig this is 13.5 ms in vsyncMode 0 using two monitors, but 4 when using only VPIXX (and vsync 1)
+e.clockOffset = 0;  % In KLab rig this is 13.5 ms in vsyncMode 0 using two monitors, but 4 when using only VPIXX (and vsync 1)
 % If you have Netstation 3.5 or later and a NetAMP 400 or later then use
 % NTPSync mode - it is the most reliable way to keep Matlab and EGI clocks
 % synchronized.
