@@ -34,7 +34,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-     
+        
         
         function s= duplicate(o,name)
             % This copies the plugin and gives it a new name. See
@@ -425,7 +425,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     methods (Access = public)
         
         function baseBeforeExperiment(o)
-            assignWindow(o);
             beforeExperiment(o);
         end
         
@@ -593,14 +592,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-           function assignWindow(oo)
-            %Recursive call to here to allow calling with a vector of plugins.
+        function assignWindow(oo)                    
+            % Tell this plugin which window it should draw to. Called from
+            % cic.PsychImaging on creation of  the main window
+            
+            %%Recursive call to here to allow calling with a vector of plugins.
             if numel(oo)>1
                 for i=1:numel(oo)
                     assignWindow(oo(i));
                 end
                 return;
             end
+            
             % Check whether this plugin should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
             % avoid the overhead of calling this every draw.
