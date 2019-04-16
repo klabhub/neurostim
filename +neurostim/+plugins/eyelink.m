@@ -172,8 +172,9 @@ classdef eyelink < neurostim.plugins.eyetracker
             PsychEyelinkDispatchCallback(o.el);
             
             %Tell Eyelink about the pixel coordinates
-            rect=Screen(o.window,'Rect');
-            Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
+            %rect=Screen(o.window,'Rect');
+           % Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',o.cic.screen.xorigin,o.cic.screen.yorigin,o.cic.screen.xorigin+o.cic.screen.xpixels,o.cic.screen.yorigin + o.cic.screen.ypixels);
+            Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',1920, 0, 1920+1919, 1080);
             Eyelink('Command', 'calibration_type = %s',o.clbType);
             Eyelink('command', 'sample_rate = %d',o.sampleRate);
             
@@ -209,7 +210,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('Command','add_file_preamble_text',['RECORDED BY ' o.cic.experiment]);
             Eyelink('Command','add_file_preamble_text',['NEUROSTIM FILE ' o.cic.fullFile]);
             
-            Eyelink('Message','DISPLAY_COORDS %d %d %d %d',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
+            Eyelink('Message','DISPLAY_COORDS %d %d %d %d',o.cic.screen.xorigin, o.cic.screen.yorigin, o.cic.screen.xpixels,o.cic.screen.ypixels);
             Eyelink('Message','%s',['DISPLAY_SIZE ' num2str(o.cic.screen.width) ' ' num2str(o.cic.screen.height)]);
             Eyelink('Message','%s', ['FRAMERATE ' num2str(o.cic.screen.frameRate) ' Hz.']);
             
@@ -252,25 +253,36 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % transformations.
 %                Screen('glPushMatrix',o.cic.window);
                  
-%Screen('glLoadIdentity',o.rgbWindow);
+%
                 
 %                PsychImaging(o.cic);
 
 
- PsychImaging('PrepareConfiguration');
+            PsychImaging('PrepareConfiguration');
              PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');% 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');% Unrestricted color range
              PsychImaging('AddTask', 'General', 'UseFastOffscreenWindows');
             
-            dac = 8;
-           % Screen('LoadNormalizedGammaTable',o.cic.screen.number,repmat(linspace(0,1,2^dac)',[1 3])); % Reset gamma
-            PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'None');
+            %dac = 8;
+            %Screen('LoadNormalizedGammaTable',o.cic.screen.number,repmat(linspace(0,1,2^dac)',[1 3])); % Reset gamma
+              PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'None');
+                 
+            PsychDataPixx('SetVideoMode',0);
+                 
+          % [imagingMode, needStereomode] = PsychImaging('FinalizeConfiguration')
+           %PsychImaging('PostConfiguration')
             o.el.window = PsychImaging('OpenWindow',o.cic.screen.number, [0.5 0.0 0.5],[],[],[],[],[]);
-            Screen('FillRect', o.el.window, [0.5 0.5 0.0]);
-           Screen('Flip',o.el.window);
+            Screen('Close',o.cic.mainWindow);
+             o.el=EyelinkInitDefaults(o.el.window);
+            Screen('glLoadIdentity',o.el.window);
+            BitsPlusPlus('LoadIdentityClut', o.el.window);
+           Screen('Flip',o.el.window,0,0,0,0); 
+            
+            Screen('FillRect', o.el.window, [0 0 1],[100 100 500 800]);
+           Screen('Flip',o.el.window,0,0,0,0);
             
 
-                 PsychDataPixx('SetVideoMode',0);
+
 %                 dac = 8;
 %                 Screen('LoadNormalizedGammaTable',o.cic.screen.number,repmat(linspace(0,1,2^dac)',[1 3])); % Reset gamma
 %                 PsychImaging('PrepareConfiguration');
@@ -279,21 +291,30 @@ classdef eyelink < neurostim.plugins.eyetracker
                 
                 if o.doTrackerSetup
                     
+                    
+                    
+                    
                     EyelinkDoTrackerSetup(o.el);
                 elseif o.doDriftCorrect
                     EyelinkDoDriftCorrect(o.el); % Using default center of screen.
                 end
-%                Screen('glPopMatrix',o.cic.window); % restore neurostim transformations
+
+     l           %                Screen('glPopMatrix',o.cic.window); % restore neurostim transformations
                 o.doTrackerSetup = false;
                 o.doDriftCorrect = false; % done for now
                 EyelinkClearCalDisplay(o.el);
  
+                
+                PsychImaging(o.cic,true);
+                assignWindow(o.cic.pluginOrder);
                 Screen('Close',o.el.window);
-                 Screen('Flip',o.window);
-                PsychDataPixx('SetVideoMode',2);
+               
+                
+                %PsychDataPixx('SetVideoMode',2);
                 % Eyelink clears the screen with fillrect which changes the
                 % background color. Change it back.
-               % Screen('FillRect', o.cic.window, o.cic.screen.color.background);
+                Screen('FillRect', o.cic.window, o.cic.screen.color.background);
+                Screen('Flip',o.window);
             end
             
             

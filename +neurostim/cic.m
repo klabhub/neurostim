@@ -1388,8 +1388,11 @@ classdef cic < neurostim.plugin
         % entries and a vector of indicies into the CLUT where they should
         % be placed.
         function updateOverlay(c,clut,index)
-            if nargin < 2
-                clut = [];
+            if nargin<3
+                index = [];
+                if nargin <2
+                    clut  =[];
+                end
             end
             [nrRows,nrCols] = size(c.screen.overlayClut);
             if ~ismember(nrCols,[0 3])
@@ -1398,10 +1401,6 @@ classdef cic < neurostim.plugin
             
             switch upper(c.screen.type)
                 case 'VPIXX-M16'
-                    if nargin < 3
-                        index = 1:size(clut,1);
-                    end
-                    
                     if nrRows ~=256
                         % Add white for missing clut entries to show error
                         % indices (assuming the bg is not max white)
@@ -1409,17 +1408,13 @@ classdef cic < neurostim.plugin
                         c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
                     end
                     
-                    if any(index<1 | index >255)
-                        error('CLUT entries can only be defined for index =1:255');
-                    end
-                    
-                    if ~isempty(clut)  && (numel(index) ~=size(clut,1) || size(clut,2) ~=3)
-                        error('The CLUT update must by [N 3] and with N index values');
-                    end
-                    % Update with the new values in the appropriate location
-                    % (index)
-                    if ~isempty(index)
+                    if  isempty(clut) && isempty(index)
+                        % Nothing to do 
+                    elseif numel(index) ~=size(clut,1) && size(clut,2) ==3 && all(index>0 && index < 255)
+                        % Put in new values
                         c.screen.overlayClut(index+1,:) = clut; % index +1 becuase the first entry (index =0) is always transparent
+                    else
+                        error('The CLUT update contains invalid indices.'); 
                     end
                     
                     Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
@@ -1456,7 +1451,7 @@ classdef cic < neurostim.plugin
                     end
                     
                     if any(index <= 0 | index == 256 | index >= 512)
-                        error('The CLUT update contains invalid indicies.');
+                        error('The CLUT update contains invalid indices.');
                     end
                     
                     if ~isempty(clut)  && (numel(index) ~= nrRows || nrCols ~= 3)
@@ -1622,7 +1617,7 @@ classdef cic < neurostim.plugin
         end
     end
     
-    methods (Access=private)
+    methods (Access=public)
         function sanityChecks(c)
             % This function is called just before starting the first trial, whic his kist
             % after running beforeExperiment in all plugins. It serves to
@@ -1678,13 +1673,20 @@ classdef cic < neurostim.plugin
         end
         
         %% PTB Imaging Pipeline Setup
-        function PsychImaging(c)
+        function PsychImaging(c,generalOnly)
+            if nargin <2
+                generalOnly =false;
+            end
+            if ~generalOnly
             InitializeMatlabOpenGL;
             AssertOpenGL;
             sca;
-            
             c.setupScreen;
             colorOk = loadCalibration(c);
+            end
+            
+            
+            
             PsychImaging('PrepareConfiguration');
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');% 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');% Unrestricted color range
@@ -1775,7 +1777,7 @@ classdef cic < neurostim.plugin
                     c.overlayRect =  Screen('Rect',c.overlayWindow);
                     c.textWindow = c.overlayWindow;
                     Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
-                    updateOverlay(c,c.screen.overlayClut);
+                    updateOverlay(c);
                 case 'SOFTWARE-OVERLAY'
                     % With this display type you draw your stimuli on the
                     % left half of c.mainWindow and it is mirrored on the right
@@ -1879,7 +1881,7 @@ classdef cic < neurostim.plugin
                     c.textWindow = c.overlayWindow;
                     
                     % setup CLUTs...
-                    updateOverlay(c,c.screen.overlayClut);
+                    updateOverlay(c);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
