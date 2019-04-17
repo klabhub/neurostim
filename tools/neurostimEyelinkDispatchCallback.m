@@ -39,6 +39,13 @@ function rc = neurostimEyelinkDispatchCallback(callArgs, msg)
 
 % 71.4.2019   made changes to work with overlays in Neurostim Eyelink
 % plugin (BK)
+%
+%% BK 
+% This file needs to exist as a file in the Matlab path so it cannot be put
+% in the +neurostim package. Also, rewriting this as a member funciton of
+% the plugin would be nice but requires recompling Eyelink mex file (which
+% expects a char as the name of the function callback not a function handle
+
 
 
 % Cached texture handle for eyelink texture:
