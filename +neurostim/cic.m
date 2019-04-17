@@ -1392,16 +1392,14 @@ classdef cic < neurostim.plugin
         % Update the CLUT for the overlay. Optionally specify [N 3] CLUT
         % entries and a vector of indicies into the CLUT where they should
         % be placed.
-        function updateOverlay(c,clut,index,win)
-            if nargin <4
-                win = c.mainWindow;
-                if nargin<3
+        function updateOverlay(c,clut,index)
+            if nargin<3
                     index = [];
                     if nargin <2
                         clut  =[];
                     end
-                end
             end
+            
             [nrRows,nrCols] = size(c.screen.overlayClut);
             if ~ismember(nrCols,[0 3])
                 error('The overlay CLUT should have 3 columns (RGB)');
@@ -1425,7 +1423,7 @@ classdef cic < neurostim.plugin
                         error('The CLUT update contains invalid indices.');
                     end
                     
-                    Screen('LoadNormalizedGammaTable',win,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
+                    Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
                     
                 case 'SOFTWARE-OVERLAY'
                     % here we build a combined CLUT: indicies 1-255 are applied to
@@ -1472,7 +1470,7 @@ classdef cic < neurostim.plugin
                     locClut = c.screen.overlayClut;
                     [nrRows,nrCols] = size(locClut);
                     
-                    info = Screen('GetWindowInfo', win);
+                    info = Screen('GetWindowInfo', c.mainWindow);
                     InitializeMatlabOpenGL(0,0); % defines GL.xxx constants etc.
                     if info.GLSupportsTexturesUpToBpc >= 32
                         % full 32 bit single precision float textures
@@ -1626,8 +1624,22 @@ classdef cic < neurostim.plugin
         end
     end
     
-    methods (Access = ?neurostim.plugin)
+    methods (Access=private)
+        function sanityChecks(c)
+            % This function is called just before starting the first trial, whic his kist
+            % after running beforeExperiment in all plugins. It serves to
+            % do some error checking and provide the user with information
+            % on what is about to happen.
+            
+            % Plugin order
+            disp(['================ ' c.file ' =============================='])
+            disp('Plugin/Stimulus code will be evaluated in the following order:')
+            fprintf(1,'%s --> ', c.pluginOrder.name)
+            disp('Parameter plugins should depend only on plugins with earlier execution (i.e. to the left)');
+        end
         
+        
+         
         %% PTB Imaging Pipeline Setup
         function win = PsychImaging(c)
             % Tthis initializes the
@@ -1704,13 +1716,8 @@ classdef cic < neurostim.plugin
             if c.screen.colorCheck
                 PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'CheckOnly');
             end
-            %% Open the window
-            if nargout==0
-                isGui = 0;
-            else
-                isGui = kPsychGUIWindow;
-            end
-            c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],isGui );
+            %% Open the window            
+            c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             if nargout==0
                 c.textWindow = c.mainWindow; % By default - changed below if needed.
             end
@@ -1734,7 +1741,7 @@ classdef cic < neurostim.plugin
                     c.overlayRect =  Screen('Rect',c.overlayWindow);
                     c.textWindow = c.overlayWindow;
                     Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
-                    updateOverlay(c,[],[],c.mainWindow);
+                    updateOverlay(c);
                 case 'SOFTWARE-OVERLAY'
                     % With this display type you draw your stimuli on the
                     % left half of c.mainWindow and it is mirrored on the right
@@ -1816,7 +1823,7 @@ classdef cic < neurostim.plugin
                     glUniform1i(glGetUniformLocation(shader, 'lookup1'), 3);
                     glUniform1i(glGetUniformLocation(shader, 'lookup2'), 4);
                     glUniform2f(glGetUniformLocation(shader, 'res'), c.screen.xpixels*(1/sampleX), c.screen.ypixels);  % [partially] corrects overlay width & position on retina displays
-                    glUniform3f(glGetUniformLocation(shader, 'transparencycolor'), background(1), background(2), background(3));
+                    glUniform3f(glGetUniformLocation(shader, 'transparencycolor'), c.screen.color.background(1), c.screen.color.background(2), c.screen.color.background(3));
                     glUniform1i(glGetUniformLocation(shader, 'overlayImage'), 1);
                     glUniform1i(glGetUniformLocation(shader, 'Image'), 0);
                     glUseProgram(0);
@@ -1831,14 +1838,14 @@ classdef cic < neurostim.plugin
                     % add information to the current processing chain
                     idString = sprintf('Overlay Shader : %s', icmIdString);
                     pString  = [ pString icmConfig ];
-                    Screen('HookFunction', win, 'Reset', 'FinalOutputFormattingBlit');
-                    Screen('HookFunction', win, 'AppendShader', 'FinalOutputFormattingBlit', idString, shader, pString);
+                    Screen('HookFunction', c.mainWindow, 'Reset', 'FinalOutputFormattingBlit');
+                    Screen('HookFunction', c.mainWindow, 'AppendShader', 'FinalOutputFormattingBlit', idString, shader, pString);
                     PsychColorCorrection('ApplyPostGLSLLinkSetup', c.mainWindow, 'FinalFormatting');
                     
                     c.textWindow = c.overlayWindow;
                     
                     % setup CLUTs...
-                    updateOverlay(c,[],[],c.mainWindow);
+                    updateOverlay(c);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1878,19 +1885,7 @@ classdef cic < neurostim.plugin
     end
     
     
-    methods (Access=private)
-        function sanityChecks(c)
-            % This function is called just before starting the first trial, whic his kist
-            % after running beforeExperiment in all plugins. It serves to
-            % do some error checking and provide the user with information
-            % on what is about to happen.
-            
-            % Plugin order
-            disp(['================ ' c.file ' =============================='])
-            disp('Plugin/Stimulus code will be evaluated in the following order:')
-            fprintf(1,'%s --> ', c.pluginOrder.name)
-            disp('Parameter plugins should depend only on plugins with earlier execution (i.e. to the left)');
-        end
+        
         function KbQueueStop(c)
             for kb=1:numel(c.kbInfo.activeKb)
                 KbQueueStop(c.kbInfo.activeKb{kb});
