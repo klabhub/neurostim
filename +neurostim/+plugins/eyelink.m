@@ -9,22 +9,16 @@ classdef eyelink < neurostim.plugins.eyetracker
     % than the main cic.screen.color.background during calibration
     % then set c.eye.backgroundColor.
     %
-    % Use with non RGB color modes.
-    %
-    % Eyelink toolbox can only draw to the main window, this complicates
-    % working with VPIxx and similar devices.
-    % All drawing of graphics (calibration donut, the camera image) uses
-    % commands that are processed by the PTB pipeline. Therefore, if you
-    % are in LUM mode (i.e. a single number specifies the gray scale
-    % luminance of the pixel), you should specify eye.backroundColor etc in the same
-    % format.
-    % Text, however, is problematic as it does not appear to go through the
-    % pipeline (not an Eyelink specific issue), and becuase you cannot tell
-    % Eylink to write text to an overlay, you cannot use an overlay's
-    % indices either. I have not found a solution to this, and have just
-    % accepted for now that the text will appear black/dark grey in VPIXX  M16
-    % mode (BK - Oct 2018). Usually not critical anyway.
-    %
+    % Use with non LUM color modes and VPIXX requires a modified dispatchCallback
+    % that is in the tools directory (neurostimEyelinkDispatchCallback.). 
+    % Use o.overlay =  true to draw text (white) and the calibration targets to
+    % the VPIXX overlay (using index colors that you define in
+    % c.screen.overlayClut) and the eye image to the main window (which can
+    % be M16 mode. If the eye image is very dim, use e.boostEyeImage to
+    % boost its luminance  - a factor of 5 works well. 
+    % Settting o.overlay to false will draw everything to the VPIXX main
+    % window. The boostEyeImage factor will then scale the luminance of
+    % calibration targets and text as well.
     %
     % Properties
     %   getSamples - if true, stores eye position/sample validity on every frame.
@@ -78,7 +72,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         
         callbackFun@char = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
         boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]         
-        targetWindow;       % If an overlay is present, calibration targets can be drawn to it.
+        targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
         
         doTrackerSetup@logical  = true;  % Do it before the next trial
         doDriftCorrect@logical  = false;  % Do it before the next trial
