@@ -208,6 +208,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % If the user did not set the background for the eyelink
                 % then use screen background
                 o.backgroundColor = o.cic.screen.color.background;
+                if o.boostEyeImage>1
+                    o.backgroundColor = o.backgroundColor./o.boostEyeImage;
+                end
             end
             if isempty(o.clbTargetColor)
                 % If the user did not set the calibration target color
@@ -281,7 +284,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                         % luminance values in its eye image, it can look
                         % very dim on a calibrated display. We hack that
                         % here by just boosting the gain of the extended gamma temporarily.
-                        PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max, o.boostEyeImage,o.cic.screen.calibration.ns.bias);                        
+                        
+                        % out = bias + gain * ((lum-minLum)./(maxLum-minLum)) ^1./gamma )                      
+                        PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max/o.boostEyeImage,o.cic.screen.calibration.ns.gain,o.cic.screen.calibration.ns.bias);                        
                     end
                     EyelinkDoTrackerSetup(o.el);
                     if o.boostEyeImage>1 && strcmpi(o.cic.screen.colorMode,'LUM') && ~isnan(o.cic.screen.calibration.ns.bias)

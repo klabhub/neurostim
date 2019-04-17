@@ -1605,10 +1605,11 @@ classdef cic < neurostim.plugin
             p.addParameter('rightToLeft',0) % The righttoleft parameter in PTB
             p.addParameter('winRect',[0 0 c.screen.xpixels c.screen.ypixels]) % The winRect parameter in PTB
             p.addParameter('showNow',false); % Call Screen('Flip') immediately
+            p.addParameter('echo',true); % Overrule hardware.echo
             p.parse(varargin{:});
             
             DrawFormattedText(c.textWindow,text, p.Results.left, p.Results.top, c.screen.color.text, p.Results.wrapAt, p.Results.flipHorizontal, p.Results.flipVertical, p.Results.vSpacing, p.Results.rightToLeft, p.Results.winRect);
-            if c.hardware.textEcho
+            if c.hardware.textEcho && p.Results.echo
                 if ~c.useConsoleColor
                     style = 'NOSTYLE';
                 else

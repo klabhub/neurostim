@@ -343,7 +343,7 @@ return;
 
 function EyelinkDrawInstructions(eyewin, el,msg)
 
-el.hPlugin.cic.drawFormattedText(el.helptext,'left',0,'top',20)
+el.hPlugin.cic.drawFormattedText(el.helptext,'left',0,'top',20,'echo',false)
 % oldFont=Screen(eyewin,'TextFont',el.msgfont);
 % oldFontSize=Screen(eyewin,'TextSize',el.msgfontsize);
 % DrawFormattedText(eyewin, el.helptext, 20, 20, el.msgfontcolour, [], [], [], 1);
@@ -380,28 +380,8 @@ try
     end
     % imgtitle
     % if title is provided, we also draw title
-    if ~isempty(eyelinktex) && exist( 'imgtitle', 'var') && ~isempty(imgtitle)
-        %oldFont=Screen(eyewin,'TextFont',el.imgtitlefont);
-        %oldFontSize=Screen('TextSize',eyewin,el.imgtitlefontsize);
-        rect=Screen('TextBounds', eyewin, imgtitle );
-        [w2, h2]=RectSize(rect);
-
-        % added by NJ as a quick way to prevent over drawing and to clear text
-        if newImage || isempty(lasttitle) || ~strcmp(imgtitle,lasttitle)
-            if -1 == Screen('WindowKind', offscreen)
-                Screen('Close', offscreen);
-            end
-
-            sn = Screen('WindowScreenNumber', eyewin);
-            offscreen = Screen('OpenOffscreenWindow', sn, el.backgroundcolour, [], [], 32);
-            Screen(offscreen,'TextFont',el.imgtitlefont);
-            Screen(offscreen,'TextSize',el.imgtitlefontsize);
-            Screen('DrawText', offscreen, imgtitle, width/2-dw/2, heigth/2+dh/2+h2, el.imgtitlecolour);
-            Screen('DrawTexture',eyewin,offscreen,  [width/2-dw/2 heigth/2+dh/2+h2 width/2-dw/2+500 heigth/2+dh/2+h2+500], [width/2-dw/2 heigth/2+dh/2+h2 width/2-dw/2+500 heigth/2+dh/2+h2+500]);
-            Screen('Close',offscreen);
-            newImage = 0;
-        end
-        %imgtitle=[]; % return empty title, so it doesn't get drawn over and over again.
+    if exist( 'imgtitle', 'var') && ~isempty(imgtitle)
+        el.hPlugin.cic.drawFormattedText(imgtitle,'left',0,'top',20,'echo',false)
         lasttitle = imgtitle;
     end
 catch %myerr
@@ -471,4 +451,9 @@ end
 % By specifying the overlay as the targetWindow in the plugin, colored targets 
 % can be shown (using indexed colors of the overlayClut)
 Screen('FillOval', el.hPlugin.targetWindow, el.calibrationtargetcolour, [calxy(1)-size/2 calxy(2)-size/2 calxy(1)+size/2 calxy(2)+size/2], size+2);
-Screen('FillOval', el.hPlugin.targetWindow, el.backgroundcolour, [calxy(1)-inset/2 calxy(2)-inset/2 calxy(1)+inset/2 calxy(2)+inset/2], inset+2);
+if el.hPlugin.overlay
+    bgColor = 0;
+else
+    bgColor = el.backgroundcolour;
+end
+Screen('FillOval', el.hPlugin.targetWindow, bgColor, [calxy(1)-inset/2 calxy(2)-inset/2 calxy(1)+inset/2 calxy(2)+inset/2], inset+2);
