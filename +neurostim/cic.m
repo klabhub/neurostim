@@ -1718,9 +1718,8 @@ classdef cic < neurostim.plugin
             end
             %% Open the window            
             c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
-            if nargout==0
-                c.textWindow = c.mainWindow; % By default - changed below if needed.
-            end
+            c.textWindow = c.mainWindow; % By default - changed below if needed.
+            
             %% Perform initialization that requires an open window
             switch upper(c.screen.type)
                 case 'GENERIC'
