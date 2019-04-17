@@ -354,10 +354,7 @@ classdef stimulus < neurostim.plugin
             end
             Screen('glLoadIdentity', locWindow);
             
-            if s.logOnset || s.logOffset
-                % Ask for a Datapixx onset timestamp for next 'Flip':
-                PsychDataPixx('LogOnsetTimestamps', 1);
-            end
+           
             % diode size/position is in pixels and we don't really want it
             % changing even if we change the physical screen size (e.g., 
             % when changing viewing distance) or being distorted by the
