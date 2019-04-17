@@ -132,7 +132,8 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % Draw targets and text on the overlay, but the main window
                 % has to be the mainWindow, because the callback calls flip
                 % on it.   Note that this only works if the callback is sset to 
-                % use neurstimEyelinkDispatchCallback
+                % use neurostimEyelinkDispatchCallback, which is located i
+                % neurostim/tools
                 o.targetWindow = o.cic.overlayWindow; % Used by neurostim modified callback function only
                 % Normally cic sets o.window to overlayWindow when o.overlay == true. Reset back
                 o.window        = o.cic.mainWindow; %Used by PTB callback and by neurostim modified

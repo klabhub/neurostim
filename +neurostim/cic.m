@@ -964,8 +964,7 @@ classdef cic < neurostim.plugin
             locPROFILE      = c.PROFILE;
             WHEN            = 0; % Always flip on the next VBL
             DONTCLEAR       = 1;
-            SYNC            = 0;
-            predictedVbl    = NaN;
+           
             
             if ~c.hardware.keyEcho
                 ListenChar(-1);
@@ -1641,7 +1640,7 @@ classdef cic < neurostim.plugin
         
          
         %% PTB Imaging Pipeline Setup
-        function win = PsychImaging(c)
+        function PsychImaging(c)
             % Tthis initializes the
             % main winodw (and if requested, an overlay) according to the
             % specifications in c.screen. This is typically called once (by
@@ -1881,16 +1880,13 @@ classdef cic < neurostim.plugin
             Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             assignWindow(c.pluginOrder); % Tell the plugins about this window            
         end
-    end
-    
     
         
         function KbQueueStop(c)
             for kb=1:numel(c.kbInfo.activeKb)
                 KbQueueStop(c.kbInfo.activeKb{kb});
                 KbQueueRelease(c.kbInfo.activeKb{kb});
-            end
-            
+            end            
         end
         
         function colorOk = loadCalibration(c)
@@ -1993,7 +1989,7 @@ classdef cic < neurostim.plugin
             if numel(plgns)>1
                 figure('Name','Total','position',[680   530   818   420]);
                 clf
-                frameItems = find(~cellfun(@isempty,strfind(items,'FRAME')));
+                frameItems = find(~cellfun(@isempty,strfind(items,'FRAME'))); %#ok<STRCLFH>
                 cntr=1;
                 for j=frameItems'
                     subplot(1,2,cntr);
