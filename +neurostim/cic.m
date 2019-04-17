@@ -1629,41 +1629,17 @@ classdef cic < neurostim.plugin
     methods (Access = ?neurostim.plugin)
         
         %% PTB Imaging Pipeline Setup
-        function win = PsychImaging(c,colorMode,screenType,background)
-            % When called without an output argument, this initializes the
+        function win = PsychImaging(c)
+            % Tthis initializes the
             % main winodw (and if requested, an overlay) according to the
             % specifications in c.screen. This is typically called once (by
             % cic.run)
             %
-            % Sometimes there is a need to temporarily open a second
-            % window with almost all of the same parameters ,
-            % for instance to switch from a calibrated VPIXX M16
-            % display to an RGB display for eyelink calibration (see plugins.eyelink)
-            % In that use scenario, the calling plugin asks for an output argument (the window)
-            % The plugin has complete control over that window (draw/flip;
-            % all outside the normal frame loop of CIC) and should close
-            % the window once it is done with it.
-            nin=nargin;
-            if nin <4
-                background = c.screen.color.background;
-                if nin <3
-                    screenType= c.screen.type;
-                    if nin <2
-                        colorMode =c.screen.colorMode;
-                    end
-                end
-            end
-            
-            if nargout>0 && ~strcmpi(screenType,'GENERIC')
-                error('Temporary windows can only be of the GENERIC type');
-                % This could work but would require handling how overlays
-                % are restored once the temporary window is no longer used.
-            end
             
             c.setupScreen; % Physical parameters
             colorOk = loadCalibration(c); % Monitor calibration parameters from file.
             
-            
+           
             PsychImaging('PrepareConfiguration');
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');% 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');% Unrestricted color range
@@ -1671,7 +1647,7 @@ classdef cic < neurostim.plugin
             
             
             %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
-            switch upper(screenType)
+            switch upper(c.screen.type)
                 case 'GENERIC'
                     % Generic monitor.
                 case 'VPIXX-M16'
@@ -1690,12 +1666,12 @@ classdef cic < neurostim.plugin
                     % dual CLUT overlay of the VPixx M16 mode. See below
                     % for more details.
                 otherwise
-                    error(['Unknown screen type : ' screenType]);
+                    error(['Unknown screen type : ' c.screen.type]);
             end
             
             %%  Setup color calibration
             %
-            switch upper(colorMode)
+            switch upper(c.screen.colorMode)
                 case 'LINLUT'
                     % Load a gamma table that linearizes each gun
                     % Dont do this for VPIXX etc. monitor types.(although this should work, LUM works better; not recommended).
@@ -1722,7 +1698,7 @@ classdef cic < neurostim.plugin
                     Screen('LoadNormalizedGammaTable',c.screen.number,repmat(linspace(0,1,2^dac)',[1 3])); % Reset gamma
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'None');
                 otherwise
-                    error(['Unknown color mode: ' colorMode]);
+                    error(['Unknown color mode: ' c.screen.colorMode]);
             end
             % Check color validity
             if c.screen.colorCheck
@@ -1734,17 +1710,17 @@ classdef cic < neurostim.plugin
             else
                 isGui = kPsychGUIWindow;
             end
-            win = PsychImaging('OpenWindow',c.screen.number, background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],isGui );
+            c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],isGui );
             if nargout==0
-                c.textWindow = win; % By default - changed below if needed.
+                c.textWindow = c.mainWindow; % By default - changed below if needed.
             end
             %% Perform initialization that requires an open window
-            switch upper(screenType)
+            switch upper(c.screen.type)
                 case 'GENERIC'
                     % nothing to do
                     
                 case 'VPIXX-M16'
-                    if (all(round(background) == background))
+                    if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
                         % above 1 that is an integer is a 0-255 lut entry.
                         % The warning is wrong; with the new graphics
@@ -1754,11 +1730,11 @@ classdef cic < neurostim.plugin
                     end
                     % Create an overlay window to show colored items such
                     % as a fixation point, or text.
-                    c.overlayWindow = PsychImaging('GetOverlayWindow', win);
+                    c.overlayWindow = PsychImaging('GetOverlayWindow', c.mainWindow);
                     c.overlayRect =  Screen('Rect',c.overlayWindow);
                     c.textWindow = c.overlayWindow;
                     Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
-                    updateOverlay(c,[],[],win);
+                    updateOverlay(c,[],[],c.mainWindow);
                 case 'SOFTWARE-OVERLAY'
                     % With this display type you draw your stimuli on the
                     % left half of c.mainWindow and it is mirrored on the right
@@ -1790,8 +1766,8 @@ classdef cic < neurostim.plugin
                     %
                     % Calculate proper scaling factor, based on virtual and real
                     % framebuffer size:
-                    [wC, hC] = Screen('WindowSize', win);
-                    [wF, hF] = Screen('WindowSize', win, 1);
+                    [wC, hC] = Screen('WindowSize', c.mainWindow);
+                    [wF, hF] = Screen('WindowSize', c.mainWindow, 1);
                     sampleX = wC / wF;
                     sampleY = hC / hF;
                     
@@ -1800,16 +1776,16 @@ classdef cic < neurostim.plugin
                     shSrc = sprintf('uniform sampler2DRect overlayImage; float getMonoOverlayIndex(vec2 pos) { return(texture2DRect(overlayImage, pos * vec2(%f, %f)).r); }', sampleX, sampleY);
                     
                     % temporarily set the color range (this will be inherited by the offscreen overlay window)
-                    colorRange = Screen('ColorRange', win, 255);
+                    colorRange = Screen('ColorRange', c.mainWindow, 255);
                     % create the overlay window, note: the window size (c.screen.xpixels) is assumed to have been halved above...
-                    c.overlayWindow = Screen('OpenOffscreenWindow', win, 0, [0 0 c.screen.xpixels c.screen.ypixels], 8, 32);
+                    c.overlayWindow = Screen('OpenOffscreenWindow', c.mainWindow, 0, [0 0 c.screen.xpixels c.screen.ypixels], 8, 32);
                     % restore the color range setting
-                    Screen('ColorRange', win, colorRange);
+                    Screen('ColorRange', c.mainWindow, colorRange);
                     
                     c.overlayRect = Screen('Rect',c.overlayWindow);
                     
                     % retrieve low-level OpenGl texture handle for the overlay window
-                    overlayTexture = Screen('GetOpenGLTexture', win, c.overlayWindow);
+                    overlayTexture = Screen('GetOpenGLTexture', c.mainWindow, c.overlayWindow);
                     
                     % disable bilinear filtering on this texture... always use nearest neighbour
                     % sampling to avoid interpolation artifacts
@@ -1820,7 +1796,7 @@ classdef cic < neurostim.plugin
                     
                     % get information on current processing chain
                     debuglevel = 1;
-                    [icmShaders, icmIdString, icmConfig] = PsychColorCorrection('GetCompiledShaders', win, debuglevel);
+                    [icmShaders, icmIdString, icmConfig] = PsychColorCorrection('GetCompiledShaders', c.mainWindow, debuglevel);
                     
                     % build panel-filter compatible shader from source
                     overlayShader = glCreateShader(GL.FRAGMENT_SHADER);
@@ -1857,52 +1833,47 @@ classdef cic < neurostim.plugin
                     pString  = [ pString icmConfig ];
                     Screen('HookFunction', win, 'Reset', 'FinalOutputFormattingBlit');
                     Screen('HookFunction', win, 'AppendShader', 'FinalOutputFormattingBlit', idString, shader, pString);
-                    PsychColorCorrection('ApplyPostGLSLLinkSetup', win, 'FinalFormatting');
+                    PsychColorCorrection('ApplyPostGLSLLinkSetup', c.mainWindow, 'FinalFormatting');
                     
                     c.textWindow = c.overlayWindow;
                     
                     % setup CLUTs...
-                    updateOverlay(c,[],[],win);
+                    updateOverlay(c,[],[],c.mainWindow);
                 otherwise
-                    error(['Unknown screen type : ' screenType]);
+                    error(['Unknown screen type : ' c.screen.type]);
             end
             
             %% Add calibration to the window
-            switch upper(colorMode)
+            switch upper(c.screen.colorMode)
                 case 'LINLUT'
                     % Nothing to do.
                 case 'LUM'
                     % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
-                    PsychColorCorrection('SetEncodingGamma', win,1./c.screen.calibration.ns.gamma);
+                    PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.ns.gamma);
                     if isnan(c.screen.calibration.ns.bias)
                         % Only gamma defined
-                        PsychColorCorrection('SetColorClampingRange',win,0,1); % In non-extended mode, luminance is between [0 1]
+                        PsychColorCorrection('SetColorClampingRange',c.mainWindow,0,1); % In non-extended mode, luminance is between [0 1]
                     else
                         % If the user set the calibration.bias parameters then s/he wants to perform a slightly more advanced calibration
                         % out = bias + gain * ((lum-minLum)./(maxLum-minLum)) ^1./gamma )
                         % where each parameter can be specified per gun
                         % (i.e. c.calibration.bias= [ 0 0.1 0])
-                        PsychColorCorrection('SetExtendedGammaParameters', win, c.screen.calibration.ns.min, c.screen.calibration.ns.max, c.screen.calibration.ns.gain,c.screen.calibration.ns.bias);
+                        PsychColorCorrection('SetExtendedGammaParameters', c.mainWindow, c.screen.calibration.ns.min, c.screen.calibration.ns.max, c.screen.calibration.ns.gain,c.screen.calibration.ns.bias);
                         % This mode accepts luminances between min and max
                     end
                 case {'XYZ','XYL'}
                     % Apply color calibration to the window
-                    PsychColorCorrection('SetSensorToPrimary', win, c.screen.calibration);
+                    PsychColorCorrection('SetSensorToPrimary', c.mainWindow, c.screen.calibration);
                 case 'RGB'
                     % Nothing to do
                 otherwise
-                    error(['Unknown color mode: ' colorMode]);
+                    error(['Unknown color mode: ' c.screen.colorMode]);
             end
-            PsychColorCorrection('SetColorClampingRange',win,0,1); % Final pixel value is between [0 1]
+            PsychColorCorrection('SetColorClampingRange',c.mainWindow,0,1); % Final pixel value is between [0 1]
             
             %% Perform additional setup routines
-            Screen(win,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            if nargout ==0
-                % Standard call from cic.run - store window as mainWindow
-                % and tell plugins where to draw (main or overlay).
-                c.mainWindow =win;
-                assignWindow(c.pluginOrder); % Tell the plugins about this window
-            end
+            Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            assignWindow(c.pluginOrder); % Tell the plugins about this window            
         end
     end
     
