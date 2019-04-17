@@ -75,24 +75,17 @@ classdef eyelink < neurostim.plugins.eyetracker
         getSamples@logical=true;
         getEvents@logical=false;
         nTransferAttempts = 5;
-    
+        
+        callbackFun@char = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
+        boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]         
+        targetWindow;       % If an overlay is present, calibration targets can be drawn to it.
+        
         doTrackerSetup@logical  = true;  % Do it before the next trial
         doDriftCorrect@logical  = false;  % Do it before the next trial
     
       
     end
-    
-    properties (SetAccess= public, GetAccess=public)
         
-        % Callback props
-        inDisplayEye@logical =false;
-        inDriftCorrect@logical = false;
-        eyeImageTexture;
-          % Callback props
-        eyeImageSize  =30; % Percent of screen
-        
-    end
-    
     properties (Dependent)
         isRecording@logical;
         isConnected@double;
@@ -133,18 +126,28 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             
             o.el=EyelinkInitDefaults(o.cic.mainWindow);
-            setParms(o);
+            setParms(o);            
             
-            
+            if o.overlay
+                % Draw targets and text on the overlay, but the main window
+                % has to be the mainWindow, because the callback calls flip
+                % on it.   Note that this only works if the callback is sset to 
+                % use neurstimEyelinkDispatchCallback
+                o.targetWindow = o.cic.overlayWindow; % Used by neurostim modified callback function only
+                % Normally cic sets o.window to overlayWindow when o.overlay == true. Reset back
+                o.window        = o.cic.mainWindow; %Used by PTB callback and by neurostim modified
+            else
+                o.targetWindow = o.window; % Everything goes to the main window
+            end
+                
             if ~isempty(o.host)  &&  Eyelink('IsConnected')==0
                 Eyelink('SetAddress',o.host);
             end
-            %Initialise connection to Eyelink.
+            %Initialise connection to Eyelink.            
             if ~o.useMouse
-                result = Eyelink('Initialize', 'neurostimEyelinkDispatchCallback');
+                result = Eyelink('Initialize', o.callbackFun);
             else
-                result = Eyelink('InitializeDummy', 'neurostimEyelinkDispatchCallback');
-                %result =0;
+                result = Eyelink('InitializeDummy', o.callbackFun);                            
             end
             
             if result ~=0
@@ -228,9 +231,10 @@ classdef eyelink < neurostim.plugins.eyetracker
             else
                 o.el.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
             end    
-            o.el.callback  ='neurostimEyelinkDispatchCallback';
-            o.el.o = o;
-            EyelinkUpdateDefaults(o.el);
+            o.el.callback  = o.callbackFun;
+            o.el.hPlugin   = o; % Store a handle to the Eyelink plugin so that the callback handler functionc can use it
+            o.el.window  = o.cic.mainWindow; % Always main window
+            EyelinkUpdateDefaults(o.el); % Store as persistent variables in callbackFun
         end
         
         function afterExperiment(o)
@@ -269,11 +273,21 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % transformations.
                 Screen('glPushMatrix',o.window);
                 Screen('glLoadIdentity',o.window);
-                
-                
+                                
                 % Do setup or drift correct
                 if o.doTrackerSetup
+                    if o.boostEyeImage>1 && strcmpi(o.cic.screen.colorMode,'LUM') && ~isnan(o.cic.screen.calibration.ns.bias)
+                        % Because Eyelink does not send calibrated
+                        % luminance values in its eye image, it can look
+                        % very dim on a calibrated display. We hack that
+                        % here by just boosting the gain of the extended gamma temporarily.
+                        PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max, o.boostEyeImage,o.cic.screen.calibration.ns.bias);                        
+                    end
                     EyelinkDoTrackerSetup(o.el);
+                    if o.boostEyeImage>1 && strcmpi(o.cic.screen.colorMode,'LUM') && ~isnan(o.cic.screen.calibration.ns.bias)
+                        % Restore originalm, calibrated settings
+                        PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max, o.cic.screen.calibration.ns.gain ,o.cic.screen.calibration.ns.bias);
+                    end                        
                 elseif o.doDriftCorrect
                     EyelinkDoDriftCorrect(o.el); % Using default center of screen.
                 end
@@ -434,99 +448,6 @@ classdef eyelink < neurostim.plugins.eyetracker
         
     end
     
-    methods
-        
-        %% Dispatch
-        
-        
-        
-        
-        function  drawCameraImage(o)
-            try
-                if ~isempty(o.eyeImageTexture)
-                    eyerect=Screen('Rect', o.eyeImageTexture);
-                    wrect=Screen('Rect', o.window);
-                    [width, ~]=Screen('WindowSize', o.window);
-                    dw=round(o.eyeImageSize/100*width);
-                    dh=round(dw * eyerect(4)/eyerect(3));
-                    
-                    drect=[ 0 0 dw dh ];
-                    drect=CenterRect(drect, wrect);
-                    Screen('DrawTexture', o.window, o.eyeImageTexture, [], drect);
-                end
-                % imgtitle
-               
-                % if title is provided, we also draw title
-               
-            catch %myerr
-                o.writeToFeed('EyelinkDrawCameraImage:error \n');         
-            end
-        end
-        
-        
-        function makeSound(o,el, s)
-            % set all sounds in one place, sound params defined in
-            % eyelinkInitDefaults
-            
-            switch(s)
-                case 'cal_target_beep'
-                    doBeep=el.targetbeep;
-                    f=el.cal_target_beep(1);
-                    v=el.cal_target_beep(2);
-                    d=el.cal_target_beep(3);
-                case 'drift_correction_target_beep'
-                    doBeep=el.targetbeep;
-                    f=el.drift_correction_target_beep(1);
-                    v=el.drift_correction_target_beep(2);
-                    d=el.drift_correction_target_beep(3);
-                case 'calibration_failed_beep'
-                    doBeep=el.feedbackbeep;
-                    f=el.calibration_failed_beep(1);
-                    v=el.calibration_failed_beep(2);
-                    d=el.calibration_failed_beep(3);
-                case 'calibration_success_beep'
-                    doBeep=el.feedbackbeep;
-                    f=el.calibration_success_beep(1);
-                    v=el.calibration_success_beep(2);
-                    d=el.calibration_success_beep(3);
-                case 'drift_correction_failed_beep'
-                    doBeep=el.feedbackbeep;
-                    f=el.drift_correction_failed_beep(1);
-                    v=el.drift_correction_failed_beep(2);
-                    d=el.drift_correction_failed_beep(3);
-                case 'drift_correction_success_beep'
-                    doBeep=el.feedbackbeep;
-                    f=el.drift_correction_success_beep(1);
-                    v=el.drift_correction_success_beep(2);
-                    d=el.drift_correction_success_beep(3);
-                otherwise
-                    % some defaults
-                    doBeep=el.feedbackbeep;
-                    f=500;
-                    v=0.5;
-                    d=1.5;
-            end
-            
-            if doBeep==1
-                Beeper(f, v, d);
-            end
-        end
-        
-        
-        
-        function drawCalibrationTarget(o,xy)
-            outerRect =o.clbTargetSize *[-0.5 0.5 0.5 -0.5];
-            outerRect = CenterRectOnPointd(outerRect,xy(1),xy(2));
-            innerRect = o.clbTargetInnerSize *[-0.5 0.5 0.5 -0.5];
-            innerRect = CenterRectOnPointd(innerRect,xy(1),xy(2));
-            Screen('FillOval', o.window, o.clbTargetColor, outerRect);
-            Screen('FillOval', o.window, o.backgroundColor, innerRect);
-        end
-        
-        
-    end
+  
     
-    methods (Static)
-     
-    end
 end
