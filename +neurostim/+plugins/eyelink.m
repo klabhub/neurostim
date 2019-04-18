@@ -335,12 +335,12 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % Continuous samples requested
                 if Eyelink('NewFloatSampleAvailable') > 0
                     % get the sample in the form of an event structure
-                    sample = Eyelink( 'NewestFloatSample');
+                    sample = Eyelink( 'NewestFloatSample');                    
                     % convert to physical coordinates
                     eyeNr = str2eye(o,o.eye);
                     [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
                     o.pupilSize = sample.pa(eyeNr+1);
-                    o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;
+                    o.valid  = any(sample.gx(eyeNr+1)~=o.el.MISSING_DATA); % Blink or other missing data.                                                           
                 end %
             end
             if o.getEvents
