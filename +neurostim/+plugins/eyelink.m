@@ -326,22 +326,25 @@ classdef eyelink < neurostim.plugins.eyetracker
         
         function afterFrame(o)
             
-            if ~o.isRecording
-                o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
-                return;
-            end
+%             if ~o.isRecording
+%                 o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
+%                 return;
+%             end
             
             if o.getSamples
-                % Continuous samples requested
-                if Eyelink('NewFloatSampleAvailable') > 0
-                    % get the sample in the form of an event structure
-                    sample = Eyelink( 'NewestFloatSample');                    
+                % Continuous samples requested               
+                  % get the sample in the form of an event structure
+                  sample = Eyelink( 'NewestFloatSample');                    
+                  if ~isstruct(sample) 
+                      % No sample or other error, just continue to next
+                      % frame 
+                  else
                     % convert to physical coordinates
                     eyeNr = str2eye(o,o.eye);
                     [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
                     o.pupilSize = sample.pa(eyeNr+1);
                     o.valid  = any(sample.gx(eyeNr+1)~=o.el.MISSING_DATA); % Blink or other missing data.                                                           
-                end %
+                  end
             end
             if o.getEvents
                 % Only events requested
