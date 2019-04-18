@@ -55,8 +55,8 @@ classdef convPoly < neurostim.stimulus
                         writeToFeed(o,'ConvPoly: this flicker frequency does not fit...rounding artefacts?');
                     end
                 end
-                t = (0:(o.nrFramesPreCalc-1))/o.cic.screen.frameRate;                
-                o.colorPerFrame =  o.color * (1+o.amplitude*sind(o.phase + 360*t*o.frequency));                
+                 t = repmat((0:(o.nrFramesPreCalc-1))'/o.cic.screen.frameRate,[1 size(o.color,2)]);                
+                o.colorPerFrame =  repmat(o.color,[size(t,1) 1]) .* (1+o.amplitude.*sind(o.phase + 360*t*o.frequency));                
             end
         end
         
@@ -73,7 +73,7 @@ classdef convPoly < neurostim.stimulus
                 % Use sinusoidal flicker
                 if o.preCalc
                     ix = mod(o.frame-1,o.nrFramesPreCalc)+1;
-                    thisColor = o.colorPerFrame(ix);
+                    thisColor = o.colorPerFrame(ix,:);
                 else
                     thisColor  = o.color * (1+o.amplitude*sind(o.phase + 360*o.time*(o.frequency/1000)));
                 end
