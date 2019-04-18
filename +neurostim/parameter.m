@@ -69,7 +69,15 @@ classdef parameter < handle & matlab.mixin.Copyable
         hDynProp;                   % Handle to the dynamic property
         
     end
+    properties (Dependent,GetAccess=public)
+        isFun;                      % True if this parameter is a neurostim function ('@otherParm.x +500')
+    end
     
+    methods % get/set
+        function v = get.isFun(o)
+           v= ~isempty(o.fun);
+        end
+    end
     
     methods
         function  o = parameter(p,nm,v,h,options)

@@ -1,4 +1,4 @@
-classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogeneous
+ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogeneous
     % Base class for plugins. Includes logging, functions, etc.
     %
     properties (SetAccess=public)
@@ -6,12 +6,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         overlay@logical=false; % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
         window;
         feedStyle = '[0 0.5 0]'; % Command line color for writeToFeed messages.
+        
+        
     end
     
     
     properties (SetAccess=private, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
+        trialDynamicPrms;  %  A list of parameters that (can) change within a trial. See localizeParms for how it is filled and used.
     end
     
     methods (Static, Sealed, Access=protected)
@@ -433,7 +436,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         function baseBeforeTrial(o)
-            beforeTrial(o);
+            beforeTrial(o);           
         end
         function baseBeforeFrame(o)
             beforeFrame(o);
@@ -443,7 +446,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             afterFrame(o);
         end
         
-        function baseAfterTrial(o)
+        function baseAfterTrial(o)           
             afterTrial(o);
         end
         
@@ -486,6 +489,86 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %NOP
         end
         
+        %Accessing neurostim.parameters is much slower than accessing a raw
+        %member variable. Because we define many such parms (wit addProperty) in the base
+        %stimulus /plugin classes, and becuase they need to be read each
+        %frame ( see stimulus.baseBeforeFrame) this adds substantial
+        %overhead (~ 1ms per stimulus) and can quickly lead to framedrops. 
+        % In any given experiment most parameters never change during the trial 
+        % so checing every frame is a waste. This function makes local
+        % member variable copies to speedup this access.
+        % 1. A plugin derived class defines member variables whose names start with loc_
+        %    that match up with neurostim.parameters. (e.g. loc_X for the X
+        %     property set with addProperty)
+        % 2. In its beforeFrame and afterFrame code (and ONLY there), the
+        %   derived class uses loc_X instead of X (using X does no harm,
+        %   but it would slow down the code again).
+        % That's it.
+        % Currently this is implemented for the neurostim.stimulus class
+        % where it leads to most improvement in perforamace. Users may not
+        % need this, but could add it to their own code if they run into
+        % performance issues. See neurostim.stimulus for more tips. 
+        %
+        % The code below (Called after the user beforeTrial code, but before the trial
+        % really starts, and then again with frameUpdate == true before each beforeFrame) 
+        % will make sure that the localized variables (loc_ ) have the correct value throughout 
+        % the triall
+        function localizeParms(o,frameUpdate)
+            if nargin<2
+                frameUpdate = false;
+            end
+            if frameUpdate
+                % A call just before the beforeFrame code is called; we'll
+                % update only those variables that were previously
+                % identified as being "dynamic" (by the code below in this
+                % function)
+                if size(o.trialDynamicPrms,1)>0
+                    targetMembers = o.trialDynamicPrms(1,:);
+                    srcParameters = o.trialDynamicPrms(2,:);
+                else
+                    % No trial dynamic parms. Done.
+                    return;
+                end
+            else
+                % A call just after beforeTrial user code. Create a list
+                % of loc_ variables
+                classInfo      = metaclass(o);
+                targetMembers = {classInfo.PropertyList.Name};
+                targetMembers = targetMembers(startsWith(targetMembers,'loc_'));
+                for prm = 1:numel(targetMembers)
+                    src = extractAfter(targetMembers{prm},'loc_');
+                    srcParameters{prm} = o.prms.(src); %#ok<AGROW>
+                end
+                % Create space to store the names of the parameters that need to be updated each frame
+                % (row 1) and the associated neurostim.parameter (row 2).
+                % This will be used in the frameUpdate call to this
+                % function.
+                o.trialDynamicPrms = cell(2,0); 
+                nrDynamic=0;
+            end
+            
+            for prm = 1:numel(targetMembers)
+                % Walk throught the list - updating each value
+                trg =targetMembers{prm};
+                value = srcParameters{prm}.getValue();
+                if isa(value,'neurostim.plugins.adaptive')
+                    value = +value;
+                end
+                o.(trg) = value; % Copy the current value in the loc_ member
+                if ~frameUpdate
+                    % A call just before the trial updates- check which
+                    % ones we will have to update each trial/
+                    if srcParameters{prm}.isFun
+                        %  This one is potentially dynamic (could refine
+                        %  even more by determining whether time or frame
+                        %  are in the fun... but good enough for now.
+                        nrDynamic =nrDynamic+1;
+                        o.trialDynamicPrms{1,nrDynamic} = src ;
+                        o.trialDynamicPrms{2,nrDynamic} = o.prms.(src); % Store the handle to the parms
+                    end
+                end
+            end
+        end
     end
     
     methods (Sealed)
@@ -517,6 +600,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseBeforeTrial(o);
+                        localizeParms(o); % Copy neurostim.parms to localized members to speed up.
                         if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end
                     end
                 case neurostim.stages.BEFOREFRAME
@@ -526,6 +610,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         Screen('glPushMatrix',c.window);
+                        localizeParms(o,true); % Copy neurostim.parms to localized members to speed up (True means 'only dynamic parameters').
                         baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class
                         Screen('glPopMatrix',c.window);
                         if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end
@@ -592,7 +677,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-        function assignWindow(oo)                    
+        function assignWindow(oo)
             % Tell this plugin which window it should draw to. Called from
             % cic.PsychImaging on creation of  the main window
             
