@@ -34,6 +34,8 @@
             if~isempty(c) % Need this to construct cic itself...dcopy
                 c.add(o);
             end
+            
+                
         end
         
         
@@ -428,7 +430,7 @@
     
     methods (Access = public)
         
-        function baseBeforeExperiment(o)
+        function baseBeforeExperiment(o)                                                            
             beforeExperiment(o);
         end
         
@@ -536,7 +538,7 @@
                 end
             else
                 % A call just after beforeTrial user code. Create a list
-                % of loc_ variables
+                % of loc_ variables             
                 classInfo      = metaclass(o);
                 targetMembers = {classInfo.PropertyList.Name};
                 targetMembers = targetMembers(startsWith(targetMembers,'loc_'));
@@ -573,7 +575,8 @@
         % Return whether this parameter name has a localized version in
         % this plugin (i.e. loc_X exists for X) - used by parameter class.
         function yesno = checkLocalized(o,nm)
-            yesno = isfield(o,['loc_' nm]);
+            classInfo  = metaclass(o);
+            yesno = ismember(['loc_' nm],{classInfo.PropertyList.Name});
         end
         % Add this neurostim.parameter to the set of parameters that need
         % to be updated each frame (and not each trial).
@@ -597,7 +600,8 @@
                 case neurostim.stages.BEFOREEXPERIMENT
                     for o=oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        baseBeforeExperiment(o);
+                          % Store the list of localized parameters.
+                         baseBeforeExperiment(o);
                         if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end
                     end
                     % All plugins BEFOREEXPERIMENT functions have been processed,
