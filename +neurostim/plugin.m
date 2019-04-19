@@ -489,15 +489,12 @@
         function afterExperiment(~)
             %NOP
         end
+                                    
+    end
+    
+    methods (Access={?neuorstim.plugin,?neurostim.parameter})
         
-        
-        function addToDynamicParms(o,src, prm)
-            nrDynamic = size(o.trialDynamicPrms,1);
-            o.trialDynamicPrms{1,nrDynamic+1} = src ;
-            o.trialDynamicPrms{2,nrDynamic+1} = prm; % Store the handle to the parms
-        end
-        
-        %Accessing neurostim.parameters is much slower than accessing a raw
+         %Accessing neurostim.parameters is much slower than accessing a raw
         %member variable. Because we define many such parms (wit addProperty) in the base
         %stimulus /plugin classes, and becuase they need to be read each
         %frame ( see stimulus.baseBeforeFrame) this adds substantial
@@ -530,7 +527,7 @@
                 % update only those variables that were previously
                 % identified as being "dynamic" (by the code below in this
                 % function)
-                if size(o.trialDynamicPrms,1)>0
+                if size(o.trialDynamicPrms,2)>0
                     targetMembers = o.trialDynamicPrms(1,:);
                     srcParameters = o.trialDynamicPrms(2,:);
                 else
@@ -555,9 +552,10 @@
             end
             
             for prm = 1:numel(targetMembers)
-                % Walk throught the list - updating each value
+                % Walk through the list - updating each value
                 trg =targetMembers{prm};
-                value = srcParameters{prm}.getValue();
+                src = srcParameters{prm};
+                value = src.getValue();
                 if isa(value,'neurostim.plugins.adaptive')
                     value = +value;
                 end
@@ -565,11 +563,24 @@
                 if ~frameUpdate
                     % A call just before the trial updates- check which
                     % ones we will have to update each trial/
-                    if srcParameters{prm}.changesInTrial
-                        addToDynamicParms(o,src,o.prms.(src));
+                    if src.changesInTrial
+                        addToDynamicParms(o,src);
                     end
                 end
             end
+        end
+        
+        % Return whether this parameter name has a localized version in
+        % this plugin (i.e. loc_X exists for X) - used by parameter class.
+        function yesno = checkLocalized(o,nm)
+            yesno = isfield(o,['loc_' nm]);
+        end
+        % Add this neurostim.parameter to the set of parameters that need
+        % to be updated each frame (and not each trial).
+        function addToDynamicParms(o,prm)
+            nrDynamic = size(o.trialDynamicPrms,2);
+            o.trialDynamicPrms{1,nrDynamic+1} = ['loc_' prm.name] ;
+            o.trialDynamicPrms{2,nrDynamic+1} = prm; % Store the handle to the parms
         end
     end
     

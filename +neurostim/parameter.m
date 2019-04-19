@@ -68,7 +68,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         plg@neurostim.plugin;       % Handle to the plugin that this belongs to.
         hDynProp;                   % Handle to the dynamic property
         changesInTrial;             % Flag to indicate that this prm is changed within the trial frame loop
-        
+        hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
     end
   
    
@@ -103,6 +103,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.noLog = options.noLog;
             o.sticky = options.sticky;
             o.changesInTrial = options.changesInTrial; 
+            o.hasLocalized = checkLocalized(o.plg,nm);
             setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
@@ -241,12 +242,15 @@ classdef parameter < handle & matlab.mixin.Copyable
                 % lets keep changesInTrial... 
             end
             
-            if o.plg.cic.stage == neurostim.cic.RUNNING
-                % This parameter was changed during the trial
-                if ~o.changesInTrial 
-                    writeToFeed(o.plg,[o.name ' is changing within the trial; please use ''changesInTrial'' with addProperty.']);
-                    o.changesInTrial = true; 
-                    addToDynamicParms(o,o.name,o); % Add it to the list of parms that need to be updated before each frame.
+            if o.plg.cic.stage == neurostim.cic.INTRIAL
+                % This parameter was actually changed during the trial, but
+                % the user did not specify it as such.
+                if ~o.changesInTrial && o.hasLocalized
+                    % Check whether 
+                    o.changesInTrial =  addToDynamicParms(o.plg,o); % Potentially add it to the list of parms that need to be updated before each frame.                   
+                    if o.changesInTrial 
+                        writeToFeed(o.plg,[o.name ' is changing within the trial; please use ''changesInTrial'' with addProperty.']);
+                    end
                 end
             end
             

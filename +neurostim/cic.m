@@ -1143,7 +1143,7 @@ classdef cic < neurostim.plugin
                             c.flipCallbacks = {};
                         end
                     end % Trial running
-                    
+                    c.stage = neurostim.cic.RUNNING; 
                     %Perform one last flip to clear the screen (if requested)
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
                     clearOverlay(c,c.itiClear);
@@ -1164,7 +1164,7 @@ classdef cic < neurostim.plugin
                 
                 afterBlock(c);
             end %blocks
-            
+            c.stage = neurostim.cic.POST; 
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
             clearOverlay(c,true);
