@@ -114,6 +114,7 @@
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);
             p.addParameter('sticky',false,@islogical);
+            p.addParameter('changesInTrial',false,@islogical); % Indicate that this is a variable that gets new values assiged inthe beforeFrame/afterFrame user code.
             p.parse(varargin{:});
             
             
@@ -489,6 +490,13 @@
             %NOP
         end
         
+        
+        function addToDynamicParms(o,src, prm)
+            nrDynamic = size(o.trialDynamicPrms,1);
+            o.trialDynamicPrms{1,nrDynamic+1} = src ;
+            o.trialDynamicPrms{2,nrDynamic+1} = prm; % Store the handle to the parms
+        end
+        
         %Accessing neurostim.parameters is much slower than accessing a raw
         %member variable. Because we define many such parms (wit addProperty) in the base
         %stimulus /plugin classes, and becuase they need to be read each
@@ -544,7 +552,6 @@
                 % This will be used in the frameUpdate call to this
                 % function.
                 o.trialDynamicPrms = cell(2,0); 
-                nrDynamic=0;
             end
             
             for prm = 1:numel(targetMembers)
@@ -558,13 +565,8 @@
                 if ~frameUpdate
                     % A call just before the trial updates- check which
                     % ones we will have to update each trial/
-                    if srcParameters{prm}.isFun
-                        %  This one is potentially dynamic (could refine
-                        %  even more by determining whether time or frame
-                        %  are in the fun... but good enough for now.
-                        nrDynamic =nrDynamic+1;
-                        o.trialDynamicPrms{1,nrDynamic} = src ;
-                        o.trialDynamicPrms{2,nrDynamic} = o.prms.(src); % Store the handle to the parms
+                    if srcParameters{prm}.changesInTrial
+                        addToDynamicParms(o,src,o.prms.(src));
                     end
                 end
             end

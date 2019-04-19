@@ -8,7 +8,8 @@ classdef cic < neurostim.plugin
         PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
         SETUP   = 0;
         RUNNING = 1;
-        POST    = 2;
+        INTRIAL = 2;
+        POST    = 3;
     end
     
     %% Public properties
@@ -1014,7 +1015,7 @@ classdef cic < neurostim.plugin
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
-                        
+                       c.stage = neurostim.cic.INTRIAL;
                         %% Check for end of trial
                         if ~c.flags.trial || c.frame-1 >= ms2frames(c,c.trialDuration)
                             % if trial has ended (based on behaviors for

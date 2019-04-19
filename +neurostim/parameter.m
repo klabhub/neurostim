@@ -67,18 +67,11 @@ classdef parameter < handle & matlab.mixin.Copyable
         validate =[];               % Validation function
         plg@neurostim.plugin;       % Handle to the plugin that this belongs to.
         hDynProp;                   % Handle to the dynamic property
+        changesInTrial;             % Flag to indicate that this prm is changed within the trial frame loop
         
     end
-    properties (Dependent,GetAccess=public)
-        isFun;                      % True if this parameter is a neurostim function ('@otherParm.x +500')
-    end
-    
-    methods % get/set
-        function v = get.isFun(o)
-           v= ~isempty(o.fun);
-        end
-    end
-    
+  
+   
     methods
         function  o = parameter(p,nm,v,h,options)
             % o = parameter(p,nm,v,h,settings)
@@ -109,6 +102,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.validate = options.validate;
             o.noLog = options.noLog;
             o.sticky = options.sticky;
+            o.changesInTrial = options.changesInTrial; 
             setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)
@@ -217,12 +211,13 @@ classdef parameter < handle & matlab.mixin.Copyable
             %Check the clock immediately. If we need to log, this is the most accurate time-stamp.
             t = GetSecs*1000;
             
+            
             %Check for a function definition
             if strncmpi(v,'@',1)
                 % The dynprop was set to a neurostim function
                 % Parse the specified function and make it into an anonymous function.
                 o.funStr = v; % store this to be able to restore it later.
-                
+                o.changesInTrial = true; % At least potentially; we'll mark this as a parm that needs to be updated each frame
                 %If we are still at setup (i.e. not run-time), don't build the function b/c referenced objects might not exist yet.
                 %It will happen once c.run() starts using o.funStr
                 if o.plg.cic.stage >o.plg.cic.SETUP
@@ -242,7 +237,17 @@ classdef parameter < handle & matlab.mixin.Copyable
                 o.fun = [];
                 o.funStr = '';
                 o.funPrms = [];
-                delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);
+                delFunProp(o.plg.cic,o.plg.name,o.hDynProp.Name);    
+                % lets keep changesInTrial... 
+            end
+            
+            if o.plg.cic.stage == neurostim.cic.RUNNING
+                % This parameter was changed during the trial
+                if ~o.changesInTrial 
+                    writeToFeed(o.plg,[o.name ' is changing within the trial; please use ''changesInTrial'' with addProperty.']);
+                    o.changesInTrial = true; 
+                    addToDynamicParms(o,o.name,o); % Add it to the list of parms that need to be updated before each frame.
+                end
             end
             
             % validate
