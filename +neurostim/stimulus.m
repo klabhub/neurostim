@@ -51,27 +51,40 @@ classdef stimulus < neurostim.plugin
     % values of a neurostim.parameter. Any member variables whose name starts
     % with loc_ retrieve their value from the associated parameter object
     % just after the beforeTrial user code finishes. These values are used
-    % in the base stimulus class code. Only neurostim.parameters that are
-    % truly dynamic (i.e. they are defined as a function with '@') are
-    % updated before every frame. All of this happens behind the scenes,
+    % in the base stimulus class code. Only neurostim.parameters that can change within 
+    % a trial are updated before every frame. These parameters are flagged by
+    % the changesInTrial flag. All of this happens behind the scenes,
     % without user intervention. 
     %
+    % By default every parameter that is a neurostim function has
+    % changesInTrial set to true.
+    % In new stimulus classes, designers can mark a property as
+    % 'changesInTrial' in the call to addProperty (for instance if that is
+    % a variable that is updated in the beforeFrame/afterFrame code). If
+    % the designer forgets, Neurostim will do it (and issue a warning).
+    % To set one of the propertieds of a parent class , use
+    % setChangesInTrial(stimulus,'X').
+    %
+    % 
     % Most stimulus classes will not need this functionality, but if
     % performance (frame drops) becomes an issue, a user just needs to
     % define loc_XXX members in their stimulus class, given them the same
     % access rights as these properties here, and then use the loc_XXX
     % parameters in the beforeFrame and afterFrame user code to get a boost
     % in performance. 
+    %
     % neurostim.plugin needs GetAccess and SetAccess because the code that updates the
     % localized variables runs in the plugin parent class.
     % GetAccess should also be given to the class in which these lock
-    % parameters are defined so that they can be used in the
+    % parameters are defined {?yourstimulusclass} so that they can be used in the
     % beforeFrame/afterFrame code. We would like to NOT give SetAccess to the class (or derived classes);
     % because assignmnt should always be done to the neurostim.parameter (to ensure
     % logging and persistence across trials). But I cannot think of a way
     % to achieve that in Matlab (stimulus derives from plugin, plugin
-    % requires access, so stimlulus will get it too)
-    properties (SetAccess= {?neurostim.plugin}, GetAccess={?neurostim.plugin,?neurostim.stimulus})
+    % requires access, so stimlulus will get it too). Setting the Hidden
+    % property at least hides these dangerous variables from users who do
+    % not need to be aware of them.
+    properties (SetAccess= {?neurostim.plugin}, GetAccess={?neurostim.plugin,?neurostim.stimulus},Hidden)
         loc_X
         loc_Y
         loc_Z
@@ -93,9 +106,7 @@ classdef stimulus < neurostim.plugin
     
     properties (Access=private)
         logOnset@logical=false;
-        logOffset@logical=false;
-    
-       
+        logOffset@logical=false;           
     end
     
     

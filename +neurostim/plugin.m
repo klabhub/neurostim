@@ -491,7 +491,20 @@
         function afterExperiment(~)
             %NOP
         end
-                                    
+        
+        
+        % Add this neurostim.parameter to the set of parameters that need
+        % to be updated each frame (and not each trial). Needs public
+        % access so that derived classes can use it.
+        function setChangesInTrial(o,prm)
+            nrDynamic = size(o.trialDynamicPrms,2);
+            if ischar(prm)
+                prm = o.prms.(prm);
+            end
+            o.trialDynamicPrms{1,nrDynamic+1} = ['loc_' prm.name] ;
+            o.trialDynamicPrms{2,nrDynamic+1} = prm; % Store the handle to the parms
+            prm.changesInTrial = true;
+        end                            
     end
     
     methods (Access={?neuorstim.plugin,?neurostim.parameter})
@@ -566,7 +579,7 @@
                     % A call just before the trial updates- check which
                     % ones we will have to update each trial/
                     if src.changesInTrial
-                        addToDynamicParms(o,src);
+                        setChangesInTrial(o,src);
                     end
                 end
             end
@@ -578,13 +591,7 @@
             classInfo  = metaclass(o);
             yesno = ismember(['loc_' nm],{classInfo.PropertyList.Name});
         end
-        % Add this neurostim.parameter to the set of parameters that need
-        % to be updated each frame (and not each trial).
-        function addToDynamicParms(o,prm)
-            nrDynamic = size(o.trialDynamicPrms,2);
-            o.trialDynamicPrms{1,nrDynamic+1} = ['loc_' prm.name] ;
-            o.trialDynamicPrms{2,nrDynamic+1} = prm; % Store the handle to the parms
-        end
+       
     end
     
     methods (Sealed)

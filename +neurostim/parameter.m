@@ -49,6 +49,11 @@ classdef parameter < handle & matlab.mixin.Copyable
         % To do this for a previously defined
         % parameter, call
         % makeSticky(plugin,parameterName)
+        
+        changesInTrial;             % Flag to indicate that this prm is changed within the trial frame loop
+        % To set this for a previously defined parameter call
+        % setChangesInTrial(plugin,parameterName) in your stimulus/plugin
+        % class.
     end
     
     properties (SetAccess= protected, GetAccess=public)
@@ -67,8 +72,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         validate =[];               % Validation function
         plg@neurostim.plugin;       % Handle to the plugin that this belongs to.
         hDynProp;                   % Handle to the dynamic property
-        changesInTrial;             % Flag to indicate that this prm is changed within the trial frame loop
-        hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
+         hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
     end
     
     
@@ -247,7 +251,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % the user did not specify it as such.
             if ~o.changesInTrial && o.hasLocalized &&  o.plg.cic.stage == neurostim.cic.INTRIAL
                 % Check whether
-                 addToDynamicParms(o.plg,o); % Potentially add it to the list of parms that need to be updated before each frame.
+                 setChangesInTrial(o.plg,o); % Add it to the list of parms that need to be updated before each frame.
                  writeToFeed(o.plg,[o.name ' is changing within the trial; please use ''changesInTrial'' with addProperty.']);                
                  o.changesInTrial  = true;
             end
