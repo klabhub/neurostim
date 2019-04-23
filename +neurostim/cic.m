@@ -44,7 +44,7 @@ classdef cic < neurostim.plugin
             'calibration',struct('gamma',2.2,'bias',nan(1,3),'min',nan(1,3),'max',nan(1,3),'gain',nan(1,3)),...
             'overlayClut',[]);    % screen-related parameters.
         
-        timing = struct('vsyncMode',0); % 0 = busy wait until vbl, 1 = schedule flip asynchronously then continue                
+        timing = struct('vsyncMode',0); % 0 = busy wait until vbl, 1 = schedule flip asynchronously then continue
         
         hardware                = struct('sound',struct('device',-1,'latencyClass',1) ... % Sound hardware settings (device = index of audio device to use, see plugins.sound
             ,'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
@@ -878,6 +878,11 @@ classdef cic < neurostim.plugin
             assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
             c.used  = true;
             
+            % Make sure openGL is working properly.
+            InitializeMatlabOpenGL;
+            AssertOpenGL;
+            sca; % Close any open PTB windows.
+            
             % Setup the logger
             c.log.localCache = c.useFeedCache;
             c.log.useColor = c.useConsoleColor;
@@ -959,8 +964,7 @@ classdef cic < neurostim.plugin
             locPROFILE      = c.PROFILE;
             WHEN            = 0; % Always flip on the next VBL
             DONTCLEAR       = 1;
-            SYNC            = 0;
-            predictedVbl    = NaN;
+           
             
             if ~c.hardware.keyEcho
                 ListenChar(-1);
@@ -994,19 +998,19 @@ classdef cic < neurostim.plugin
                             end
                         end
                     else
-                         % FLIP at least once to get started (and predict the next vbl)
-                        [ptbVbl] = Screen('Flip', c.mainWindow,WHEN,DONTCLEAR);                        
+                        % FLIP at least once to get started (and predict the next vbl)
+                        [ptbVbl] = Screen('Flip', c.mainWindow,WHEN,DONTCLEAR);
                     end
-                    predictedVbl = ptbVbl+FRAMEDURATION; % Predict upcoming 
-                   
-                   
+                    predictedVbl = ptbVbl+FRAMEDURATION; % Predict upcoming
+                    
+                    
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush',kbDeviceIndices);
                     Priority(MaxPriority(c.mainWindow));
                     
                     % Timing the draw : commented out. See drawingFinished code below
-                    % draw = nan(1,1000);                     
+                    % draw = nan(1,1000);
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -1024,7 +1028,7 @@ classdef cic < neurostim.plugin
                         end
                         
                         % Call beforeFrame code in all plugins (i.e drawing
-                        % to the backbuffer). 
+                        % to the backbuffer).
                         base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
                         
                         % This commented out code allows measuring the draw
@@ -1044,7 +1048,7 @@ classdef cic < neurostim.plugin
                             % then proceed asynchronously to do some
                             % non-drawing related tasks).
                             %Screen('AsyncFlipBegin', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
-                            Screen('AsyncFlipBegin',c.mainWindow,WHEN,1-clr,0,0); 
+                            Screen('AsyncFlipBegin',c.mainWindow,WHEN,1-clr,0,0);
                         end
                         
                         KbQueueCheck(c);
@@ -1070,7 +1074,7 @@ classdef cic < neurostim.plugin
                             % This is done synchronously; execution will
                             % wait here until after the flip has completed.
                             startFlipTime = GetSecs;
-                            %Screen('Flip', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);                       
+                            %Screen('Flip', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
                             [ptbVbl,ptbStimOn,flipDoneTime] = Screen('Flip', c.mainWindow,WHEN,1-clr,0,0);
                             flipDuration = flipDoneTime-startFlipTime; % For profiling only: includes the busy wait time
                             vblIsLate = ptbVbl-predictedVbl;
@@ -1088,7 +1092,7 @@ classdef cic < neurostim.plugin
                             tic(c)
                         end
                         
-                       
+                        
                         % In Vsyncmode 0, the frame will have flipped by
                         % now, we start the afterFrame functions in all
                         % plugins.
@@ -1119,7 +1123,7 @@ classdef cic < neurostim.plugin
                         if locPROFILE
                             addProfile(c,'FLIPTIME','cic',1000*flipDuration);
                         end
-                                                
+                        
                         % check and log frame drops.
                         if c.frame == 1
                             locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
@@ -1133,10 +1137,10 @@ classdef cic < neurostim.plugin
                         %Stimuli should set and log their onsets/offsets as soon as they happen, in case other
                         %properties in any afterFrame() depend on them. So, send the flip time those who requested it
                         if ~isempty(c.flipCallbacks)
-                            flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;                           
+                            flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
                             cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
                             c.flipCallbacks = {};
-                        end                        
+                        end
                     end % Trial running
                     
                     %Perform one last flip to clear the screen (if requested)
@@ -1388,9 +1392,13 @@ classdef cic < neurostim.plugin
         % entries and a vector of indicies into the CLUT where they should
         % be placed.
         function updateOverlay(c,clut,index)
-            if nargin < 2
-                clut = [];
+            if nargin<3
+                    index = [];
+                    if nargin <2
+                        clut  =[];
+                    end
             end
+            
             [nrRows,nrCols] = size(c.screen.overlayClut);
             if ~ismember(nrCols,[0 3])
                 error('The overlay CLUT should have 3 columns (RGB)');
@@ -1398,10 +1406,6 @@ classdef cic < neurostim.plugin
             
             switch upper(c.screen.type)
                 case 'VPIXX-M16'
-                    if nargin < 3
-                        index = 1:size(clut,1);
-                    end
-                    
                     if nrRows ~=256
                         % Add white for missing clut entries to show error
                         % indices (assuming the bg is not max white)
@@ -1409,17 +1413,13 @@ classdef cic < neurostim.plugin
                         c.screen.overlayClut = cat(1,zeros(1,3),c.screen.overlayClut,ones(256-nrRows-1,3));
                     end
                     
-                    if any(index<1 | index >255)
-                        error('CLUT entries can only be defined for index =1:255');
-                    end
-                    
-                    if ~isempty(clut)  && (numel(index) ~=size(clut,1) || size(clut,2) ~=3)
-                        error('The CLUT update must by [N 3] and with N index values');
-                    end
-                    % Update with the new values in the appropriate location
-                    % (index)
-                    if ~isempty(index)
+                    if  isempty(clut) && isempty(index)
+                        % Nothing to do
+                    elseif numel(index) ~=size(clut,1) && size(clut,2) ==3 && all(index>0 && index < 255)
+                        % Put in new values
                         c.screen.overlayClut(index+1,:) = clut; % index +1 becuase the first entry (index =0) is always transparent
+                    else
+                        error('The CLUT update contains invalid indices.');
                     end
                     
                     Screen('LoadNormalizedGammaTable',c.mainWindow,c.screen.overlayClut,2);  %2= Load it into the VPIXX CLUT
@@ -1456,7 +1456,7 @@ classdef cic < neurostim.plugin
                     end
                     
                     if any(index <= 0 | index == 256 | index >= 512)
-                        error('The CLUT update contains invalid indicies.');
+                        error('The CLUT update contains invalid indices.');
                     end
                     
                     if ~isempty(clut)  && (numel(index) ~= nrRows || nrCols ~= 3)
@@ -1602,10 +1602,11 @@ classdef cic < neurostim.plugin
             p.addParameter('rightToLeft',0) % The righttoleft parameter in PTB
             p.addParameter('winRect',[0 0 c.screen.xpixels c.screen.ypixels]) % The winRect parameter in PTB
             p.addParameter('showNow',false); % Call Screen('Flip') immediately
+            p.addParameter('echo',true); % Overrule hardware.echo
             p.parse(varargin{:});
             
             DrawFormattedText(c.textWindow,text, p.Results.left, p.Results.top, c.screen.color.text, p.Results.wrapAt, p.Results.flipHorizontal, p.Results.flipVertical, p.Results.vSpacing, p.Results.rightToLeft, p.Results.winRect);
-            if c.hardware.textEcho
+            if c.hardware.textEcho && p.Results.echo
                 if ~c.useConsoleColor
                     style = 'NOSTYLE';
                 else
@@ -1635,60 +1636,24 @@ classdef cic < neurostim.plugin
             fprintf(1,'%s --> ', c.pluginOrder.name)
             disp('Parameter plugins should depend only on plugins with earlier execution (i.e. to the left)');
         end
-        function KbQueueStop(c)
-            for kb=1:numel(c.kbInfo.activeKb)
-                KbQueueStop(c.kbInfo.activeKb{kb});
-                KbQueueRelease(c.kbInfo.activeKb{kb});
-            end
-            
-        end
         
-        function colorOk = loadCalibration(c)
-            colorOk = false;
-            if ~isempty(c.screen.calFile)
-                % Load a calibration from file. The cal struct has been
-                % generated by utils.ptbcal
-                
-                c.screen.calibration = LoadCalFile(c.screen.calFile,Inf,c.dirs.calibration); % Retrieve the latest calibration
-                if isempty(c.screen.calibration)
-                    error(['Could not load a PTB calibration file from: ' fullfile(c.dirs.calibration,c.screen.calibration.file)]);
-                end
-                
-                if ~isempty(c.screen.colorMatchingFunctions)
-                    % The "sensor" is the human observer and we can pick different ones by
-                    % chosing a different CMF (in c.screen.cmf). Sensor coordinates
-                    % are XYZ tristimulus values.
-                    % Apply color matching functions
-                    tmpCmf = load(c.screen.colorMatchingFunctions);
-                    fn = fieldnames(tmpCmf);
-                    Tix = strncmpi('T_',fn,2); % Assuming the convention that the variable starting with T_ contains the CMF
-                    Six = strncmpi('S_',fn,2); % Variable starting with S_ specifies the wavelengths
-                    T = tmpCmf.(fn{Tix}); % CMF
-                    S = tmpCmf.(fn{Six}); % Wavelength info
-                    T = 683*T;
-                    c.screen.calibration = SetSensorColorSpace(c.screen.calibration,T,S);
-                    colorOk = true;
-                end
-                
-                c.screen.calibration = SetGammaMethod(c.screen.calibration,0); % Linear interpolation for Gamma table
-                
-                
-                
-            end
-        end
         
+         
         %% PTB Imaging Pipeline Setup
         function PsychImaging(c)
-            InitializeMatlabOpenGL;
-            AssertOpenGL;
-            sca;
+            % Tthis initializes the
+            % main winodw (and if requested, an overlay) according to the
+            % specifications in c.screen. This is typically called once (by
+            % cic.run)
+            %
             
-            c.setupScreen;
-            colorOk = loadCalibration(c);
+            c.setupScreen; % Physical parameters
+            colorOk = loadCalibration(c); % Monitor calibration parameters from file.
+            
+           
             PsychImaging('PrepareConfiguration');
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');% 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');% Unrestricted color range
-            %PsychImaging('AddTask', 'General', 'UseGPGPUCompute');
             PsychImaging('AddTask', 'General', 'UseFastOffscreenWindows');
             
             
@@ -1750,7 +1715,7 @@ classdef cic < neurostim.plugin
             if c.screen.colorCheck
                 PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'CheckOnly');
             end
-            %% Open the window
+            %% Open the window            
             c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             c.textWindow = c.mainWindow; % By default - changed below if needed.
             
@@ -1760,7 +1725,6 @@ classdef cic < neurostim.plugin
                     % nothing to do
                     
                 case 'VPIXX-M16'
-                    
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
                         % above 1 that is an integer is a 0-255 lut entry.
@@ -1775,7 +1739,7 @@ classdef cic < neurostim.plugin
                     c.overlayRect =  Screen('Rect',c.overlayWindow);
                     c.textWindow = c.overlayWindow;
                     Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
-                    updateOverlay(c,c.screen.overlayClut);
+                    updateOverlay(c);
                 case 'SOFTWARE-OVERLAY'
                     % With this display type you draw your stimuli on the
                     % left half of c.mainWindow and it is mirrored on the right
@@ -1879,7 +1843,7 @@ classdef cic < neurostim.plugin
                     c.textWindow = c.overlayWindow;
                     
                     % setup CLUTs...
-                    updateOverlay(c,c.screen.overlayClut);
+                    updateOverlay(c);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1914,8 +1878,52 @@ classdef cic < neurostim.plugin
             
             %% Perform additional setup routines
             Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            
+            assignWindow(c.pluginOrder); % Tell the plugins about this window            
         end
+    
+        
+        function KbQueueStop(c)
+            for kb=1:numel(c.kbInfo.activeKb)
+                KbQueueStop(c.kbInfo.activeKb{kb});
+                KbQueueRelease(c.kbInfo.activeKb{kb});
+            end            
+        end
+        
+        function colorOk = loadCalibration(c)
+            colorOk = false;
+            if ~isempty(c.screen.calFile)
+                % Load a calibration from file. The cal struct has been
+                % generated by utils.ptbcal
+                
+                c.screen.calibration = LoadCalFile(c.screen.calFile,Inf,c.dirs.calibration); % Retrieve the latest calibration
+                if isempty(c.screen.calibration)
+                    error(['Could not load a PTB calibration file from: ' fullfile(c.dirs.calibration,c.screen.calibration.file)]);
+                end
+                
+                if ~isempty(c.screen.colorMatchingFunctions)
+                    % The "sensor" is the human observer and we can pick different ones by
+                    % chosing a different CMF (in c.screen.cmf). Sensor coordinates
+                    % are XYZ tristimulus values.
+                    % Apply color matching functions
+                    tmpCmf = load(c.screen.colorMatchingFunctions);
+                    fn = fieldnames(tmpCmf);
+                    Tix = strncmpi('T_',fn,2); % Assuming the convention that the variable starting with T_ contains the CMF
+                    Six = strncmpi('S_',fn,2); % Variable starting with S_ specifies the wavelengths
+                    T = tmpCmf.(fn{Tix}); % CMF
+                    S = tmpCmf.(fn{Six}); % Wavelength info
+                    T = 683*T;
+                    c.screen.calibration = SetSensorColorSpace(c.screen.calibration,T,S);
+                    colorOk = true;
+                end
+                
+                c.screen.calibration = SetGammaMethod(c.screen.calibration,0); % Linear interpolation for Gamma table
+                
+                
+                
+            end
+        end
+        
+        
         
     end
     
@@ -2011,7 +2019,7 @@ classdef cic < neurostim.plugin
             if numel(plgns)>1
                 figure('Name','Total','position',[680   530   818   420]);
                 clf
-                frameItems = find(~cellfun(@isempty,strfind(items,'FRAME')));
+                frameItems = find(~cellfun(@isempty,strfind(items,'FRAME'))); %#ok<STRCLFH>
                 cntr=1;
                 for j=frameItems'
                     subplot(1,2,cntr);

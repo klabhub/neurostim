@@ -51,7 +51,7 @@ classdef saccade < neurostim.behaviors.fixate
             
             % With these guards, code the three possible transitions listed
             % in the description above are:
-            if isAllowedBlink                    
+            if isAllowedBlink   
                 % Don't change the state if we're in a blink 
             elseif saccadeMustHaveCompleted && inside
                 transition(o,@o.fail,e);  % Transition to the fail state. Pass the event that lead to this transition
@@ -62,7 +62,7 @@ classdef saccade < neurostim.behaviors.fixate
             end
         end
         
-        function inFlight(o,t,e)
+        function inFlight(o,~,e)
             if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail          
             if ~e.isRegular ;return;end % No Entry/exit needed
             % Define guard conditions
@@ -70,7 +70,7 @@ classdef saccade < neurostim.behaviors.fixate
              inflighTooLong = o.duration > o.saccadeDuration;   
                           
              % Code transitions                           
-            if inflighTooLong 
+            if inflighTooLong % Even if we're in an allowedBlink, if intlightTooLong- >fail
                 transition(o,@o.fail,e);                
             elseif isAllowedBlink
                  % Don't change the state if we're in an allowed blink 
@@ -80,7 +80,7 @@ classdef saccade < neurostim.behaviors.fixate
         end
         
         
-        function onTarget(o,t,e)
+        function onTarget(o,~,e)
             if e.isAfterTrial;transition(o,@o.success,e);end % if still in this state-> success          
             if ~e.isRegular ;return;end % No Entry/exit needed.
             %Define guard conditions            
@@ -88,10 +88,10 @@ classdef saccade < neurostim.behaviors.fixate
             [inside,isAllowedBlink]= isInWindow(o,e,[o.targetX,o.targetY]);     
                      
             % Code transitions
-            if longEnough
-                transition(o,@o.success,e);
-            elseif isAllowedBlink                   
+            if isAllowedBlink                   
                 % Don't change the state if we're in an allowed  blink 
+            elseif longEnough
+                transition(o,@o.success,e);
             elseif ~inside               
                 transition(o,@o.fail,e);
             end                
