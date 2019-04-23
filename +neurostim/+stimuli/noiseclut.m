@@ -1,4 +1,4 @@
-classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
+classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
     % Abstract stimulus class to present random noise rasters (e.g. for white-noise analysis).
     % Luminance noise values are drawn from Matlab's built-in probaility distributions or returned by a user-defined function.
     % Argument specification is based on that of the jitter() plugin (though custom function specification is slightly different... TODO: unify this and jitter())
@@ -46,13 +46,17 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
         nRandels;
         callback@function_handle;   %Handle of function for returning luminance values on each frame
     end
+   
+    properties (GetAccess = public, SetAccess = protected)
+        wireFrame;                  % nVertices x 2 matrix for the wireframe "grid", useful for plotting and presenting
+    end
     
     properties
        isNewFrame = false  %Flag that gets set to true on each frame that the noise is updated. Useful for syncing other stimuli/plugins. 
     end
     
     methods (Access = public)
-        function o = noiserasterclut(c,name)
+        function o = noiseclut(c,name)
             
             o = o@neurostim.stimuli.gllutimage(c,name);
             
@@ -64,7 +68,10 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
             o.addProperty('signal',[],'validate',@isnumeric);       %Luminance values to add to noise matrix.
             o.addProperty('frameInterval',o.cic.frames2ms(3));      %How long should each frame be shown for? default = 3 frames.
             o.addProperty('offlineMode',false);                     %True to simulate trials without opening PTB window.
-           
+            o.addProperty('showWireFrame',false,'validate',@(x) islogical(x)); %Not yet used.
+            o.addProperty('showCenters',false,'validate',@(x) islogical(x));
+            o.addProperty('showPerimeter',false,'validate',@(x) islogical(x));
+            
             %Internal variables for clut and mapping
             o.addProperty('randelX',[],'validate',@(x) validateattributes(x,{'numeric'},{'real'}));
             o.addProperty('randelY',[],'validate',@(x) validateattributes(x,{'numeric'},{'real'}));
@@ -96,7 +103,18 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
                 o.isNewFrame = false;
             end
             
+            %Show the randel image
             o.draw();
+            
+            %Superimpose the wireFrame, if requested
+            if o.showWireFrame
+                o.drawWireFrame();
+            end
+            
+            %Superimpose the randel centers, if requested
+            if o.showCenters
+                o.drawCenters();
+            end
         end
         
         function afterTrial(o)
@@ -129,6 +147,12 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
             o.setImage(im);
             o.nRandels = o.nClutColors;
             o.clut = zeros(3,o.nRandels);
+            
+            %Evalute the randel callback function to make sure it returns the right number of clut values
+            if numel(o.callback(o))~=o.nRandels
+                error(['The supplied CLUT function, ' func2str(o.callback), ' should return a 1 x nRandels (' num2str(o.nRandels), ') vector']);
+            end
+
             if ~o.offlineMode
                 o.prep();   %This line makes the openGL textures
             end
@@ -142,7 +166,7 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
             dist = o.distribution;
             
             if isa(dist,'function_handle')
-                %User-defined function. Function must receive the noiseraster plugin as its sole argument and return
+                %User-defined function. Function must receive the noise plugin as its sole argument and return
                 %luminance values for each of the random variables.
                 o.callback = dist;
                 
@@ -222,6 +246,21 @@ classdef (Abstract) noiserasterclut < neurostim.stimuli.gllutimage
             o.randelXY = xy;
         end
         
+        function drawWireFrame(o)
+            %PLACEHOLDER
+            warning('Sorry... showWireFrame is not implemented yet');
+%             Screen('FramePoly', o.window,[1,0,0], o.wireFrame, 3);
+        end
+        function drawCenters(o)
+            %PLACEHOLDER
+            warning('Sorry...  showCenters is not implemented yet');
+            %             Screen('FramePoly', o.window,[1,0,0], o.wireFrame, 3);
+        end
+        function drawPerimeter(o)
+            %PLACEHOLDER
+            warning('Sorry...  showCenters is not implemented yet');
+            %             Screen('FramePoly', o.window,[1,0,0], o.wireFrame, 3);
+        end
 %         function [x,y] = id2xy(o,id)
 %             
 %         end

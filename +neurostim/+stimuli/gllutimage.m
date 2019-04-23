@@ -11,6 +11,8 @@ classdef (Abstract) gllutimage < neurostim.stimulus
     
     properties (Access = protected)
         nChans = 1;
+        p2ns;
+        ns2p;
     end
     properties (SetAccess=private)
         nClutColors = 16;
@@ -32,6 +34,21 @@ classdef (Abstract) gllutimage < neurostim.stimulus
         lutTexSz
         floatPrecision
         maxTexSz
+    end
+    
+    properties (Dependent)
+        size
+    end
+    
+    methods (Abstract, Access = protected)
+        %Sub-classes must define a method to return the size of the texture matrix as [h,w], as used in ones(), rand() etc.
+        sz = imageSize(o)
+    end
+    
+    methods
+        function v = get.size(o)
+            v = imageSize(o);
+        end
     end
     
     methods (Access = public)
@@ -87,10 +104,14 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             end
             
             % Load our fragment shader for clut blit operations:
-            shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','noiserasterclut.frag.txt');
+            shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','noiseclut.frag.txt');
             o.remapshader = LoadGLSLProgramFromFiles(shaderFile);
             
             o.isSetup = true;
+            
+            %Store pixel to ns transform factors for convenience
+            o.p2ns = o.cic.pixel2Physical(1,0)-o.cic.pixel2Physical(0,0);
+            o.ns2p = o.cic.physical2Pixel(1,0)-o.cic.physical2Pixel(0,0);
         end
         
         function prep(o)
@@ -100,7 +121,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
                 error('You must call o.setup() in your beforeExperiment() function');
             end
             
-            %If no image has been set, use a default image.
+            %Check that an image has been set
             if isempty(o.idImage)
                 error('You should define your image (o.idImage) before calling o.prep().');
             end

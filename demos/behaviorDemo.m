@@ -56,7 +56,8 @@ d.size = 2;
 d.nrDots = 200;
 d.maxRadius = 5;
 d.lifetime = Inf;
-d.noiseMode = 1;
+d.noiseMode = 0;
+d.coherence = 0.6;
 
 %% ========== Add required behaviours =========
 
@@ -66,10 +67,10 @@ k = behaviors.keyResponse(c,'choice');
 % or this if you want to allow subjects to change their mind:
 %k = behaviors.multiKeyResponse(c,'choice');
 k.from = '@dots.startTime + dots.duration';
-k.maximumRT= 2000;                   %Maximum allowable RT is 2000ms
+k.maximumRT= Inf;                   %Allow inf time for a response
 k.keys = {'a' 'z'};                                 %Press 'a' for "upward" motion, 'z' for "downward"
 k.correctFun = '@double(dots.direction < 0) + 1';   %Function returns the index of the correct response (i.e., key 1 or 2)
-%k.required = false; %   This means that even if this behavior is not successful (i.e. the wrong answer is given), the trial will not be repeated.
+k.required = false; %   This means that even if this behavior is not successful (i.e. the wrong answer is given), the trial will not be repeated.
 
 %Maintain gaze on the fixation point until the dots disappear
 g = behaviors.fixate(c,'f1');
@@ -78,7 +79,7 @@ g.to = '@dots.stopTime';
 g.X = '@fix.X';
 g.Y = '@fix.Y';
 g.tolerance = 3;
-%g.required = true; % This is a required behavior. Any trial in which fixation is not maintained throughout will be retried. (See myDesign.retry below)
+g.required = true; % This is a required behavior. Any trial in which fixation is not maintained throughout will be retried. (See myDesign.retry below)
 
 %% ========== Specify feedback/rewards ========= 
 % Play a correct/incorrect sound for the 2AFC task
@@ -90,9 +91,9 @@ s.add('waveform','correct.wav','when','afterTrial','criterion','@choice.correct'
 s.add('waveform','incorrect.wav','when','afterTrial','criterion','@ ~choice.correct');
 
 %% Experimental design
-c.trialDuration = Inf; '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
-k.failEndsTrial = true;
-k.successEndsTrial  = true;
+c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
+k.failEndsTrial = false;
+k.successEndsTrial  = false;
 
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.

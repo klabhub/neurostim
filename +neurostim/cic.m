@@ -46,7 +46,8 @@ classdef cic < neurostim.plugin
         
         timing = struct('vsyncMode',0,... % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
             'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
-            'pluginSlack',0); % see plugin.m
+            'pluginSlack',0,...% see plugin.m
+            'useWhen',false);  %Use the when argument to Screen('Flip') or not.
         
         hardware                = struct('sound',struct('device',-1,'latencyClass',1) ... % Sound hardware settings (device = index of audio device to use, see plugins.sound
                                             ,'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
@@ -117,6 +118,11 @@ classdef cic < neurostim.plugin
         feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
         feedCacheCntr=0;
         feedCacheWriteNow = false;
+        
+      
+    end
+    properties (SetAccess= private)
+        used =false; % Flag to make sure a user cannot reuse a cic object.
     end
     
     %% Dependent Properties
@@ -654,6 +660,8 @@ classdef cic < neurostim.plugin
         end
         
         function o = add(c,o)
+            assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
+            
             % Add a plugin.
             if ~isa(o,'neurostim.plugin')
                 error('Only plugin derived classes can be added to CIC');
@@ -869,7 +877,11 @@ classdef cic < neurostim.plugin
             % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
-           
+            
+            assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
+            c.used  = true;
+             
+            
             c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.            
                 
             %Check input
@@ -1029,7 +1041,16 @@ classdef cic < neurostim.plugin
                         % beampos: position of the monitor scanning beam when the time measurement was taken
                         
                         % Start (or schedule) the flip
-                        [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
+                        if c.timing.useWhen
+                            % Use the when argument - better(fewer drops)
+                            % on at least one Windows system (win7/Quadro
+                            % Pro/ViewPixx)
+                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,c.timing.vsyncMode);
+                        else
+                            % Don't use the when (better on some linux
+                            % systems)
+                            [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
+                        end
                         if clr && locHAVEOVERLAY
                             Screen('FillRect', c.overlayWindow,0,c.overlayRect); % Fill with zeros;%clearOverlay(c,true);
                         end
@@ -1043,7 +1064,11 @@ classdef cic < neurostim.plugin
                             ptbVbl = GetSecs;
                             ptbStimOn = ptbVbl;
                         end
-                        missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
+                        if c.timing.useWhen
+                           % missed is calculated by Screen('FLIP') 
+                        else
+                            missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
+                        end
                         
                         if locPROFILE && c.frame > 1
                             addProfile(c,'FRAMELOOP','cic',c.toc);
@@ -1068,7 +1093,7 @@ classdef cic < neurostim.plugin
                         %properties in any afterFrame() depend on them. So, send the flip time those who requested it
                         if ~isempty(c.flipCallbacks)
                             flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
-                            cellfun(@(s) s.afterFlip(flipTime),c.flipCallbacks);
+                            cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
                             c.flipCallbacks = {};
                         end
                         
@@ -1896,6 +1921,7 @@ classdef cic < neurostim.plugin
             Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);                        
             
         end
+        
     end
     
     
