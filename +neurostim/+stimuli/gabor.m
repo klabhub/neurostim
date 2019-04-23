@@ -37,7 +37,7 @@ classdef gabor < neurostim.stimulus
     %
 
     properties (Constant)
-        maskTypes = {'GAUSS','CIRCLE','ANNULUS','GAUSS3'};
+        maskTypes = {'GAUSS','CIRCLE','ANNULUS','GAUSS3','GAUSS2D'};
         flickerTypes = {'NONE','SINE','SQUARE','SINECONTRAST','SQUARECONTRAST'};
     end
     properties (Access=private)
