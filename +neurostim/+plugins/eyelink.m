@@ -108,6 +108,8 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
             o.addProperty('clbType','HV9');
             o.addProperty('host','');
+            
+            o.addProperty('useRawData',false);
         end
         
         function beforeExperiment(o)
@@ -190,7 +192,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                     Eyelink('Message','%s', 'EYE_USED 2');
             end
             
-            if o.useRaw
+            if o.useRawData
               % add raw pupil (x,y) to the link data stream
               Eyelink('Command','link_sample_data=LEFT,RIGHT,GAZE,GAZERES,PUPIL,AREA,STATUS');
             else
@@ -302,7 +304,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % convert to physical coordinates
                     eyeNr = str2eye(o,o.eye);
 
-                    if o.useRaw
+                    if o.useRawData
                       % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
                       [o.x,o.y] = o.raw2ns(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
                     else
