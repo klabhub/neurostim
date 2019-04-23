@@ -11,7 +11,7 @@
     end
     
     
-    properties (SetAccess=private, GetAccess=public)
+    properties (SetAccess=protected, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
         trialDynamicPrms;  %  A list of parameters that (can) change within a trial. See localizeParms for how it is filled and used.
