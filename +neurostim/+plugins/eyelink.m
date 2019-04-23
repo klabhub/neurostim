@@ -190,6 +190,14 @@ classdef eyelink < neurostim.plugins.eyetracker
                     Eyelink('Message','%s', 'EYE_USED 2');
             end
             
+            if o.useRaw
+              % add raw pupil (x,y) to the link data stream
+              Eyelink('Command','link_sample_data=LEFT,RIGHT,GAZE,GAZERES,PUPIL,AREA,STATUS');
+            else
+              % add gaze position (in screen pixels) to the link data stream
+              Eyelink('Command','link_sample_data=LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS');
+            end
+            
             %Pass all commands to Eyelink
             for i=1:length(o.commands)
                 result = Eyelink('Command', o.commands{i});
@@ -293,7 +301,23 @@ classdef eyelink < neurostim.plugins.eyetracker
                     sample = Eyelink( 'NewestFloatSample');
                     % convert to physical coordinates
                     eyeNr = str2eye(o,o.eye);
-                    [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
+
+                    if o.useRaw
+                      % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
+                      [o.x,o.y] = o.raw2ns(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                    else
+                      % get display gaze position (in display pixels)
+                      %
+                      % note: this is left as is for backward compatability
+                      %       and so as not to disrupt experiments (or analyses)
+                      %       already using the eyelink... BUT, the scaling to
+                      %       physical coords could be implemented via o.clbMatrix,
+                      %       making it more general and consistent with other eye
+                      %       trackers (e.g., the Arrington) that don't return
+                      %       gaze position in screen pixels... 
+                      [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
+                    end
+                    
                     o.pupilSize = sample.pa(eyeNr+1);
                     o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;
                 end %

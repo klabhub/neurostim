@@ -66,6 +66,20 @@ classdef eyetracker < neurostim.plugin
             end
         end
         
+        % Helper functions to transform eye sample data to neurostim's
+        % physical coords... any eye tracker can achieve the rescaling to neurostim's
+        % physical coords they require (e.g., from display pixels in the
+        % case of the eyelink, or from normalized coords in the case of the
+        % Arrington) by defining the appropriate clbMatrix.
+        %
+        % Other transformations (offset/translation, scaling or even rotation)
+        % are also possible if required/desired, for example to implement
+        % automatic on-the-fly adjustment of eye calibration.
+        %
+        % These reoutines can also be used when reading eyetracker data for
+        % analysis, ensuring that the transformations applied on- and
+        % off-line are identical.
+        
         function [x,y] = raw2ns(o,x,y,cm)
           if nargin < 4
             cm = o.clbMatrix;

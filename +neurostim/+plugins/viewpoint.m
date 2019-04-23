@@ -120,7 +120,9 @@ classdef viewpoint < neurostim.plugins.eyetracker
       o.addProperty('clbTargetInnerSize',[]); % inner diameter (?) of annulus
       
 %       o.addProperty('clbType','AUTO',@(x) ismember(upper(x),{'AUTO','MANUAL'}));
-%       o.addProperty('clbMatrix',[]);
+%       o.clbMatrix = [ o.cic.screen.xpixels,    0,                      0.0; ...
+%                       0,                       o.cic.screen.ypixels,   0.0; ...
+%                      -o.cic.screen.xpixels/2, -o.cic.screen.ypixels/2, 0.0];
     end
         
     function beforeExperiment(o)
@@ -303,16 +305,8 @@ classdef viewpoint < neurostim.plugins.eyetracker
           
           idx = str2eye(o,o.eye);
           
-%           % apply manual calibration... default is the identity matrix
-%           xy = [sample.gx(o.eye+1), sample.gy(o.eye+1), 1]*o.clbMatrix; % o.eye+1, since we're indexing a MATLAB array
-%           
-%           % note: Viepoint returns gaze position in normalized screen
-%           %       coordinates... convert to neurostim's physical coordinates
-% %           [o.x,o.y] = o.cic.pixel2Physical( ...
-% %             sample.gx(o.eye+1)*o.cic.screen.xpixels, ...
-% %             sample.gy(o.eye+1)*o.cic.screen.ypixels); % +1 as accessing MATLAB array
-%           [o.x,o.y] = o.cic.pixel2Physical( ...
-%             xy(1)*o.cic.screen.xpixels, xy(2)*o.cic.screen.ypixels);
+          % note: Viewpoint returns gaze position in normalized screen
+          %       coordinates... convert to neurostim's physical coords
           [o.x,o.y] = o.raw2ns(sample.gx(idx+1), sample.gy(idx+1)); % idx+1, since we're indexing a MATLAB array
 
           o.pupilSize = sample.pa(idx+1);
@@ -378,42 +372,42 @@ classdef viewpoint < neurostim.plugins.eyetracker
       nr = eyeNrs(strcmpi(eye,eyes));
     end
     
-    function [nx,ny] = raw2ns(o,rx,ry,cm)
-      % convert Viewpoint's normalized screen coords to neurostim's physical coords
-      
-      if nargin < 4
-        cm = o.clbMatrix;
-      end
-
-      if ~isempty(cm)
-        % apply manual calibration...
-        tmp = [rx,ry,ones(size(rx))]*cm;
-        rx = tmp(:,1); ry = tmp(:,2);
-      end
-      
-      [nx,ny] = o.cic.pixel2Physical( ...
-            rx*o.cic.screen.xpixels, ry*o.cic.screen.ypixels);
-    end
-    
-    function [rx,ry] = ns2raw(o,nx,ny,cm)
-      % convert neurostim's physical coords to Viewpoint's normalized screen coords
-      
-      if nargin < 4
-        cm = o.clbMatrix;
-      end
-      
-      [a,b] = o.cic.physical2Pixel(nx,ny);
-      
-      tmp = [a./o.cic.screen.xpixels,b./o.cic.screen.ypixels,ones(size(a))];
-      
-      if ~isempty(cm)
-        % invert manual calibration
-        tmp = tmp*inv(cm);
-      end
-      
-      rx = tmp(:,1);
-      ry = tmp(:,2);
-    end
+%     function [nx,ny] = raw2ns(o,rx,ry,cm)
+%       % convert Viewpoint's normalized screen coords to neurostim's physical coords
+%       
+%       if nargin < 4
+%         cm = o.clbMatrix;
+%       end
+% 
+%       if ~isempty(cm)
+%         % apply manual calibration...
+%         tmp = [rx,ry,ones(size(rx))]*cm;
+%         rx = tmp(:,1); ry = tmp(:,2);
+%       end
+%       
+%       [nx,ny] = o.cic.pixel2Physical( ...
+%             rx*o.cic.screen.xpixels, ry*o.cic.screen.ypixels);
+%     end
+%     
+%     function [rx,ry] = ns2raw(o,nx,ny,cm)
+%       % convert neurostim's physical coords to Viewpoint's normalized screen coords
+%       
+%       if nargin < 4
+%         cm = o.clbMatrix;
+%       end
+%       
+%       [a,b] = o.cic.physical2Pixel(nx,ny);
+%       
+%       tmp = [a./o.cic.screen.xpixels,b./o.cic.screen.ypixels,ones(size(a))];
+%       
+%       if ~isempty(cm)
+%         % invert manual calibration
+%         tmp = tmp/cm;
+%       end
+%       
+%       rx = tmp(:,1);
+%       ry = tmp(:,2);
+%     end
   end % public methods
    
 end % classdef
