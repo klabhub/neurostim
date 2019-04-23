@@ -1926,23 +1926,53 @@ classdef cic < neurostim.plugin
             v = GetSecs*1000;
         end
         
-        function o = loadobj(o)
+        function c = loadobj(o)
+            
+            
+            if isstruct(o)
+                % Current CIC classdef does not match classdef in force
+                % when thi sobject was saved.
+                
+                c= neurostim.cic; % Create an empty cic of current classdef
+                m= metaclass(c);
+                dependent = [m.PropertyList.Dependent];
+                settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') ;
+                storedFn = fieldnames(o);
+                disp('Fixing backward compatibility of stored CIC object')
+                
+                missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
+                
+                missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
+                toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
+                fprintf('Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
+                fprintf('Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
+               
+                for i=1:numel(toCopy)
+                    c.(toCopy{i}) = o.(toCopy{i}); % Assign default value
+                end
+            else
+                c = o;
+            end
+                
+                
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
             % This happens, for instance, when endExperiment is called by a plugin
             % during an ITI.
-            
+           
             % Add a fake firstFrame to fix this.
-            lastTrial = o.prms.trial.cntr-1; % trial 0 is logged as well, so -1
-            nrFF = o.prms.firstFrame.cntr-1;
+            lastTrial = c.prms.trial.cntr-1; % trial 0 is logged as well, so -1
+            nrFF = c.prms.firstFrame.cntr-1;
             if nrFF > 0 && lastTrial == nrFF +1
                 % The last trial did not make it to the firstFrame event.
                 % generate a fake firstFrame.
-                t = [o.prms.firstFrame.log{:}];
+                t = [c.prms.firstFrame.log{:}];
                 mTimeBetweenFF = median(diff(t));
                 fakeFF = t(end) + mTimeBetweenFF;
-                storeInLog(o.prms.firstFrame,fakeFF,NaN)
+                storeInLog(c.prms.firstFrame,fakeFF,NaN)
             end
+            
+            
             
         end
         
