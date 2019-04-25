@@ -44,8 +44,8 @@ classdef gabor < neurostim.stimulus
         texture;
         shader;
         textureRect;
-        flickerPhase=0;
-        spatialPhase=0; 
+        flickerPhase=0; % frame-by-frame , current phase: not logged explicitly
+        spatialPhase=0; % frame-by-frame , current phase: not logged explicitly
     end
    
     
@@ -155,7 +155,7 @@ classdef gabor < neurostim.stimulus
             
                                             
             % Draw the Gabor using the GLSL shader            
-            aux = [+o.phase, +o.frequency, oSigma; +o.contrast +o.flickerPhase 0 0]';    
+            aux = [+o.spatialPhase, +o.frequency, oSigma; +o.contrast +o.flickerPhase 0 0]';    
             Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, +o.orientation, filterMode, globalAlpha, oColor , textureShader,specialFlags, aux);            
        
         end

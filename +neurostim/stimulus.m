@@ -13,7 +13,10 @@ classdef stimulus < neurostim.plugin
     %       details)
     %   diode.on,diode.color,diode.location,diode.size - a square box of
     %       specified color in the corner of the screen specified ('nw','sw', etc.),
-    %       for use with a photodiode recording.
+    %       for use with a photodiode recording. With diode.on = true, the
+    %       square will be turned on whenever the stimulus is shown on thee
+    %       screen. To show the square when the stimulus is off instead,
+    %       set diode.whenOff = true.
     %   mccChannel - a linked MCC Channel to output alongside a stimulus.
     %
     %
@@ -24,6 +27,7 @@ classdef stimulus < neurostim.plugin
         % time when the stimulus started showing on the screen) as its
         % input
         onsetFunction=[]; 
+        offsetFunction =[];
     end
     
     properties (Dependent)
@@ -45,8 +49,8 @@ classdef stimulus < neurostim.plugin
     end
     
     properties (Access=private)
-        logOnset@logical;
-        logOffset@logical;
+        logOnset@logical=false;
+        logOffset@logical=false;
     end
     
     methods
@@ -100,7 +104,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             s.addProperty('disabled',false);
             
-            s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
+            s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05,'whenOff',false));
             s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
             
@@ -300,7 +304,7 @@ classdef stimulus < neurostim.plugin
                         s.flags.on = false;
                     else % Is on already or turning on. Checck that we have not
                         % reached full duration yet.
-                        sOffFrame = round((sOn+s.duration)*s.cic.screen.frameRate/1000);
+                        sOffFrame = round((sOn+s.duration)*s.cic.screen.frameRate/1000);                        
                         %sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
                         s.flags.on = cFrame <sOffFrame;
                     end
@@ -346,15 +350,16 @@ classdef stimulus < neurostim.plugin
                                
                 %Pass control to the child class
                 beforeFrame(s);                
-
+                               
             end
             Screen('glLoadIdentity', locWindow);
             
+           
             % diode size/position is in pixels and we don't really want it
             % changing even if we change the physical screen size (e.g., 
             % when changing viewing distance) or being distorted by the
             % transforms above...
-            if s.diode.on  && s.flags.on 
+            if s.diode.on  && xor(s.flags.on,s.diode.whenOff)
                 Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);                
             end
             
@@ -407,15 +412,20 @@ classdef stimulus < neurostim.plugin
     
     methods (Access = {?neurostim.cic})
         function afterFlip(s,flipTime,ptbTime)
-            if s.logOnset
+            if s.logOnset                
+                %DEBUG only: s.writeToFeed([s.name ' on:' num2str(s.cic.frame) '(' num2str(flipTime) ',' num2str(ptbTime) ')'])
                 s.startTime = flipTime;
                 s.logOnset = false;
                 if ~isempty(s.onsetFunction)
                     s.onsetFunction(s,ptbTime);
                 end
             elseif s.logOffset
+                %DEBUG only: s.writeToFeed([s.name ' off:' num2str(s.cic.frame) '(' num2str(flipTime) ',' num2str(ptbTime) ')'])
                 s.stopTime = flipTime;
                 s.logOffset = false;
+                 if ~isempty(s.offsetFunction)
+                    s.offsetFunction(s,ptbTime);
+                end
             end
         end
     end

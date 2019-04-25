@@ -15,6 +15,13 @@ c.screen.colorMode = 'RGB';
 c.eye.continuous = true;
 c.addPropsToInform('eye.x','eye.y');
 
+%Make sure there is an eye tracker (or at least a virtual one)
+if isempty(c.pluginsByClass('eyetracker'))
+    e = neurostim.plugins.eyetracker(c);      %Eye tracker plugin not yet added, so use the virtual one. Mouse is used to control gaze position (click)
+    e.useMouse = true;
+end
+
+
 % Red fixation point that follows the eye.
 f = stimuli.fixation(c,'reddot');       
 f.color             = [1 0 0];

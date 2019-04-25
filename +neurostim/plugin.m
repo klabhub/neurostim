@@ -9,8 +9,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     end
     
     
-    
-    properties (SetAccess=private, GetAccess=public)
+    properties (SetAccess=protected, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
     end
@@ -33,6 +32,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 c.add(o);
             end
         end
+        
+        
         
         
         function s= duplicate(o,name)
@@ -79,19 +80,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         % writeToFeed(o,formatSpec, variables)  (as in sprintf)
         % Note that the style of the feed can be adjusted per plugin by
         % specifying the o.feedStyle: see styles defined in cprintf.
-        function writeToFeed(o,varargin)
+        function writeToFeed(o,msg,varargin)
+            p=inputParser;
+            p.KeepUnmatched = true;
+            p.PartialMatching = false;
+            p.addParameter('style',o.feedStyle,@ischar);
+            p.parse(varargin{:});
             nin =nargin;
             if nin==1
-                formatSpec ='%s';
-                args = {o.name};
-            elseif nin==2
-                formatSpec ='%s: %s';
-                args = {o.name,varargin{1}};
-            elseif nargin>2
-                formatSpec = ['%s: ' varargin{1}];
-                args = cat(2,{o.name},varargin(2:end));
+                msg = '';
             end
-            o.cic.feed(o.feedStyle,formatSpec,o.cic.trial,o.cic.trialTime,args{:});
+            % Send it to the logger in CIC.
+            o.cic.log.feed(o.cic.frame>0,p.Results.style,o.cic.trial,o.cic.trialTime,msg,o.name);
         end
         
         % Needed by str2fun
@@ -186,7 +186,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %               first trial is used. This only needs to be specified once on first construction
             %               of the table, not on subsequent calls that add columns.
             % atTrialTime  - Defaults to Inf. Time at which the properties
-            %                   are evaluated. 
+            %                   are evaluated.
             % trial_type  - Specify which elements are used to determine
             %               trial_type. Defaults to '' (i.e. no trial_type column). This
             %               can be a cell array of strings with one entry per trial which
@@ -194,7 +194,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %                   names of the corresponding cic elements.
             %                   (c.blocks.design, or c.blocks,
             %                   respectively)
-            % 
+            %
             % Example (From experiments/bart/cardgame)
             % tbl = getBIDSTable(c); % Setuo the basic sturcture (trials,
             % blocks etc)
@@ -231,7 +231,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.parse(varargin{:});
             tbl = p.Results.tbl;
             
-            if isempty(tbl.Properties.Description) % Check Description as the table data is still empty on the firs recursive call 
+            if isempty(tbl.Properties.Description) % Check Description as the table data is still empty on the firs recursive call
                 % Setup basic table properties on first construction
                 tbl.Properties.Description = o.cic.file;
                 tbl.Properties.DimensionNames = {'Trial','Variables'};
@@ -245,20 +245,20 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 tbl = addprop(tbl,'AlignTime','Table');
                 tbl.Properties.CustomProperties.AlignTime = alignTime;
                 
-                % Recursive call to this function to setup trial and block 
+                % Recursive call to this function to setup trial and block
                 tbl = getBIDSTable(o,tbl,'atTrialTime',0,'properties',{'trial','block','blockCntr'},...
-                                    'propertyDescription',{'Trial numbers','Block Number','Block Counter'},...
-                                    'eventTimes',{'firstFrame','trialStopTime'},...
-                                    'eventNames',containers.Map({'firstFrame','trialStopTime'},{'onset','offset'}),...
-                                    'eventDescription',{'Trial start time','Trial stop time'});
+                    'propertyDescription',{'Trial numbers','Block Number','Block Counter'},...
+                    'eventTimes',{'firstFrame','trialStopTime'},...
+                    'eventNames',containers.Map({'firstFrame','trialStopTime'},{'onset','offset'}),...
+                    'eventDescription',{'Trial start time','Trial stop time'});
                 tbl = addvars(tbl,tbl.offset-tbl.onset,'NewVariableNames',{'duration'});
                 tbl.Properties.VariableUnits{end} = 's';
                 tbl.Properties.VariableDescriptions{end} = 'Trial Duration';
                 tbl = movevars(tbl,'duration','Before','offset'); %BIDS wants Onset first, then Duration
                 
                 if ~isempty(p.Results.trial_type)
-                    if ischar(p.Results.trial_type) 
-                        switch upper(p.Results.trial_type)                            
+                    if ischar(p.Results.trial_type)
+                        switch upper(p.Results.trial_type)
                             case 'BLOCKS'
                                 % Use the names of the blocks
                                 blockNames ={o.cic.blocks.name}';
@@ -272,7 +272,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         error('This trial_type specification does not parse');
                     end
                     tbl = addvars(tbl,trialTypeNames,'After','duration','NewVariableNames','trial_type');
-                end 
+                end
                 return;
             else
                 alignTime = tbl.Properties.CustomProperties.AlignTime;
@@ -340,9 +340,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
                 if isempty(tbl.Properties.CustomProperties.VariableLevels)
                     tbl.Properties.CustomProperties.VariableLevels = {[]}; % Create the first one -events are times so no levels needed.
-                  % Once one has been creatd the table object adds empties
+                    % Once one has been creatd the table object adds empties
                 end
-               
+                
                 if isempty(tbl.Properties.VariableDescriptions)
                     tbl.Properties.VariableDescriptions= evtDescriptions(i); % Create teh first one
                 else
@@ -350,7 +350,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
             end
             
-              %%  Add the properties to the table.
+            %%  Add the properties to the table.
             for i= 1:numel(p.Results.properties)
                 [v] = get(o.prms.(p.Results.properties{i}),'atTrialTime',p.Results.atTrialTime);
                 
@@ -385,7 +385,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
             end
             
-          
+            
             
         end
     end
@@ -425,14 +425,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     methods (Access = public)
         
         function baseBeforeExperiment(o)
-            % Check whether this plugin should be displayed on
-            % the color overlay in VPIXX-M16 mode.  Done here to
-            % avoid the overhead of calling this every draw.
-            if any(strcmpi(o.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && o.overlay
-                o.window = o.cic.overlayWindow;
-            else
-                o.window = o.cic.mainWindow;
-            end
             beforeExperiment(o);
         end
         
@@ -527,7 +519,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         baseBeforeTrial(o);
                         if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end
                     end
-                case neurostim.stages.BEFOREFRAME                    
+                case neurostim.stages.BEFOREFRAME
                     Screen('glLoadIdentity', c.window);
                     Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
                     Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
@@ -537,7 +529,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class
                         Screen('glPopMatrix',c.window);
                         if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end
-                    end                    
+                    end
                     Screen('glLoadIdentity', c.window); % Guarantee identity transformation in non plugin code (i.e. in CIC)
                 case neurostim.stages.AFTERFRAME
                     for o= oList
@@ -597,6 +589,29 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
             end
             
+        end
+        
+        
+        function assignWindow(oo)                    
+            % Tell this plugin which window it should draw to. Called from
+            % cic.PsychImaging on creation of  the main window
+            
+            %%Recursive call to here to allow calling with a vector of plugins.
+            if numel(oo)>1
+                for i=1:numel(oo)
+                    assignWindow(oo(i));
+                end
+                return;
+            end
+            
+            % Check whether this plugin should be displayed on
+            % the color overlay in VPIXX-M16 mode.  Done here to
+            % avoid the overhead of calling this every draw.
+            if any(strcmpi(oo.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && oo.overlay
+                oo.window = oo.cic.overlayWindow;
+            else
+                oo.window = oo.cic.mainWindow;
+            end
         end
     end
     

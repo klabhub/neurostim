@@ -29,7 +29,9 @@ classdef keyResponse < neurostim.behavior
     % successEndsTrial - set to true to end the trial immediately after a correct response
     %
     % BK July 2018
-    
+    properties
+       simKeySent; 
+    end
     methods (Access = public)
         function o = keyResponse(c,name)
             o = o@neurostim.behavior(c,name);
@@ -38,8 +40,8 @@ classdef keyResponse < neurostim.behavior
             o.addProperty('correct',[],'validate',@islogical); % Log of the correctness of each keypress
             o.addProperty('keyIx',NaN,'validate',@isnumeric); % Log of the keys that were pressed (as an index into o.keys). Initialize with NaN to always return something (to allow checking its value)
             o.addProperty('maximumRT',1000,'validate',@isnumeric);  % A key must have been received this long after the waiting state starts.
-            o.addProperty('simWhen','');
-            o.addProperty('simWhat','');
+            o.addProperty('simWhen',[]);
+            o.addProperty('simWhat',[]);
             
             o.beforeTrialState = @o.waiting;
         end
@@ -59,11 +61,16 @@ classdef keyResponse < neurostim.behavior
         function beforeFrame(o)                       
             % A simulated observer (useful to test paradigms and develop
             % analysis code).
-            if ~isempty(o.simWhen)
-                if o.cic.trialTime>o.simWhen
-                    keyboard(o,o.keys{o.simWhat});
-                end
-            end                        
+            if ~isempty(o.simWhen) && ~o.simKeySent && (o.cic.trialTime>o.simWhen)
+                keyboard(o,o.keys{o.simWhat});
+                o.simKeySent = true;                
+            end
+            
+        end
+        
+        function beforeTrial(o)
+            o.simKeySent = false;
+            
         end
         
         % Ths keyboard event handler (also plays the role that getEvent
@@ -80,6 +87,7 @@ classdef keyResponse < neurostim.behavior
         end
         
         function e= keyToEvent(o,key)
+
             % Evaluate and log key correctness
             keyIx = find(strcmpi(key,o.keys));
             o.keyIx = keyIx; %Log the index of the pressed key
