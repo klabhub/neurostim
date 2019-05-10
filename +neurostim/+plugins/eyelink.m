@@ -306,19 +306,14 @@ classdef eyelink < neurostim.plugins.eyetracker
 
                     if o.useRawData
                       % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
-                      [o.x,o.y] = o.raw2ns(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                      [px,py] = o.raw2px(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
                     else
-                      % get display gaze position (in display pixels)
-                      %
-                      % note: this is left as is for backward compatability
-                      %       and so as not to disrupt experiments (or analyses)
-                      %       already using the eyelink... BUT, the scaling to
-                      %       physical coords could be implemented via o.clbMatrix,
-                      %       making it more general and consistent with other eye
-                      %       trackers (e.g., the Arrington) that don't return
-                      %       gaze position in screen pixels... 
-                      [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
+                      % get gaze position (in display pixels)
+                      px = sample.gx(eyeNr+1); % +1 as accessing MATLAB array
+                      py = sample.gy(eyeNr+1);
                     end
+                    
+                    [o.x,o.y] = o.cic.pixel2Physical(px,py);
                     
                     o.pupilSize = sample.pa(eyeNr+1);
                     o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;

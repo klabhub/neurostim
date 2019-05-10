@@ -306,9 +306,11 @@ classdef viewpoint < neurostim.plugins.eyetracker
           idx = str2eye(o,o.eye);
           
           % note: Viewpoint returns gaze position in normalized screen
-          %       coordinates... convert to neurostim's physical coords
-          [o.x,o.y] = o.raw2ns(sample.gx(idx+1), sample.gy(idx+1)); % idx+1, since we're indexing a MATLAB array
+          %       coordinates... convert to screen pixels
+          [px,py] = o.raw2px(sample.gx(idx+1), sample.gy(idx+1)); % idx+1, since we're indexing a MATLAB array
 
+          [o.x,o.y] = o.cic.pixel2Physical(px,py);
+          
           o.pupilSize = sample.pa(idx+1);
 
           o.valid = isnumeric(o.x) && isnumeric(o.y) && o.pupilSize >0; % FIXME: only if configured to measure pupil size...
