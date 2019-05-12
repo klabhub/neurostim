@@ -166,8 +166,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             PsychEyelinkDispatchCallback(o.el);
             
             %Tell Eyelink about the pixel coordinates
-            rect=Screen(o.window,'Rect');
-            Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
+            Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',0, 0, o.cic.screen.xpixels-1,o.cic.screen.ypixels-1);
             Eyelink('Command', 'calibration_type = %s',o.clbType);
             Eyelink('command', 'sample_rate = %d',o.sampleRate);
             
@@ -191,13 +190,10 @@ classdef eyelink < neurostim.plugins.eyetracker
                     Eyelink('Command','active_eye=LEFT,RIGHT');
                     Eyelink('Message','%s', 'EYE_USED 2');
             end
-            
+                
             if o.useRawData
               % add raw pupil (x,y) to the link data stream
-              Eyelink('Command','link_sample_data=LEFT,RIGHT,GAZE,GAZERES,PUPIL,AREA,STATUS');
-            else
-              % add gaze position (in screen pixels) to the link data stream
-              Eyelink('Command','link_sample_data=LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS');
+              o.command('link_sample_data = PUPIL');
             end
             
             %Pass all commands to Eyelink
@@ -306,15 +302,12 @@ classdef eyelink < neurostim.plugins.eyetracker
 
                     if o.useRawData
                       % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
-                      [px,py] = o.raw2px(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                      [o.x,o.y] = o.raw2ns(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
                     else
                       % get gaze position (in display pixels)
-                      px = sample.gx(eyeNr+1); % +1 as accessing MATLAB array
-                      py = sample.gy(eyeNr+1);
+                      [o.x,o.y] = o.raw2ns(sample.gx(eyeNr+1),sample.gy(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
                     end
-                    
-                    [o.x,o.y] = o.cic.pixel2Physical(px,py);
-                    
+                                        
                     o.pupilSize = sample.pa(eyeNr+1);
                     o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;
                 end %
