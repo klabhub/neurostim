@@ -193,7 +193,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 
             if o.useRawData
               % add raw pupil (x,y) to the link data stream
-              o.command('link_sample_data = PUPIL');
+              o.command('link_sample_data = PUPIL,AREA');
             end
             
             %Pass all commands to Eyelink
