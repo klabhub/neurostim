@@ -36,11 +36,14 @@ classdef convPoly < neurostim.stimulus
         end
         
         function beforeFrame(o)
-            
             if isempty(o.vx) || isempty(o.vy) 
-                %Compute vertices
+                % Compute vertices
                 th = linspace(0,2*pi,o.nSides+1);
-                [o.vx,o.vy] = pol2cart(th,o.radius);
+                [vx,vy] = pol2cart(th,o.radius);
+            else
+                % Use supplied verticies
+                vx = o.vx;
+                vy = o.vy;
             end
             
             if o.amplitude>0
@@ -52,9 +55,9 @@ classdef convPoly < neurostim.stimulus
             
             %Draw
             if o.filled
-                Screen('FillPoly',o.window, thisColor,[o.vx(:),o.vy(:)],1);
+                Screen('FillPoly',o.window, thisColor,[vx(:),vy(:)],1);
             else
-                Screen('FramePoly',o.window, thisColor,[o.vx(:),o.vy(:)],o.linewidth);
+                Screen('FramePoly',o.window, thisColor,[vx(:),vy(:)],o.linewidth);
             end
         end
     end
