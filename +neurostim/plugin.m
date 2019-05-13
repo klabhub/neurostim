@@ -556,7 +556,7 @@
                 targetMembers = {classInfo.PropertyList.Name};
                 targetMembers = targetMembers(startsWith(targetMembers,'loc_'));
                 for prm = 1:numel(targetMembers)
-                    src = extractAfter(targetMembers{prm},'loc_');
+                    src = char(extractAfter(targetMembers{prm},'loc_'));
                     srcParameters{prm} = o.prms.(src); %#ok<AGROW>
                 end
                 % Create space to store the names of the parameters that need to be updated each frame
