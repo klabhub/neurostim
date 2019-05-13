@@ -289,7 +289,10 @@ classdef parameter < handle & matlab.mixin.Copyable
         function replaceLog(o,val,eTime)
             % This function replaces the log and time values with new
             % values. We use this, for instance, to re-time the button
-            % presses of the Vpixx response box in terms of PTB time.
+            % presses of the Vpixx response box in terms of PTB time.            
+            if size(val,2)~=numel(eTime)
+                warning('Mismatch between the number of values and time points in replaceLog ');
+            end            
             o.log = val;
             o.time = eTime(:)'; % Row
             o.capacity = numel(val);
