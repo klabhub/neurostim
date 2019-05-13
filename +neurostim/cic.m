@@ -1759,6 +1759,8 @@ classdef cic < neurostim.plugin
                     % example show eye position on the console display
                     % without it being visible to the subject.
                     
+                    InitializeMatlabOpenGL(0,0); % defines GL.xxx constants etc.
+                    
                     % halve the screen width so that drawing of stimuli works as expected
                     c.screen.xpixels = c.screen.xpixels/2;
                     
