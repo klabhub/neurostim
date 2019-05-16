@@ -495,7 +495,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             
             if p.Results.dataIsNotNan
+                if ~isempty(cell2mat(data))
                 out  = out | cellfun(@isnan,data);
+                end
             end
             
             
