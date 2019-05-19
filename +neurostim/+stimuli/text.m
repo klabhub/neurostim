@@ -55,7 +55,7 @@ classdef text < neurostim.stimulus
                 Screen('glRotate',o.window,o.angle,o.rx,o.ry,o.rz);
                 % fix X and Y to be in pixels (clipping occurs at
                 % negative numbers under high quality text rendering)
-                [X,Y] = c.physical2Pixel(o.X,o.Y);
+                [X,Y] = o.cic.physical2Pixel(o.X,o.Y);
                 textsize = o.textsize;
             else
                 Screen('glScale',o.window,1,-1);
