@@ -70,7 +70,11 @@ classdef keyResponse < neurostim.behavior
             % A simulated observer (useful to test paradigms and develop
             % analysis code).
             if ~isempty(o.simWhen) && ~o.simKeySent && (o.cic.trialTime>o.simWhen)
-                keyboard(o,o.keys{o.simWhat});
+                if isa(o.simWhat,'function_handle')
+                    keyboard(o,o.keys{o.simWhat(o)});                
+                else
+                    keyboard(o,o.keys{o.simWhat});
+                end
                 o.simKeySent = true;                
             end
             
