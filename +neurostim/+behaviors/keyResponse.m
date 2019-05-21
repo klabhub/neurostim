@@ -5,13 +5,13 @@ classdef keyResponse < neurostim.behavior
     %
     % Key presses before .from and after .to are ignored entirely (i.e. not
     % logged). Key presses between .from and .to are logged, and change the
-    % state to succes or fail depending on correctFun 
+    % state to succes or fail depending on correctFun
     %
     %% States:
     % WAITING       - each trial starts in this state
     %               - key presses before .from are ignored (keep WAITING)
     %               ->FAIL if the wrong key is pressed
-    %               ->SUCCESS if the correct key is pressed 
+    %               ->SUCCESS if the correct key is pressed
     %               ->FAIL if the time in this state is longer than
     %               o.maximumRT or afterTrial
     %
@@ -19,7 +19,7 @@ classdef keyResponse < neurostim.behavior
     % keys         - cell array of key characters, e.g. {'a','z'}
     % correctFun   - function that returns the index (into 'keys') of the correct key. Usually a function of some stimulus parameter(s).
     % from         - key press accepted from this time onward, and the
-    %                   maximumRT is measured from this point 
+    %                   maximumRT is measured from this point
     % maximumRT     - key press allowed until this time
     %
     % simWhen       - time when a simulated key press will be generated (Defaults  to empty; never)
@@ -29,8 +29,9 @@ classdef keyResponse < neurostim.behavior
     % successEndsTrial - set to true to end the trial immediately after a correct response
     %
     % BK July 2018
-    properties
-       simKeySent; 
+    properties (SetAccess =protected)
+        simKeySent;
+        acceptKey@logical = true; % Used by entry/exit events to restrict to single key
     end
     methods (Access = public)
         function o = keyResponse(c,name)
@@ -42,6 +43,7 @@ classdef keyResponse < neurostim.behavior
             o.addProperty('maximumRT',1000,'validate',@isnumeric);  % A key must have been received this long after the waiting state starts.
             o.addProperty('simWhen',[]);
             o.addProperty('simWhat',[]);
+            
             
             o.beforeTrialState = @o.waiting;
         end
@@ -64,14 +66,18 @@ classdef keyResponse < neurostim.behavior
             % state in this function. The keyResponse class does this in the
             % keyboard event handler. But for consistency and to allow
             % derived classes to rely on a frame-loop calling of the state
-            % functions, we implement 
+            % functions, we implement
             
             
             % A simulated observer (useful to test paradigms and develop
             % analysis code).
             if ~isempty(o.simWhen) && ~o.simKeySent && (o.cic.trialTime>o.simWhen)
-                keyboard(o,o.keys{o.simWhat});
-                o.simKeySent = true;                
+                if isa(o.simWhat,'function_handle')
+                    keyboard(o,o.keys{o.simWhat(o)});
+                else
+                    keyboard(o,o.keys{o.simWhat});
+                end
+                o.simKeySent = true;
             end
             
             beforeFrame@neurostim.behavior(o);
@@ -84,19 +90,20 @@ classdef keyResponse < neurostim.behavior
         
         % Ths keyboard event handler (also plays the role that getEvent
         % plays in the base class).
-        function keyboard(o,key)            
+        function keyboard(o,key)
+            if ~o.acceptKey; return; end  % No more keys accepted (e.g. a key has already been processed int the WAITING state)
             %Check that we're in time window
-            t = o.cic.trialTime;            
+            t = o.cic.trialTime;
             on = t >= o.from && t <= o.to;
             if ~on; return;end % ignore
             
             e = keyToEvent(o,key);
             % Send to state.
-            o.currentState(t,e);            
+            o.currentState(t,e);
         end
         
         function e= keyToEvent(o,key)
-
+            
             % Evaluate and log key correctness
             keyIx = find(strcmpi(key,o.keys));
             o.keyIx = keyIx; %Log the index of the pressed key
@@ -111,7 +118,7 @@ classdef keyResponse < neurostim.behavior
             e = neurostim.event(neurostim.event.REGULAR);
             e.key =key;
             e.keyNr =keyIx;
-            e.correct = thisIsCorrect;                
+            e.correct = thisIsCorrect;
         end
     end
     %% States
@@ -120,24 +127,34 @@ classdef keyResponse < neurostim.behavior
         % Waiting for a *single* correct/incorrect response
         function waiting(o,t,e)
             if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
-            if ~e.isRegular ;return;end % No Entry/exit needed.         
-            %Guards
             
-            tooLate = (o.cic.trialTime-o.from)>o.maximumRT;
-            noKey = isempty(e.key); % hack - checek whether this is a real key press or just passage of time
-            correct = e.correct;                       
-                        
-            if tooLate                   
-                transition(o,@o.fail,e);  %No key received this trial                 
-            elseif ~noKey 
-                if correct
-                    transition(o,@o.success,e);
-                else             
-                    transition(o,@o.fail,e);                
+            % Entry/Exit events are used to handle only a single key 
+            if e.isEntry
+                % Waiting for first (and only) key
+                o.acceptKey = true;
+            elseif e.isExit
+                % Either received a key or timed out - no more keys
+                % accepted.
+                o.acceptKey = false;
+            elseif e.isRegular
+                %Guards
+                
+                tooLate = (o.cic.trialTime-o.from)>o.maximumRT;
+                noKey = isempty(e.key); % hack - checek whether this is a real key press or just passage of time
+                correct = e.correct;
+                
+                if tooLate
+                    transition(o,@o.fail,e);  %No key received this trial
+                elseif ~noKey
+                    if correct
+                        transition(o,@o.success,e);
+                    else
+                        transition(o,@o.fail,e);
+                    end
                 end
             end
         end
-      
-      
+        
+        
     end
 end
