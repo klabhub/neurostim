@@ -1,4 +1,4 @@
-classdef mcc < neurostim.plugin.daq
+classdef mcc < neurostim.plugins.daq
     % Wrapper for the Psychtoolbox DAQ
     % Before using this, run the DaqTest script that is part of PTB to test
     % that your Measurement Computing hardware is working and accessible.
@@ -75,7 +75,7 @@ classdef mcc < neurostim.plugin.daq
             p.parse(varargin{:})
             args = p.Results;
  
-            o = o@neurostim.plugin.daq(c,'mcc');
+            o = o@neurostim.plugins.daq(c,'mcc');
             
             o.addProperty('aInOptions',[]);
             o.addProperty('aInData',[]);
@@ -177,6 +177,10 @@ classdef mcc < neurostim.plugin.daq
     end
     
     methods
+        function analogOut(o,channel,value,varargin)
+            % NOP
+        end
+      
         % Read the specified analog channel now
         function v = analogIn(o,channel)
             % range scales differential recordings. Not using for
