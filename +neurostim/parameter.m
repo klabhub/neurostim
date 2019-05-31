@@ -72,7 +72,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         validate =[];               % Validation function
         plg@neurostim.plugin;       % Handle to the plugin that this belongs to.
         hDynProp;                   % Handle to the dynamic property
-         hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
+        hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
     end
     
     
@@ -251,9 +251,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             % the user did not specify it as such.
             if ~o.changesInTrial && o.hasLocalized &&  o.plg.cic.stage == neurostim.cic.INTRIAL
                 % Check whether
-                 setChangesInTrial(o.plg,o); % Add it to the list of parms that need to be updated before each frame.
-                 writeToFeed(o.plg,[o.name ' is changing within the trial; please use ''changesInTrial'' with addProperty.']);                
-                 o.changesInTrial  = true;
+                setChangesInTrial(o.plg,o); % Add it to the list of parms that need to be updated before each frame.
+                writeToFeed(o.plg,[o.name ' is changing within the trial; please use ''changesInTrial'' with addProperty.']);
+                o.changesInTrial  = true;
             end
             
             % validate
@@ -308,10 +308,10 @@ classdef parameter < handle & matlab.mixin.Copyable
         function replaceLog(o,val,eTime)
             % This function replaces the log and time values with new
             % values. We use this, for instance, to re-time the button
-            % presses of the Vpixx response box in terms of PTB time.            
+            % presses of the Vpixx response box in terms of PTB time.
             if size(val,2)~=numel(eTime)
                 warning('Mismatch between the number of values and time points in replaceLog ');
-            end            
+            end
             o.log = val;
             o.time = eTime(:)'; % Row
             o.capacity = numel(val);
@@ -496,10 +496,11 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             if p.Results.dataIsNotNan
                 if ~isempty(cell2mat(data))
-                out  = out | cellfun(@isnan,data);
+                    n = zeros(numel(data),1); % initiate a NaN label, default to false
+                    n(~cellfun(@isempty,data)) = any(isnan(cell2mat(data)),2); % fill in true for trials containing NaN
+                    out  = out | n;
                 end
             end
-            
             
             if ~isempty(p.Results.dataIsMember)
                 out = out | cellfun(@(x)(~ismember(x,p.Results.dataIsMember)),data);
