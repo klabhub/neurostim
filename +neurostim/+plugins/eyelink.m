@@ -110,7 +110,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
             o.addProperty('clbType','HV9');
             o.addProperty('host','');
-            o.addProperty('F9PassThrough',false); % simulate F9 press on Eyelink host to do quick drift correct
+            o.addProperty('F9PassThrough',true); % simulate F9 press on Eyelink host to do quick drift correct
             o.addProperty('transferFile',true); % afterExperiment - transfer file from the Host to here. (Only set to false in debugging to speed things  up)
         end
         

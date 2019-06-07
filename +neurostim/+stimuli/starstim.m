@@ -227,7 +227,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('marker',''); % Used to log markers sent to NIC
             
             
-            o.addProperty('eegChannels',[]);
+            o.addProperty('eegChannels',1:8);
             o.addProperty('eegMaxBuffered',360);% Samples in seconds in buffer.
             o.addProperty('eegRecover',true);  % Try to recover lost connections
             o.addProperty('eegChunkSize',0); % nr samples per chunk (0 = use senders default)
@@ -474,8 +474,10 @@ classdef starstim < neurostim.stimulus
             
             [nrSamples,nrChannels] = size(tmpEeg);
             if nrSamples ==0
-                o.cic.error('STOPEXPERIMENT','No EEG Data received....???');
-            end
+%                 o.cic.error('STOPEXPERIMENT','No EEG Data received....???');
+                tmpEeg = nan(1,nrChannels);
+                time = nan;
+             end
                 
             
             if ~isempty(fun)
