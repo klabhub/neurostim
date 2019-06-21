@@ -9,6 +9,10 @@ classdef starstim < neurostim.stimulus
     %  TimeStamp, provide the name 'Neurostim' for the Markers Lab
     %  Streaming layer 1.
     %
+    %  Note that Markers (e.g. TrialStart) will not be saved if the name does
+    %  not match 'Neurostim' (but on the neurostim side there is no way to detect this). 
+    % Your only cue that something is wrong is that you will not see
+    % markers in the NIC window. 
     %
     % A protocol (defined in the NIC) specifies which electrodes are
     % connected, which record EEG, and which stimulate. You select a protocol
