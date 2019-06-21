@@ -82,7 +82,8 @@ classdef starstim < neurostim.stimulus
         % EEG parms that need fast acces (and therefore not a property)
         eegAfterTrial = []; % Function handle fun(eeg,time,starstimObject)
         eegAfterFrame = []; % Functiona handle fun(eeg,time,starstimObject)
-        eegStore@logical= false; % Store the eeg data in the starstim object
+        eegStore@logical= false; % Store the eeg data in the starstim object. 
+        eegInit@logical = false; % Set to true to initialize eeg stream before experiment (and do not wait until the first trial with non empty o.eegChannels)
     end
     % Public Get, but set through functions or internally
     properties (SetAccess=protected, GetAccess= public)
@@ -116,13 +117,9 @@ classdef starstim < neurostim.stimulus
         protocolStatus@char;    % Current protocol status (queries the NIC)
         isProtocolOn@logical;
         isProtocolPaused@logical;
-        eegOnline@logical;
     end
     
     methods % get/set dependent functions
-        function v = get.eegOnline(o)
-            v = ~(isempty(o.eegAfterTrial) || isempty(o.eegAfterFrame));
-        end
         function [v] = get.status(o)
             if o.fake
                 v = ' Fake OK';
@@ -227,7 +224,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('marker',''); % Used to log markers sent to NIC
             
             
-            o.addProperty('eegChannels',1:8);
+            o.addProperty('eegChannels',[]); % Default to no EEG.
             o.addProperty('eegMaxBuffered',360);% Samples in seconds in buffer.
             o.addProperty('eegRecover',true);  % Try to recover lost connections
             o.addProperty('eegChunkSize',0); % nr samples per chunk (0 = use senders default)
@@ -306,18 +303,25 @@ classdef starstim < neurostim.stimulus
             end
             
             % Prepare for EEG reading
-            if ~isempty(o.eegChannels) && ~o.fake
-                if isempty(o.lsl)
-                    o.lsl = lsl_loadlib;
-                end
-                if isempty(o.inlet)
-                    stream = lsl_resolve_byprop(o.lsl,'type','EEG');
-                    if isempty(stream)
-                        error('Failed to creat an EEG inlet');
-                    else
-                        o.inlet = lsl_inlet(stream{1},o.eegMaxBuffered,o.eegChunkSize,double(o.eegRecover));
-                        o.inlet.open_stream;% Start buffering
-                    end
+            if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
+                openEegStream(o);
+            end
+        end
+        
+        function openEegStream(o)
+            % This will do nothing if the stream is already open, but
+            % create a stream otherwise.
+            if isempty(o.lsl)
+                o.lsl = lsl_loadlib;
+            end
+            
+            if isempty(o.inlet)
+                stream = lsl_resolve_byprop(o.lsl,'type','EEG');
+                if isempty(stream)
+                    error('Failed to creat an EEG inlet');
+                else
+                    o.inlet = lsl_inlet(stream{1},o.eegMaxBuffered,o.eegChunkSize,double(o.eegRecover));
+                    o.inlet.open_stream;% Start buffering
                 end
             end
         end
@@ -375,7 +379,10 @@ classdef starstim < neurostim.stimulus
                 return;
             end
             
-            
+            %% Open eeg stream if necessary
+            if ~isempty(o.eegChannels) && ~o.fake
+                openEegStream(o); % This will do nothing if the stream is already open
+            end
             sendMarker(o,'trialStart'); % Mark in Starstim data file
             
             
@@ -457,7 +464,8 @@ classdef starstim < neurostim.stimulus
         function handleEeg(o,fun)
             % fun is a function_handle : either o.eegAfterTrial or
             % o.eegAfterFrame
-            if isempty(fun)  && ~o.eegStore
+            if isempty(o.eegChannels) || (isempty(fun) && ~o.eegStore)
+                % Nothing to do
                 return;
             end
             
@@ -474,11 +482,11 @@ classdef starstim < neurostim.stimulus
             
             [nrSamples,nrChannels] = size(tmpEeg);
             if nrSamples ==0
-%                 o.cic.error('STOPEXPERIMENT','No EEG Data received....???');
+                o.writeToFeed('No EEG Data received....?');
                 tmpEeg = nan(1,nrChannels);
                 time = nan;
-             end
-                
+            end
+            
             
             if ~isempty(fun)
                 try
@@ -493,6 +501,7 @@ classdef starstim < neurostim.stimulus
                 o.eegTime = time;
             end
         end
+        
         function afterExperiment(o)
             
             if isvalid(o.tmr)
@@ -512,13 +521,13 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 o.writeToFeed('Closing Markerstream');
             else
-                                
-                if ~isempty(o.inlet)                    
-                    o.inlet.close_stream;               
+                
+                if ~isempty(o.inlet)
+                    o.inlet.close_stream;
                     o.inlet = []; % Force a delete
                 end
-            
-                                
+                
+                
                 MatNICMarkerCloseLSL(o.markerStream);
                 o.markerStream = [];
                 
