@@ -626,6 +626,10 @@ classdef cic < neurostim.plugin
             value = any(strcmpi(plgName,{c.plugins.name}));
         end
         
+        function value = hasStimulus(c,stmName)
+            value = any(strcmpi(stmName,{c.stimuli.name}));
+        end
+        
         function plgs = pluginsByClass(c,classType)
             %Return pointers to all active plugins of the specified class type.
             stay= false(1,c.nrPlugins);
