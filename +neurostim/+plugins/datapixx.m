@@ -91,9 +91,9 @@ classdef datapixx < neurostim.plugins.daq
     end
     
 %     function beforeTrial(o)
-%       if o.flipBit > 0
+%       if o.trialBit > 0
 %         % setup digital output schedule...
-%         bufferData = [bitset(uint16(0),mod(o.flipBit,16)), 0];
+%         bufferData = [bitset(0,o.trialBit), 0];
 %         bufferAddress = 8e6; % <-- hmmm, ok?
 %         Datapixx('WriteDoutBuffer',bufferData,bufferAddress);
 % 
@@ -102,7 +102,8 @@ classdef datapixx < neurostim.plugins.daq
 %         % note: every call to StartDoutSchedule must be preceeded by a
 %         %       call to SetDoutSchedule, 
 %         
-%         Datapixx('SetDoutSchedule', 0, [samplesPerFrame, 2], 0, bufferAddress, samplesPerFrame);
+% %         Datapixx('SetDoutSchedule', 0, [samplesPerFrame, 2], 0, bufferAddress, samplesPerFrame);
+%         Datapixx('SetDoutSchedule', 0, [samplesPerFrame, 2], samplesPerFrame, bufferAddress, samplesPerFrame);
 % 
 %         Datapixx('StartDoutSchedule');
 %         Datapixx('RegWrRdVideoSync'); % start on next video refresh
@@ -110,9 +111,9 @@ classdef datapixx < neurostim.plugins.daq
 %     end
 %     
 %     function afterTrial(o)
-%       afterTrial@neurostim.plugin.daq(o); % parent method
+%       afterTrial@neurostim.plugins.daq(o); % parent method
 % 
-%       if o.flipBit > 0
+%       if o.trialBit > 0
 %         Datapixx('StopDoutSchedule');
 %       end
 %     end
@@ -141,7 +142,7 @@ classdef datapixx < neurostim.plugins.daq
       Datapixx('SetDoutSchedule', 0, [samplesPerFrame, 2], samplesPerFrame, bufferAddress, samplesPerFrame);
 
       Datapixx('StartDoutSchedule');
-      Datapixx('RegWrRdVideoSync'); % start on next video refresh
+      Datapixx('RegWrVideoSync'); % start on next video refresh (note: this does *NOT* read back the registers from the Datapixx
     end
   end
   
