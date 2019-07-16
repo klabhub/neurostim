@@ -40,7 +40,7 @@ classdef logger < handle
     end
     properties (SetAccess=private, GetAccess=public)
         isServer@logical = false;
-        tcp@tcpip;
+        tcp; % Leave this untyped so that someone without the TCPIP toolbox can use the object locally.
     end
     
     properties (Dependent)
@@ -122,6 +122,7 @@ classdef logger < handle
         
         function setupServer(o)
             % Start a local server to receive messages from the client.
+            o.checkToolbox;
             [~,serverName] =system('hostname');
             serverName = deblank(serverName);
             o.tcp = tcpip(o.host,o.port,'NetworkRole','Server',...
@@ -194,6 +195,7 @@ classdef logger < handle
             % If a host has been specified, this function will try to
             % connect to it.
             if ~isempty(o.host)
+                o.checkToolbox;
                 [~,clientName] =system('hostname');
                 clientName = deblank(clientName);
                 o.tcp = tcpip(o.host,o.port,'NetworkRole','client',...
@@ -256,6 +258,13 @@ classdef logger < handle
             else
                 % single line
                 neurostim.utils.cprintf(style,'TR: %d (T: %.0f %s): %s - %s \n',thisTrial,thisTrialTime,phaseStr,plg,msg);
+            end
+        end
+        
+        function checkToolbox(o)
+            f = which('tcpip');
+            if isempty(f)
+                error('neurostim.messenger requires the tcpip command (part of the Instrument Control Toolbox). Please install it first to use messenger across the network.');
             end
         end
         
