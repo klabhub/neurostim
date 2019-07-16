@@ -96,7 +96,7 @@
                 msg = '';
             end
             % Send it to the logger in CIC.
-            o.cic.log.feed(o.cic.frame>0,p.Results.style,o.cic.trial,o.cic.trialTime,msg,o.name);
+            o.cic.messenger.feed(o.cic.frame>0,p.Results.style,o.cic.trial,o.cic.trialTime,msg,o.name);
         end
         
         % Needed by str2fun
