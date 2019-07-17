@@ -109,17 +109,17 @@ classdef datapixx < neurostim.plugins.daq
 %         Datapixx('RegWrRdVideoSync'); % start on next video refresh
 %       end
 %     end
-%     
-%     function afterTrial(o)
-%       afterTrial@neurostim.plugins.daq(o); % parent method
-% 
-%       if o.trialBit > 0
-%         Datapixx('StopDoutSchedule');
-%       end
-%     end
+    
+    function afterTrial(o)
+      afterTrial@neurostim.plugins.daq(o); % parent method
+
+      if o.trialBit > 0
+        Datapixx('StopDoutSchedule');
+      end
+    end
     
     function beforeFrame(o)
-      if c.frame ~= 1
+      if o.cic.frame ~= 1
         return
       end
         
@@ -130,7 +130,7 @@ classdef datapixx < neurostim.plugins.daq
       % setup digital output schedule...
       %
       % we set o.trialBit HIGH for half the period of the first frame
-      bufferData = [bitset(uint16(0),o.trialBit), 0];
+      bufferData = [bitset(0,o.trialBit), 0];
       bufferAddress = 8e6; % <-- hmmm, ok?
       Datapixx('WriteDoutBuffer',bufferData,bufferAddress);
 
