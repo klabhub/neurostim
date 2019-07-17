@@ -1952,7 +1952,7 @@ classdef cic < neurostim.plugin
                 c= neurostim.cic; % Create an empty cic of current classdef
                 m= metaclass(c);
                 dependent = [m.PropertyList.Dependent];
-                settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') ;
+                settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
                 storedFn = fieldnames(o);
                 disp('Fixing backward compatibility of stored CIC object')
                 
