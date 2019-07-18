@@ -564,7 +564,7 @@ classdef flow <handle & matlab.mixin.Copyable
             % blcks = cell array of handles to the blocks in the flow (at the root level)
             % ix = the index of these blocks in the .children array.
             
-            if o.nrChildren>1
+            if o.nrChildren>=1
                 stay = cellfun(@(x) (isa(x,'neurostim.flow')),o.children);
                 blcks = o.children(stay);
                 ix = find(stay);
