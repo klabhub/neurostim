@@ -1,29 +1,23 @@
 classdef openEphys < neurostim.plugins.ePhys
-    % Plugin for interacting with the Open Ephys GUI over network
-    % Wrapper around zeroMQrr
-
-    
-    properties (SetAccess = private, GetAccess = public) 
-        createNewDir 
-        prependText 
-        appendText
-        recDir
-    end
+    % Plugin for interacting with the Open Ephys GUI via tcp/ip
+    %
+    % Example usage:
+    %
+    %   o = neurostim.plugins.openEphys(c, 'oephys' [,HostAddr] [,RecDir] [,StartMsg] [,StopMsg] [,CreateNewDir] [,PrependText] [,AppendText])
+    %
+    % Optional parameters may be specified via name-value pairs:
+    %
+    %   HostAddr - IP address of the machine running Open Ephys (e.g., 'tcp://localhost:5556'; default: '')
+    %   RecDir - Directory used for saving OpenEphys generated continuous, spike and event files. 
+    %   StartMsg - String to be sent at the start of the experiment.
+    %   StopMsg - String to be sent at the end of the experiment.
+    %   CreateNewDir - 0 = append to existing directory, 1 = create a new directory (default: 1, create new)
+    %   PrependText - Specify prefix for the name of the save directory.
+    %   AppendText - Specify suffix for the name of the save directory.
     
     methods (Access = public)
         function o = openEphys(c,name,varargin) 
-            % Class constructor
-            % Example: o = neurostim.plugins.openEphys(c, 'oephys' [,HostAddr] [,RecDir] [,StartMsg] [,StopMsg] [,CreateNewDir] [,PrependText] [,AppendText])
-            % Optional parameter/value pairs: 
-            % HostAddr - TCP address of the machine running Open Ephys. Default is tcp://localhost:5556
-            % RecDir - Directory used for saving OpenEphys generated continuous, spike and event files. 
-            % StartMsg - String to be sent at the start of the experiment. Default is 'Neurostim experiment.'
-            % StopMsg - String to be sent at the end of the experiment. Default is 'End of experiment.'
-            % CreateNewDir - If true, creates new directory rather than appending data to existing directory. Default is True.
-            % PrependText - Specify prefix for the name of the save directory. Default is blank.
-            % AppendText - Specify suffix for the name of the save directory. Default is blank.             
-            
-            % Pre-Initialisation
+          
             % Check whether zeroMQrr mex file is on the search path
             switch (computer)
                 case 'PCWIN64' %Windows 64-bit
@@ -33,7 +27,14 @@ classdef openEphys < neurostim.plugins.ePhys
                     elseif exist('libzmq-v120-mt-4_0_4.dll', 'file') == 0 
                         fileException = MException('openEphys:missingDependency', 'The library file libzmq-v120-mt-4_0_4.dll is not on MATLAB''s search path. <a href="https://github.com/open-ephys/plugin-GUI/tree/master/Resources/Matlab">Download</a>');
                         throw(fileException)
-                    end 
+                    end
+                    
+                case {'GLNX86','GLNXA64'}
+                    if exist('zeroMQrr.mexa64','file') ~= 3
+                        fileException = MException('openEphys:missingDependency', 'The mex file zeroMQrr.mexa64 is not on MATLAB''s search path. <a href="https://github.com/open-ephys/plugin-GUI/tree/master/Resources/Matlab">Download</a>'); 
+                        throw(fileException)
+                    end
+                
                 case 'MACI64' % OS X 64-bit
                     if exist('zeroMQrr.mexmaci64', 'file') == 0 
                         fileException = MException('openEphys:missingDependency', 'The mex file zeroMQrr.mexmaci64 is not on MATLAB''s search path. <a href="https://github.com/open-ephys/plugin-GUI/tree/master/Resources/Matlab">Download</a>'); 
@@ -41,20 +42,26 @@ classdef openEphys < neurostim.plugins.ePhys
                     elseif exist('libzmq-v120-mt-4_0_4.dll', 'file') == 0 
                         fileException = MException('openEphys:missingDependency', 'The library file libzmq-v120-mt-4_0_4.dll is not on MATLAB''s search path. <a href="https://github.com/open-ephys/plugin-GUI/tree/master/Resources/Matlab">Download</a>');
                         throw(fileException)
-                    end 
+                    end
+                    
                 otherwise 
                         fileException = MException('openEphys:missingDependency', 'Please compile the zeroMQrr mex file for your OS (32-bit or 64-bit)'); 
                         throw(fileException)
             end
             
-            % inputParser defines name-value pair inputs accepted by the constructor
-            pin = inputParser;              
+            % parse arguments
+            pin = inputParser;     
+            pin.KeepUnmatched = true; 
+
             pin.addParameter('CreateNewDir', 1, @(x) assert( x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));
             pin.addParameter('RecDir', '', @ischar); % save path on the open ephys computer
             pin.addParameter('PrependText', '', @ischar); 
             pin.addParameter('AppendText', '', @ischar);
-            pin.KeepUnmatched = true; 
+            
             pin.parse(varargin{:});
+            
+            args = pin.Results;
+            %
             
             % Call parent class constructor
             % Pass HostAddr, StartMsg and StopMsg to the parent constructor via the 'Unmatched' property of the input parser.
@@ -62,16 +69,16 @@ classdef openEphys < neurostim.plugins.ePhys
             
             % Post-initialisation
             % Initialise class properties
-            o.createNewDir = pin.Results.CreateNewDir;
-            o.recDir = pin.Results.RecDir; 
-            o.prependText = pin.Results.PrependText; 
-            o.appendText = pin.Results.AppendText;                                   
+            o.addProperty('createNewDir',args.CreateNewDir,'validate',@isnumeric);
+            o.addProperty('recDir',args.RecDir,'validate',@ischar); 
+            o.addProperty('prependText',args.PrependText,'validate',@ischar); 
+            o.addProperty('appendText',args.AppendText,'validate',@ischar);                                   
         end
         
         function sendMessage(o,msg)
             % send a message to open ephys            
             if ~iscell(msg)
-              msg = {msg}
+              msg = {msg};
             end
             
             for ii = 1:numel(msg)

@@ -22,15 +22,15 @@ classdef (Abstract) ePhys < neurostim.plugin
             % parse arguments...
             pin = inputParser;
             pin.addParameter('hostAddr', '', @ischar);
-            pin.addParameter('startMsg', '', @ischar | @iscell); 
-            pin.addParameter('stopMsg', '', @ischar | @iscell);
+            pin.addParameter('startMsg', '', @(x) ischar(x) || iscell(x)); 
+            pin.addParameter('stopMsg', '', @(x) ischar(x) || iscell(x));
             pin.parse(varargin{:})
             
             args = pin.Results;
             %
             
-            o.startMsg = args.StartMsg; 
-            o.stopMsg = args.StopMsg; 
+            o.startMsg = args.startMsg; 
+            o.stopMsg = args.stopMsg; 
 
             o.addProperty('hostAddr', args.hostAddr, 'validate', @ischar);
             
@@ -50,7 +50,7 @@ classdef (Abstract) ePhys < neurostim.plugin
                         
             o.startRecording();
             
-            sendMessage(o.startMsg);
+            sendMessage(o,o.startMsg);
             
             % I think mixing and matching the role of mccChannel is a bad
             % idea... it should indicate start/end of the experiment or
@@ -104,10 +104,12 @@ classdef (Abstract) ePhys < neurostim.plugin
             end
         end 
     end
-    
-    methods (Abstract)
-        sendMessage(o,msg); % sends a message to the ephys device (to be recorded in the ephys data file)
 
+    methods (Abstract, Access = public)
+        sendMessage(o,msg); % sends a message to the ephys device (to be recorded in the ephys data file)
+    end
+    
+    methods (Abstract, Access = protected)
         % The following actions should be performed here:
         % Start acquisition/recording, set connectionStatus flag, send experiment start message
         startRecording(o);

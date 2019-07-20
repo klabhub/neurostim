@@ -24,7 +24,7 @@ classdef blackrock < neurostim.plugins.ePhys
         function sendMessage(o,msg)
             % send a message to Central            
             if ~iscell(msg)
-              msg = {msg}
+              msg = {msg};
             end
             
             for ii = 1:numel(msg)
