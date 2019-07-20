@@ -1,54 +1,77 @@
-classdef ePhys < neurostim.plugin
-    % Generic plugin for electrophysiology acquisition systems e.g. Blackrock Centrale, Open Ephys GUI
-    
+classdef (Abstract) ePhys < neurostim.plugin
+    % Abstract base class for electrophysiology acquisition systems e.g. Blackrock Central, Open Ephys GUI
     
     properties (Access = public) 
         fakeConnection@logical = false;
-        startMsg
-        stopMsg
+        
+        startMsg;
+        stopMsg;
     end
     
     properties (SetAccess = protected, GetAccess = public)         
-        connectionStatus@logical = false;        
-        trialInfo 
-    end     
+        connectionStatus@logical = false;
+        
+        trialInfo;
+    end
     
     methods (Access = public)        
-        function o = ePhys(c, varargin) 
-            
-            % Object initialization
+        function o = ePhys(c,name,varargin) 
             % Call parent class constructor
-            o = o@neurostim.plugin(c,'ePhys'); 
-            
-            % Post-initialisation
-            % Initialise class properties
-            o.addProperty('hostAddr', 'tcp://localhost:5556', 'validate', @ischar);
-            o.addProperty('useMCC', true, 'validate', @islogical) ; 
-            o.addProperty('mccChannel', 1, 'validate', @isnumeric); %Channel B (1) is set to output
-            o.addProperty('clockTime', []); 
-            
+            o = o@neurostim.plugin(c,name);
+
+            % parse arguments...
             pin = inputParser;
-            pin.addParameter('HostAddr', 'tcp://localhost:5556', @ischar);
-            pin.addParameter('StartMsg', 'Neurostim experiment', @ischar); 
-            pin.addParameter('StopMsg', 'End of experiment', @ischar);
+            pin.addParameter('hostAddr', '', @ischar);
+            pin.addParameter('startMsg', '', @ischar | @iscell); 
+            pin.addParameter('stopMsg', '', @ischar | @iscell);
             pin.parse(varargin{:})
             
-            o.hostAddr = pin.Results.HostAddr; 
-            o.startMsg = pin.Results.StartMsg; 
-            o.stopMsg = pin.Results.StopMsg; 
+            args = pin.Results;
+            %
+            
+            o.startMsg = args.StartMsg; 
+            o.stopMsg = args.StopMsg; 
+
+            o.addProperty('hostAddr', args.hostAddr, 'validate', @ischar);
+            
+            o.addProperty('useMCC', false, 'validate', @islogical) ; 
+            o.addProperty('mccChannel', 1, 'validate', @isnumeric); %Channel B (1) is set to output
+
+            o.addProperty('clockTime', []); % FIXME: never set?
         end 
                
-        function beforeExperiment(o)            
-             o.startRecording();
-            if o.useMCC
-                o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
-                o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
+        function beforeExperiment(o)
+            if isempty(o.startMsg)
+                % by default, we match the messages logged by the eyelink plugin
+                o.startMsg = { ...
+                  sprintf('RECORDED BY %s',o.cic.experiment), ... % <-- o.cic.experiment is only set at run time
+                  sprintf('NEUROSTIM FILE %s',o.cic.fullFile)};
             end
+                        
+            o.startRecording();
+            
+            sendMessage(o.startMsg);
+            
+            % I think mixing and matching the role of mccChannel is a bad
+            % idea... it should indicate start/end of the experiment or
+            % start/end of a trial, not both...
+%             if o.useMCC
+%                 o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
+%                 o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
+%             end
         end 
         
-        function beforeTrial(o)             
-            o.trialInfo = ['Start_T' num2str(o.cic.trial) '_C' num2str(o.cic.condition)];
-            startTrial(o);
+        function beforeTrial(o)
+            if isempty(o.trialInfo)
+                % again, by default, match the messages logged by the eyelink plugin
+                msg = {sprintf('TR:%i',o.cic.trial);
+                       sprintf('TRIALID %d-%d',o.cic.condition,o.cic.trial)};
+            else
+                msg = o.trialInfo;
+            end
+            
+            sendMessage(o,msg);
+
             % Send a second trial marker, through digital I/O box (Measurement Computing)
             if o.useMCC
                 o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
@@ -56,17 +79,24 @@ classdef ePhys < neurostim.plugin
             end
         end 
         
-        function afterExperiment(o)    
-            stopRecording(o);  
-            if o.useMCC
-                o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
-                o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
+        function afterExperiment(o)
+            if ~isempty(o.stopMsg)
+              sendMessage(o,o.stopMsg);
             end
+            
+            stopRecording(o);  
+          
+%             if o.useMCC
+%                 o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
+%                 o.cic.mcc.digitalOut(o.mccChannel,uint8(0));
+%             end
         end 
         
-        function afterTrial(o) 
-            o.trialInfo = ['Trial' num2str(o.cic.trial) 'complete'];    
-            stopTrial(o);
+        function afterTrial(o)
+            if ~isempty(o.trialInfo)
+              sendMessage(o,o.trialInfo);
+            end
+
             % Send a second trial marker, through digital I/O box (Measurement Computing)
             if o.useMCC
                 o.cic.mcc.digitalOut(o.mccChannel,uint8(1));
@@ -75,29 +105,26 @@ classdef ePhys < neurostim.plugin
         end 
     end
     
-    methods (Access = protected)         
-        function startRecording(~)
-            % NOP - no operation
-            % Defined in child class
-            % The following actions should be specified here:
-            % Start acquisition/recording, set connectionStatus flag, send exerpiment start message 
-        end
+    methods (Abstract)
+        sendMessage(o,msg); % sends a message to the ephys device (to be recorded in the ephys data file)
+
+        % The following actions should be performed here:
+        % Start acquisition/recording, set connectionStatus flag, send experiment start message
+        startRecording(o);
+
+        % The following actions should be performed here:
+        % Stop recording/acquisition, reset connectionStatus flag, send experiment end message
+        stopRecording(o)
         
-        function stopRecording(~)
-            % NOP
-            % The following actions should be specified here:
-            % Stop recording/acquisition, reset connectionStatus flag, send experiment end message
-        end 
-        
-        function startTrial(~)
-            % NOP 
-            % Indicate the start of a trial with a string
-        end 
-        
-        function stopTrial(~)
-            % NOP 
-            % Indicate the end of a trial with a string
-        end        
+%         function startTrial(~)
+%             % NOP 
+%             % Indicate the start of a trial with a string
+%         end 
+%         
+%         function stopTrial(~)
+%             % NOP 
+%             % Indicate the end of a trial with a string
+%         end        
     end 
     
 end

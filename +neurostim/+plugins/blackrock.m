@@ -21,6 +21,17 @@ classdef blackrock < neurostim.plugins.ePhys
             end
         end
         
+        function sendMessage(o,msg)
+            % send a message to Central            
+            if ~iscell(msg)
+              msg = {msg}
+            end
+            
+            for ii = 1:numel(msg)
+              cbmex('comment', 255, 0, msg{ii}); % 255 = red
+            end
+        end
+        
     end
     
     methods (Access = protected)
@@ -62,12 +73,10 @@ classdef blackrock < neurostim.plugins.ePhys
         end
         
         function stopRecording(o)
-            
             closeSession(o)     
         end 
         
         function closeSession(o)
-            
             %Stop recording.
             cbmex('fileconfig', o.cic.fullFile,' ',0);
             
@@ -76,19 +85,19 @@ classdef blackrock < neurostim.plugins.ePhys
             o.connectionStatus = false;
         end 
         
-        function startTrial(o)
-            
-            %Send a network comment to flag the start of the trial. Could be used for timing alignment.            
-            cbmex('comment', 255, 0, o.trialInfo);
-                        
-        end        
+%         function startTrial(o)
+%             
+%             %Send a network comment to flag the start of the trial. Could be used for timing alignment.            
+%             cbmex('comment', 255, 0, o.trialInfo);
+%                         
+%         end        
         
-        function stopTrial(o)
-            
-            %Send a network comment to flag the end of the trial. Could be used for timing alignment.            
-            cbmex('comment', 127, 0, o.trialInfo);
-                        
-        end
+%         function stopTrial(o)
+%             
+%             %Send a network comment to flag the end of the trial. Could be used for timing alignment.            
+%             cbmex('comment', 127, 0, o.trialInfo);
+%                         
+%         end
                 
     end   
 end
