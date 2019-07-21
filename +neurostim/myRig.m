@@ -25,9 +25,19 @@ end
 c.dirs.output = tempdir; % Output files will be stored here.
 
 switch computerName
+    case 'NS1'
+%         c = rig(c,'eyelink',false,'mcc',false,'xpixels',1680,'ypixels',1050,'screenWidth',42,'frameRate',60,'screenNumber',max(Screen('screens'))); % Dell
+%         smallWindow = true;
+
+        c = rig(c,'eyelink',false,'mcc',false,'xpixels',1920,'ypixels',1080,'screenWidth',42,'frameRate',100,'screenNumber',max(Screen('screens')));
+        smallWindow = false;
+
+        c.dirs.output= 'C:\Data';
+        
     case {'MU00101417X','NS2','NS3'}
         % Shaun's MacBook Pro, Marmolab Rig #1 (NS2) and the Psychophysics rig (NS3)
         c = marmolab.rigcfg();
+        return
         
     case 'MU00043185'
         %Office PC
