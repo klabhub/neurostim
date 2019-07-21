@@ -69,7 +69,7 @@ if isempty(p.Results.c)
     colors = [red; red(:,[2 1 3]); red(:,[2 3 1]);[ 1 1 1]];
     end
     eachGun=design('rgb');
-    eachGun.fac1.target.color  = num2cell(colors,2); 
+    eachGun.fac1.target.color  = num2cell(colors,2);
     blck=block('rgbBlock',eachGun);
     blck.nrRepeats  = p.Results.nrRepeats;
 else
@@ -129,14 +129,14 @@ if p.Results.lumTest
     % Generate some test luminance value per gun
     % Create a new cic
     cTest = createCic(p.Results.fakeItAll,p.Results.type);
-    c.paradigm      = 'calibrateLumTest';
+    cTest.paradigm = 'calibrateLumTest';
     cTest.dirs.calibration = p.Results.calibrationDir;
     cTest.screen.calFile =calFile;    
     cTest.screen.colorMode = 'LUM'; 
    
     %% Test across the gamut
-    nrGuns = size(cal.ambientLum,2); % VPIXX-M16 has 1 "gun"
-    targetLum = rand([p.Results.nrTestLum nrGuns]).*repmat(cal.maxLum,[p.Results.nrTestLum 1]);
+    nrGuns = cal.nDevices; %size(cal.ambientLum,2); % VPIXX-M16 has 1 "gun"
+    targetLum = rand([p.Results.nrTestLum nrGuns]).*repmat(cal.ns.maxLum,[p.Results.nrTestLum 1]);
     checkLum=neurostim.design('checkLum');
     checkLum.fac1.target.color  = num2cell(targetLum,2);
     checkLum.randomization  = 'sequential';    
@@ -173,7 +173,7 @@ end
 if p.Results.xylTest
      % Create a new cic
     cxyL = createCic(p.Results.fakeItAll,p.Results.type);
-    c.paradigm      = 'calibrateXylTest';
+    cxyL.paradigm = 'calibrateXylTest';
     cxyL.screen.colorMode = 'xyL';
     cxyL.dirs.calibration = p.Results.calibrationDir;
     cxyL.screen.calFile = calFile;
@@ -213,7 +213,7 @@ end
 if p.Results.xyzTest
      % Create a new cic
     cxyz = createCic(p.Results.fakeItAll,p.Results.type);
-    c.paradigm      = 'calibrateXyzTest';
+    cxyz.paradigm = 'calibrateXyzTest';
     cxyz.screen.colorMode = 'xyz';
     cxyz.screen.calFile = calFile;
     cxyz.dirs.calibration = p.Results.calibrationDir;
@@ -308,8 +308,6 @@ end
         c.keyAfterExperiment      = false;
         
         c.dirs.calibration = 'c:/temp/';
-        
-        
     end
 
 end
