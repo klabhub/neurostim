@@ -199,14 +199,15 @@ classdef (Abstract) clutImage < neurostim.stimulus
             
             global GL;
             
+            locClut = o.clut(:);
+            
             %RGB validitiy check removed for speed
-            %             % range check
-            if ~o.optimiseForSpeed && (any(o.clut < 0) || any(o.clut > 255))
+            if ~o.optimiseForSpeed && (any(locClut < 0) || any(locClut > 1))
                 % lut values out of range
-                error('At least one value in newclut is outside the range from 0 to 255!');
+                error('At least one value in newclut is outside the range from 0 to 1!');
             end
             
-            paddedClut = vertcat(o.clut(:),o.zeroPad);
+            paddedClut = vertcat(locClut,o.zeroPad);
             
             % copy clut to the lut texture
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.luttex_gl);
@@ -233,7 +234,7 @@ classdef (Abstract) clutImage < neurostim.stimulus
         
         function clut = defaultCLUT(o)
             % Example CLUT with linear ramp of greyscale, one channel only.
-            clut=linspace(0,255,o.nClutColors);
+            clut=linspace(0,1,o.nClutColors);
         end
         
         function cleanUp(o)
@@ -290,12 +291,14 @@ classdef (Abstract) clutImage < neurostim.stimulus
         
         function checkCLUT(o)
             
-            if isempty(o.clut)
+            locClut = o.clut;
+            
+            if isempty(locClut)
                 error('You should define your clut (o.clut) before calling o.prep().');
             end
             
             %How many channels are specified in the CLUT? Should be either 1 (GL.LUMINANCE mode), or 3 (RGB)
-            sz = size(o.clut);
+            sz = size(locClut);
             o.nChans = sz(1);
             
             %Check for a is-match with the color mode.
@@ -308,19 +311,9 @@ classdef (Abstract) clutImage < neurostim.stimulus
                 error(['One or more color indices in the image is larger than the number of entries in the CLUT (', num2str(sz(2)),')',]);
             end
             
-            %If specifying color and luminance
-            if strcmpi(o.colorMode,'XYL')
-                
-                %Check that CLUT values are in the expected range.
-                colVals = o.clut([1,2],:);
-                if min(colVals(:)) < 0 || max(colVals(:)) > 1
-                    error('You are using XYL color mode, but one or more values in o.clut (rows 1 and 2) are outside the CIE range (0 to 1)');
-                end
-            else
-                %Check that CLUT values are in the expected range.
-                if (any(o.clut(:) < 0) || any(o.clut(:) > 255))
-                    error('One or more values in o.clut are outside the range (0 to 255)');
-                end
+            %Check that CLUT values are in the expected range.
+            if (any(locClut(:) < 0) || any(locClut(:) > 1))
+                error('One or more values in o.clut are outside the range (0 to 1)');
             end
         end
         

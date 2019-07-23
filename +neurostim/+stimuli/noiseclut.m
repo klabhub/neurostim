@@ -75,7 +75,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             o = o@neurostim.stimuli.clutImage(c,name);
             
             %User-definable
-            o.addProperty('parms',{0 255},'validate',@(x) iscell(x));
+            o.addProperty('parms',{0 1},'validate',@(x) iscell(x));
             o.addProperty('distribution','uniform','validate',@(x) isa(x,'function_handle') | any(strcmpi(x,makedist))); %Check against the list of known distributions
             o.addProperty('bounds',[], 'validate',@(x) isempty(x) || (numel(x)==2 && ~any(isinf(x)) && diff(x) > 0));
             o.addProperty('clutFun',[], 'validate',@(x) isempty(x) || isa(x,'function_handle'));
