@@ -16,10 +16,10 @@ classdef (Abstract) clutImage < neurostim.stimulus
     
     properties (SetAccess=private)
         nClutColors = 16;
-        allColorModes = {'RGB','XYL','LUM'};    %Display color modes
-        colorModeIndex = [];                    %1, 2, or 3       
-        nChans;                                 %How many channels are provided in the CLUT matrix?
-        allowableNumClutChans = {[1 3],3,1};    %RGB can have 1 (luminance only) or 3 (full color) channels specified in the CLUT, LUM 1, XYL 3.
+        allColorModes = {'RGB','LINLUT','XYL','LUM'};       %Display color modes
+        colorModeIndex = [];                                %1, 2, or 3       
+        nChans;                                             %How many channels are provided in the CLUT matrix?
+        allowableNumClutChans = {[1 3],[1 3],3,1};          %RGB can have 1 (luminance only) or 3 (full color) channels specified in the CLUT, LUM 1, XYL 3.
     end
     
     properties (Constant)
