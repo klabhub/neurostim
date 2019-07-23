@@ -1,10 +1,10 @@
-classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
+classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
     % Abstract stimulus class to present random noise rasters (e.g. for white-noise analysis).
     % Luminance noise values are drawn from Matlab's built-in probaility distributions or returned by a user-defined function.
     % Argument specification is based on that of the jitter() plugin (though custom function specification is slightly different... TODO: unify this and jitter())
     %
     % The imaging approach is similar to a CLUT, where the image that is
-    % drawn is represented as a 2D matrix of indices into a vector LUT of random
+    % drawn is represented as a 2D matrix of indices into an array LUT of random
     % variables for luminance. The LUT values are updated (sampled) from frame to frame.
     % This allows an arbitrary mapping of a small number of random variables onto
     % a potentially larger image of texels/pixels. The last entry in the LUT is the background luminance.
@@ -20,15 +20,29 @@ classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
     %
     %   parms           -   parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)
     %   distribution    -   the name of a built-in pdf [default = 'uniform'],
-    %                       or a handle to a custom function, f(o), which takes the plugin as a
-    %                       the lone argument, and returns a vector of luminance values (size = [1, o.nRandels]) for each of the
-    %                       random variables (that are mapped internally to pixels in the ID image)
     %   bounds          -   2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
+    %   clutFun         -   a handle to a custom CLUT function, used instead of 'distribution', 'bounds' etc to populate the CLUT values.
+    %                       cutFun() must accept this plugin as its sole argument, f(o), and returns an array of luminance/xyl values (size = [1, o.nRandels] or [3, o.nRandels]) for each of the
+    %                       random variables (that are mapped internally to pixels in the ID image).
+    %                       
+    %                       ** Note that the CLUT distribution function is called once before the start of each trial to determine the CLUT size.**
+    %   
     %   width           -   width on screen (screen units)
     %   height           -   height on screen (screen units)
     %   logType         -   What should be logged? All luminance values, RNG state (for offline reconstruction), or nothing?
     %   alphaMask       -   Matrix of alpha values to apply a transparency mask. Size = o.size
     %   signal          -   [not yet supported - use alphaMask for now] A matrix of values that is added to the noise (e.g. for detection task)
+    %
+    %
+    % A note on CLUT format:
+    %
+    %   If Neurostim is running in the XYL color mode, the CLUT will be 3 x
+    %   nRandels in size, with all entries in the first two rows (CIEx and CIEy) equal to
+    %   o.color(1) and o.color(2) respectively.
+    %
+    %   To use different colours, you would need to use the custom
+    %   distribution option and population the 3 x nRandels CLUT yourself.
+    %
     %
     %  TODO:
     %       (1) Allow a signal to be embedded (this has to happen in the shader used in gllutimage.m)
@@ -58,12 +72,13 @@ classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
     methods (Access = public)
         function o = noiseclut(c,name)
             
-            o = o@neurostim.stimuli.gllutimage(c,name);
+            o = o@neurostim.stimuli.clutImage(c,name);
             
             %User-definable
             o.addProperty('parms',{0 255},'validate',@(x) iscell(x));
             o.addProperty('distribution','uniform','validate',@(x) isa(x,'function_handle') | any(strcmpi(x,makedist))); %Check against the list of known distributions
             o.addProperty('bounds',[], 'validate',@(x) isempty(x) || (numel(x)==2 && ~any(isinf(x)) && diff(x) > 0));
+            o.addProperty('clutFun',[], 'validate',@(x) isempty(x) || isa(x,'function_handle'));
             o.addProperty('logType','RNGSTATE', 'validate',@(x) any(strcmpi(x,{'RNGSTATE','VALUES','NONE'})));
             o.addProperty('signal',[],'validate',@isnumeric);       %Luminance values to add to noise matrix.
             o.addProperty('frameInterval',o.cic.frames2ms(3));      %How long should each frame be shown for? default = 3 frames.
@@ -96,25 +111,23 @@ classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
             %Update the raster luminance values
             curFr = o.frame;
             frInt = o.frameInterval_f;
-            if (isinf(frInt) && curFr==0) || (~isinf(frInt)&&~mod(curFr,frInt))
+            o.isNewFrame = (isinf(frInt) && curFr==0) || (~isinf(frInt)&&~mod(curFr,frInt));
+            if o.isNewFrame 
                 o.update();
-                o.isNewFrame = true;
-            else
-                o.isNewFrame = false;
             end
             
             %Show the randel image
             o.draw();
             
-            %Superimpose the wireFrame, if requested
-            if o.showWireFrame
-                o.drawWireFrame();
-            end
+            %Superimpose the wireFrame, if requested 
+% (TO DO)   if o.showWireFrame 
+%               o.drawWireFrame();
+%           end
             
             %Superimpose the randel centers, if requested
-            if o.showCenters
-                o.drawCenters();
-            end
+%  (TO DO)  if o.showCenters
+%               o.drawCenters();
+%           end
         end
         
         function afterTrial(o)
@@ -138,49 +151,44 @@ classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
             if ~isinf(frInt) && abs(frInt-o.frameInterval_f) > tol
                 o.writeToFeed(['Noise frameInterval not a multiple of the display frame interval. It has been rounded to ', num2str(o.cic.frames2ms(o.frameInterval_f)) ,'ms']);
             end
-            
-
-            %Set up a callback function, used to population the noise clut with luminance values
-            o.setupLumCallback();
-            
+                        
             %Allow the CLUT parent class to build textures and clut
             o.setImage(im);
             o.nRandels = o.nClutColors;
-            o.clut = zeros(3,o.nRandels);
             
-            %Evalute the randel callback function to make sure it returns the right number of clut values
-            if numel(o.callback(o))~=o.nRandels
-                error(['The supplied CLUT function, ' func2str(o.callback), ' should return a 1 x nRandels (' num2str(o.nRandels), ') vector']);
-            end
-
+            %Set up CLUT callbacks, used to population the noise clut with luminance values
+            o.setupLumCallback();
+                                    
             if ~o.offlineMode
                 o.prep();   %This line makes the openGL textures
             end
             
             o.initialised = true;
+                        
         end
         
         function setupLumCallback(o)
             
-            %Set up a callback function, used to population the noise clut with luminance values            
-            dist = o.distribution;
-            
-            if isa(dist,'function_handle')
+            %Set up a callback function, used to population the noise clut with luminance values                        
+            if ~isempty(o.clutFun)
                 %User-defined function. Function must receive the noise plugin as its sole argument and return
                 %luminance values for each of the random variables.
-                o.callback = dist;
+                %This will be used instead of the distribution property.
+                o.callback = o.clutFun;
                 
-            elseif ischar(dist)
-                if any(strcmpi(dist,{'1ofN','oneofN'}))
+            elseif ischar(o.distribution)
+                locDistribution = o.distribution;
+                            
+                if any(strcmpi(locDistribution,{'1ofN','oneofN'}))
                     %Picking a value from a pre-defined list
                     o.callback = @oneOfN;
 
-                elseif any(strcmpi(dist,makedist))
+                elseif any(strcmpi(locDistribution,makedist))
                     %Using Matlab's built-in probability distributions
                     o.callback = @(o) random(o.probObj,1,o.nRandels);
                     
                     %Create a probability distribution object
-                    pd = makedist(o.distribution,o.parms{:});
+                    pd = makedist(locDistribution,o.parms{:});
                     
                     %Truncate the distribution, if requested
                     if ~isempty(o.bounds)
@@ -191,8 +199,30 @@ classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
                     o.probObj = pd;
                     
                 else
-                    error(horzcat('Unknown distribution name ', dist));
+                    error(horzcat('Unknown distribution name ', locDistribution));
                 end
+
+            else
+                error(['Unknown distribution type. See help for ', mfilename]);
+            end
+            
+            %The parent class requires us to have populated o.clut, so do
+            %that now. We need to anyway, because if user-defined, we need
+            %to know how many channels are being supplied.
+            %(The user must thus be aware that their function is called as
+            %a dry-run once before the trial starts.)
+            o.clut = o.callback(o);
+            
+            if strcmpi(o.colorMode,'XYL') && size(o.clut,1)==1
+                %Function is returning luminance values only. Augment callback to ensure xy color values are appended.
+                col = o.color(:);
+                xyLpartialClut = repmat(col(1:2),1,o.nRandels);         %2 x nRandels matrix of xy values
+                lumFun = o.callback;
+                o.callback = @(o) vertcat(xyLpartialClut,lumFun(o));
+                
+                %And also append it manually here, to save calling the
+                %callback again with this adjustment
+                o.clut = vertcat(xyLpartialClut,o.clut);
             end
             
             %Store the RNG state.
@@ -227,7 +257,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.gllutimage
             %Restore precision
 %             o.rng.FullPrecision = true;
         end
-          
+                
         function setIDxy(o,xy)
             %Store a single normalised [x,y] coordinate to each random variable (e.g. patch centroid).
             if ~o.initialised

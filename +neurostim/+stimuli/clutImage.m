@@ -1,4 +1,4 @@
-classdef (Abstract) gllutimage < neurostim.stimulus
+classdef (Abstract) clutImage < neurostim.stimulus
     
     %Child class should, in beforeTrial(), set the values for idImage and CLUT and then call
     %prep() of parent class to prepare the openGL textures and shaders that do the work.
@@ -10,12 +10,16 @@ classdef (Abstract) gllutimage < neurostim.stimulus
     end
     
     properties (Access = protected)
-        nChans = 1;
         p2ns;
         ns2p;
     end
-    properties (SetAccess=private)
+    
+    properties (SetAccess=private)              
         nClutColors = 16;
+        allColorModes = {'RGB','XYL','LUM'};      %Display color modes
+        colorModeIndex = [];                       %1, 2, or 3
+        nChans;                                 %How many channels are provided in the CLUT matrix?
+        allowableNumClutChans = {[1 3],3,1};    %RGB can have 1 (luminance only) or 3 (full color) channels specified in the CLUT, LUM 1, XYL 3.
     end
     
     properties (Constant)
@@ -38,10 +42,12 @@ classdef (Abstract) gllutimage < neurostim.stimulus
     
     properties (Dependent)
         size
+        colorMode
     end
     
     methods (Abstract, Access = protected)
         %Sub-classes must define a method to return the size of the texture matrix as [h,w], as used in ones(), rand() etc.
+        %Done this way so it can be accessed before runtime.
         sz = imageSize(o)
     end
     
@@ -49,10 +55,14 @@ classdef (Abstract) gllutimage < neurostim.stimulus
         function v = get.size(o)
             v = imageSize(o);
         end
+        
+        function v = get.colorMode(o)
+            v = o.allColorModes{o.colorModeIndex};
+        end
     end
     
     methods (Access = public)
-        function o = gllutimage(c,name)
+        function o = clutImage(c,name)
             o = o@neurostim.stimulus(c,name);
             o.addProperty('width',o.cic.screen.height);
             o.addProperty('height',o.cic.screen.height);
@@ -63,7 +73,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
         end
         
         function beforeExperiment(o)
-            %Usually to be overloaded in child class (but if so, must still call setup())
+            %Can be overloaded in child class (but if so, must still call setup())
             setup(o);
         end
         
@@ -81,7 +91,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             global GL;
             AssertGLSL;
             
-            info = Screen('GetWindowInfo', o.cic.mainWindow);
+             info = Screen('GetWindowInfo', o.cic.mainWindow);
             if info.GLSupportsTexturesUpToBpc >= 32
                 % full 32 bit single precision float texture
                 o.floatPrecision = 2; % nClutColors < 2^32
@@ -104,34 +114,33 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             end
             
             % Load our fragment shader for clut blit operations:
-            shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','noiseclut.frag.txt');
+            shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','clutImage.frag.txt');
             o.remapshader = LoadGLSLProgramFromFiles(shaderFile);
-            
-            o.isSetup = true;
-            
+              
             %Store pixel to ns transform factors for convenience
             o.p2ns = o.cic.pixel2Physical(1,0)-o.cic.pixel2Physical(0,0);
             o.ns2p = o.cic.physical2Pixel(1,0)-o.cic.physical2Pixel(0,0);
+            
+            %Check which color mode we are using
+            colMod = o.cic.screen.colorMode;
+            o.colorModeIndex = find(ismember({'RGB','LUM','XYL'},colMod));
+            if isempty(o.colorModeIndex)
+                error(['glllutimage does not know how to deal with colormode ' colMod]);
+            end
+            
+            o.isSetup = true;
         end
         
         function prep(o)
             
             %Check that everything is ready to go
-            if ~o.isSetup
-                error('You must call o.setup() in your beforeExperiment() function');
-            end
-            
-            %Check that an image has been set
-            if isempty(o.idImage)
-                error('You should define your image (o.idImage) before calling o.prep().');
-            end
-            
+            if ~o.isSetup, error('You must call o.setup() in your beforeExperiment() function'); end
+              
             %Prepare the texture for the index image
             makeImageTex(o);
-            
-            if isempty(o.clut)
-                error('You should define your clut (o.clut) before calling o.prep().');
-            end
+                       
+            %Make sure CLUT has the right size, value range etc.
+            checkCLUT(o)
             
             %Prepare the texture for the CLUT
             makeCLUTtex(o);
@@ -146,7 +155,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             width = o.width;
             height = o.height;
             rect = [-width/2 -height/2 width/2 height/2];
-                        
+            
             % we have to bind our textures (the lut texture and the image
             % texture) to the texture units where we told the shader to
             % expect them... i.e., 0 for the image texture, and 1 for the
@@ -162,14 +171,14 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             glActiveTexture(GL.TEXTURE0); % texture unit 0 is for the image texture
             
             % ... and bind the image texture.
-%             tex = Screen('GetOpenGLTexture',o.window,o.tex);
-%             glBindTexture(GL.TEXTURE_RECTANGLE_EXT,tex);
-
+            %             tex = Screen('GetOpenGLTexture',o.window,o.tex);
+            %             glBindTexture(GL.TEXTURE_RECTANGLE_EXT,tex);
+            
             % actually, we don't need to bind the texture, Screen('DrawTexture',...)
             % will do that (I think), we just need to make sure texture unit 0 is
             % the active texture unit before calling Screen(), so the image texture
             % gets bound where our shader expects it to be... i.e., texture unit 0
-
+            
             Screen('DrawTexture', o.window, o.tex, [], rect, 0, 0, [], [], o.remapshader);
             
             % FIXME: for maximum robustness, I guess we should 'unbind' the
@@ -183,10 +192,6 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             o.nClutColors = max(idImage(:));
             
             %Make sure the number of randels is within limits
-            if o.nClutColors > 256^2
-                msg = 'The number of randels exceeds the limit of 256^2. Although not yet supported, 256^3 would be doable by changing makeClutText() and the shader to also use the B channel for indexing into (a larger) CLUT texture (currently only using RG)';
-                error(msg);
-            end
             o.idImage = idImage;
         end
         
@@ -209,6 +214,7 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), o.clutFormat, GL.UNSIGNED_BYTE, paddedClut);
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
         end
+        
         function im = defaultImage(o,nGridElements)
             
             if nargin < 2
@@ -226,12 +232,10 @@ classdef (Abstract) gllutimage < neurostim.stimulus
         end
         
         function clut = defaultCLUT(o)
-            %This function should be overloaded in child class
-            % initialise CLUT with linear ramp of greyscale
-            vals=linspace(0,255,o.nClutColors);
-            clut = repmat(vals,o.nChans,1);
+            % Example CLUT with linear ramp of greyscale, one channel only.
+            clut=linspace(0,255,o.nClutColors);
         end
-  
+        
         function cleanUp(o)
             o.idImage = [];
             o.clut = [];
@@ -243,6 +247,11 @@ classdef (Abstract) gllutimage < neurostim.stimulus
     
     methods (Access = private)
         function makeImageTex(o)
+            
+            %Check that an image has been set
+            if isempty(o.idImage)
+                error('You should define your image (o.idImage) before calling o.prep().');
+            end
             
             %The image can contain zeros for where background luminance should be used (i.e. alpha should also equal zero).
             %So, enforce that here by setting alpha.
@@ -279,9 +288,46 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             o.tex=Screen('MakeTexture', o.window, imRGB, [], [], o.floatPrecision);
         end
         
+        function checkCLUT(o)
+            
+            if isempty(o.clut)
+                error('You should define your clut (o.clut) before calling o.prep().');
+            end
+            
+            %How many channels are specified in the CLUT? Should be either 1 (GL.LUMINANCE mode), or 3 (RGB)
+            sz = size(o.clut);
+            o.nChans = sz(1);
+            
+            %Check for a is-match with the color mode.
+            if ~ismember(o.nChans,o.allowableNumClutChans{o.colorModeIndex})
+                error(['The number of color channels in the CLUT (', num2str(o.nChans), ' is incompatible with the display color mode, ' o.colorMode]);
+            end
+            
+            %Check that the number of supplied clut entries matches that implied by the image
+            if sz(2) < o.nClutColors
+                error(['One or more color indices in the image is larger than the number of entries in the CLUT (', num2str(sz(2)),')',]);
+            end
+            
+            %If specifying color and luminance
+            if strcmpi(o.colorMode,'XYL')
+
+                %Check that CLUT values are in the expected range.
+                colVals = o.clut([1,2],:);
+                if min(colVals(:)) < 0 || max(colVals(:)) > 1
+                    error('You are using XYL color mode, but one or more values in o.clut (rows 1 and 2) are outside the CIE range (0 to 1)');
+                end
+            else
+                %Check that CLUT values are in the expected range.
+                if (any(o.clut(:) < 0) || any(o.clut(:) > 255))
+                    error('One or more values in o.clut are outside the range (0 to 255)');
+                end
+            end
+        end
+        
         function makeCLUTtex(o)
             global GL;
             
+            %Set up the texture.
             glUseProgram(o.remapshader);
             
             shader_image = glGetUniformLocation(o.remapshader, 'Image');
