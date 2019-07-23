@@ -13,8 +13,8 @@ h.type = 'triangle';
 h.sz = 4;
 h.hexRadius = 2;
 h.distribution = 'normal'; % luminance distribution
-h.parms = {127, 40}; % {mean, sd}
-h.bounds = [0, 255]; % [min, max]
+h.parms = {0.5, 0.15}; % {mean, sd}
+h.bounds = [0, 1]; % [min, max]
 h.frameInterval = 100.0; % milliseconds
 h.spacing = 1.2;
 

@@ -22,18 +22,19 @@ c = myRig;
 
 %Noise grid
 wn = stimuli.noisegrid(c,'grid');
-wn.size_h = 500;  %Dimensionality of raster (30 texels high, 50 wide)
-wn.size_v = 300;
+wn.size_h = 50;  %Dimensionality of raster (30 texels high, 50 wide)
+wn.size_v = 30;
 wn.height = 9;   %Width and height on screen
 wn.width = 15;
 switch demoType
     case 'LUMINANCE'
         wn.distribution = 'normal'; %Distribution from which luminance values are drawn.
-        wn.parms = {127 40};          %{mean sd}
-        wn.bounds = [0 255];
+        %wn.clutFun = @ramp;
+        wn.parms = {0.5 0.15};          %{mean sd}
+        wn.bounds = [0 1];
     case 'RGB_COLORS'
         %Use a custom CLUT function to generate random colors (wn.distribution etc. will be ignored)
-        wn.clutFun = @(o) randi(255,3,o.nRandels); %Choose random RGB colors
+        wn.clutFun = @(o) rand(3,o.nRandels); %Choose random RGB colors
     case 'XYL_LUMINANCE'
         error('XYL_LUMINANCE not yet implemented.')
 end
@@ -41,13 +42,14 @@ end
 wn.frameInterval=1000./c.screen.frameRate*2; %Update noise every second frame
 
 %Apply am alpha ramp
-wn.alphaMask = repmat(logspace(-1.6,0,wn.size(2)),wn.size(1),1);
+wn.alphaMask = repmat(logspace(-2,0,wn.size(2)),wn.size(1),1);
 
 %Other stimulus to demonstrate grid's alpha mask
 f = stimuli.fixation(c,'disk');
 f.X = '@grid.X+sin(disk.frame/60)*8';
 f.size = 2;
-f.color = [0.6,0,0,1];
+f.color = [0.8,0.5,0.8];
+
 
 %Specify a signal to embed (the embedding happens automatically in the stimulus class)
 % sig=sin(linspace(0,8*pi,wn.size(2)));
@@ -70,6 +72,5 @@ c.subject = 'easyD';
 c.run(myBlock);
 
 function vals = ramp(o)
-%vals = linspace(0,127,o.nRandels);
-vals = ones(1,o.nRandels)*127;
-vals(1) = 255;
+vals = linspace(0,1,o.nRandels);
+

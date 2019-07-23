@@ -14,10 +14,10 @@ classdef (Abstract) clutImage < neurostim.stimulus
         ns2p;
     end
     
-    properties (SetAccess=private)              
+    properties (SetAccess=private)
         nClutColors = 16;
-        allColorModes = {'RGB','XYL','LUM'};      %Display color modes
-        colorModeIndex = [];                       %1, 2, or 3
+        allColorModes = {'RGB','XYL','LUM'};    %Display color modes
+        colorModeIndex = [];                    %1, 2, or 3       
         nChans;                                 %How many channels are provided in the CLUT matrix?
         allowableNumClutChans = {[1 3],3,1};    %RGB can have 1 (luminance only) or 3 (full color) channels specified in the CLUT, LUM 1, XYL 3.
     end
@@ -91,7 +91,7 @@ classdef (Abstract) clutImage < neurostim.stimulus
             global GL;
             AssertGLSL;
             
-             info = Screen('GetWindowInfo', o.cic.mainWindow);
+            info = Screen('GetWindowInfo', o.cic.mainWindow);
             if info.GLSupportsTexturesUpToBpc >= 32
                 % full 32 bit single precision float texture
                 o.floatPrecision = 2; % nClutColors < 2^32
@@ -116,14 +116,14 @@ classdef (Abstract) clutImage < neurostim.stimulus
             % Load our fragment shader for clut blit operations:
             shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','clutImage.frag.txt');
             o.remapshader = LoadGLSLProgramFromFiles(shaderFile);
-              
+            
             %Store pixel to ns transform factors for convenience
             o.p2ns = o.cic.pixel2Physical(1,0)-o.cic.pixel2Physical(0,0);
             o.ns2p = o.cic.physical2Pixel(1,0)-o.cic.physical2Pixel(0,0);
             
             %Check which color mode we are using
             colMod = o.cic.screen.colorMode;
-            o.colorModeIndex = find(ismember({'RGB','LUM','XYL'},colMod));
+            o.colorModeIndex = find(ismember(o.allColorModes,colMod));
             if isempty(o.colorModeIndex)
                 error(['glllutimage does not know how to deal with colormode ' colMod]);
             end
@@ -135,10 +135,10 @@ classdef (Abstract) clutImage < neurostim.stimulus
             
             %Check that everything is ready to go
             if ~o.isSetup, error('You must call o.setup() in your beforeExperiment() function'); end
-              
+            
             %Prepare the texture for the index image
             makeImageTex(o);
-                       
+            
             %Make sure CLUT has the right size, value range etc.
             checkCLUT(o)
             
@@ -206,13 +206,13 @@ classdef (Abstract) clutImage < neurostim.stimulus
                 error('At least one value in newclut is outside the range from 0 to 255!');
             end
             
-            % cast clut to uint8...
-            paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
+            paddedClut = vertcat(o.clut(:),o.zeroPad);
             
             % copy clut to the lut texture
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.luttex_gl);
-            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), o.clutFormat, GL.UNSIGNED_BYTE, paddedClut);
+            glTexSubImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, 0, 0, o.lutTexSz(1), o.lutTexSz(2), o.clutFormat, GL.FLOAT, single(paddedClut));
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, 0);
+            
         end
         
         function im = defaultImage(o,nGridElements)
@@ -310,7 +310,7 @@ classdef (Abstract) clutImage < neurostim.stimulus
             
             %If specifying color and luminance
             if strcmpi(o.colorMode,'XYL')
-
+                
                 %Check that CLUT values are in the expected range.
                 colVals = o.clut([1,2],:);
                 if min(colVals(:)) < 0 || max(colVals(:)) > 1
@@ -337,10 +337,11 @@ classdef (Abstract) clutImage < neurostim.stimulus
             glUniform1i(shader_clut, 1); % texture unit 1 is for the lut texture
             
             glUseProgram(0);
-            
-            % cast clut to uint8()
-            o.zeroPad = uint8(zeros(o.nChans*(prod(o.lutTexSz)-o.nClutColors),1)); %Pre-computed for speed (to use horxcat rather than indexing)
-            paddedClut = vertcat(uint8(o.clut(:)),o.zeroPad);
+                       
+            %How many empty entries in the CLUT texture will there be?
+            nEmptySlots = o.nChans*(prod(o.lutTexSz)-o.nClutColors);
+            o.zeroPad = zeros(nEmptySlots,1);
+            paddedClut = vertcat(o.clut(:),o.zeroPad);
             
             % create the lut texture
             o.luttex_ptb = Screen('MakeTexture',o.window,0);
@@ -354,7 +355,7 @@ classdef (Abstract) clutImage < neurostim.stimulus
             end
             
             glBindTexture(GL.TEXTURE_RECTANGLE_EXT, o.luttex_gl);
-            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, o.clutFormat, GL.UNSIGNED_BYTE, paddedClut);
+            glTexImage2D(GL.TEXTURE_RECTANGLE_EXT, 0, GL.RGBA, o.lutTexSz(1), o.lutTexSz(2), 0, o.clutFormat, GL.FLOAT, single(paddedClut));
             
             % Make sure we use nearest neighbour sampling:
             glTexParameteri(GL.TEXTURE_RECTANGLE_EXT, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
