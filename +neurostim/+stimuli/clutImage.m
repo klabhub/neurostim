@@ -116,7 +116,7 @@ classdef (Abstract) clutImage < neurostim.stimulus
             end
             
             % Load our fragment shader for clut blit operations:
-            shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','clutImageSparse.frag.txt');
+            shaderFile = fullfile(o.cic.dirs.root,'+neurostim','+stimuli','GLSLShaders','clutImage.frag.txt');
             o.remapshader = LoadGLSLProgramFromFiles(shaderFile);
             
             %Store pixel to ns transform factors for convenience
