@@ -52,7 +52,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
     %       (4) This approach to rng is inefficient: it would be better to have a separate RNG stream for this stimulus. CIC would need to act as RNG server?
     
     properties (Access = private)
-        rng;                        %Pointer to the global RNG stream
+        rng;                        %Pointer to this plugin's RNG stream
         initialised = false;
         frameInterval_f;
     end
@@ -83,7 +83,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             o.addProperty('bounds',[], 'validate',@(x) validator(@(arg) isempty(arg) || (numel(arg)==2 && ~any(isinf(arg)) && diff(arg) > 0),x));
             
             %Logging options
-            o.addProperty('logType','RNGSTATE', 'validate',@(x) any(strcmpi(x,{'RNGSTATE','VALUES','NONE'})));
+            o.addProperty('logAllNoiseValues',false, 'validate',@islogical);    %ONLY USE THIS IF nRandels IS VERY SMALL! You might get frame drops otherwise.
             o.addProperty('frameInterval',o.cic.frames2ms(3));      %How long should each frame be shown for? default = 3 frames.
             
             %Offline tools
@@ -100,9 +100,9 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             
             % Internal use for logging of luminance values
             o.addProperty('probObj',{});
-            o.addProperty('rngState',[]);
-            o.addProperty('rngAlgorithm',[]);
-            o.addProperty('clutVals',[]); %For logging luminance values, if requested
+            o.addProperty('rngState',[]);       %Logged at the start of each trial.
+            o.addProperty('callbackCounter',0); %Incremenets every time the callback functions are called, to ensure that we can reconstruct the stimulus offline
+            o.addProperty('clutVals',[]);       %If requested, just log all luminance values.
             
             
             o.writeToFeed('Warning: this is a new stimulus and has not been tested.');
@@ -140,6 +140,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
         function afterTrial(o)
             o.cleanUp();
             o.initialised = false;
+           % o.rngState = RandStream.getGlobalStream(o.rng);
         end
     end % public methods
     
@@ -176,8 +177,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
         
         function setupCallbacks(o)
             
-            %Build the callback functions that will be used to populate the
-            %clut.
+            %Build the callback functions that will be used to populate the clut.
             
             %First have to clean up the formatting of the variables.
             %sampleFun,bounds, and parms are all processed internally as cell
@@ -217,17 +217,37 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             o.sampleFun = locSampleFun;
             o.bounds = locBounds;
             o.parms = locParms;
-            
-            %             %The parent class requires us to have populated o.clut, so do
-            %             %that now. We need to anyway, because if user-defined, we need
-            %             %to know how many channels are being supplied.
-            %             %(The user must thus be aware that their function is called as
-            %             %a dry-run once before the trial starts.)
-            setClut(o);
-            
+
             %Store the RNG state.
             s = RandStream.getGlobalStream;
-            o.rng = s;
+            o.rngState = s;
+            
+            %Correspondingly, reset the callbackCounter. We set it to
+            %-1, so that after the beforeTrial() dry run (on the next
+            %line), it will be zero, and then 1 on the first frame in which
+            %the stimulus will actually be drawn (when update is called).
+            %-1 will help us remember offline that the dry run happens and
+            %to take it into acocunt.
+            o.callbackCounter = -1;
+            
+            %The parent class requires us to have populated o.clut, so do
+            %that now. We need to anyway, because if user-defined, we need
+            %to know how many channels are being supplied.
+            %(The user must thus be aware that their function is called as
+            %a dry-run once before the trial starts.)
+            locClut = executeCallbacks(o);
+            
+            % If cic is in XYL mode, and the CLUT only has one channel, assume luminance.
+            % So prepend a callback that sets the xy channels to o.color.
+            if strcmpi(o.colorMode,'XYL') && size(locClut,1)==1
+                col = o.color(:);
+                xyLpartialClut = repmat(col(1:2),1,o.nRandels);         %2 x nRandels matrix of xy values     
+                o.callback = horzcat({@(o) xyLpartialClut}, o.callback);
+                locClut = vertcat(xyLpartialClut,locClut); %Also done manually once here, to prevent needing to call to callbacks again
+            end
+            
+            %All done. Set it.
+            o.clut = locClut;
         end
         
         function setupThisCallback(o,sampleFun,parms,bounds,callbackID)
@@ -256,8 +276,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                     %Store function handle and object
                     %TODO: we are creating and logging more and more probObjects. Might run into a problem with large number of trials? Better to re-create the objects offline
                     o.probObj{callbackID} = pd;
-                    cb = @(o) random(o.probObj{callbackID},1,o.nRandels);
-                    
+                    cb = @(o) random(o.probObj{callbackID},1,o.nRandels);                    
                 else
                     error(horzcat('Unknown distribution name ', sampleFun));
                 end
@@ -267,61 +286,33 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             end
             
             %Add this one the list
-            o.callback{callbackID} = cb;
-            %             %The parent class requires us to have populated o.clut, so do
-            %             %that now. We need to anyway, because if user-defined, we need
-            %             %to know how many channels are being supplied.
-            %             %(The user must thus be aware that their function is called as
-            %             %a dry-run once before the trial starts.)
-            %             o.clut = o.callback(o);
-            %
-            %             if strcmpi(o.colorMode,'XYL') && size(o.clut,1)==1
-            %                 %Function is returning luminance values only. Augment callback to ensure xy color values are appended.
-            %                 col = o.color(:);
-            %                 xyLpartialClut = repmat(col(1:2),1,o.nRandels);         %2 x nRandels matrix of xy values
-            %                 lumFun = o.callback;
-            %                 o.callback = @(o) vertcat(xyLpartialClut,lumFun(o));
-            %
-            %                 %And also append it manually here, to save calling the
-            %                 %callback again with this adjustment
-            %                 o.clut = vertcat(xyLpartialClut,o.clut);
-            %             end
-            %
-            
+            o.callback{callbackID} = cb;            
         end
         
         function o = update(o)
             
-            %Temporarily set the rng to not use full precision, to favour speed
-            s = o.rng;
-            %             s.FullPrecision = false;
-            
-            %Log the state of the RNG, if requested
-            if strcmpi(o.logType,'RNGSTATE')
-                %Allows re-construction offline. see https://au.mathworks.com/help/matlab/ref/randstream.html
-                o.rngState = s.State;
-                o.rngAlgorithm = s.Type;
-            end
-            
             %Update the values in the clut
-            setClut(o);
+%            globStream = RandStream.setGlobalStream(o.rng);
+            o.clut = executeCallbacks(o);
+%            RandStream.setGlobalStream(globStream);
             
             %Allow parent to update its mapping texture (there should really be a setClut() in parent
-            updateCLUT(o);
+            updateCLUTtex(o);
             
             %Log the clut luminance values, if requested (use only for small memory loads)
-            if strcmpi(o.logType,'VALUES')
+            if o.logAllNoiseValues
                 o.clutVals = o.clut;
             end
-            
-            %Restore precision
-            %             o.rng.FullPrecision = true;
         end
         
-        function setClut(o)
+        function locClut = executeCallbacks(o)
             %Evaluate the callback functions (each of which returns a m x nRandels set of gun/alpha values) and set the clut.
             locClut = cellfun(@(x) x(o),o.callback,'unif',false);
-            o.clut = vertcat(locClut{:});
+            locClut = vertcat(locClut{:});
+            
+            %Keep track of how many times we have called these functions,
+            %to make sure we can reconstruct the stimuli offline
+            o.callbackCounter = o.callbackCounter+1;
         end
         
         function setIDxy(o,xy)
