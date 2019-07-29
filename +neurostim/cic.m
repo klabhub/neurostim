@@ -60,6 +60,7 @@ classdef cic < neurostim.plugin
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
         useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
+        spareRNGstreams = {};  %Cell array of independent RNG streams, not yet allocated (plugins can request one through requestRNGstream()).
         
         %% Keyboard interaction
         kbInfo@struct= struct('keys',{[]},... % PTB numbers for each key that is handled.
@@ -411,6 +412,8 @@ classdef cic < neurostim.plugin
             c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
+            %Build a set of RNG streams.
+            createRNGstreams(c);
         end
         
         function showCursor(c,name)
@@ -1521,6 +1524,23 @@ classdef cic < neurostim.plugin
             end
         end
         
+        function createRNGstreams(c,nStreams,varargin)
+            %Create a set of independent RNG streams for use across all plugins.
+            %By default, all plugins, including cic, use a single global
+            %stream. However, a plugin can request its own stream (e.g. as
+            %currently done in noiseclut.m). See RandStream for info about
+            %creating streams in matlab and why we handle this centrally.
+            %All arguments in varargin are passed onto the Matlab's RandStream.create().
+            if nargin < 2
+               nStreams = 3; 
+            end
+            c.spareRNGstreams = RandStream.create('mrg32k3a','NumStreams',nStreams,'cellOutput',true,varargin{:});
+            
+            %Use the first as the current global stream and allocate it to CIC
+            c.rng = c.spareRNGstreams{1};
+            c.spareRNGstreams(1) = [];
+            RandStream.setGlobalStream(c.rng);
+        end
     end
     
     
@@ -1914,6 +1934,29 @@ classdef cic < neurostim.plugin
         
     end
     
+    methods (Access=?neurostim.plugin)
+        function rng = requestRNGstream(c,nStreams)
+           %Plugins can request their own RNG stream. We created 3 RNG
+           %streams on construction of CIC, so allocate one of those now.
+           %If all are exhausted, issue error and instruct user to increase
+           %the initial allocation number before the first time any is used.
+           if nargin < 2
+               nStreams = 1;
+           end
+
+           %Make sure we have enough RNG streams left
+           if numel(c.spareRNGstreams) >= nStreams
+               %OK, assign it, remove from list.
+               rng = c.spareRNGstreams(1:nStreams);
+               c.spareRNGstreams(1:nStreams) = [];
+               if nStreams == 1
+                   rng = rng{1};
+               end
+           else
+               error('All RNG streams have already been allocated. Increase the number of streams by calling createRNGstreams() in your script as early as possible, before any of your or Matlab''s functions has used the global RNG stream. See RandStream for info about Matlab''s RNGs');
+           end
+        end
+    end
     
     
     methods (Static)

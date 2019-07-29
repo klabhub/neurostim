@@ -3,9 +3,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     %
     properties (SetAccess=public)
         cic;  % Pointer to CIC
-        overlay@logical=false; % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
+        overlay@logical=false;      % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
         window;
-        feedStyle = '[0 0.5 0]'; % Command line color for writeToFeed messages.
+        feedStyle = '[0 0.5 0]';    % Command line color for writeToFeed messages.
     end
     
     
@@ -13,6 +13,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     properties (SetAccess=private, GetAccess=public)
         name@char= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
+    end
+    
+    properties (SetAccess=protected, GetAccess=public)
+        rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
     
     methods (Static, Sealed, Access=protected)
