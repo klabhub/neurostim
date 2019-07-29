@@ -198,7 +198,7 @@ classdef (Abstract) clutImage < neurostim.stimulus
             o.idImage = idImage;
         end
         
-        function updateCLUT(o)
+        function updateCLUTtex(o)
             
             global GL;
                         

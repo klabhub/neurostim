@@ -52,7 +52,6 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
     %       (4) This approach to rng is inefficient: it would be better to have a separate RNG stream for this stimulus. CIC would need to act as RNG server?
     
     properties (Access = private)
-        rng;                        %Pointer to this plugin's RNG stream
         initialised = false;
         frameInterval_f;
     end
@@ -104,6 +103,8 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             o.addProperty('callbackCounter',0); %Incremenets every time the callback functions are called, to ensure that we can reconstruct the stimulus offline
             o.addProperty('clutVals',[]);       %If requested, just log all luminance values.
             
+            %We need our own RNG stream, to ensure its protected for stimulus reconstruction offline
+            o.rng = requestRNGstream(c);
             
             o.writeToFeed('Warning: this is a new stimulus and has not been tested.');
         end
@@ -219,8 +220,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             o.parms = locParms;
 
             %Store the RNG state.
-            s = RandStream.getGlobalStream;
-            o.rngState = s;
+            o.rngState = o.rng.State;
             
             %Correspondingly, reset the callbackCounter. We set it to
             %-1, so that after the beforeTrial() dry run (on the next
@@ -292,9 +292,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
         function o = update(o)
             
             %Update the values in the clut
-%            globStream = RandStream.setGlobalStream(o.rng);
             o.clut = executeCallbacks(o);
-%            RandStream.setGlobalStream(globStream);
             
             %Allow parent to update its mapping texture (there should really be a setClut() in parent
             updateCLUTtex(o);
@@ -306,6 +304,9 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
         end
         
         function locClut = executeCallbacks(o)
+            %Switch to using my RNG as the global stream)
+            globStream = RandStream.setGlobalStream(o.rng);
+            
             %Evaluate the callback functions (each of which returns a m x nRandels set of gun/alpha values) and set the clut.
             locClut = cellfun(@(x) x(o),o.callback,'unif',false);
             locClut = vertcat(locClut{:});
@@ -313,6 +314,9 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             %Keep track of how many times we have called these functions,
             %to make sure we can reconstruct the stimuli offline
             o.callbackCounter = o.callbackCounter+1;
+            
+            %Restore previous global stream
+            RandStream.setGlobalStream(globStream);
         end
         
         function setIDxy(o,xy)
