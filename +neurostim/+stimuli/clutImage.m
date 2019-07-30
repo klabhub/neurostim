@@ -2,11 +2,10 @@ classdef (Abstract) clutImage < neurostim.stimulus
     
     %TODO: clean up this help text, and unify across all child classes.
     %see noiseGridDemo.m for examples of usage in experiment script, and noiseClut.m and noisegrid.m for examples of an implemented child stimulus class.
-    %Child class should, in beforeTrial(), set the values for idImage and CLUT and then call
+    %Child class should, in beforeTrial(), set the values for ixImage and CLUT and then call
     %prep() of parent class to prepare the openGL textures and shaders that do the work.
     
     properties (Access=public)
-        idImage;
         clut;
         optimiseForSpeed = true;    %Turns off some error checking (e.g. that RGB vals are valid)
     end
@@ -68,6 +67,7 @@ classdef (Abstract) clutImage < neurostim.stimulus
             o = o@neurostim.stimulus(c,name);
             o.addProperty('width',o.cic.screen.height);
             o.addProperty('height',o.cic.screen.height);
+            o.addProperty('ixImage',[]);
             o.addProperty('alphaMask',[]);
             
             %Make sure openGL stuff is available
@@ -189,13 +189,11 @@ classdef (Abstract) clutImage < neurostim.stimulus
             %        plugin to accidently mess with our textures!
         end
         
-        function setImage(o,idImage)
-            %idImage should be a m x n matrix of luminance values
-            idImage = flipud(idImage);
-            o.nClutColors = max(idImage(:));
-            
-            %Make sure the number of randels is within limits
-            o.idImage = idImage;
+        function setImage(o,ixImage)
+            %ixImage should be a m x n image matrix of indices into the CLUT
+            o.ixImage  = ixImage;
+            o.nClutColors = max(ixImage(:));
+
         end
         
         function updateCLUTtex(o)
@@ -242,7 +240,6 @@ classdef (Abstract) clutImage < neurostim.stimulus
         end
         
         function cleanUp(o)
-            o.idImage = [];
             o.clut = [];
             o.isPrepped = false;
             o.luttex_gl = [];
@@ -254,13 +251,13 @@ classdef (Abstract) clutImage < neurostim.stimulus
         function makeImageTex(o)
             
             %Check that an image has been set
-            if isempty(o.idImage)
-                error('You should define your image (o.idImage) before calling o.prep().');
+            if isempty(o.ixImage)
+                error('You should define your image (using setImage(o,ixImage)) before calling o.prep().');
             end
             
             %The image can contain zeros for where background luminance should be used (i.e. alpha should also equal zero).
             %So, enforce that here by setting alpha.
-            im = o.idImage;
+            im = flipud(o.ixImage); %Flipping here means it appears on screen as it would with imagesc(o.ixImage)
             isNullPixel = im(:,:,1)==o.BACKGROUND;
             im(isNullPixel) = NaN;
             
