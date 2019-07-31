@@ -1,4 +1,4 @@
-classdef mcc < neurostim.plugin
+classdef mcc < neurostim.plugins.daq
     % Wrapper for the Psychtoolbox DAQ
     % Before using this, run the DaqTest script that is part of PTB to test
     % that your Measurement Computing hardware is working and accessible.
@@ -32,17 +32,11 @@ classdef mcc < neurostim.plugin
     % the elements in  mcc.aInData should result in a continuous data stream.
     % BK November 2018
     
-    properties (Constant)
-        ANALOG=0;
-        DIGITAL=1;
-    end
+    
     properties
         devices;
         daq;
-        mapList;
-        timer;        
     end
-    
     
     properties (Dependent)
         product@char;
@@ -81,7 +75,7 @@ classdef mcc < neurostim.plugin
             p.parse(varargin{:})
             args = p.Results;
  
-            o = o@neurostim.plugin(c,'mcc');
+            o = o@neurostim.plugins.daq(c,'mcc');
             
             o.addProperty('aInOptions',[]);
             o.addProperty('aInData',[]);
@@ -113,11 +107,6 @@ classdef mcc < neurostim.plugin
             
             err = DaqDConfigPort(o.daq,0,1); % configure digital port A for input
             err = DaqDConfigPort(o.daq,1,0); % configure digital port B for output
-            
-            o.mapList.type = [];
-            o.mapList.channel =[];
-            o.mapList.prop = {};
-            o.mapList.when = [];
         end
         
         function beforeExperiment(o)
@@ -131,24 +120,6 @@ classdef mcc < neurostim.plugin
              if o.aIn                          
                 DaqAInScanEnd(o.daq,o.aInOptions);                
              end
-        end
-           
-        function map(o,type,channel,prop, when)
-            % Map a channel to a named dynamic property.
-            % INPUT
-            %   type = 'ANALOG' or 'DIGITAL'
-            %   channel = channel number
-            %   prop   = The property to map the channel to.
-            %   when = When should the value be updated. 'AFTERFRAME','AFTERTRIAL'
-            %
-            %
-            
-            % Add the property
-            addprop(o,prop);
-            o.mapList.type      = cat(2,o.mapList.type,o.(upper(type)));
-            o.mapList.channel   = cat(2,o.mapList.channel,channel);
-            o.mapList.prop      = cat(2,o.mapList.prop,prop);
-            o.mapList.when      = cat(2,o.mapList.when,upper(when));
         end
         
         
@@ -206,6 +177,10 @@ classdef mcc < neurostim.plugin
     end
     
     methods
+        function analogOut(o,channel,value,varargin)
+            % NOP
+        end
+      
         % Read the specified analog channel now
         function v = analogIn(o,channel)
             % range scales differential recordings. Not using for
@@ -215,47 +190,14 @@ classdef mcc < neurostim.plugin
         end
         
         function afterTrial(o)
-            ix = any(strcmp(o.mapList.when,'AFTERTRIAL'));
-            if ix
-                read(o,ix);
-            end
+            afterTrial@neurostim.plugins.daq(o); % parent class method
                         
             if o.aIn
                 o.aInOptions.ReleaseTime = GetSecs + o.aInTimeOut; 
                 [parms,o.aInData]  = DaqAInScanContinue(o.daq,o.aInOptions,true);
                 o.aInStartTime = parms.times(1); % Time of the first report.
             end
-            
         end
-        
-        function afterFrame(o)
-            ix = any(strcmp(o.mapList.when,'AFTERFRAME'));
-            if ix
-                read(o,ix);
-            end
-        end
-        
     end
     
-    methods (Access = protected)
-        
-        % Read the Analog or Digital values and store them in a property.
-        % Called by afterFrame and afterTrial after setting up a map()
-        function ok = read(o,ix)
-            ok = true;
-            for i=ix
-                if o.mapList.type(i) == o.ANALOG
-                    v = analogIn(o,o.mapList.channel(i));
-                elseif o.mapList.type(i) == o.DIGITAL
-                    v = digitalIn(o,o.mapList.channel(i));
-                else
-                    error('Huh?')
-                end
-                % Set the value
-                o.(o.mapList.prop{i}) = v;
-            end
-        end
-        
-    end
-    
-end
+end % classdef
