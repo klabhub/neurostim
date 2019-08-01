@@ -133,11 +133,11 @@ classdef mcc < neurostim.plugins.daq
                 DaqDOut(o.daq,channel,value);
             elseif islogical(value)
                 % Set a single bit
-                % First get the current values;
+                % First get the current values of both Ports A & B;
                 current = DaqDIn(o.daq);
-                port = (channel>8)+1;
-                current = current(port); %A or B
-                newValue = bitset(current,mod(channel,8),value);
+                port = (channel>8)+1; %Determine which port the bit number belongs to.
+                current = current(port); %Retrieve current value of the port 
+                newValue = bitset(current,mod(channel,8),value); 
                 DaqDOut(o.daq,port-1,newValue);
                 
                 if size(varargin) == 1 
