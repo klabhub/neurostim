@@ -366,13 +366,13 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             %Set up a callback function, used to population the noise clut with luminance values
             if isa(sampleFun,'function_handle')
                 %User-defined function. Function must receive the noise plugin as its sole argument and return
-                %luminance values for each of the random variables.
+                %luminance/color values [o.nChans x o.nRandels] for the CLUT.
                 cb = sampleFun;
                 
             elseif ischar(sampleFun)
                 if any(strcmpi(sampleFun,{'1ofN','oneofN','randsample'}))
-                    %Picking a value from a pre-defined list
-                    cb = @(o) oneOfN(o,parms);
+                    %Picking a value from a pre-defined list with equal probability, with replacement
+                    cb = @(o) [parms{randi(numel(parms),1,o.nRandels)}];
                     
                 elseif any(strcmpi(sampleFun,makedist))
                     %Using Matlab's built-in probability distributions
@@ -461,10 +461,6 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
         %         function [x,y] = id2xy(o,id)
         %
         %         end
-        function vals = oneOfN(o,parms)
-            %Pick from a set of values with equal probability.
-            vals = [parms{randi(numel(parms),1,o.nRandels)}];
-        end
         
     end % protected methods
     
@@ -484,15 +480,15 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
         
         function offlineReplay(clutVals,ixImage,cbCtr,trialNum,frameDur,colorMode)
             %Show the reconstructed stimulus in a figure window.
-            warning('Replay is really rudimentary and should not be taken too seriously. It won''t show you any transparency, and it uses no timing info.');
-            replayErrorMsg = 'Replay is currently only supported for lumninance or RGB images, no alpha, no XYL color mode.';
+            warning('Replay is rudimentary and should not be taken too seriously. It won''t show you any transparency, and it uses no timing info.');
+            replayErrorMsg = 'Replay is currently only supported for luminance or RGB images, no alpha, no XYL color mode.';
             if strcmpi(colorMode,'XYL'), error(replayErrorMsg); end
             for j=1:cbCtr
                 %Use the image to index into the clut
                 cl = clutVals(:,:,j);
                 cl = horzcat(zeros(size(cl,1),1),cl);%Set transparent parts to black
                 im = cl(:,ixImage+1);
-                if ismember(ndims(im),[1 3]), error(replayErrorMsg); end
+                if ~ismember(size(cl,1),[1 3]), error(replayErrorMsg); end
                 
                 %Restore the image size
                 im = squeeze(reshape(im,size(im,1),size(ixImage,1),size(ixImage,2)));
@@ -507,7 +503,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 end
                 
                 %Show it
-                imshow(uint8(im*256)); title(['Trial ', num2str(trialNum)]);
+                imshow(uint8(im*256),'initialMagnification','fit'); title(['Trial ', num2str(trialNum)]);
                 pause(frameDur/1000);
             end
         end
