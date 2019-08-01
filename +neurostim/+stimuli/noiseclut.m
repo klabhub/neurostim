@@ -182,6 +182,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             p.addParameter('trial',1:o.cic.trial);
             p.addParameter('replay',false);
             p.addParameter('replayFrameDur',50);
+            p.addParameter('debug',false);
             p.parse(varargin{:});
             p = p.Results;
             
@@ -208,12 +209,13 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             
             %How many randels were there?
             nRndls = cellfun(@(x) max(x(:)),ixImage);
-            
+                  
             %Everything is in hand. Reconstruct.
             clutVals = cell(1,numel(p.trial));
             warned = false;
             if p.replay, figure; end
-            for i=1:numel(p.trial)
+            nTrials = numel(p.trial);
+            for i=1:nTrials
                 
                 %Restore these parameters, to ensure callbacks are built correctly.
                 o.sampleFun = sFun{i};
@@ -257,7 +259,62 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 if p.replay
                     neurostim.stimuli.noiseclut.offlineReplay(clutVals{i},ixImage{i},cbCtr(i),i,p.replayFrameDur,o.colorMode)
                 end                
-            end            
+            end
+            
+            
+            %Up til here, we have reconstructed the unique images that were
+            %shown, in the right order, but not taken into account the
+            %update rate, nor dropped frames logged in CIC.
+            %
+            %So, our task here is to use repelem() to duplicate each image
+            %the right number of times to restore the actual time-line.
+            frInt = get(o.prms.frameInterval,'trial',p.trial,'atTrialTime',Inf);
+            frInt = o.cic.ms2frames(frInt,true);
+ 
+            %We need to take into account frame-drops. So gather info here
+            frDr = get(o.cic.prms.frameDrop,'trial',p.trial,'struct',true);
+            stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
+            frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
+            
+            %Convert duration of frame drop to frames (this assumes frames were synced?)
+            frDr.data(:,2)
+            frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
+            
+            %NEED TO CONVERT CIC FRAME NUMBER TO FRAME NUMBER WITHIN THIS STIMULUS
+            %i.e. SOME FRAME DROPS WERE NOT WHILE THIS STIM WAS ON THE SCREEN
+            for i=1:numel(p.trial)
+                
+                %Initially assume no drops. i.e. all repeats were due to intended frame interval
+                cbByFrame = repelem(1:cbCtr(i),frInt(i)*ones(1,cbCtr(i)));
+                
+                %Now find the dropped frames and add in the number of repeats that occurred
+                framesPerFrame = ones(size(cbByFrame));
+                these = frDr.trial==p.trial(i);
+                framesPerFrame(frDr.data(these,1)) = frDr.data(these,2)+1;          
+                cbByFrame = repelem(cbByFrame,framesPerFrame);
+
+                %Timeline reconstructed, so use it to convert the length of clutVals to time
+                clutVals{i} = clutVals{i}(:,:,cbByFrame);
+            end
+            
+            %What was the actual stimulus duration in milliseconds, including all drops.
+            %Make sure it matches
+            if p.debug
+                %TODO: finish this off
+                stimStart = get(o.prms.startTime,'trial',p.trial,'struct',true);
+                stimStop = get(o.prms.stopTime,'trial',p.trial,'struct',true);
+                stimDur = (stimStop.time-stimStart.time); %"time" is clock time, not trial time.
+                
+                screenFR = 1000/o.cic.screen.frameRate;
+                reconTrialDur = cellfun(@(x) (size(x,3)-1)*screenFR,clutVals)';
+                
+                figure
+                subplot(1,2,1);
+                plot(stimDur,reconTrialDur,'o'); jdPlotUnityLine; xlabel('NS stimStart to stimStop (ms)'); ylabel('Reconstruction duration (ms)');
+                subplot(1,2,2);
+                histogram(reconTrialDur-stimDur,100); xlabel('Error in reoncstruction duration (ms)');
+                keyboard;
+            end
         end
     end % public methods
     
