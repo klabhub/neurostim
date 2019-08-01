@@ -161,7 +161,11 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
         
         function afterExperiment(o)
             %Experiment has been cancelled. Make sure we log last trial
-            o.logInfo();
+            if ~isempty(o.clut)
+                %o.cleanUp() hasn't been called. Probably because "esc" was pressed
+                o.logInfo();
+                o.cleanUp();
+            end
         end
         
         function [clutVals,ixImage] = reconstructStimulus(o,varargin)
