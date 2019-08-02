@@ -1008,10 +1008,10 @@ classdef cic < neurostim.plugin
                         c.frame = c.frame+1;
                         
                         %% Check for end of trial
-                        if ~c.flags.trial || c.frame-1 >= ms2frames(c,c.trialDuration)  
-                            % if trial has ended (based on behaviors for
-                            % instance)
-                            % or if trialDuration has been reached, minus one frame for clearing screen
+                        if ~c.flags.trial || c.frame >= ms2frames(c,c.trialDuration)
+                            % if trial has ended (based on behaviors for instance)
+                            % or if trialDuration has been reached (the screen is cleared by a post-trial flip)
+                            
                             % We are going to the ITI.
                             c.flags.trial=false; % This will be the last frame.
                             clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
