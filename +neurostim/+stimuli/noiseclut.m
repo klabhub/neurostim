@@ -273,12 +273,15 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
  
             %We need to take into account frame-drops. So gather info here
             frDr = get(o.cic.prms.frameDrop,'trial',p.trial,'struct',true);
-            stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
-            frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
+            framesDropped = ~isempty(frDr.data);
+
+            if framesDropped
+              stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
+              frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
             
-            %Convert duration of frame drop to frames (this assumes frames were synced?)
-            frDr.data(:,2)
-            frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
+              %Convert duration of frame drop to frames (this assumes frames were synced?)
+              frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
+            end
             
             %NEED TO CONVERT CIC FRAME NUMBER TO FRAME NUMBER WITHIN THIS STIMULUS
             %i.e. SOME FRAME DROPS WERE NOT WHILE THIS STIM WAS ON THE SCREEN
@@ -287,12 +290,14 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 %Initially assume no drops. i.e. all repeats were due to intended frame interval
                 cbByFrame = repelem(1:cbCtr(i),frInt(i)*ones(1,cbCtr(i)));
                 
-                %Now find the dropped frames and add in the number of repeats that occurred
-                framesPerFrame = ones(size(cbByFrame));
-                these = frDr.trial==p.trial(i);
-                framesPerFrame(frDr.data(these,1)) = frDr.data(these,2)+1;          
-                cbByFrame = repelem(cbByFrame,framesPerFrame);
-
+                if framesDropped
+                  %Now find the dropped frames and add in the number of repeats that occurred
+                  framesPerFrame = ones(size(cbByFrame));
+                  these = frDr.trial==p.trial(i);
+                  framesPerFrame(frDr.data(these,1)) = frDr.data(these,2)+1;
+                  cbByFrame = repelem(cbByFrame,framesPerFrame);
+                end
+                
                 %Timeline reconstructed, so use it to convert the length of clutVals to time
                 clutVals{i} = clutVals{i}(:,:,cbByFrame);
             end
@@ -310,10 +315,10 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 
                 figure
                 subplot(1,2,1);
-                plot(stimDur,reconTrialDur,'o'); jdPlotUnityLine; xlabel('NS stimStart to stimStop (ms)'); ylabel('Reconstruction duration (ms)');
+                plot(stimDur,reconTrialDur,'o'); %jdPlotUnityLine; xlabel('NS stimStart to stimStop (ms)'); ylabel('Reconstruction duration (ms)');
                 subplot(1,2,2);
                 histogram(reconTrialDur-stimDur,100); xlabel('Error in reoncstruction duration (ms)');
-                keyboard;
+%                 keyboard;
             end
         end
     end % public methods
