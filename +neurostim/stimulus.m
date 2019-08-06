@@ -293,7 +293,7 @@ classdef stimulus < neurostim.plugin
                         s.flags.on = false;
                     else % Is on already or turning on. Checck that we have not
                         % reached full duration yet.
-                        sOffFrame = round((sOn+s.duration)*s.cic.screen.frameRate/1000);
+                        sOffFrame = round((sOn+s.duration)*s.cic.screen.frameRate/1000)+1;
                         %sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
                         s.flags.on = cFrame <sOffFrame;
                     end
