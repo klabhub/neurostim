@@ -242,6 +242,8 @@ classdef (Abstract) clutImage < neurostim.stimulus
         function cleanUp(o)
             o.clut = [];
             o.isPrepped = false;
+            Screen('Close',[o.tex,o.luttex_ptb]); %Release textures from video memory
+            o.tex = [];
             o.luttex_gl = [];
             o.luttex_ptb = [];
         end
