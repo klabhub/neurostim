@@ -121,7 +121,6 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             %We need our own RNG stream, to ensure its protected for stimulus reconstruction offline
             o.rng = requestRNGstream(c);
             
-            o.writeToFeed('Warning: this is a new stimulus and has not been tested.');
         end
         
         function beforeFrame(o)
@@ -209,7 +208,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             
             %How many randels were there?
             nRndls = cellfun(@(x) max(x(:)),ixImage);
-                  
+            
             %Everything is in hand. Reconstruct.
             clutVals = cell(1,numel(p.trial));
             warned = false;
@@ -258,7 +257,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 %Use a figure window to show the reconstructed images
                 if p.replay
                     neurostim.stimuli.noiseclut.offlineReplay(clutVals{i},ixImage{i},cbCtr(i),i,p.replayFrameDur,o.colorMode)
-                end                
+                end
             end
             
             
@@ -268,57 +267,64 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             %
             %So, our task here is to use repelem() to duplicate each image
             %the right number of times to restore the actual time-line.
-            frInt = get(o.prms.frameInterval,'trial',p.trial,'atTrialTime',Inf);
-            frInt = o.cic.ms2frames(frInt,true);
- 
+            updateInterval = o.cic.ms2frames(get(o.prms.frameInterval,'trial',p.trial,'atTrialTime',Inf));
+            
             %We need to take into account frame-drops. So gather info here
             frDr = get(o.cic.prms.frameDrop,'trial',p.trial,'struct',true);
-            framesDropped = ~isempty(frDr.data);
-
-            if framesDropped
-              stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
-              frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
+            stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
+            frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
             
-              %Convert duration of frame drop to frames (this assumes frames were synced?)
-              frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
-            end
+            %Convert duration of frame drop from ms to frames (this assumes frames were synced?)
+            frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
             
-            %NEED TO CONVERT CIC FRAME NUMBER TO FRAME NUMBER WITHIN THIS STIMULUS
-            %i.e. SOME FRAME DROPS WERE NOT WHILE THIS STIM WAS ON THE SCREEN
+            %Need to align the frame-drop data to the onset of this stimulus
+            %On what c.frame did the stimulus appear, and how long was it shown?
+            stimStart = get(o.prms.startTime,'trial',p.trial,'struct',true);
+            stimStop = get(o.prms.stopTime,'trial',p.trial,'struct',true);
+            %stimStop remains Inf if we stop an experiment prematurely via
+            %"escape". Fix that here.
+            [~,~,trialStopTime] = get(o.cic.prms.trialStopTime,'trial',p.trial);
+            ix = isinf(stimStop.trialTime);
+            stimStop.trialTime(ix) = trialStopTime(ix);
+            
+            %Calculate stimulus duration in display frames
+            stimDur_Fr = o.cic.ms2frames(stimStop.trialTime-stimStart.trialTime);
+            
             for i=1:numel(p.trial)
                 
                 %Initially assume no drops. i.e. all repeats were due to intended frame interval
-                cbByFrame = repelem(1:cbCtr(i),frInt(i)*ones(1,cbCtr(i)));
+                %and all repeats were shown (nothing guarantees that...
+                %could be mid-way through an interval when the stimulus/trial ends.
+                cbByFrame = repelem(1:cbCtr(i),updateInterval(i)*ones(1,cbCtr(i)));
                 
-                if framesDropped
-                  %Now find the dropped frames and add in the number of repeats that occurred
-                  framesPerFrame = ones(size(cbByFrame));
-                  these = frDr.trial==p.trial(i);
-                  framesPerFrame(frDr.data(these,1)) = frDr.data(these,2)+1;
-                  cbByFrame = repelem(cbByFrame,framesPerFrame);
+                %Get the frame drop data for this trial
+                these = frDr.trial==p.trial(i);
+                thisFrDrData = frDr.data(these,:);
+                
+                %Discard drops that happened before or after
+                kill = thisFrDrData(:,1)<stimStart.frame(i) | thisFrDrData(:,1)>stimStop.frame(i);
+                thisFrDrData(kill,:) = [];
+                
+                %Now re-number the frame drops relative to our first frame
+                thisFrDrData(:,1) = thisFrDrData(:,1) - stimStart.frame(i)+1;
+                
+                %Now add in the repeats caused by dropped frames
+                framesPerFrame = ones(size(cbByFrame));
+                framesPerFrame(thisFrDrData(:,1)) = thisFrDrData(:,2)+1;
+                cbByFrame = repelem(cbByFrame,framesPerFrame);
+                
+                %**** BAND-AID
+                if stimDur_Fr(i) > numel(cbByFrame)
+                    %Last frame of trial (screen clearing) must have been dropped! That one's not logged.
+                    cbByFrame(end:stimDur_Fr(i)) = cbByFrame(end); %Our last frame must have been shown for longer
                 end
+                %*****
+                
+                %Chop off any frames that were never shown due to end of stimulus
+                cbByFrame = cbByFrame(1:stimDur_Fr(i));
                 
                 %Timeline reconstructed, so use it to convert the length of clutVals to time
                 clutVals{i} = clutVals{i}(:,:,cbByFrame);
-            end
-            
-            %What was the actual stimulus duration in milliseconds, including all drops.
-            %Make sure it matches
-            if p.debug
-                %TODO: finish this off
-                stimStart = get(o.prms.startTime,'trial',p.trial,'struct',true);
-                stimStop = get(o.prms.stopTime,'trial',p.trial,'struct',true);
-                stimDur = (stimStop.time-stimStart.time); %"time" is clock time, not trial time.
-                
-                screenFR = 1000/o.cic.screen.frameRate;
-                reconTrialDur = cellfun(@(x) (size(x,3)-1)*screenFR,clutVals)';
-                
-                figure
-                subplot(1,2,1);
-                plot(stimDur,reconTrialDur,'o'); %jdPlotUnityLine; xlabel('NS stimStart to stimStop (ms)'); ylabel('Reconstruction duration (ms)');
-                subplot(1,2,2);
-                histogram(reconTrialDur-stimDur,100); xlabel('Error in reoncstruction duration (ms)');
-%                 keyboard;
             end
         end
     end % public methods
