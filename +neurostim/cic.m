@@ -1525,22 +1525,30 @@ classdef cic < neurostim.plugin
             end
         end
         
-        function createRNGstreams(c,varargin)
+        function createRNGstreams(c, varargin)
             %Create a set of independent RNG streams for use across all plugins.
             %By default, all plugins, including cic, use a single global
             %stream. However, a plugin can request its own stream (e.g. as
             %currently done in noiseclut.m). See RandStream for info about
             %creating streams in matlab and why we handle this centrally.
-            %All arguments in varargin are passed onto the Matlab's RandStream.create().
+            %We handle nStreams and seed arguments here, to provide defaults,
+            %but all other param-value pairs are passed onto the Matlab's RandStream.create().
             %You could use the 'seed' argument to return CIC RNG streams to a
             %previous state
             p=inputParser;
+            p.KeepUnmatched = true;
             p.addParameter('nStreams',3);       %We'll leave the argument validation to RandStream.
             p.addParameter('seed','shuffle');
             p.parse(varargin{:});
-            p = p.Results;
-           
-            c.spareRNGstreams = RandStream.create('mrg32k3a','NumStreams',p.nStreams,'seed',p.seed, 'cellOutput',true,varargin{:});
+            
+            %Put any RandStream param-value pairs into a cell array
+            prms = fieldnames(p.Unmatched);
+            vals = struct2cell(p.Unmatched);
+            args(1:2:numel(prms)*2-1) = prms;
+            args(2:2:numel(prms)*2) = vals;
+            
+            %Make the streams
+            c.spareRNGstreams = RandStream.create('mrg32k3a','NumStreams',p.Results.nStreams,'seed',p.Results.seed, 'cellOutput',true,args{:});
             c.RandStreamCreateSeed = c.spareRNGstreams{1}.Seed; %All streams are built from the one seed, so we can just log the first one here.
             
             %Use the first as the current global stream and allocate it to CIC
