@@ -54,7 +54,8 @@ classdef starstim < neurostim.stimulus
     %
     %   .amplitude (muA), .frequency (Hz) , .phase (deg) - tACS only :
     %                                       one value per channel. Integers only!
-    %   .mean                           - tDCS only : one integer value per channel. Must add up to zero.
+    %   .mean                           - tDCS only : one integer value per
+    %   channel. Must add up to zero.
     %
     %
     %
@@ -412,13 +413,6 @@ classdef starstim < neurostim.stimulus
         end
         
         function beforeFrame(o)
-            % ******* DEVELOPER NOTE ****************
-            % When adding more complex , timed modes of stimulation, take
-            % care to ensure current conservation. This is tricky
-            % especially when ussing the MatNICOnlinetACSChange functiojn
-            % which applies frequency and phase changes immediately, and
-            % then ramps the amplitude. 
-            
             switch upper(o.mode)
                 case {'BLOCKED','TRIAL'}
                     % These modes do not change stimulation within a
@@ -609,9 +603,6 @@ classdef starstim < neurostim.stimulus
                     msg{4} = sprintf('\t%d Hz',perChannel(o,o.frequency));
                     msg{5} = sprintf('\t%d o ',perChannel(o,o.phase));
                     if ~o.fake
-                        % Note that this command sets freq and phase
-                        % immediately and then ramps the amplitude. This
-                        % makes sense for ramping up from zero amplitude,                      
                         [ret] = MatNICOnlinetACSChange(perChannel(o,o.amplitude), perChannel(o,o.frequency), perChannel(o,o.phase), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,msg);
                     end
@@ -669,13 +660,7 @@ classdef starstim < neurostim.stimulus
             if ~o.fake
                 switch upper(o.type)
                     case 'TACS'
-                        %Do NOT use the tACSChange function: it will chnage
-                        %frequency and phase immediately, but ramp down the
-                        %amplitude... that can never be current-conserved
-                        %and Starstim will dump exccess current through the
-                        %DRL (or CMS), which can cause a slap to the
-                        %face...
-                        [ret] = MatNICOnlineAtacsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
+                        [ret] = MatNICOnlinetACSChange(zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
                     case 'TDCS'
                         [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
