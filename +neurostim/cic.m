@@ -59,7 +59,7 @@ classdef cic < neurostim.plugin
         ticTime = -Inf;
         
         %% Logging/experimenter feedback during the experimtn
-        log@neurostim.logger;
+        messenger@neurostim.messenger;
         useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
         
         %% Keyboard interaction
@@ -407,9 +407,10 @@ classdef cic < neurostim.plugin
             c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
-            % Set up local logger.A remote logger can be added by
-            % specifying a remote host name (c.log.host) or ip in the experiment file.
-            c.log = neurostim.logger;
+            % Set up a messenger object that provides online feedback to the experimenter 
+            % either on the local command prompt or on a remote Matlab instance. A remote messenger client can be added by
+            % specifying a host name (c.messenger.host) or ip in the experiment file.
+            c.messenger = neurostim.messenger;
         end
         
         function showCursor(c,name)
@@ -847,7 +848,7 @@ classdef cic < neurostim.plugin
                 c.saveData;
                 c.writeToFeed(sprintf('Saving the file took %f s',toc(ttt)));
             end
-            printCache(c.log);
+            printCache(c.messenger);
         end
         
         
@@ -888,10 +889,10 @@ classdef cic < neurostim.plugin
             AssertOpenGL;
             sca; % Close any open PTB windows.
             
-            % Setup the logger
-            c.log.localCache = c.useFeedCache;
-            c.log.useColor = c.useConsoleColor;
-            setupClient(c.log);
+            % Setup the messenger
+            c.messenger.localCache = c.useFeedCache;
+            c.messenger.useColor = c.useConsoleColor;
+            setupClient(c.messenger);
             
             c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.
             
@@ -1195,7 +1196,7 @@ classdef cic < neurostim.plugin
             
             Screen('CloseAll');
             if c.PROFILE; report(c);end
-            close(c.log);
+            close(c.messenger);
         end
         
         function clearOverlay(c,clear)
@@ -1951,7 +1952,7 @@ classdef cic < neurostim.plugin
                 c= neurostim.cic; % Create an empty cic of current classdef
                 m= metaclass(c);
                 dependent = [m.PropertyList.Dependent];
-                settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') ;
+                settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
                 storedFn = fieldnames(o);
                 disp('Fixing backward compatibility of stored CIC object')
                 

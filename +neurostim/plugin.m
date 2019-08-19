@@ -96,7 +96,7 @@
                 msg = '';
             end
             % Send it to the logger in CIC.
-            o.cic.log.feed(o.cic.frame>0,p.Results.style,o.cic.trial,o.cic.trialTime,msg,o.name);
+            o.cic.messenger.feed(o.cic.frame>0,p.Results.style,o.cic.trial,o.cic.trialTime,msg,o.name);
         end
         
         % Needed by str2fun
@@ -510,7 +510,7 @@
     methods (Access={?neuorstim.plugin,?neurostim.parameter})
         
          %Accessing neurostim.parameters is much slower than accessing a raw
-        %member variable. Because we define many such parms (wit addProperty) in the base
+        %member variable. Because we define many such parms (with addProperty) in the base
         %stimulus /plugin classes, and becuase they need to be read each
         %frame ( see stimulus.baseBeforeFrame) this adds substantial
         %overhead (~ 1ms per stimulus) and can quickly lead to framedrops. 

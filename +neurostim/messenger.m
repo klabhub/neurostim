@@ -1,17 +1,26 @@
-classdef logger < handle
+classdef messenger < handle
     % Class to handle writeToFeed commands issued by stimuli and plugins.
     % These are messages that are intended for the experimenter and are
     % written to the command line.
     % To avoid interfering witht the experiment itself, these messages can
     % be cached and written out in the intertrial interval (localCache =
     % true), and they can also be sent to a different computer by
-    % specifying host name and starting a logger there. 
+    % specifying host name and starting a messenger there. 
     % This makes it possible to run the experiment on a single
     % monitor machine (which improves timing of PTB) and still get
     % online information on the progression of the experiment.
     %
-    % See remoteLogDemo for an example
-    %  
+    % Usage:
+    % If I want to receive messages on a remote computer called 
+    % 'moustache.vision.rutgers.edu' I add this to the experiment file:
+    % 
+    % c.messenger.host = 'moustache.vision.rutgers.edu'
+    % 
+    % And, on moustache.vision.rutgers.edu, I start Matlab and then run 
+    % neurostim.messenger(true);
+    %  This will start a local "server" that gets its messages from the
+    %  Neurostim application ("client").
+    %
     % BK March 2019.
     
     properties (Constant)
@@ -31,7 +40,7 @@ classdef logger < handle
         
         %% Cache
         localCache@logical = false;    % Write out only after the trial ends [false]
-        cache = neurostim.logger.EMPTYCACHE;  % initialize empty
+        cache = neurostim.messenger.EMPTYCACHE;  % initialize empty
         cacheCntr@double =0;
         echo@logical = true;            % Even when logging remotely, generate local echo too.
         
@@ -40,7 +49,7 @@ classdef logger < handle
     end
     properties (SetAccess=private, GetAccess=public)
         isServer@logical = false;
-        tcp@tcpip;
+        tcp; % Leave this untyped so that someone without the TCPIP toolbox can use the object locally.
     end
     
     properties (Dependent)
@@ -55,14 +64,14 @@ classdef logger < handle
     
     
     methods
-        function o= logger(startAsServer)
+        function o= messenger(startAsServer)
             o = o@handle;
             if nargin<1
                 startAsServer =false;
             end
             if startAsServer
                 o.isServer = true;
-                o.port = 80;
+                o.port = 1024;
                 o.host = '0.0.0.0';
                 setupServer(o);
             end
@@ -77,9 +86,9 @@ classdef logger < handle
             if o.isServer
                 disp(['Remote Logger for ' o.tcp.RemoteHost]);
             elseif o.hasRemote
-                disp(['Local logger connected to ' o.host]);
+                disp(['Local messenger connected to ' o.host]);
             else
-                disp('Local logger');
+                disp('Local messenger');
             end
         end
         
@@ -103,7 +112,7 @@ classdef logger < handle
         
         function printCache(o)
             if (~o.isServer && o.hasRemote)
-                % Send to remote logger
+                % Send to remote messenger
                 data = getByteStreamFromArray(o.cache(1:o.cacheCntr));
                 binblockwrite(o.tcp,[double('#') 1 numel(data) data],'uint8');
             end
@@ -114,7 +123,7 @@ classdef logger < handle
                 for i=ix'
                     print(o,o.cache(i).inTrial,o.cache(i).style,o.cache(i).trial,o.cache(i).trialTime,o.cache(i).msg,o.cache(i).plg);
                 end
-                o.cache =neurostim.logger.EMPTYCACHE;
+                o.cache =neurostim.messenger.EMPTYCACHE;
                 o.cacheCntr =0;
             end
         end
@@ -122,6 +131,7 @@ classdef logger < handle
         
         function setupServer(o)
             % Start a local server to receive messages from the client.
+            o.checkToolbox;
             [~,serverName] =system('hostname');
             serverName = deblank(serverName);
             o.tcp = tcpip(o.host,o.port,'NetworkRole','Server',...
@@ -148,7 +158,7 @@ classdef logger < handle
             else
                 hstStr = o.host;
             end
-            disp(['Waiting for a logger connection from ' hstStr ]);
+            disp(['Waiting for a messenger connection on port ' num2str(o.port) ' from ' hstStr ]);
             fopen(o.tcp); % Busy wait until the client connects
             if strcmpi(o.tcp.Status,'Open')
                 disp(['Connected to ' o.tcp.RemoteHost]);
@@ -192,8 +202,10 @@ classdef logger < handle
         
         function setupClient(o)
             % If a host has been specified, this function will try to
-            % connect to it.
+            % connect to it. (The Matlab instance running the experiment is
+            % the "client").
             if ~isempty(o.host)
+                o.checkToolbox;
                 [~,clientName] =system('hostname');
                 clientName = deblank(clientName);
                 o.tcp = tcpip(o.host,o.port,'NetworkRole','client',...
@@ -203,7 +215,7 @@ classdef logger < handle
                     'Terminator','LF',...
                     'Timeout',o.timeout,...
                     'ByteOrder','littleEndian');
-                    answer = input(['Is the remote logger running on ' o.host ':' num2str(o.port) ' ( Use: neurostim.logger(true);) [Y/n]'],'s');
+                    answer = input(['Is the remote messenger running on ' o.host ':' num2str(o.port) ' ( Use: neurostim.messenger(true);) [Y/n]'],'s');
                     if isempty(answer)
                         answer = 'Y';
                     end
@@ -218,13 +230,13 @@ classdef logger < handle
                             connected =true;
                             disp(['Connected to ' o.tcp.RemoteHost ':' num2str(o.tcp.RemotePort)]);
                         else                            
-                            disp(['Failed to connect to the logger app (' o.host ':' num2str(o.port) '). Is it running? ']);
+                            disp(['Failed to connect to the messenger app (' o.host ':' num2str(o.port) '). Is it running? ']);
                         end
                     end
                     if ~connected
                         answer = input('Continue without remote logging? (Y/n)','s');
                         if strcmpi(answer,'N')
-                           error('No remote logger');
+                           error('No remote messenger');
                         else
                             o.host = ''; % No remote host
                         end
@@ -256,6 +268,13 @@ classdef logger < handle
             else
                 % single line
                 neurostim.utils.cprintf(style,'TR: %d (T: %.0f %s): %s - %s \n',thisTrial,thisTrialTime,phaseStr,plg,msg);
+            end
+        end
+        
+        function checkToolbox(~)
+            f = which('tcpip');
+            if isempty(f)
+                error('neurostim.messenger requires the tcpip command (part of the Instrument Control Toolbox). Install it to use messenger across the network (or set c.messenger.host =''''  to use local messaged only.');
             end
         end
         
