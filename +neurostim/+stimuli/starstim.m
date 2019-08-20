@@ -209,7 +209,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('fake',false);
             o.addProperty('z',NaN);
             o.addProperty('type','tACS');%tACS, tDCS, tRNS
-            o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED'
+            o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED','EEGONLY'
             o.addProperty('path',''); % Set to the folder on the starstim computer where data should be stored.
             % If path is empty, the path of the neurostim output file is
             % used (which may not exist on the remote starstim computer).
@@ -403,7 +403,8 @@ classdef starstim < neurostim.stimulus
                     end
                 case 'TIMED'
                     
-                    
+                case 'NOSTIM'
+                    % Do nothing
                     
                 otherwise
                     o.cic.error(['Unknown starstim mode :' o.mode]);
@@ -432,14 +433,15 @@ classdef starstim < neurostim.stimulus
                         rampUp(o,o.duration);
                         o.isTimedStarted = true;
                     end
-                    
+                case 'NOSTIM'
+                    %Do nothing
                 otherwise
                     o.cic.error(['Unknown starstim mode :' o.mode]);
             end
         end
         
         function afterFrame(o)
-            %DISABLED FOR NOW - not likely to be fast enough... need some pacer. handleEeg(o,o.eegAfterFrame);
+            %handleEeg(o,o.eegAfterFrame); DISABLED FOR NOW - not likely to be fast enough... need some pacer. 
         end
         
         function afterTrial(o)
@@ -455,6 +457,8 @@ classdef starstim < neurostim.stimulus
                     end
                 case 'TIMED'
                     o.isTimedStarted =false;
+                case 'NOSTIM'
+                    %nothing to do
                 otherwise
                     o.cic.error(['Unknown starstim mode :' o.mode]);
             end
