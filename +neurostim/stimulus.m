@@ -26,8 +26,8 @@ classdef stimulus < neurostim.plugin
         % This function takes a stimulus object and the flipTime (i.e. the
         % time when the stimulus started showing on the screen) as its
         % input
-        onsetFunction=[]; 
-        offsetFunction =[];
+        onsetFunction = []; 
+        offsetFunction = [];
     end
     
     properties (Dependent)
@@ -36,16 +36,14 @@ classdef stimulus < neurostim.plugin
         offFrame;
         time; % Time since start of stimulus.
         frame; % frame since start of stimulus
-        
     end
     
-    properties (SetAccess=protected, GetAccess=public)
+    properties (SetAccess = protected, GetAccess = public)
         flags = struct('on',true);
         stimstart = false;
         stimstop = false;
         rsvp;
         diodePosition;
-        
     end
     % These are local/locked parameters used to speed up access to the
     % values of a neurostim.parameter. Any member variables whose name starts
@@ -146,8 +144,10 @@ classdef stimulus < neurostim.plugin
     
     
     methods
-        function s= stimulus(c,name)
+      
+        function s = stimulus(c,name)
             s = s@neurostim.plugin(c,name);
+            
             %% user-settable properties
             s.addProperty('X',0,'validate',@isnumeric);
             s.addProperty('Y',0,'validate',@isnumeric);
@@ -178,15 +178,12 @@ classdef stimulus < neurostim.plugin
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
             
-         
-            
             s.feedStyle = '[0 0.75 0]'; % Stimuli show feed messages in light green.
         end
+        
     end
     
-    methods (Access= public)
-        
-        
+    methods (Access = public)
         
         function addRSVP(s,design,varargin)
             %           addRSVP(s,design,varargin)
@@ -219,6 +216,7 @@ classdef stimulus < neurostim.plugin
             s.rsvp.log = p.Results.log;
             s.rsvp.active = true;
         end
+        
     end
     
     
@@ -278,7 +276,7 @@ classdef stimulus < neurostim.plugin
             end
         end
         
-    end
+    end % private methods
     
     %% Methods that the user cannot change.
     % These are called by CIC for all stimuli to provide
@@ -286,7 +284,8 @@ classdef stimulus < neurostim.plugin
     % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
     % the derived class an oppurtunity to respond to changes that this
     % base functionality makes.
-    methods (Access=public)
+    methods (Access = public)
+      
         function baseBeforeExperiment(s)
             % Check whether this stimulus should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
@@ -312,12 +311,9 @@ classdef stimulus < neurostim.plugin
             if s.diode.on
                 setupDiode(s);
             end
-            if ~isempty(s.mccChannel) && any(strcmp(s.cic.plugins,'mcc'))
-                s.cic.mcc.map(s,'DIGITAL',s.mccChannel,s.on,'FIRSTFRAME')
-            end
+            
             beforeExperiment(s);
         end
-        
         
         function baseBeforeTrial(s)
             %                     if ~isempty(s.rsvp) TODO different rsvps in different
@@ -334,12 +330,12 @@ classdef stimulus < neurostim.plugin
             s.stimstart=false;
             
             beforeTrial(s);
-            
-          
         end
+        
         function baseBeforeFrame(s)
-          
+         
             if s.loc_disabled; return;end
+
             % Because this function is called for every stimulus, every
             % frame, try to optimize as much as possible by avoiding
             % duplicate access to member properties and by using the localized
@@ -443,12 +439,15 @@ classdef stimulus < neurostim.plugin
         function beforeExperiment(~)
             %NOP
         end
+        
         function beforeTrial(~)
             %NOP
         end
+        
         function beforeFrame(~)
             %NOP
         end
+        
         function afterFrame(~)
             %NOP
         end
@@ -461,8 +460,7 @@ classdef stimulus < neurostim.plugin
             %NOP
         end
         
-        
-    end
+    end % public methods
     
     methods (Access = {?neurostim.cic})
         function afterFlip(s,flipTime,ptbTime)
@@ -483,4 +481,5 @@ classdef stimulus < neurostim.plugin
             end
         end
     end
-end
+    
+end % classdef
