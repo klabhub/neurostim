@@ -50,7 +50,7 @@ classdef convPoly < neurostim.stimulus
                 if o.frequency ==0
                     o.nrFramesPreCalc =1;
                 else
-                    o.nrFramesPreCalc=  round(o.cic.screen.frameRate/o.frequency);
+                     o.nrFramesPreCalc=  round(o.cic.screen.frameRate/o.frequency);
                     if abs(o.nrFramesPreCalc -o.cic.screen.frameRate/o.frequency)>0.01
                         writeToFeed(o,'ConvPoly: this flicker frequency does not fit...rounding artefacts?');
                     end
