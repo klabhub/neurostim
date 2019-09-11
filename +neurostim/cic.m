@@ -990,20 +990,30 @@ classdef cic < neurostim.plugin
                     %ITI - wait
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
+                        myTic=GetSecs;
                         for i=1:nFramesToWait
                             Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                            postITIflip = GetSecs;
                             if locHAVEOVERLAY
                                 clearOverlay(c,c.itiClear);
                             end
+                            while GetSecs-postITIflip < 0.6*FRAMEDURATION
+                                d=1;                                
+                            end
                         end
+%                        elapsed = GetSecs-myTic;
+%                         if abs((nFramesToWait*FRAMEDURATION-elapsed)/FRAMEDURATION)>0.85
+%                             keyboard;
+%                         end
                     end
-                    
+
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush');
                     
                     Priority(MaxPriority(c.mainWindow));
-                    %draw = nan(1,1000); % Commented out. See drawingFinished code below
+                    %draw = nan(1,1000); % Commented out. See drawingFinished code below%
+
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -1055,6 +1065,7 @@ classdef cic < neurostim.plugin
                             % systems)
                             [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
                         end
+
                         if clr && locHAVEOVERLAY
                             Screen('FillRect', c.overlayWindow,0,c.overlayRect); % Fill with zeros;%clearOverlay(c,true);
                         end
@@ -1088,7 +1099,8 @@ classdef cic < neurostim.plugin
                             c.firstFrame = locFIRSTFRAMETIME;% log it
                         else
                             if missed>ITSAMISS
-                                c.frameDrop = [c.frame-1 missed]; % Log frame and delta
+                                %************WHY IS THIS FRAME-1??? I don't get it!
+                                c.frameDrop = [c.frame-1 missed]; % Log frame and delta 
                             end
                         end
                         
