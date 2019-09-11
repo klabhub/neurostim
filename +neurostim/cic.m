@@ -1112,12 +1112,14 @@ classdef cic < neurostim.plugin
                     clearOverlay(c,c.itiClear);                    
                     c.trialStopTime = ptbStimOn*1000;
                     
-                    Priority(0);
-                    if ~c.flags.experiment || ~ c.flags.block ;break;end
-                    
                     c.frame = c.frame+1;
                     
-                    afterTrial(c);
+                    Priority(0);
+                                       
+                    afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
+                    
+                    %Exit experiment if requested
+                    if ~c.flags.experiment || ~ c.flags.block ;break;end
                 end % one block
                 
                 Screen('glLoadIdentity', c.mainWindow);
