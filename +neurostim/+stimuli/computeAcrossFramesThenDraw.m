@@ -155,7 +155,8 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
             o.isBigFrame  = o.littleFrame==o.bigFrameInterval;
             
             %If there are tasks still to be done
-            if ~o.allDone
+            if ~o.allDone && ~isempty(o.beforeFrameTasks)
+  
                 %How much time are we allowed to use here?
                 timeAllowed = o.maxTime/1000; %use seconds here, for optim
                 
