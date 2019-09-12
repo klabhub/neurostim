@@ -1,5 +1,7 @@
 classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
     
+    %TEMP STORES CURRENTLY NOT BEING USED WELL. THEY CHANGE CLASSES FROM
+    %double<=>complex. Fix it so that they never change. Faster execution.
     properties (Access = private)
         initialised = false;
         tex
@@ -19,14 +21,14 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
         rawImage_freq = []; %raw image in frequency domain
         filtImage;          %filtered image in pixel space
         filtImage_freq = [];%filtered image in frequency domain
-        locMask = [];
-        tmpStore = [];      %Temporary holding, for partial images in progress
-        tmpStore2 = [];
+        pvtMask = [];
+
         
-        imPartsHW;
-        imPartsWH;
+            %Temporary holding, for partial images in progress
         tmpStoreHW;
+        tmpStoreHW2;
         tmpStoreWH;
+        tmpStoreWH2;
         nColsInVertSub;
         nRowsInHorzSub;
         ixCol;
@@ -79,8 +81,8 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             
             %Pre-allocate buffers used for computation, allowing in-place
             %allocation and hopefully faster processing.
-            o.tmpStoreHW = complex(zeros(o.size));
-            o.tmpStoreWH = complex(zeros(fliplr(o.size)));
+            [o.tmpStoreHW,o.tmpStoreHW2] = deal(complex(zeros(o.size)));
+            [o.tmpStoreWH,o.tmpStoreWH2] = deal(complex(zeros(fliplr(o.size))));
             
             %Pre-compute the linear indices needed across iterative image construction
             for i=1:o.nSubImages
@@ -99,13 +101,13 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
         function afterBigFrame(o)
            
            %Clear image stores
-           if ~o.imageIsStatic
-               [o.rawImage,o.rawImage_freq] = deal([]);
-           end
-           
-           if ~o.maskIsStatic
-               o.locMask = [];
-           end
+%            if ~o.imageIsStatic
+%                [o.rawImage,o.rawImage_freq] = deal([]);
+%            end
+%            
+%            if ~o.maskIsStatic
+%                o.pvtMask = [];
+%            end
         end
         
         function done = makeRawImage(o)
@@ -120,11 +122,11 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
                 %Function should return the image in segments,
                 %each of o.subImageSize.
                 curIter = o.curTaskIter;
-                o.rawImage(:,o.ixCol{curIter}) = o.image(o);
+                o.tmpStoreHW(:,o.ixCol{curIter}) = o.image(o);
                 done = curIter==o.nSubImages;
             else
                 %It's just a matrix.
-                o.rawImage = o.image;
+                o.tmpStoreHW = o.image;
                 done = true;
             end
         end
@@ -134,11 +136,11 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             if isa(o.mask,'function_handle')
                 %Function returns the filter image in segments,
                 %each of o.subImageSize.
-                o.locMask = horzcat(o.locMask,o.mask(o));
+                o.pvtMask = horzcat(o.pvtMask,o.mask(o));
                 done = o.curTaskIter==o.nSubImages;
             else
                 %It's just a matrix.
-                o.locMask = o.mask;
+                o.pvtMask = o.mask;
                 done = true;
             end
         end
@@ -151,8 +153,11 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             %Run the FFT on the current sub-Image
             curIter = o.curTaskIter;
             ix = o.ixCol{curIter};
-            o.tmpStoreWH(ix,:) = fft(o.rawImage(:,ix)).';
+            o.tmpStoreHW2(:,ix) = fft(o.tmpStoreHW(:,ix));
             done = curIter==o.nSubImages;
+            if done
+                o.tmpStoreWH = o.tmpStoreHW2.';
+            end
         end
         
         function done = fftRows(o)
@@ -163,14 +168,13 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             %Run the FFT on the current sub-Image
             curIter = o.curTaskIter;
             ix = o.ixRow{curIter};
-            o.tmpStoreHW(ix,:) = fft(o.tmpStoreWH(:,ix)).';
+            o.tmpStoreWH2(:,ix) = fft(o.tmpStoreWH(:,ix));
 
             %o.tmpStore = vertcat(o.tmpStore,fft(o.rawImage(:,:,o.curTaskIter)).');
             done = curIter==o.nSubImages;
-            
+
             if done
-                %2D FFT complete. Copy to image.
-                o.rawImage_freq = o.tmpStoreHW;
+                o.tmpStoreHW = o.tmpStoreWH2.';
             end
         end
         
@@ -178,8 +182,11 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             %Run the iFFT on the current sub-Image
             curIter = o.curTaskIter;
             ix = o.ixCol{curIter};
-            o.tmpStoreWH(ix,:) = ifft(o.filtImage_freq(:,ix)).';
+            o.tmpStoreHW2(:,ix) = ifft(o.tmpStoreHW(:,ix));
             done = curIter==o.nSubImages;
+            if done
+                o.tmpStoreWH = o.tmpStoreHW2.';
+            end
         end
         
         function done = ifftRows(o)
@@ -187,13 +194,12 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             %Run the iFFT on the current sub-Image
             curIter = o.curTaskIter;
             ix = o.ixRow{curIter};
-            a = ifft(o.tmpStoreWH(:,ix)).';
-            o.tmpStoreHW(ix,:) = a;
+            o.tmpStoreWH2(:,ix) = ifft(o.tmpStoreWH(:,ix));
             done = curIter==o.nSubImages;
             
             if done
                 %2D FFT complete. Copy to image.
-                o.filtImage = abs(o.tmpStoreHW);
+                o.filtImage = real(o.tmpStoreWH2.');
             end
             
 %             
@@ -210,58 +216,21 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
         
         function done = filterImage(o)
             %Apply the mask to the Fourier representation of the image.
-            o.filtImage_freq = o.rawImage_freq.*o.locMask;          
+            o.tmpStoreHW = o.tmpStoreHW.*o.pvtMask;          
             done = true;
         end
         
-        function scratchPad(o)
-            nPix = 2^8;
-            %Method 2 - piecewise FFT
-            w = nPix*1.5;
-            h = nPix;
-            
-            %Create a random image
-            image = rand(h,w);
-            fftFun = @fft;
-            a = fftFun(image).';
-            b = fftFun(a).';
-            
-            c = fft(fft(image).').';
-            d = fft2(image);
-            
-            %How many sections will we split the image (column-wise)
-            nPieces = 4;
-            
-            %Split it, using third dimension as pages
-            splitImage = reshape(image,h,w/nPieces,nPieces);
-            
-            %Step 1 (cols)
-            ft_col = [];
-            for i=1:nPieces
-                ft_col = vertcat(ft_col,fftFun(splitImage(:,:,i)).');
-            end
-            
-            splitImage = reshape(ft_col,w,h/nPieces,nPieces);
-            %Step 2 (rows)
-            ft = [];
-            for i=1:nPieces
-                ft = vertcat(ft,fftFun(splitImage(:,:,i)).');
-            end
-            
-            isequal(ft,b)
-        end
-        
         function beforeBigFrame(o)
-%             contrast = 0.25;
-%             im = zscore(o.filtImage,[],'all')*contrast + 0.5;
-%             im = min(im,1);
-%             im = max(im,0);
-%             
+            contrast = 0.25;
+            im = zscore(o.filtImage,[],'all')*contrast + 0.5;
+            im = min(im,1);
+            im = max(im,0);
+            
             if ~isempty(o.tex)
                 Screen('Close', o.tex);
             end
             %Assign image to a texture
-            o.tex = Screen('MakeTexture',o.window,o.filtImage);
+            o.tex = Screen('MakeTexture',o.window,im*255);
         end
         
         function draw(o)
@@ -269,20 +238,9 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             Screen('DrawTexture',o.window,o.tex,[],rect,[],1);
         end
         
-        function beforeLittleFrame(o)
-            if o.static
-                %Nothing to do.
-                o.bigFrameReady = true;
-                return;
-            end
-            
-            %Calculate a proportion of image
-            
-            nCol /nLittleFrames/4
-        end
-        
         function im = randImage(o)
-            im = rand(o.subImageSize);
+            %Gaussian white noise.
+            im = exp(1j*2*pi*rand(o.subImageSize)); %This gives random phases
         end
         
     end % public methods

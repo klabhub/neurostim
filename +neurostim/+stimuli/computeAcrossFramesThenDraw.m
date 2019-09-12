@@ -74,7 +74,7 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
         function beforeTrial(o)
             
             %Make sure the requested duration is a multiple of the display frame interval
-            tol = 0.1; %5% mismatch between requested frame duration and what is possible
+            tol = 0.15; %5mismatch between requested frame duration and what is possible
             nFrames_float = o.cic.screen.frameRate/o.bigFrameRate;
             nFrames_int = round(nFrames_float);
             if abs(nFrames_float-nFrames_int) > tol
