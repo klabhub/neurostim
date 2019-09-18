@@ -28,22 +28,40 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
     %Thus, the frame-drop ratio (big to little) can be used to optimise maxComputeTime
     %on the fly. e.g. minimise abs(log((nDropsOnBig+1)/(nDropsOnLittle+1)))
     %
+    
+    %% New
+    properties
+        beforeTrialTasks@neurostim.splittask;
+        beforeFrameTasks@neurostim.splittask;
+        tasksByFrame
+        nTasks = 0;
+        
+        taskPlan;
+        littleFrameLoad;
+        learningRate;
+        frameDropRatio = 0;
+        nDroppedFrames = 0;
+    end
+    
+    %% OLD
     properties (Access = private)
 
         maxTime;
         allDone = false;
         curTask = 1;
-        beforeFrameTasks;
-        nTasks = 0;
+        frameDur
     end
     
     properties (GetAccess = public, SetAccess = private)
-        bigFrameInterval;
+        nLittleFrames;
         littleFrame = 0;        %Increments each frame within a bigFrame
         bigFrame = 0;           %The current scene frame number, updated every frInet
         isBigFrame = false;
         curTaskIter = 1;
         taskCompleteFame;
+        
+        %Split task version
+        tasks@neurostim.splittask;
     end
     
     properties (Access = protected)
@@ -65,35 +83,130 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
             o = o@neurostim.stimulus(c,name);
             
             %User-definable
-            o.addProperty('bigFrameRate',o.cic.screen.frameRate/10);      %How long should each frame be shown for? default = 3 frames.
-            o.addProperty('maxComputeTime',0.5,'sticky',true); %What proportion of the frame interval are we allowed to use for our tasks?
+            o.addProperty('bigFrameInterval',5);      %How long should each frame be shown for? default = 5 frames.
             o.writeToFeed('Warning: this is a new stimulus and has not been tested.');
             
         end
         
+        function beforeExperiment(o)
+            
+            o.nLittleFrames = o.bigFrameInterval;
+            o.frameDur = 1000/o.cic.screen.frameRate;
+            setupTasks(o);
+            
+            %Group tasks based on when they should be done
+            o.beforeTrialTasks = o.tasks(arrayfun(@(tsk) tsk.enabled && strcmpi(tsk.when,'BEFORETRIAL'),o.tasks));
+            o.beforeFrameTasks = o.tasks(arrayfun(@(tsk) tsk.enabled && strcmpi(tsk.when,'BEFOREFRAME'),o.tasks));
+        end
+        
+        
         function beforeTrial(o)
             
-            %Make sure the requested duration is a multiple of the display frame interval
-            tol = 0.15; %5mismatch between requested frame duration and what is possible
-            nFrames_float = o.cic.screen.frameRate/o.bigFrameRate;
-            nFrames_int = round(nFrames_float);
-            if abs(nFrames_float-nFrames_int) > tol
-                o.writeToFeed(['bigFrameRate is not a divisible factor of the display frame rate. It has been rounded to ', num2str(nFrames_int) ,'ms']);
+            %Allocate tasks to little frames
+            scheduleTasks(o);
+            
+            %Do all the tasks that can be done now
+            arrayfun(@(tsk) do(tsk),o.beforeTrialTasks);            
+        end
+        
+        
+        function scheduleTasks(o)
+            nTasks = numel(o.beforeFrameTasks);
+            %if isempty(o.taskPlan)
+                if o.cic.trial == 1
+                    o.tasksByFrame = cell(1,o.nLittleFrames);
+                    o.tasksByFrame{1} = o.beforeFrameTasks;
+                    o.littleFrameLoad = 1;
+                    return;
+                end
+                
+                curTrial = o.cic.trial;
+                if curTrial==2
+                    %Tasks have not yet been split
+                    updateCPUestimate(o.beforeFrameTasks,false);
+                else
+                    %Process the profile logs from last trial, updating the
+                    %estimate of CPU time
+                    allSubTasks = leaves(o.beforeFrameTasks);
+                    updateCPUestimate(allSubTasks,false);
+                    
+                    %Re-combine all split tasks. This deletes all the children.
+                    recombine(o.beforeFrameTasks);
+                end
+                
+                tskDur = [o.beforeFrameTasks.estDur];
+                
+                %Express CPU time as proportion of frame
+                tskDur = tskDur./o.frameDur;
+                
+                %taskPlan is a nLittleFrames x nTasks matrix, with how much
+                %of each frame is devoted to each task
+                o.learningRate = 0.03;
+                loadStepSize = o.learningRate*o.nDroppedFrames*(2*normcdf(o.frameDropRatio,0,10)-1); %Cap the step size
+                o.littleFrameLoad = o.littleFrameLoad + loadStepSize;
+                curLittleLoad = normcdf(o.littleFrameLoad,0,1); %Keep load within bounds
+                
+                curLittleLoad
+                
+                bigFrameLoad = 1-curLittleLoad;
+                perFrameLoad = horzcat(curLittleLoad*ones(1,o.nLittleFrames-1)/(o.nLittleFrames-1),bigFrameLoad);
+                perFrameLoad = perFrameLoad/sum(perFrameLoad);
+                
+                perFrameLoad = sum(tskDur)*perFrameLoad;
+                
+                
+                %Allocate the tasks
+                o.taskPlan = [];
+                unallocated=tskDur;
+                for i=1:o.nLittleFrames
+                    propAllocated = 0;
+                    for j=1:nTasks
+                        if unallocated(j)==0
+                            continue;
+                        end
+                        o.taskPlan(i,j) = min(unallocated(j),perFrameLoad(i)-sum(propAllocated));
+                        unallocated(j) = unallocated(j) - o.taskPlan(i,j);
+                        propAllocated = sum(o.taskPlan(i,:));
+                        if propAllocated >= perFrameLoad(i)
+                            break;
+                        end
+                    end
+                end
+                
+                %Re-express task plan as proportions of each task and split tasks
+                o.taskPlan = o.taskPlan./repmat(tskDur,o.nLittleFrames,1);                
+            %end
+            
+            for i=1:nTasks
+                props = o.taskPlan(o.taskPlan(:,i)>0,i);
+                splitTasks{i} = split(o.beforeFrameTasks(i),props);
             end
-            o.bigFrameInterval = nFrames_int;
-            o.maxTime = o.cic.frames2ms(o.maxComputeTime);
+            
+            %Now assign the split tasks to the little frames
+            newTasks = {};
+            for i=1:o.nLittleFrames
+                curTasks = find(o.taskPlan(i,:));
+                for j=1:numel(curTasks)
+                    newTasks{i}(j) = splitTasks{curTasks(j)}(1);
+                    splitTasks{curTasks(j)}(1) = [];
+                end
+            end
+            
+            %Assign the new plan
+            o.tasksByFrame = newTasks;
+            %cellfun(@(k) disp([k.name]),o.tasksByFrame)
         end
         
         function afterTrial(o)
             
-            o.beforeFrameTasks = {};                        
-            return;
-            
+                           
+%             if o.cic.trial==5
+%                 keyboard;
+%             end
+%             return
             %Adapt o.maxComputeTime to reduce frame drops
-            isLittleFrame = mod(1:o.frame,o.bigFrameInterval)~=0;
-            
-            oldCPUtime = o.maxComputeTime;
-            
+            isLittleFrame = mod(1:o.frame,o.nLittleFrames)~=0;
+
             fd=get(o.cic.prms.frameDrop,'trial',o.cic.trial,'struct',true);
             if ~iscell(fd.data)
                 droppedFrames = fd.data(:,1);
@@ -102,7 +215,7 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
     
                 %WE WILL IGNORE FIRST FEW FRAMES. SOMETHING ELSE WRONG
                 %THERE
-                droppedFrames(droppedFrames<=o.bigFrameInterval)=[];
+                droppedFrames(droppedFrames<=o.nLittleFrames)=[];
                 %********************
                 
                 nLittleFrames = sum(isLittleFrame);
@@ -111,39 +224,24 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
                 littleRate = sum(ismember(droppedFrames,find(isLittleFrame)))./nLittleFrames;
                 bigRate = sum(ismember(droppedFrames,find(~isLittleFrame)))./nBigFrames;
                 
-                base = 1/o.frame;
-                logRatio = log((bigRate+base)./(littleRate+base));
-                
-                learningRate = 0.05*sqrt(numel(droppedFrames));
-                o.maxComputeTime = o.maxComputeTime + learningRate*sign(logRatio);
-%                 o.maxComputeTime = o.maxComputeTime+learningRate*logRatio;
-                o.maxComputeTime = max(o.maxComputeTime,0.05);
-                o.maxComputeTime = min(o.maxComputeTime,0.95);
-%                 disp(' ');
-%                 disp('******');
-%                 disp(['Ratio = ' num2str(logRatio) '; old cpu time = ', num2str(oldCPUtime),'; new cpu time = ' num2str(o.maxComputeTime)]);
-%                 disp(' ');
+                %base = 1/o.frame;
+                if o.cic.trial > 2
+                    o.frameDropRatio = log((bigRate+eps)./(littleRate+eps));
+                else
+                    o.frameDropRatio = 0;
+                end
+
             else
                 droppedFrames = [];
             end
-            subplot(3,1,1);
-            plot(o.cic.trial,min(numel(droppedFrames),20),'ko-'); hold on; ylim([0,20]);
-          	ylabel('nDropped');
-            subplot(3,1,2);
-            plot(o.cic.trial,oldCPUtime,'ko-'); hold on; ylim([0,1]);
-            ylabel('cpuTime');
-            subplot(3,1,3);
-            plot(o.cic.trial,o.taskCompleteFame,'ko-'); hold on; ylim([1,4]);
-            ylabel('Frame of task completion');
-            drawnow
+            o.nDroppedFrames = numel(droppedFrames);
             
-            o.debugData(o.cic.trial,1) = numel(droppedFrames);
-            o.debugData(o.cic.trial,2) = oldCPUtime;
-            o.debugData(o.cic.trial,3) = o.taskCompleteFame;
-            if ~mod(o.cic.trial,50)
-                keyboard;
+            plotDrops=false;
+            if plotDrops
+                plot(o.cic.trial,min(numel(droppedFrames),20),'ko-'); hold on; ylim([0,20]);
+                droppedFrames(1:min(end,15))'
+                drawnow;
             end
-            %             keyboard;
         end
         
         function beforeFrame(o)
@@ -152,47 +250,12 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
             o.littleFrame = o.littleFrame+1;
             
             %Will we be drawing on this frame?
-            o.isBigFrame  = o.littleFrame==o.bigFrameInterval;
+            o.isBigFrame  = o.littleFrame==o.nLittleFrames;
             
             %If there are tasks still to be done
-            if ~o.allDone && ~isempty(o.beforeFrameTasks)
-  
-                %How much time are we allowed to use here?
-                timeAllowed = o.maxTime/1000; %use seconds here, for optim
-                
-                %Check the current time
-                [beginTime,curTime] = deal(GetSecs);
-                
-                %Do as many tasks as we can within the time limit
-                while ((curTime-beginTime) < timeAllowed) || o.isBigFrame %latter ensures we say here til all jobs are done on draw frame
-                    %Do the next task in the list
-                    
-                    isDone = o.beforeFrameTasks{o.curTask}(o);
-                    
-                    if isDone
-                        %Are there any tasks left to do?
-                        if o.curTask==o.nTasks
-                            %No. Break out of while()
-                            o.allDone = true;
-                            o.taskCompleteFame = o.littleFrame;
-                            %disp(num2str(o.taskCompleteFame));
-                            break;
-                        else
-                            %More to do. Move to next task
-                            o.curTask = o.curTask+1;
-                            o.curTaskIter = 1;
-                        end
-                    else
-                        %Return to the current task on next while loop, or frame
-                        o.curTaskIter = o.curTaskIter + 1;
-                    end
-                    
-                    %Check the clock again, so we will stop now if need be
-                    curTime=GetSecs;
-                    
-                    %curTime = beginTime;%***************TEMPORARY*************
-                end       
-            end
+            %arrayfun(@(tsk) do(tsk),o.beforeFrameTasks);
+            curTasks = o.tasksByFrame{o.littleFrame};
+            arrayfun(@(tsk) profileDo(tsk),curTasks);
             
             %Is it time to update drawing objects/textures?
             if o.isBigFrame
@@ -201,18 +264,29 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
             end
             
             %Actually, we need to draw every frame (hmmm.. fix this...)
-            if o.cic.frame >= o.bigFrameInterval
+            if o.cic.frame >= o.nLittleFrames
                 o.draw();
             end
         end
         
-        function addBeforeFrameTask(o,fun)
-            %Add a task to the list
-            if ~iscell(fun)
-                fun = {fun};
-            end
-            o.beforeFrameTasks = horzcat(o.beforeFrameTasks,fun);
-            o.nTasks = numel(o.beforeFrameTasks);
+        function addTask(o,name,fun,splittable)
+                 
+            %Create a splittask object, to manage itself
+            newJob = neurostim.splittask(name,o,fun,splittable);
+            
+            %Add it to the list.
+            o.tasks = horzcat(o.tasks,newJob);
+            o.nTasks = numel(o.tasks);
+        end
+        
+        function setTaskPlan(o,schedule)
+            %schedule is a o.nLittleFrames x nBeforeFrameTasks matrix of
+            %proportion values: how much of each task should be done on
+            %each little frame. Columns must sum to 1.            
+            %This will be used for all trials unless profiling is on and used
+            %to optimise through online profiling.
+            o.taskPlan = schedule;
+        
         end
         
         function afterFrame(o)
@@ -226,38 +300,18 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
                 o.afterBigFrame();
             end
         end
+        
         function beforeBigFrame(o)
             %To be over-loaded
         end
+        
         function afterBigFrame(o)
             %To be over-loaded
         end
-        
-        function beforeFrameOld(o)
-            
-            %How many little frames (for computation) are there per big frame (updating display)?
-            frInt = o.frameInterval_f;
-            
-            %Which little frame are we up to?
-            o.littleFrame = mod(o.littleFrame,frInt)+1;
-            
-            %Perform the computation for this little frame.
-            if ~o.bigFrameReady
-                o.beforeLittleFrame(); %sub-class defines what this does. Usually, you might compute 1/o.frameInterval_f of the things to be done
-            end
-            
-            %Is this a big frame? i.e. time to update display?
-            o.isNewFrame = o.littleFrame==frInt;
-            if o.isBigFrame
-                o.draw();
-                o.bigFrameReady = false;
-            end
-        end
-        
-        
+                
         function draw(o)
             
-            %To be over-loaded in child class.
+            %Called every frame, to be over-loaded in child class.
             
         end
         

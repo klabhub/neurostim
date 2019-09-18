@@ -1,7 +1,26 @@
 classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
     
-    %TEMP STORES CURRENTLY NOT BEING USED WELL. THEY CHANGE CLASSES FROM
-    %double<=>complex. Fix it so that they never change. Faster execution.
+    properties
+        
+        %Storage for completed images
+        rawImage;               %image to be filtered, in either pixel or frequency domain
+        filtImage_pix;          %filtered image in pixel space
+        image_freq = [];        %un/filtered image in frequency domain
+        
+        %Storage for mask
+        filter_freq;
+        
+        %Storage for partial images, mid-way through FFT/iFFT
+        bufferHW_freq;
+        bufferHW2_freq;
+        bufferWH_freq;
+        bufferWH2_freq;
+        
+
+        
+    end
+    
+    %% OLD
     properties (Access = private)
         initialised = false;
         tex
@@ -10,21 +29,16 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
     properties (GetAccess = public, SetAccess = private)
         nSubImages;
         subImageSize;
-        isequalMine
+        isequalMine; %returns tru if two piece-wise FFTs are the "same" as that of fft2. there are tiny tiny differences.
     end
     
     properties (GetAccess = public, SetAccess = protected)
     end
     
+    
     properties
-        rawImage;           %in pixel space
-        rawImage_freq = []; %raw image in frequency domain
-        filtImage;          %filtered image in pixel space
-        filtImage_freq = [];%filtered image in frequency domain
-        pvtMask = [];
-
         
-            %Temporary holding, for partial images in progress
+        %Temporary holding, for partial images in progress
         tmpStoreHW;
         tmpStoreHW2;
         tmpStoreWH;
@@ -34,7 +48,7 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
         ixCol;
         ixRow;
     end
-    
+    %%
     methods (Access = public)
         function o = fourierFiltImage(c,name)
             
@@ -54,183 +68,174 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             o.isequalMine = @neurostim.stimuli.fourierFiltImage.isFFTequal;
         end
         
-        function beforeTrial(o)
-            
-            %First, do some housekeeping upstairs
-            beforeTrial@neurostim.stimuli.computeAcrossFramesThenDraw(o);
+        
+        function setupTasks(o)
             
             %Create a list of the tasks to be done to create the filtered image.
-            tasks = {@makeRawImage,@makeFilter,@fftCols,@fftRows,@filterImage,@ifftCols,@ifftRows};
+            tsks = {@makeRawImage,@makeFilter,@fftCols,@fftRows,@filterImage,@ifftCols,@ifftRows,@ifftFinalise,@normaliseImage};
             
+            %Make the array of tasks, indicating that they are splittable across frames
+            splittable = 1;
+            for i=1:numel(tsks)
+                o.addTask(func2str(tsks{i}),tsks{i},splittable);
+            end
+            
+            %Set up memory buffers, and separate tasks into ones we can do
+            %now, and ones that need to be done beforeFrame()
             %Which of these can we do now?
             isStatic = o.imageIsStatic & o.maskIsStatic;
             fftNeeded = strcmpi(o.imageDomain,'SPACE');
-            doNowTasks = tasks([o.imageIsStatic,o.maskIsStatic,isStatic&fftNeeded,isStatic&fftNeeded,isStatic,isStatic,isStatic]);
-            doLaterTasks = tasks([~o.imageIsStatic,~o.maskIsStatic,~isStatic&fftNeeded,~isStatic&fftNeeded,~isStatic,~isStatic,~isStatic]);
+            doNow = [o.imageIsStatic,o.maskIsStatic,isStatic&fftNeeded,isStatic&fftNeeded,isStatic,isStatic,isStatic,isStatic,isStatic];
+            doLater = [~o.imageIsStatic,~o.maskIsStatic,~isStatic&fftNeeded,~isStatic&fftNeeded,~isStatic,~isStatic,~isStatic,~isStatic,~isStatic];
             
-            %How many segments will the image be broken into?
-            if isStatic
-                o.nSubImages = 1;
-                o.subImageSize = o.size;
-            else
-                o.nSubImages = o.bigFrameInterval;
-                o.subImageSize = [o.size(1),o.size(2)/o.bigFrameInterval];
+            %We will pre-allocate memory for all the image matrices needed along the way. What size does it need to be?
+            locPropNames = {'rawImage', 'filtImage_pix','image_freq', 'filter_freq', 'bufferHW_freq', 'bufferHW2_freq', 'bufferWH_freq', 'bufferWH2_freq'};
+            bufferSz = {o.size,o.size,o.size,o.size,o.size,o.size,fliplr(o.size),fliplr(o.size)};
+            isComplex = [~fftNeeded,0,0,1,0,1,1,1,1];
+            for i=1:numel(locPropNames)
+                o.(locPropNames{i}) = zeros(bufferSz{i});
+                if isComplex(i)
+                   o.(locPropNames{i}) = complex(o.(locPropNames{i})); 
+                end
             end
-            o.nColsInVertSub = o.size(2)/o.nSubImages;
-            o.nRowsInHorzSub = o.size(1)/o.nSubImages;
+
+            %How many columns are there to be done for each of the tasks in o.tasks?
+            nColsPerTask = [o.size(2),o.size(2),o.size(2),o.size(1),o.size(2),o.size(2),o.size(1),o.size(1),o.size(2)];
+
+            %Set up each task
+            for i=1:numel(o.tasks)
+                
+                %When should it be done?
+                if doNow(i)
+                    o.tasks(i).when = 'beforeTrial';
+                elseif doLater(i)
+                    o.tasks(i).when = 'beforeFrame';
+                else
+                    o.tasks(i).enabled = 0;
+                end
+                
+                %Allocate memory needed for the task.
+                if o.tasks(i).enabled
+                    %Indices into the columns. This will get split up during optimization.
+                    o.tasks(i).data = 1:nColsPerTask(i);
+                end
+            end
             
-            %Pre-allocate buffers used for computation, allowing in-place
-            %allocation and hopefully faster processing.
-            [o.tmpStoreHW,o.tmpStoreHW2] = deal(complex(zeros(o.size)));
-            [o.tmpStoreWH,o.tmpStoreWH2] = deal(complex(zeros(fliplr(o.size))));
-            
-            %Pre-compute the linear indices needed across iterative image construction
-            for i=1:o.nSubImages
-                o.ixCol{i} = (1:o.nColsInVertSub)+(i-1)*o.nColsInVertSub;
-                o.ixRow{i} = (1:o.nRowsInHorzSub)+(i-1)*o.nRowsInHorzSub;
-            end            
-     
-            %Run the tasks that can be done now
-            cellfun(@(fun) fun(o),doNowTasks);
-            
-            %Tell the parent class which ones we need to do on the fly
-            o.addBeforeFrameTask(doLaterTasks);
-            
+            m=[];
+            o.setTaskPlan(m);
         end
         
-        function afterBigFrame(o)
-           
-           %Clear image stores
-%            if ~o.imageIsStatic
-%                [o.rawImage,o.rawImage_freq] = deal([]);
-%            end
-%            
-%            if ~o.maskIsStatic
-%                o.pvtMask = [];
-%            end
-        end
-        
-        function done = makeRawImage(o)
+        function makeRawImage(o,t)
             %Load or construct the raw image
-            %
-            %
-            if ischar(o.image)
-                %TODO: Load it from a file.
-                error('Not yet supported');
-            elseif isa(o.image,'function_handle')
-                %Function returns the image and a done flag
-                %Function should return the image in segments,
-                %each of o.subImageSize.
-                curIter = o.curTaskIter;
-                o.tmpStoreHW(:,o.ixCol{curIter}) = o.image(o);
-                done = curIter==o.nSubImages;
+            if isa(o.image,'function_handle')
+                %Get the current column indices
+                ix = t.data;
+                o.rawImage(:,ix) = o.image(o,[o.size(1),numel(ix)]);
             else
                 %It's just a matrix.
-                o.tmpStoreHW = o.image;
-                done = true;
+                o.rawImage = o.image;
             end
         end
         
-        function done = makeFilter(o)
+        function makeFilter(o,t)
             %Load or construct the raw image
             if isa(o.mask,'function_handle')
                 %Function returns the filter image in segments,
                 %each of o.subImageSize.
-                o.pvtMask = horzcat(o.pvtMask,o.mask(o));
-                done = o.curTaskIter==o.nSubImages;
+                ix = t.data;
+                o.filter_freq(:,ix) = o.mask(o,[o.size(1),numel(ix)]);
             else
                 %It's just a matrix.
-                o.pvtMask = o.mask;
-                done = true;
+                o.filter_freq = o.mask;
             end
         end
         
-        function done = fftCols(o)
-            
-            %This function operates on image parts that are of size equal
-            %to [o.size(1),o.size(2)/o.nSubImages]
-            
-            %Run the FFT on the current sub-Image
-            curIter = o.curTaskIter;
-            ix = o.ixCol{curIter};
-            o.tmpStoreHW2(:,ix) = fft(o.tmpStoreHW(:,ix));
-            done = curIter==o.nSubImages;
-            if done
-                o.tmpStoreWH = o.tmpStoreHW2.';
-            end
-        end
-        
-        function done = fftRows(o)
-            
-            %This function operates on image parts that are of size equal
-            %to [o.size(2),o.size(1)/o.nSubImages]            
-                        
-            %Run the FFT on the current sub-Image
-            curIter = o.curTaskIter;
-            ix = o.ixRow{curIter};
-            o.tmpStoreWH2(:,ix) = fft(o.tmpStoreWH(:,ix));
-
-            %o.tmpStore = vertcat(o.tmpStore,fft(o.rawImage(:,:,o.curTaskIter)).');
-            done = curIter==o.nSubImages;
-
-            if done
-                o.tmpStoreHW = o.tmpStoreWH2.';
-            end
-        end
-        
-        function done = ifftCols(o)
-            %Run the iFFT on the current sub-Image
-            curIter = o.curTaskIter;
-            ix = o.ixCol{curIter};
-            o.tmpStoreHW2(:,ix) = ifft(o.tmpStoreHW(:,ix));
-            done = curIter==o.nSubImages;
-            if done
-                o.tmpStoreWH = o.tmpStoreHW2.';
-            end
-        end
-        
-        function done = ifftRows(o)
-                       
-            %Run the iFFT on the current sub-Image
-            curIter = o.curTaskIter;
-            ix = o.ixRow{curIter};
-            o.tmpStoreWH2(:,ix) = ifft(o.tmpStoreWH(:,ix));
-            done = curIter==o.nSubImages;
-            
-            if done
-                %2D FFT complete. Copy to image.
-                o.filtImage = real(o.tmpStoreWH2.');
-            end
-            
-%             
-%                             figure;
-%                             subplot(1,3,1);
-%                             imagesc(o.comparisonImage); colormap('gray'); colorbar;
-%                             subplot(1,3,2);
-%                             imagesc(o.filtImage);colormap('gray');colorbar;
-%                             subplot(1,3,3);
-%                             imagesc(o.filtImage-o.comparisonImage);colormap('gray');colorbar;
-            
-            
-        end
-        
-        function done = filterImage(o)
+        function filterImage(o,~)
             %Apply the mask to the Fourier representation of the image.
-            o.tmpStoreHW = o.tmpStoreHW.*o.pvtMask;          
-            done = true;
+            if strcmpi(o.imageDomain,'FREQUENCY')
+                o.image_freq = o.rawImage.*o.filter_freq;
+            else
+                %FFT was done.                
+                o.image_freq = o.image_freq.*o.filter_freq;
+            end
+        end
+        
+        function fftCols(o,t)
+            %Run the FFT on the current sub-Image
+            ix = t.data;
+            o.bufferHW_freq(:,ix) = fft(o.rawImage(:,ix));
+            if t.part==t.nParts
+                o.bufferWH_freq = o.bufferHW_freq.';
+            end
+        end
+        
+        function fftRows(o,t)
+            %Run the FFT on the current sub-Image
+            ix = t.data;
+            o.bufferWH2_freq(:,ix) = fft(o.bufferWH_freq(:,ix));
+            if t.part==t.nParts
+                %2D FFT complete. Copy to image.
+                o.rawImage = o.bufferWH2_freq.';
+            end
+        end
+        
+        function ifftCols(o,t)
+            %Run the FFT on the current sub-Image
+            ix = t.data;
+            o.bufferHW_freq(:,ix) = ifft(o.image_freq(:,ix));
+            if t.part==t.nParts
+                o.bufferWH_freq = o.bufferHW_freq.';
+            end
+        end
+        
+        function ifftRows(o,t)
+            %Run the FFT on the current sub-Image
+            ix = t.data;
+            o.bufferWH2_freq(:,ix) = ifft(o.bufferWH_freq(:,ix));
+%             if t.part==t.nParts
+%                 %2D FFT complete. Copy to image.
+%                 o.filtImage_pix = real(o.bufferWH2_freq.');
+%                 
+%                 %                 figure;
+%                 %                 subplot(1,3,1);
+%                 %                 imagesc(o.comparisonImage); colormap('gray'); colorbar;
+%                 %                 subplot(1,3,2);
+%                 %                 imagesc(o.filtImage);colormap('gray');colorbar;
+%                 %                 subplot(1,3,3);
+%                 %                 imagesc(o.filtImage-o.comparisonImage);colormap('gray');colorbar;
+%                 
+%             end            
+        end
+        
+        function ifftFinalise(o,t)
+            %2D iFFT complete. Transpose and make real.
+            ix = t.data;
+            o.filtImage_pix(ix,:)  = real(o.bufferWH2_freq(:,ix).'); %We're indexing into first dimension here... this is slower, but I think it's necessary (or a later transpose on whole image)
+        end
+        
+        function normaliseImage(o,t)
+            %Apply contrast and clip to monitor range
+            contrast = 0.1;
+            sd = 9.9501e-04;
+            
+            ix = t.data;
+            im=contrast*o.filtImage_pix(:,ix)/sd+0.5;
+            
+            im(im<0) = 0;
+            im(im>1) = 1;
+            im = im*255;
+            o.filtImage_pix(:,ix) = im;
         end
         
         function beforeBigFrame(o)
-            contrast = 0.25;
-            im = zscore(o.filtImage,[],'all')*contrast + 0.5;
-            im = min(im,1);
-            im = max(im,0);
             
-            if ~isempty(o.tex)
-                Screen('Close', o.tex);
-            end
-            %Assign image to a texture
-            o.tex = Screen('MakeTexture',o.window,im*255);
+                if ~isempty(o.tex)
+                    Screen('Close', o.tex);
+                end
+                %             %Assign image to a texture
+
+            o.tex = Screen('MakeTexture',o.window,o.filtImage_pix);
+            %imagesc(flipud(im)); colormap('gray'); axis image;
         end
         
         function draw(o)
@@ -238,9 +243,14 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
             Screen('DrawTexture',o.window,o.tex,[],rect,[],1);
         end
         
-        function im = randImage(o)
+        function im = randImage(o,sz)
             %Gaussian white noise.
-            im = exp(1j*2*pi*rand(o.subImageSize)); %This gives random phases
+            im = exp(1j*2*pi*rand(sz)); %This gives random phases
+        end
+        
+        function afterBigFrame(o)
+            
+
         end
         
     end % public methods
