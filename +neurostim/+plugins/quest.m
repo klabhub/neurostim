@@ -1,4 +1,4 @@
-classdef quest < neurostim.plugins.adaptive
+ classdef quest < neurostim.plugins.adaptive
     % The quest class is used to adaptively estimate a parameter using
     % the Quest procedure.
     %
@@ -11,6 +11,7 @@ classdef quest < neurostim.plugins.adaptive
     % BK - Nov 2016
     properties (SetAccess=protected, GetAccess=public)
         Q@struct; % The struct that containst the Quest bookkeeping info.
+        momentFun;
     end
     
     methods
@@ -58,14 +59,18 @@ classdef quest < neurostim.plugins.adaptive
             p.addParameter('range',5); % Range centered on guess.
             p.addParameter('plotIt',false);
             p.addParameter('normalizePdf',1);
-            p.addParameter('i2p',@(x)(x),@(x) (isa(x,'function_handle'))); % Postprocess the 'intensity' returned by Quest with this function
-            p.addParameter('p2i',@(x)(x),@(x) (isa(x,'function_handle')));
+            p.addParameter('i2p',@(x) (isa(x,'function_handle'))); % Postprocess the 'intensity' returned by Quest with this function
+            p.addParameter('p2i',@(x) (isa(x,'function_handle')));
+            p.addParameter('pdfMoment','QUANTILE', @(x) ismember(x,{'QUANTILE','MEAN','MODE'})); %Where do we want to place the next trial? Which moment of the posterior PDF?
             p.parse(varargin{:});
             
             % Initialize the object
             o = o@neurostim.plugins.adaptive(c,trialResult);
             addProperty(o,'',p.Results); % Add all input parser fields as logged properties ( and set their values).
             o.Q = QuestCreate(p.Results.guess,p.Results.guessSD,p.Results.threshold,p.Results.beta,p.Results.delta,p.Results.gamma,p.Results.grain,p.Results.range,p.Results.plotIt);
+        
+            funs = {@QuestQuantile, @QuestMean, @QuestMode};
+            o.momentFun = funs{ismember({'QUANTILE','MEAN','MODE'},p.Results.pdfMoment)};
         end
         
         function update(o,correct)
@@ -76,22 +81,32 @@ classdef quest < neurostim.plugins.adaptive
             % class.
             parmValue = o.getValue; % This is the value that was used previously
             intensity = o.p2i(parmValue); % Converti it to Quest intensity
-            o.Q=QuestUpdate(o.Q,intensity,correct); % Add the new datum .
+            if ~isempty(correct)
+                o.Q=QuestUpdate(o.Q,intensity,correct); % Add the new datum .
+            end
         end
         
-        function v =getValue(o)
+        function v =getAdaptValue(o)
             % The abstract adaptive parent class requires that we implement this.
             % Return the current best value according to Quest.
-            v=o.i2p(QuestQuantile(o.Q));
+            v=o.i2p(o.momentFun(o.Q));
         end
         
         
 %         
-        function [m,sd]= threshold(oo)
+        function [m,sd,prctiles]= threshold(oo,quantiles)
             % Return the estimated thresholds for all conditions
             % m = threshold estimate  (QuestMean)
             % sd = standard deviation estimate (QuestStd)
-            m = nan(size(oo)) ; sd =nan(size(oo));
+            % quantiles= Percentile levels at which to calculate the
+            % estimate. (QuestQuantile)
+            if nargin <2
+                quantiles = [];
+            end
+            sz = size(oo);
+            m = nan(sz) ; sd =nan(sz);
+            nrQuantiles = numel(quantiles);
+            prctiles = nan([nrQuantiles prod(sz)]);
             cntr=0;
             for o=oo
                 cntr= cntr+1;
@@ -102,8 +117,14 @@ classdef quest < neurostim.plugins.adaptive
                 x = o.i2p(o.Q.x);
                 p=sum(o.Q.pdf);
                 sd(cntr)=sqrt(sum(o.Q.pdf.*x.^2)/p-(sum(o.Q.pdf.*x)/p).^2);
+                
+                for i =1:nrQuantiles
+                    prctiles(i,cntr) = o.i2p(QuestQuantile(o.Q,quantiles(i)));
+                end
+                
             end                                  
             end
+            prctiles= reshape(prctiles,[nrQuantiles sz]);
         end
         
     end

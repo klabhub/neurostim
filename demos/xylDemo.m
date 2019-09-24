@@ -50,7 +50,9 @@ ptch.X            = 0;
 ptch.Y            = 0;
 ptch.nSides       = 10;
 ptch.filled       = true;
-ptch.color        = '@[(patch.X+0.5*cic.screen.width)/cic.screen.width (patch.Y+0.5*cic.screen.height)/cic.screen.height 40]';
+addProperty(ptch,'horRange',c.screen.width);
+addProperty(ptch,'verRange',c.screen.height);
+ptch.color        = '@[(patch.X+0.5*patch.horRange)/patch.horRange (patch.Y+0.5*patch.verRange)/patch.verRange 40]';
 ptch.on           = 0;
 
 %% Define conditions and blocks

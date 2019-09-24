@@ -1,4 +1,4 @@
-function noiseRasterRadialGridDemo
+function noiseRadialGridDemo
 %   This demo shows how to present a radial grid of luminance noise, for reverse
 %   correlation analysis and/or signal-in-noise detection tasks.
 %   Shows how to make use of Matlab's built-in sampling distributions
@@ -20,7 +20,7 @@ f.X = '@grid.X+sin(fix.frame/60)*8';
 f.size = 2;
 f.color = [1 1 1];
 
-wn = stimuli.noiserasterradialgrid(c,'grid');
+wn = stimuli.noiseradialgrid(c,'grid');
 wn.nWedges = 32;
 wn.nRadii = 6;
 wn.innerRad = 3;

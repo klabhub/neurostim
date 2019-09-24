@@ -86,7 +86,7 @@ classdef nDown1UpStaircase < neurostim.plugins.adaptive
             end            
         end
         
-        function v= getValue(o)
+        function v= getAdaptValue(o)
             % Return the current, internally stored, value
             v= o.value;
         end  

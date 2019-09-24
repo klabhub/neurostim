@@ -20,7 +20,7 @@ classdef egi < neurostim.plugin
     % BK - Jan 2019. Overhaul, proper timing testing.
     
     properties
-        host@char = '10.10.10.42'; % '10.10.10.42' is NetStation default.
+        host@char = '10.10.10.42'; % '10.10.10.42' is NetStation default. (Note that this is NOT the IP of the amp)
         port@double = 55513; % Default port for connection to NetStation.
         syncLimit  = 2.5; % Limits for acceptable sync (in ms).       
     end
@@ -78,6 +78,7 @@ classdef egi < neurostim.plugin
         end
         
         function beforeExperiment(o)            
+            o.cic.drawFormattedText('Please wait, connecting and syncing with EGI...','ShowNow',true);
             o.connect;            
             o.synchronize; % Check that we can sync reliably
             o.startRecording;
@@ -104,7 +105,7 @@ classdef egi < neurostim.plugin
             % Deliver the events that were queued during the trial
             for i=1:o.nrInQ
                 o.event(o.eventQ{i}{:}); % Send the queued events to netstations                
-            end
+            end            
             o.nrInQ = 0; % Reset counter
             o.eventQ = cell(numel(o.eventQ),1);% Prealoc for next trials
             o.event('ETRL',[],[],'DESC','End trial');            
@@ -116,12 +117,12 @@ classdef egi < neurostim.plugin
     methods (Access=protected)
         % Connect to a named host
         function connect(o)
-            o.writeToFeed('Trying to connect to EGI-host %s:%d',o.host,o.port);
+            o.writeToFeed(sprintf('Trying to connect to EGI-host %s:%d',o.host,o.port));
             [status,err] = NetStation('Connect',o.host,o.port);
             if o.checkStatusOk(status,err)
-                o.writeToFeed('Connected to EGI-host %s:%d',o.host,o.port);
+                o.writeToFeed(sprintf('Connected to EGI-host %s:%d',o.host,o.port));
             else
-                o.writeToFeed('Failed to connect. Make sure ECI Events for TCP port %d is checked in Netstation',o.port);
+                o.writeToFeed(sprintf('Failed to connect. Make sure ECI Events for TCP port %d is checked in Netstation',o.port));
             end
         end 
         
@@ -129,7 +130,7 @@ classdef egi < neurostim.plugin
         function disconnect(o)
             [status,err] = NetStation('Disconnect');
             if o.checkStatusOk(status,err)
-                o.writeToFeed('Disconnected from EGI-host %s:%d',o.host,o.port);
+                o.writeToFeed(sprintf('Disconnected from EGI-host %s:%d',o.host,o.port));
             end
         end
         
@@ -158,7 +159,7 @@ classdef egi < neurostim.plugin
             [status(1),err{1}]=NetStation('StartRecording');
             [status(2),err{2}]=NetStation('FlushReadbuffer'); 
             if o.checkStatusOk(status,err)
-                o.writeToFeed('Started recording on EGI-host %s:%d',o.host,o.port);
+                o.writeToFeed(sprintf('Started recording on EGI-host %s:%d',o.host,o.port));
             end
         end
         
@@ -167,7 +168,7 @@ classdef egi < neurostim.plugin
             [status(1),err{1}]=NetStation('FlushReadbuffer'); 
             [status(2),err{2}]=NetStation('StopRecording');
             if o.checkStatusOk(status,err)
-                o.writeToFeed('Stopped recording on EGI-host %s:%d',o.host,o.port);
+                o.writeToFeed(sprintf('Stopped recording on EGI-host %s:%d',o.host,o.port));
             end
         end
                    
@@ -183,7 +184,7 @@ classdef egi < neurostim.plugin
             end
         end
         
-        function addToEventQueue(o,p,startTime)
+        function addToEventQueue(o,thisE)
             % Because sending event takes time we avoid doing this during
             % the time-critical periods of a trial. Each event is stored
             % here in a cell array and then all are sent to NetStation after
@@ -191,19 +192,19 @@ classdef egi < neurostim.plugin
             % stored the time that the event occurrred (so NetStation
             % stores it at the right location in its datastream).           
             % INPUT
-            % p = plugin object that generated the event. 
-            % startTime =  absolute clock time (cic.clockTime) of the
-            % event. 
-            % 
-             code = p.name(1:min(numel(p.name),4)); % Use the first four letters of the plugin name
-             thisE = {code,startTime,p.duration,'FLIP',startTime,'DESC',[p.name ' onset event']};
-             if o.nrInQ+1 > numel(o.eventQ)
-                 % Preallocate more space
-                 chunkSize =10;
-                 o.evenQ = cat(1,o.eventQ,cell(chunkSize,1));
-             end
-             o.eventQ{o.nrInQ+1} = thisE;  
-             o.nrInQ = o.nrInQ +1;
+            % thisE = Cell array containing event information. 
+            %       {code,startTime,duration,parm/value pairs}
+            
+            if isinf(thisE{3})
+                thisE{3}=1;
+            end
+            if o.nrInQ+1 > numel(o.eventQ)
+              	% Preallocate more space
+              	chunkSize =10;
+              	o.evenQ = cat(1,o.eventQ,cell(chunkSize,1));
+            end
+           	o.eventQ{o.nrInQ+1} = thisE;  
+           	o.nrInQ = o.nrInQ +1;
         end
     end
     
@@ -218,7 +219,29 @@ classdef egi < neurostim.plugin
             % s =  stimulus
             % startTime = flipTime in clocktime (i.e. not relative to the
             % trial)                        
-            s.cic.egi.addToEventQueue(s,startTime)
+            code = [s.name(1:min(numel(s.name),2)) 'ON']; % First 2 char of name plus 'ON'
+            hEgi= s.cic.egi;            
+            thisE = {code,startTime,s.duration,'FLIP',startTime,'DESC',[s.name ' onset']};
+            hEgi.addToEventQueue(thisE);
+        end
+        function logOffset(s,stopTime)
+            % This function sends a message to NetStation to indicate that
+            % a stimulus just disappeard from the screen (i.e. last frame flip)
+            % I use a static function to make the notation easier for the
+            % user, but by using CIC I nevertheless make use of the egi
+            % object that is currently loaded.
+            % INPUT
+            % s =  stimulus
+            % stopTime= flipTime in clocktime (i.e. not relative to the
+            % trial)                        
+            code = [s.name(1:min(numel(s.name),2)) 'OF'];
+            hEgi= s.cic.egi;    
+            % The stopTime tells us when the flip happened that *started*
+            % the last frame for this stimulus. So the offset is one frame
+            % later.
+            stopTime  = stopTime + 1000/s.cic.screen.frameRate;
+            thisE = {code,stopTime,1,'FLIP',stopTime,'DESC',[s.name ' offset']};
+            hEgi.addToEventQueue(thisE);
         end
     end
 end
