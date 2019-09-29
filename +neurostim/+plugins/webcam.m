@@ -9,7 +9,7 @@ classdef webcam < neurostim.plugin
     % has a new frame ready. Because webcams typically run at 15-30Hz, this
     % caused massive framedrops. updcam and it's companian class
     % updcam_remote_control (around which this plugin is merely a wrapper)
-    can be found at https://github.com/duijnhouwer/udpcam
+    % can be found at https://github.com/duijnhouwer/udpcam
     properties (Access=public)
         RC@udpcam_remote_control;
     end
@@ -19,10 +19,30 @@ classdef webcam < neurostim.plugin
                 name=mfilename;
             end
             o=o@neurostim.plugin(c,name);
+            o.addProperty('base_video_name','webcamvid.mj2');
             o.RC=udpcam_remote_control;
         end
-        function afterExperiment(o)
-            delete(o.RC)
-        end
+        %function beforeExperiment(o)
+         %   [ok,infostr]=o.RC.test_connection;
+         %   if ~ok
+         %       warning(infostr);
+         %   end
+         %end
+         function beforeTrial(o)
+             % append the filename with the condition and trial number
+             [fld,nm,xt]=fileparts(o.base_video_name);
+             nm=sprintf('%s_c%.3d_tr%.5d',nm, o.cic.condition,o.cic.trial);
+             fname=fullfile(fld,[nm xt]);
+             % set the file name
+             o.RC.send(sprintf('out>vid>filename=''%s''',fname));
+             % start recording
+             o.RC.send('rec');
+         end
+         function afterTrial(o)
+             o.RC.send('stop');
+         end
+         function afterExperiment(o)
+             delete(o.RC)
+         end
     end
 end
