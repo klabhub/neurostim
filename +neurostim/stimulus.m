@@ -14,17 +14,14 @@ classdef stimulus < neurostim.plugin
     %   diode.on,diode.color,diode.location,diode.size - a square box of
     %       specified color in the corner of the screen specified ('nw','sw', etc.),
     %       for use with a photodiode recording.
-    %   mccChannel - a linked MCC Channel to output alongside a stimulus.
-    %
-    %
     
     properties
         % Function to call on onset. Used to communicate event to external hardware. See egiDemo        
         % This function takes a stimulus object and the flipTime (i.e. the
         % time when the stimulus started showing on the screen) as its
         % input
-        onsetFunction=[]; 
-        offsetFunction =[];
+        onsetFunction = []; 
+        offsetFunction = [];
     end
     
     properties (Dependent)
@@ -33,19 +30,17 @@ classdef stimulus < neurostim.plugin
         offFrame;
         time; % Time since start of stimulus.
         frame; % frame since start of stimulus
-        
     end
     
-    properties (SetAccess=protected, GetAccess=public)
+    properties (SetAccess = protected, GetAccess = public)
         flags = struct('on',true);
         stimstart = false;
         stimstop = false;
         rsvp;
         diodePosition;
-        
     end
     
-    properties (Access=private)
+    properties (Access = private)
         logOnset@logical;
         logOffset@logical;
     end
@@ -84,8 +79,10 @@ classdef stimulus < neurostim.plugin
     
     
     methods
-        function s= stimulus(c,name)
+      
+        function s = stimulus(c,name)
             s = s@neurostim.plugin(c,name);
+            
             %% user-settable properties
             s.addProperty('X',0,'validate',@isnumeric);
             s.addProperty('Y',0,'validate',@isnumeric);
@@ -102,7 +99,6 @@ classdef stimulus < neurostim.plugin
             s.addProperty('disabled',false);
             
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
-            s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
             
             s.addProperty('alwaysOn',false,'validate',@islogical);
@@ -116,15 +112,12 @@ classdef stimulus < neurostim.plugin
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
             
-         
-            
             s.feedStyle = '[0 0.75 0]'; % Stimuli show feed messages in light green.
         end
+        
     end
     
-    methods (Access= public)
-        
-        
+    methods (Access = public)
         
         function addRSVP(s,design,varargin)
             %           addRSVP(s,design,varargin)
@@ -157,6 +150,7 @@ classdef stimulus < neurostim.plugin
             s.rsvp.log = p.Results.log;
             s.rsvp.active = true;
         end
+        
     end
     
     
@@ -216,7 +210,7 @@ classdef stimulus < neurostim.plugin
             end
         end
         
-    end
+    end % private methods
     
     %% Methods that the user cannot change.
     % These are called by CIC for all stimuli to provide
@@ -224,7 +218,8 @@ classdef stimulus < neurostim.plugin
     % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
     % the derived class an oppurtunity to respond to changes that this
     % base functionality makes.
-    methods (Access=public)
+    methods (Access = public)
+      
         function baseBeforeExperiment(s)
             % Check whether this stimulus should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
@@ -250,12 +245,9 @@ classdef stimulus < neurostim.plugin
             if s.diode.on
                 setupDiode(s);
             end
-            if ~isempty(s.mccChannel) && any(strcmp(s.cic.plugins,'mcc'))
-                s.cic.mcc.map(s,'DIGITAL',s.mccChannel,s.on,'FIRSTFRAME')
-            end
+            
             beforeExperiment(s);
         end
-        
         
         function baseBeforeTrial(s)
             %                     if ~isempty(s.rsvp) TODO different rsvps in different
@@ -271,11 +263,11 @@ classdef stimulus < neurostim.plugin
             s.stopTime = Inf;
             s.stimstart=false;
             
-            beforeTrial(s);
-            
+            beforeTrial(s);            
         end
+        
         function baseBeforeFrame(s)
-            if s.disabled; return;end
+            if s.disabled; return; end
             % Because this function is called for every stimulus, every
             % frame, try to optimize as much as possible by avoiding
             % duplicate access to member properties and dynprops in
@@ -357,12 +349,10 @@ classdef stimulus < neurostim.plugin
             % transforms above...
             if s.diode.on  && s.flags.on 
                 Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);                
-            end
-            
+            end            
         end
 
         function baseAfterFrame(s)
-            
             ok = ~s.disabled && s.flags.on;
             if ok
                 afterFrame(s)
@@ -370,7 +360,6 @@ classdef stimulus < neurostim.plugin
         end
         
         function baseAfterTrial(s)
-            
             if isempty(s.stopTime) || s.offFrame>=s.cic.frame
                 s.stopTime=s.cic.trialStopTime-s.cic.firstFrame;
             end
@@ -385,12 +374,15 @@ classdef stimulus < neurostim.plugin
         function beforeExperiment(~)
             %NOP
         end
+        
         function beforeTrial(~)
             %NOP
         end
+        
         function beforeFrame(~)
             %NOP
         end
+        
         function afterFrame(~)
             %NOP
         end
@@ -403,8 +395,7 @@ classdef stimulus < neurostim.plugin
             %NOP
         end
         
-        
-    end
+    end % public methods
     
     methods (Access = {?neurostim.cic})
         function afterFlip(s,flipTime,ptbTime)
@@ -423,4 +414,5 @@ classdef stimulus < neurostim.plugin
             end
         end
     end
-end
+    
+end % classdef
