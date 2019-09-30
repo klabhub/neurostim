@@ -9,6 +9,7 @@ classdef splittask < handle & matlab.mixin.Copyable
        splittable;                      %Can this task be done in parts?
        when = 'beforeFrame';            %When will the task be called? (beforeFrame,beforeTrial etc.)
        enabled = 1;
+       cost = 1;                        %How long does it take to run this task? Normalised units. Adjusted based on frame drops. 
        nParts = 1;
        propOfTask=1;
        part = 1;

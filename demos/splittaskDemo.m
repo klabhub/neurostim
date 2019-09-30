@@ -12,9 +12,9 @@ c.trialDuration = 5000;
 %% ============== Add stimuli ==================
 im=neurostim.stimuli.fourierFiltImage(c,'filt');
 
-im.bigFrameInterval = 24;
+im.bigFrameInterval = 12;
 im.imageDomain = 'FREQUENCY';
-im.size = [800,800];
+im.size = [900,900];
 %im.size = floor(im.size/60)*60; %Size should be a multiple of the frame rate.
 maskSD = 0.125;
 im.mask = ifftshift(normpdf(linspace(-1,1,im.size(1)),0,maskSD)'.*normpdf(linspace(-1,1,im.size(2)),0,maskSD));
