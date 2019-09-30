@@ -6,20 +6,23 @@ classdef stimulus < neurostim.plugin
     %   on - time the stimulus should come 'on' (ms) from start of trial
     %   duration - length of time the stimulus should be 'on' (ms)
     %   color - color of the stimulus
-    %   alpha - alpha blend of the stimulus.
     %   scale.x,scale.y,scale.z - scale of the stimulus along various axes
     %   angle - angle of the stimulus
     %   rx, ry, rz - rotation of the stimulus
     %   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
     %       details)
-    %   rngSeed - seed of the RNG.
     %   diode.on,diode.color,diode.location,diode.size - a square box of
     %       specified color in the corner of the screen specified ('nw','sw', etc.),
-    %   for use with a photodiode recording.
-    %   mccChannel - a linked MCC Channel to output alongside a stimulus.
-    %
-    %
-   
+    %       for use with a photodiode recording.
+    
+    properties
+        % Function to call on onset. Used to communicate event to external hardware. See egiDemo        
+        % This function takes a stimulus object and the flipTime (i.e. the
+        % time when the stimulus started showing on the screen) as its
+        % input
+        onsetFunction = []; 
+        offsetFunction = [];
+    end
     
     properties (Dependent)
         off;
@@ -27,17 +30,19 @@ classdef stimulus < neurostim.plugin
         offFrame;
         time; % Time since start of stimulus.
         frame; % frame since start of stimulus
-        
     end
     
-    properties (Access=protected)
-        flags = struct('on',true);    
+    properties (SetAccess = protected, GetAccess = public)
+        flags = struct('on',true);
         stimstart = false;
         stimstop = false;
-        logOffset@logical;
         rsvp;
         diodePosition;
-       
+    end
+    
+    properties (Access = private)
+        logOnset@logical;
+        logOffset@logical;
     end
     
     methods
@@ -74,8 +79,10 @@ classdef stimulus < neurostim.plugin
     
     
     methods
-        function s= stimulus(c,name)
+      
+        function s = stimulus(c,name)
             s = s@neurostim.plugin(c,name);
+            
             %% user-settable properties
             s.addProperty('X',0,'validate',@isnumeric);
             s.addProperty('Y',0,'validate',@isnumeric);
@@ -83,7 +90,6 @@ classdef stimulus < neurostim.plugin
             s.addProperty('on',0,'validate',@isnumeric);
             s.addProperty('duration',Inf,'validate',@isnumeric);
             s.addProperty('color',[1/3 1/3 50],'validate',@isnumeric);
-            s.addProperty('alpha',1,'validate',@(x)x<=1&&x>=0);
             s.addProperty('scale',[1 1 1]);
             s.addProperty('angle',0,'validate',@isnumeric);
             s.addProperty('rx',0,'validate',@isnumeric);
@@ -92,11 +98,10 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             s.addProperty('disabled',false);
             
-            s.addProperty('rngSeed',[],'validate',@isnumeric);
             s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05));
-            s.addProperty('mccChannel',[],'validate',@isnumeric);
             s.addProperty('userData',[]);
             
+            s.addProperty('alwaysOn',false,'validate',@islogical);
             
             %% internally-set properties
             s.addProperty('startTime',Inf);   % first time the stimulus appears on screen
@@ -107,14 +112,12 @@ classdef stimulus < neurostim.plugin
             s.rsvp.duration = 0;
             s.rsvp.isi =0;
             
-            s.rngSeed=GetSecs;
-            rng(s.rngSeed);
+            s.feedStyle = '[0 0.75 0]'; % Stimuli show feed messages in light green.
         end
+        
     end
     
-    methods (Access= public)
-       
-        
+    methods (Access = public)
         
         function addRSVP(s,design,varargin)
             %           addRSVP(s,design,varargin)
@@ -147,12 +150,14 @@ classdef stimulus < neurostim.plugin
             s.rsvp.log = p.Results.log;
             s.rsvp.active = true;
         end
+        
     end
     
     
     methods (Access=private)
         
         function s = updateRSVP(s)
+            % Called from baseBeforeFrame only when the stimulus is on.
             %How many frames for item + blank (ISI)?
             nFramesPerItem = s.cic.ms2frames(s.rsvp.duration+s.rsvp.isi);
             %How many frames since the RSVP stream started?
@@ -162,7 +167,7 @@ classdef stimulus < neurostim.plugin
             %If at the start of a new element, move the design to the
             % next "trial"
             if itemFrame==0
-                ok = nextTrial(s.rsvp.design);
+                ok = beforeTrial(s.rsvp.design);
                 if ~ok
                     % Ran out of "trials"
                     s.rsvp.design.shuffle; % Reshuffle the list
@@ -180,7 +185,7 @@ classdef stimulus < neurostim.plugin
             if s.rsvp.log
                 if itemFrame == 0
                     s.rsvpIsi = false;
-                elseif itemFrame==startIsiFrame;
+                elseif itemFrame==startIsiFrame
                     s.rsvpIsi = true;
                 end
             end
@@ -205,7 +210,7 @@ classdef stimulus < neurostim.plugin
             end
         end
         
-    end
+    end % private methods
     
     %% Methods that the user cannot change.
     % These are called by CIC for all stimuli to provide
@@ -213,16 +218,17 @@ classdef stimulus < neurostim.plugin
     % before @derivedClasss.beforeXXX and baseAfterXXX always before afterXXX. This gives
     % the derived class an oppurtunity to respond to changes that this
     % base functionality makes.
-    methods (Access=public)
-        function baseBeforeExperiment(s)     
+    methods (Access = public)
+      
+        function baseBeforeExperiment(s)
             % Check whether this stimulus should be displayed on
             % the color overlay in VPIXX-M16 mode.  Done here to
             % avoid the overhead of calling this every draw.
-            if strcmpi(s.cic.screen.type,'VPIXX-M16') && s.overlay
+            if any(strcmpi(s.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && s.overlay
                 s.window = s.cic.overlayWindow;
             else
                 s.window = s.cic.mainWindow;
-            end            
+            end
             if s.rsvp.active
                 %Check that stimulus durations and ISIs are multiples of the frame interval (defined as within 5% of a frame)
                 [dur,rem1] = s.cic.ms2frames(s.rsvp.duration,true);
@@ -239,12 +245,9 @@ classdef stimulus < neurostim.plugin
             if s.diode.on
                 setupDiode(s);
             end
-            if ~isempty(s.mccChannel) && any(strcmp(s.cic.plugins,'mcc'))
-                s.cic.mcc.map(s,'DIGITAL',s.mccChannel,s.on,'FIRSTFRAME')
-            end
+            
             beforeExperiment(s);
         end
-        
         
         function baseBeforeTrial(s)
             %                     if ~isempty(s.rsvp) TODO different rsvps in different
@@ -260,51 +263,42 @@ classdef stimulus < neurostim.plugin
             s.stopTime = Inf;
             s.stimstart=false;
             
-            beforeTrial(s);
-            
+            beforeTrial(s);            
         end
-        function baseBeforeFrame(s)            
-            if s.disabled; return;end
+        
+        function baseBeforeFrame(s)
+            if s.disabled; return; end
             % Because this function is called for every stimulus, every
             % frame, try to optimize as much as possible by avoiding
             % duplicate access to member properties and dynprops in
             % particular
-            locWindow =s.window; 
-            %Apply stimulus transform
-            sX =s.X;sY=s.Y;sZ=s.Z;            
-            if  any([sX sY sZ]~=0)
-                Screen('glTranslate',locWindow,sX,sY,sZ);
-            end
-            sScale = s.scale;
-            if any(sScale~=1)
-                Screen('glScale',locWindow,sScale(1),sScale(2),sScale(3));
-            end
-            sAngle= s.angle;
-            if  sAngle ~=0
-                Screen('glRotate',locWindow,sAngle,s.rx,s.ry,s.rz);
-            end
+            locWindow =s.window;
             
             %Should the stimulus be drawn on this frame?
             % This partially duplicates get.onFrame get.offFrame
             % code to minimize computations (and especially dynprop
-            % evaluations which can be '@' functions and slow)
-            sOn = s.on;
-            sOnFrame = inf;  %Adjusted as needed in the if/then
-            sOffFrame = inf;
+            % evaluations which can be '@' functions and slow)           
+            sOffFrame = inf;                
             cFrame = s.cic.frame;
-            if isinf(sOn)
-                s.flags.on =false; %Dont bother checking the rest
-            else
-                sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
-                if cFrame < sOnFrame % Not on yet.
-                    s.flags.on = false;
-                else % Is on already or turning on. Checck that we have not
-                    % reached full duration yet.
-                    sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
-                    s.flags.on = cFrame <sOffFrame;
+            if s.alwaysOn
+                s.flags.on =true;
+            else   
+                sOn = +s.on;          
+                if isinf(sOn)
+                    s.flags.on =false; %Dont bother checking the rest
+                else
+                    sOnFrame = round(sOn.*s.cic.screen.frameRate/1000)+1;
+                    %sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
+                    if cFrame < sOnFrame % Not on yet.
+                        s.flags.on = false;
+                    else % Is on already or turning on. Checck that we have not
+                        % reached full duration yet.
+                        sOffFrame = round((sOn+s.duration)*s.cic.screen.frameRate/1000);
+                        %sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
+                        s.flags.on = cFrame <sOffFrame;
+                    end
                 end
             end
-            
             %% RSVP mode
             %   Update parameter values if necesssary
             if s.rsvp.active && s.flags.on
@@ -312,44 +306,52 @@ classdef stimulus < neurostim.plugin
             end
             
             %%
-            % get the stimulus end time
-            if s.logOffset
-                s.stopTime=s.cic.flipTime;
-                s.logOffset=false;
-            end
-            
+
             %If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
             if cFrame==sOffFrame
-                s.logOffset=true;
+                s.cic.addFlipCallback(s);
+                s.logOffset = true;
             end
             
             %If the stimulus should be drawn on this frame:
             if s.flags.on
+                
+                %Apply stimulus transform
+                sX =+s.X;sY=+s.Y;sZ=+s.Z; % USe + operator to force the use of values if s.X is an adaptive parameter.
+                if  any([sX sY sZ]~=0)
+                    Screen('glTranslate',locWindow,sX,sY,sZ);
+                end
+                sScale = +s.scale;
+                if any(sScale~=1)
+                    Screen('glScale',locWindow,sScale(1),sScale(2),sScale(3));
+                end
+                sAngle= +s.angle;
+                if  sAngle ~=0
+                    Screen('glRotate',locWindow,sAngle,+s.rx,+s.ry,+s.rz);
+                end
+                
                 %If this is the first frame that the stimulus will be drawn, register that it has started.
                 if ~s.stimstart
                     s.stimstart = true;
-                    s.cic.getFlipTime=true; % tell CIC to store the next flip time, to log startTime in next frame
+                    s.cic.addFlipCallback(s);
+                    s.logOnset = true;
                 end
-                
-                %If the previous frame was the first frame, log the time that the flip actually happened.
-                if cFrame==sOnFrame+1
-                    s.startTime = s.cic.flipTime;
-                end
-                
-                %Pass control to the child class and any other listeners
-                beforeFrame(s);
-                
-                if s.diode.on
-                    Screen('FillRect',locWindow,s.diode.color,s.diodePosition);
-                end
-            elseif s.stimstart && (cFrame==sOffFrame)% if the stimulus will not be shown,
-                % get the next screen flip for stopTime
-                s.cic.getFlipTime=true;
+                               
+                %Pass control to the child class
+                beforeFrame(s);                
+
             end
             Screen('glLoadIdentity', locWindow);
-
+            
+            % diode size/position is in pixels and we don't really want it
+            % changing even if we change the physical screen size (e.g., 
+            % when changing viewing distance) or being distorted by the
+            % transforms above...
+            if s.diode.on  && s.flags.on 
+                Screen('FillRect',locWindow,+s.diode.color,+s.diodePosition);                
+            end            
         end
-        
+
         function baseAfterFrame(s)
             ok = ~s.disabled && s.flags.on;
             if ok
@@ -358,10 +360,8 @@ classdef stimulus < neurostim.plugin
         end
         
         function baseAfterTrial(s)
-            
             if isempty(s.stopTime) || s.offFrame>=s.cic.frame
                 s.stopTime=s.cic.trialStopTime-s.cic.firstFrame;
-                s.logOffset=false;
             end
             afterTrial(s);
         end
@@ -374,12 +374,15 @@ classdef stimulus < neurostim.plugin
         function beforeExperiment(~)
             %NOP
         end
+        
         function beforeTrial(~)
             %NOP
         end
+        
         function beforeFrame(~)
             %NOP
         end
+        
         function afterFrame(~)
             %NOP
         end
@@ -392,6 +395,24 @@ classdef stimulus < neurostim.plugin
             %NOP
         end
         
-        
+    end % public methods
+    
+    methods (Access = {?neurostim.cic})
+        function afterFlip(s,flipTime,ptbTime)
+            if s.logOnset
+                s.startTime = flipTime;
+                s.logOnset = false;
+                if ~isempty(s.onsetFunction)
+                    s.onsetFunction(s,ptbTime);
+                end
+            elseif s.logOffset
+                s.stopTime = flipTime;
+                s.logOffset = false;
+                 if ~isempty(s.offsetFunction)
+                    s.offsetFunction(s,ptbTime);
+                end
+            end
+        end
     end
-end
+    
+end % classdef

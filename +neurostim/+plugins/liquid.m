@@ -1,16 +1,18 @@
 classdef liquid < neurostim.plugins.feedback
     % Feedback plugin to deliver liquid reward (through MCC).
     
-    properties
-        mcc = [];
+    properties        
         nrDelivered = 0;
         totalDelivered = 0;
+        tmr; % Timer to control duration
     end
     
     methods (Access=public)
         function o=liquid(c,name)
             o=o@neurostim.plugins.feedback(c,name);
-            o.addProperty('mccChannel',9);
+            o.addProperty('device','mcc');
+            o.addProperty('deviceFun','digitalOut');
+            o.addProperty('deviceChannel',1);
             o.addProperty('jackpotPerc',1);
             o.addProperty('jackpotDur',1000);
             
@@ -18,15 +20,17 @@ classdef liquid < neurostim.plugins.feedback
         
         function beforeExperiment(o)
             
-            %Check that the MCC plugin is added.
-            o.mcc = pluginsByClass(o.cic,'mcc');
-            if numel(o.mcc)==1
-                %Iniatilise the bit low
-                o.mcc.digitalOut(o.mccChannel,false);
+            %Check that the device is reachable
+            if any(hasPlugin(o.cic,o.device))
+                %Iniatilise to the closed state.
+                close(o);
             else
-               o.cic.error('CONTINUE','Liquid reward added but no MCC plugin added (or, more than one added - currently not supported)');
+                o.cic.error('CONTINUE',['Liquid reward added but the ' o.device ' device could not be found.']);
+                o.device = 'FAKE';
             end
         end
+         
+        
     end
     
     methods (Access=protected)
@@ -42,26 +46,38 @@ classdef liquid < neurostim.plugins.feedback
         end
       
         function deliver(o,item)
-            % Responds by calling the MCC plugin to activate liquid reward.
-            % This currently uses the timer() function for duration, which
-            % may be inaccurate or interrupt time-sensitive functions.
+            % Responds by calling the device (through the device fun) to activate liquid reward.
+            % This assumes that the device function has the arguments :
+            % (channel, value).
+            % Not that Mcc and Trellis devices use a Matlab timer to handle the "duration" aspect - this could be inaccurate or interrupt 
+            % time-sensitive functions. So best not to use this in the  middle of a trial
             duration = o.(['item', num2str(item) 'duration']);
-            if ~isempty(o.mcc)
+            if ~strcmpi(o.device,'FAKE')
                 if rand*100<o.jackpotPerc
-                    duration = o.jackpotDur;
+                    o.writeToFeed('Jackpot!!!')
+                    duration = o.jackpotDur;                    
                 end
-                o.mcc.digitalOut(o.mccChannel,true,duration);
-                
+                open(o,duration);                
                 %Keep track of how much has been delivered.
                 o.nrDelivered = o.nrDelivered + 1;
                 o.totalDelivered = o.totalDelivered + duration;
             else
-                o.writeToFeed(['No MCC detected for liquid reward (' num2str(duration) 'ms)']);
+                o.writeToFeed(['Fake liquid reward delivered (' num2str(duration) 'ms)']);
             end
         end
         
+        function open(o,duration)
+            %Not the most elegant way to do this with feval, a
+            %function_handle would be more flexible, but ok for now.
+           feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,true,duration);                                            
+        end
+        
+        function close(o)
+           feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,false);                                           
+        end
+        
         function report(o)
-            %Provide an update of performance to the GUI.
+            %Provide an update of performance to the user.
             o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total duration: ',num2str(o.totalDelivered)));
         end
     end
