@@ -1,7 +1,7 @@
 classdef splittaskstimulus < neurostim.stimuli.computeAcrossFramesThenDraw
     
     properties        
-        nSamples = [1000,4000000,50000,100000];
+        nSamples = [100,5000000,10000,3000000,100000];
         samples = [];        
     end
     
@@ -15,7 +15,7 @@ classdef splittaskstimulus < neurostim.stimuli.computeAcrossFramesThenDraw
         function setupTasks(o)
             
             %Create a list of the tasks to be done to create the filtered image.
-            tsks = {@rand1,@rand2,@rand3,@rand4};
+            tsks = {@rand1,@rand2,@rand3,@rand4,@rand5};
             
             %Make the array of tasks, indicating that they are splittable across frames
             splittable = 1;
@@ -59,6 +59,12 @@ classdef splittaskstimulus < neurostim.stimuli.computeAcrossFramesThenDraw
         end
         
         function rand4(o,t)
+            ix = t.data;
+            %Gaussian white noise.
+            o.samples = rand(1,numel(ix));
+        end
+        
+        function rand5(o,t)
             ix = t.data;
             %Gaussian white noise.
             o.samples = rand(1,numel(ix));

@@ -34,6 +34,7 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
         beforeTrialTasks@neurostim.splittask;
         beforeFrameTasks@neurostim.splittask;
         tasksByFrame
+        nTasksPerFrame
         nTasks = 0;
         nBeforeFrameTasks;
         taskPlan;
@@ -98,17 +99,22 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
             %Group tasks based on when they should be done
             o.beforeTrialTasks = o.tasks(arrayfun(@(tsk) tsk.enabled && strcmpi(tsk.when,'BEFORETRIAL'),o.tasks));
             o.beforeFrameTasks = o.tasks(arrayfun(@(tsk) tsk.enabled && strcmpi(tsk.when,'BEFOREFRAME'),o.tasks));
+            
+            %How many tasks are we doing per little frame? Initially, it's
+            %nTasks/nLittleFrames, but is altered to distribute frame drops
+            %uniformly.            
+            nTasks = numel(o.beforeFrameTasks);
+            o.nTasksPerFrame = nTasks/o.nLittleFrames*ones(1,o.nLittleFrames);
         end
         
         
         function beforeTrial(o)
             
             %Update the estimated time cost of each task.
-            updateTaskCost(o);
+            updateFrameLoad(o);
             
             %Using the estimated cost, prepare a schedule for tasks-by-littleFrame
             updateSchedule(o);
-            %scheduleTasks(o);
             
             %Split the tasks into the required sub-tasks, ready for execution in beforeFrame()
             splitTasks(o);
@@ -117,85 +123,36 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
             arrayfun(@(tsk) do(tsk),o.beforeTrialTasks);
         end
         
-        function updateTaskCost(o)
-            %How much did each task contribute to frame drops?
-            %Calculate cost as a weighted sum of frame drops, with weights
-            %according to how much of that task was on each little frame
-            
-            %             if o.cic.trial > 1
-            nTasks = numel(o.beforeFrameTasks);
-            
-            %Take the weighted sum for all tasks
-            %                 contribToDrops = o.taskPlan'*o.dropRate;
-            %
-            %                 %Normalise the contribution
-            %                 contribToDrops = (contribToDrops-mean(contribToDrops))./mean(contribToDrops);
-            %
-            %                 o.learningRate = 0.001*o.nTotalDropped;
-            %                 deltaCost = o.learningRate*contribToDrops;
-            if o.cic.trial<=100
-                randCost = rand(1,nTasks);
-                randCost = randCost./sum(randCost);
-                for i=1:nTasks
-                    %o.beforeFrameTasks(i).cost = max(o.beforeFrameTasks(i).cost+deltaCost(i),0.05);                    
-                    %Add a random offset to estimate of cost. This pushes tasks
-                    %onto different frames from trial to trial, allowing estimate
-                    %of true cost using regression
-                    o.beforeFrameTasks(i).cost =randCost(i);
-                end                
-            else
-                keyboard;
-                taskLoadByFrame = cell2mat(cellfun(@(plan) (plan./sum(plan,2)),o.history.taskPlans,'unif',false)');
-                nDrops = reshape(o.history.nDroppedPerLittleFrame,[],1);
-                nTotalDrops = o.history.nTotalDropped';
+        function updateFrameLoad(o)
+            %How many tasks are we doing per frame? Initially, it's
+            %nTasks/nLittleFrames, but is altered to distribute frame drops
+            %uniformly. 
+            if o.cic.trial > 1
+                nTasks = numel(o.beforeFrameTasks);                           
+                nDropsPerLittleFrame = o.history.nDroppedPerLittleFrame(:,end)';
+                if any(nDropsPerLittleFrame)
+                    pDrops = nDropsPerLittleFrame./sum(nDropsPerLittleFrame);
+                    nTotalDrops = o.history.nTotalDropped(end);
                     
-                lb = 0.001*ones(1,nTasks);
-%                 ub = ones(1,nTasks);
-%                 Aeq = ones(1,nTasks);
-%                 beq = 1;
-%       
-%                 
-%                  w = lsqlin(taskLoadByFrame,nDrops,[],[],Aeq,beq,lb);
-                w = lsqlin(taskLoadByFrame,nDrops,[],[],[],[],lb);
-%                 wtdAve = @(prms,taskLoad) taskLoad*(prms(1).*prms(:)./sum(prms));
-%                 
-%                 wtdSum = @(prms,taskLoad) taskLoad*prms(:);
-%                 w = lsqcurvefit(wtdSum,10*ones(nTasks,1),taskLoadByFrame,nDrops,zeros(1,nTasks));
-%                 
-%                 X = horzcat(ones(size(taskLoadByFrame,1),1),taskLoadByFrame);                
-%                 w = lsqcurvefit(wtdAve,10*ones(nTasks+1,1),X,nDrops,zeros(1,nTasks+1));
-%                 w = w(2:end);
-%                 
-%                 w2 = taskLoadByFrame\nDrops;
-%                 w2 = w2-min(w2)+eps;
-%                 w2 = w2./sum(w2);
-                for i=1:nTasks
-                    o.beforeFrameTasks(i).cost = w(i);
-                end                
-            end            
-
-            disp(table(o.nTotalDropped,'variablenames',{'TotalDrops'}));
-            disp(table(o.dropRate,o.taskPlan,'variablenames',{'DropRate','TaskPlan'}));
-            disp(table([o.beforeFrameTasks.cost]','variablenames',{'TaskCost'}));
-    end
+                    o.learningRate = 0.03;
+                    
+                    o.nTasksPerFrame = o.nTasksPerFrame + o.learningRate*sqrt(nTotalDrops)*(1-pDrops);
+                    o.nTasksPerFrame = o.nTasksPerFrame ./sum(o.nTasksPerFrame)*nTasks;
+                end
+            end
+          
+        end
         
         function updateSchedule(o)
-            %Allocate tasks across frames, distributed sequentially and in
-            %proportion to their individual cost.
+                        
             nTasks = numel(o.beforeFrameTasks);
-            
-            %Construct a timeline (from 0 to 1) based on cost of each task
-            timeline = [o.beforeFrameTasks.cost];
-            timeline = timeline/sum(timeline);
-            
-            %Convert to number of frames for each task
-            framesPerTask = timeline*o.bigFrameInterval;
-            
-            %Allocate the tasks in order
-            o.taskPlan = [];
-            remTask = framesPerTask;
+                        
+            %Allocate the tasks in order, within the allocated task limits
+            %for each little frame
+            o.taskPlan = [];            
+            remFrameAlloc = o.nTasksPerFrame;
+            remTask = ones(1,nTasks);
             for i=1:o.bigFrameInterval
-                remFrame = 1;
                 for j=1:nTasks
                     if ~remTask(j)
                         %Task completely allocated
@@ -203,19 +160,16 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
                     end
                     
                     %Add all the remaining task, if remaining time for this frame allows
-                    o.taskPlan(i,j) = min(remTask(j),remFrame);
+                    o.taskPlan(i,j) = min(remTask(j),remFrameAlloc(i));
 
                     %Subtract the allocations from the remaining
                     remTask(j) = remTask(j) - o.taskPlan(i,j);
-                    remFrame = remFrame - o.taskPlan(i,j);
-                    if ~remFrame
+                    remFrameAlloc(i) = remFrameAlloc(i) - o.taskPlan(i,j);
+                    if ~remFrameAlloc(i)
                         break;
                     end
                 end
-            end
-            
-            %Convert the task plan to proportions of each task (i.e. normalise columns)
-            o.taskPlan = o.taskPlan./repmat(sum(o.taskPlan),o.bigFrameInterval,1);
+            end            
         end
         
         function splitTasks(o)
@@ -272,123 +226,23 @@ classdef (Abstract) computeAcrossFramesThenDraw < neurostim.stimulus
                 o.nTotalDropped = numel(droppedFrames);
             else
                 %No drops.
-                o.dropRate = nans(o.bigFrameInterval,1);
+                o.dropRate = nan(o.bigFrameInterval,1);
                 o.nDroppedPerLittleFrame = 0;
                 o.nTotalDropped = 0;
             end
             
             %Store history of task plans and drops
+            o.history.nTasksPerFrame(:,o.cic.trial) = o.nTasksPerFrame;
             o.history.costPerTask(:,o.cic.trial) = [o.beforeFrameTasks.cost];
             o.history.taskPlans{o.cic.trial} = o.taskPlan;
             o.history.nDroppedPerLittleFrame(:,o.cic.trial) = o.nDroppedPerLittleFrame;
             o.history.nTotalDropped(o.cic.trial) = o.nTotalDropped;
-            
+           
+%             disp(table(o.nTotalDropped,'variablenames',{'TotalDrops'}));
+%             disp(table(o.dropRate,o.taskPlan,'variablenames',{'DropRate','TaskPlan'}));
         end
         
-        function optimiseSchedule(o)
-            %Reduce the load on little frames with the highest frame drop
-            %rate.
-            %
-            %Step 1:    Find the litle frame with the lowest framedrop rate.
-            %Step 2:    Find which of the neighbouring frames has the higher
-            %           drop rate.
-            %           For first or last frames, have to choose only
-            %           neighbour available.
-            %Step 3:    Shift load from the neighbour to the bad frame.
-            
-            %Go to the little frame with the highest
-            Split up the last task on each frame
-            keyboard
-        end
-        
-        function scheduleTasks(o)
-            nTasks = numel(o.beforeFrameTasks);
-            %if isempty(o.taskPlan)
-                if o.cic.trial == 1
-                    o.tasksByFrame = cell(1,o.nLittleFrames);
-                    o.tasksByFrame{1} = o.beforeFrameTasks;
-                    o.littleFrameLoad = 1;
-                    return;
-                end
                 
-                curTrial = o.cic.trial;
-                if curTrial==2
-                    %Tasks have not yet been split
-                    updateCPUestimate(o.beforeFrameTasks,false);
-                else
-                    %Process the profile logs from last trial, updating the
-                    %estimate of CPU time
-                    allSubTasks = leaves(o.beforeFrameTasks);
-                    updateCPUestimate(allSubTasks,false);
-                    
-                    %Re-combine all split tasks. This deletes all the children.
-                    recombine(o.beforeFrameTasks);
-                end
-                
-                tskDur = [o.beforeFrameTasks.estDur];
-                
-                %Express CPU time as proportion of frame
-                tskDur = tskDur./o.frameDur;
-                sum(tskDur)
-                
-                %taskPlan is a nLittleFrames x nTasks matrix, with how much
-                %of each frame is devoted to each task
-                o.learningRate = 0.03;
-                loadStepSize = o.learningRate*o.nDroppedFrames*(2*normcdf(o.frameDropRatio,0,10)-1); %Cap the step size
-                o.littleFrameLoad = o.littleFrameLoad + loadStepSize;
-                curLittleLoad = normcdf(o.littleFrameLoad,0,1); %Keep load within bounds
-                
-                curLittleLoad
-                
-                bigFrameLoad = 1-curLittleLoad;
-                perFrameLoad = horzcat(curLittleLoad*ones(1,o.nLittleFrames-1)/(o.nLittleFrames-1),bigFrameLoad);
-                perFrameLoad = perFrameLoad/sum(perFrameLoad);
-                
-                perFrameLoad = sum(tskDur)*perFrameLoad;
-                
-                
-                %Allocate the tasks
-                o.taskPlan = [];
-                unallocated=tskDur;
-                for i=1:o.nLittleFrames
-                    propAllocated = 0;
-                    for j=1:nTasks
-                        if unallocated(j)==0
-                            continue;
-                        end
-                        o.taskPlan(i,j) = min(unallocated(j),perFrameLoad(i)-sum(propAllocated));
-                        unallocated(j) = unallocated(j) - o.taskPlan(i,j);
-                        propAllocated = sum(o.taskPlan(i,:));
-                        if propAllocated >= perFrameLoad(i)
-                            break;
-                        end
-                    end
-                end
-                
-                %Re-express task plan as proportions of each task and split tasks
-                o.taskPlan = o.taskPlan./repmat(tskDur,o.nLittleFrames,1);                
-            %end
-            
-            for i=1:nTasks
-                props = o.taskPlan(o.taskPlan(:,i)>0,i);
-                splitTasks{i} = split(o.beforeFrameTasks(i),props);
-            end
-            
-            %Now assign the split tasks to the little frames
-            newTasks = {};
-            for i=1:o.nLittleFrames
-                curTasks = find(o.taskPlan(i,:));
-                for j=1:numel(curTasks)
-                    newTasks{i}(j) = splitTasks{curTasks(j)}(1);
-                    splitTasks{curTasks(j)}(1) = [];
-                end
-            end
-            
-            %Assign the new plan
-            o.tasksByFrame = newTasks;
-            %cellfun(@(k) disp([k.name]),o.tasksByFrame)
-        end
-        
         function afterTrial(o)
             
               processFramedrops(o);
