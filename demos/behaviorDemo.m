@@ -1,4 +1,4 @@
-function behaviorDemo
+function behaviorDemo(varargin)
 %Two-alternative forced choice (2AFC) motion task:
 %       
 %       "Is the motion up or down?"
@@ -26,7 +26,7 @@ commandwindow;
 %% ========= Specify rig configuration  =========
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
-c = myRig;
+c = myRig(varargin{:});
 c.addPropsToInform('choice.correct','f1.stateName'); % Show this value on the command prompt after each trial (i.e. whether the answer was correct and whether fixation was successful).
 
 %Make sure there is an eye tracker (or at least a virtual one)
