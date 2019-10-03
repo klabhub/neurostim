@@ -1,4 +1,4 @@
-classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
+classdef fourierfiltimage < neurostim.stimuli.splittasksacrossframes
     
     properties
         
@@ -50,9 +50,9 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
     end
     %%
     methods (Access = public)
-        function o = fourierFiltImage(c,name)
+        function o = fourierfiltimage(c,name)
             
-            o = o@neurostim.stimuli.computeAcrossFramesThenDraw(c,name);
+            o = o@neurostim.stimuli.splittasksacrossframes(c,name);
             
             %User-definable
             o.addProperty('image',@randImage); %A string path to an image file, an image matrix, or a function handle that returns an image
@@ -120,9 +120,6 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
                     o.tasks(i).data = 1:nColsPerTask(i);
                 end
             end
-            
-            m=[];
-            o.setTaskPlan(m);
         end
         
         function makeRawImage(o,t)
@@ -246,11 +243,6 @@ classdef fourierFiltImage < neurostim.stimuli.computeAcrossFramesThenDraw
         function im = randImage(o,sz)
             %Gaussian white noise.
             im = exp(1j*2*pi*rand(sz)); %This gives random phases
-        end
-        
-        function afterBigFrame(o)
-            
-
         end
         
     end % public methods
