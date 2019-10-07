@@ -359,8 +359,10 @@ classdef cic < neurostim.plugin
     
     methods (Access=public)
         % Constructor.
-        function c= cic
-            
+        function c= cic(needPtb)
+            if nargin<1
+                needPtb=true; % Used by loadobj to create an empty cic without having PTB installed.
+            end
             %Check MATLAB version. Warn if using an older version.
             ver = version('-release');
             v=regexp(ver,'(?<year>\d+)(?<release>\w)','names');
@@ -370,8 +372,9 @@ classdef cic < neurostim.plugin
             
             c = c@neurostim.plugin([],'cic');
             
-            % Some very basic PTB settings that are enforced for all
-            KbName('UnifyKeyNames'); % Same key names across OS.
+            if needPtb
+                KbName('UnifyKeyNames'); % Same key names across OS.
+            end
             c.cursor = 'none';
             c.stage  = neurostim.cic.SETUP;
             % Initialize empty
@@ -1949,7 +1952,7 @@ classdef cic < neurostim.plugin
                 % Current CIC classdef does not match classdef in force
                 % when thi sobject was saved.
                 
-                c= neurostim.cic; % Create an empty cic of current classdef
+                c= neurostim.cic(false); % Create an empty cic of current classdef that does not need PTB (needPtb=false).
                 m= metaclass(c);
                 dependent = [m.PropertyList.Dependent];
                 settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
