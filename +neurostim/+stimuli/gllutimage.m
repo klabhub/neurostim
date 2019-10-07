@@ -181,6 +181,12 @@ classdef (Abstract) gllutimage < neurostim.stimulus
             %idImage should be a m x n matrix of luminance values
             idImage = flipud(idImage);
             o.nClutColors = max(idImage(:));
+            
+            %Make sure the number of randels is within limits
+            if o.nClutColors > 256^2
+                msg = 'The number of randels exceeds the limit of 256^2. Although not yet supported, 256^3 would be doable by changing makeClutText() and the shader to also use the B channel for indexing into (a larger) CLUT texture (currently only using RG)';
+                error(msg);
+            end
             o.idImage = idImage;
         end
         
