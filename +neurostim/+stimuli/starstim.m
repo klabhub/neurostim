@@ -226,6 +226,7 @@ classdef starstim < neurostim.stimulus
             
             
             o.addProperty('marker',''); % Used to log markers sent to NIC
+            o.addProperty('flipTime',[]); % USed to record fliptimes in logOnset function
             
             
             o.addProperty('eegChannels',[]); % Default to no EEG.
@@ -243,7 +244,7 @@ classdef starstim < neurostim.stimulus
             o.code('returnFromNIC') = 5; % confirming online change return from function call.
             o.code('protocolStarted') = 6;
             o.code('stopProtocol') = 7;
-            
+            o.code('stimOnset') = 8;
             
         end
         
@@ -882,6 +883,22 @@ classdef starstim < neurostim.stimulus
             o.mustExit = false;
             
         end
+        
+        function logOnset(s,startTime)
+            % This function sends a message to NIC to indicate that
+            % a stimulus (s) just appeared on the screen (i.e. first frame flip)
+            % I use a static function to make the notation easier for the
+            % user, but by using CIC I nevertheless make use of the (only)
+            % starstim object that is currently loaded.
+            % INPUT
+            % s =  stimulus that generated the onset event.
+            % startTime = flipTime in clocktime (i.e. not relative to the
+            % trial)                        
+            s.cic.startim.stimOnsetTime = startTime;
+            sendMarker(s.cic.starstim,'stimOnset'); % Send a marker to NIC.
+        end
+
+        
     end
     
     
