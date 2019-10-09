@@ -29,8 +29,9 @@ classdef splittaskstimulus < neurostim.stimuli.splittasksacrossframes
             %Here, we don't actually do anything other call rand with
             %different number of samples. Large ones will cause frame drops
             %if not split.
-            tsks = {@rand1,@rand2,@rand3,@rand4,@rand5};
-            nSamples = [100,5000000,10000,3000000,100000];
+            tsks = {@rand1,@rand2,@rand3,@rand4};
+            nSamples = [100,2000000,10000,100000];
+            o.learningRate = o.learningRate/20;
             
             %Make the array of tasks, indicating that they are splittable across frames
             splittable = 1;
@@ -79,11 +80,6 @@ classdef splittaskstimulus < neurostim.stimuli.splittasksacrossframes
             o.myVar4(ix) = rand(1,numel(ix));%myVar gets constructed in sections (e.g. subimages), of changing size as CPU load is distributed over frames
         end
         
-        function rand5(o,t)
-            ix = t.data;
-            %Random luminance values
-            o.myVar5(ix) = rand(1,numel(ix));%myVar gets constructed in sections (e.g. subimages), of changing size as CPU load is distributed over frames
-        end
     end % public methods
     
     

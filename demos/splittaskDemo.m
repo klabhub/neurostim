@@ -7,13 +7,13 @@ commandwindow;
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
 c = myRig;
-c.trialDuration = 5000;
+c.trialDuration = 3000;
 c.saveEveryN = Inf;
 
 %% ============== Add stimuli ==================
 im=neurostim.stimuli.fourierfiltimage(c,'filt');
-
-im.bigFrameInterval = 12;
+im.learningRate = im.learningRate/20;
+im.bigFrameInterval = 36;
 im.imageDomain = 'FREQUENCY';
 im.size = [950,950];
 %im.size = floor(im.size/60)*60; %Size should be a multiple of the frame rate.

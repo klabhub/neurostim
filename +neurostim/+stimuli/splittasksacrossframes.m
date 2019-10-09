@@ -207,8 +207,9 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
                     %
                     %TODO: this could be done more like Bayesian updating,
                     %Kalman, etc. e.g. o.nTasksPerFrame = a*o.nTasksPerFrame + (1-a)*(1-pDrops)
+                    distFromTargPDF = (pDrops - mean(pDrops))./mean(pDrops);
                     stepSize = o.learningRate*sqrt(nDrops);
-                    tsksPerFr = tsksPerFr+stepSize*(1-pDrops);
+                    tsksPerFr = max(tsksPerFr-stepSize*distFromTargPDF,0.0001);
                 else
                     %No frame drops. Don't rock the boat.
                 end
@@ -334,7 +335,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
         
         function report(o)
             subplot(2,2,1);
-            plot(sum(o.history.nDroppedPerLittleFrame,1),'o-','linewidth',3);
+            plot(sum(o.history.nDroppedPerLittleFrame,1),'o-b','linewidth',1,'markerfacecolor','b','markersize',5,'markeredgecolor','w');
             subplot(2,2,2);
             imagesc(o.history.nDroppedPerLittleFrame(:,o.cic.trial)./o.history.nFramesPerLittleFrame(:,o.cic.trial)); set(gca,'clim',[0 1]);
             subplot(2,2,3);
