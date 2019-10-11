@@ -422,4 +422,5 @@ classdef fourierfiltimage < neurostim.stimuli.splittasksacrossframes
                 
             end
         end
-    end % classdef
+    end
+end % classdef
