@@ -1,4 +1,4 @@
-function diodeTimingTester(device)
+function c= diodeTimingTester(device)
 % Experiment that tests timing reliability between Matlab and a separate data
 % acquisition system, using a photodiode.
 %
@@ -71,7 +71,7 @@ function diodeTimingTester(device)
 %
 %% Starstim
 %
-%
+% 
 %
 % See also demos/egiDemo
 % BK  -Nov 2016
@@ -85,11 +85,11 @@ end
 import neurostim.*
 
 c= myRig;
-c.trialDuration = 500;  % Rapid trials to get many GRAT events in the EGI fiel
+c.trialDuration = 500;  % Rapid trials to get many events
 c.iti = 150;
 c.screen.color.background = [0 0 0];
 c.subject = getenv('computername');
-
+c.paradigm = 'DiodeTimingTester';
 %%
 % To mimic a real experiment we generate a Gabor stimulus.
 g=stimuli.gabor(c,'grating');
@@ -113,8 +113,10 @@ g.phaseSpeed        = 10;
 % all stimuli).
 % On a generic monitor color should be [r g b].
 % Size is specified as a fraction of the horizontal number of pixels in the monitor
-diode = struct('on',true,'location','nw','color',100,'size',0.01);
-g.diode = diode; % This will turn on at stimulus onset. The photo diode should be pointed at the NorthWest corner to detect the onset.
+g.diode.on = true;% This will turn on at stimulus onset. The photo diode should be pointed at the NorthWest corner to detect the onset.
+g.diode.location= 'nw';
+g.diode.color = [1 1 1];
+g.diode.size = 0.01;
 
 %% Setup data acquisition device
 switch upper(device)
@@ -156,8 +158,11 @@ switch upper(device)
     case 'STARSTIM'
         
         s= stimuli.starstim(c);
-        
-        g.onsetFunction = @neurostim.stimuli.starstim.logOnset; % This will 
+        s.host = 'starstim.vision.rutgers.edu';
+        s.protocol = 'DiodeTimingTester'; % This should have Channel 1 selected as EEG channel.
+        s.eegChannels =1; % Connect the photo diode to channel 1 and the CMS.
+        s.mode ='EEGONLY';
+        g.onsetFunction = @neurostim.stimuli.starstim.logOnset; % Events sent to NIC over TCP
 end
 
 
