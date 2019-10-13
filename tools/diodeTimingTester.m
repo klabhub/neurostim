@@ -89,7 +89,7 @@ c.trialDuration = 500;  % Rapid trials to get many events
 c.iti = 150;
 c.screen.color.background = [0 0 0];
 c.subject = getenv('computername');
-c.paradigm = 'DiodeTimingTester';
+
 %%
 % To mimic a real experiment we generate a Gabor stimulus.
 g=stimuli.gabor(c,'grating');
@@ -154,15 +154,20 @@ switch upper(device)
         % logOnset function in the egi plugin when the stimulus first turns on in
         % each trial.
         g.onsetFunction  =@neurostim.plugins.egi.logOnset;  % This will generate events that are synched to Diode onset over TCP
-        
+        c.paradigm = 'egiDiodeTimingTest';
     case 'STARSTIM'
-        
+        %For Starstim we connec a photodiode to channel 1/CMS, and use a
+        %template that has #1 as an EEG channel (nothing else is needed). 
+        % Testing this timing requires detecting diode onset from the EEG
+        % channel (by thresholding) and comparing those times with the
+        % starstim.fliptime events; they should match exactly. 
         s= stimuli.starstim(c);
         s.host = 'starstim.vision.rutgers.edu';
         s.protocol = 'DiodeTimingTester'; % This should have Channel 1 selected as EEG channel.
         s.eegChannels =1; % Connect the photo diode to channel 1 and the CMS.
         s.mode ='EEGONLY';
         g.onsetFunction = @neurostim.stimuli.starstim.logOnset; % Events sent to NIC over TCP
+        c.paradigm = 'starstimDiodeTimingTest';
 end
 
 
