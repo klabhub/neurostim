@@ -24,17 +24,6 @@ im.showReport = false;
 %im.mask = gaussLowPassMask(im,24);
 im.mask = annulusMask(im,'plot',false);
 
-% myIm = ones(im.size);
-% myIm = complex(myIm);
-% im.image=gpuArray(myIm);
-
-% m=zeros(im.size);
-% f1 = round(im.size/2+0.5+10);
-% f2 = round(im.size/2+0.5-10);
-% m(f1,f1) = 1;
-% m(f2,f2) = 1;
-% im.mask=gpuArray(ifftshift(m));
-
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.
 myDesign.fac1.filtIm.X= 0;             %Three different fixation positions along horizontal meridian

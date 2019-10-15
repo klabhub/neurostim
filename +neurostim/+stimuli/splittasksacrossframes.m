@@ -347,7 +347,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             frame2LittleFrame = @(frame) mod(frame-1,o.nLittleFrames)'+1;
             
             %How many times was each little frame executed?
-            littleFrameNum = frame2LittleFrame(1:o.cic.frame);
+            littleFrameNum = frame2LittleFrame(1:o.cic.frame-1);
             nExecuted = accumarray(littleFrameNum,1);
             nDropped = 0;
             ignoredDroppedFrames = [];
