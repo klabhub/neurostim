@@ -26,6 +26,11 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
     %either not caused by our stimulus, or are as low as they can be given
     %the total task load.
     
+    %% Constants
+    properties (Constant)
+        PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
+    end
+    
     properties (Access = private)
         beforeTrialTasks@neurostim.splittask;   %Array of splittask objects (handles) to be done before trial. These aren't ever split, but having this allows for subclasses to put tasks here if constant over trials or in beforeFrameTasks if not (which can vary across experiemnts)
         beforeFrameTasks@neurostim.splittask;   %Array of splittask objects to be done before frames
@@ -90,12 +95,14 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             %Set a default task plan if not supplied
             if isempty(o.nTasksPerFrame)
                 o.nTasksPerFrame = ones(1,o.nLittleFrames);  %This gets scaled up to sum to nTasks below
-            end
+            end           
+                
         end
         
         function beforeTrial(o)
             
             %Reset some properties
+            o.littleFrame = 0;
             o.drawingStarted = false;
             o.bigFrame = 0;
             
@@ -117,13 +124,24 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
                 %Split the task objects into the required sub-tasks, ready for execution in beforeFrame()
                 splitTasks(o);
             end
-            %Do all the tasks that can be done now
-            arrayfun(@(tsk) do(tsk),o.beforeTrialTasks);
+            
+            %Do all the tasks that can be done now, with or without profiling the tasks
+            if o.PROFILE
+                arrayfun(@(tsk) profileDo(tsk),o.beforeTrialTasks);
+            else
+                arrayfun(@(tsk) do(tsk),o.beforeTrialTasks);
+            end
         end
         
         function afterTrial(o)
             if o.optimise
                 processFramedrops(o);
+            end
+        end
+      
+        function afterExperiment(o)
+            if o.PROFILE
+                report(o.beforeFrameTasks);
             end
         end
         
@@ -138,8 +156,12 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
                 o.bigFrame = o.bigFrame + 1;
             end
             
-            %Do the tasks that have been allocated to this little frame
-            arrayfun(@(tsk) do(tsk),o.tasksByFrame{o.littleFrame});
+            %Do the tasks that have been allocated to this little frame, with or without profiling the tasks
+            if o.PROFILE
+                arrayfun(@(tsk) profileDo(tsk),o.tasksByFrame{o.littleFrame});
+            else
+                arrayfun(@(tsk) do(tsk),o.tasksByFrame{o.littleFrame});
+            end                        
             
             %Is it time to update drawing objects/textures?
             if o.isBigFrame
@@ -151,11 +173,11 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             
             %If we are ready to start drawing, call on the subclass to draw to the display.
             if o.drawingStarted
-                o.draw();
+                o.draw();                
             end
         end
         
-        function addTask(o,name,fun,splittable)
+        function addTask(o,fun,varargin)
             %"name" is a string task name
             %"fun" is a function handle, f(o,t) to the task that should be done.
             %It receives the stimulus plugin as the first argument and the
@@ -164,13 +186,23 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             %"splittable" is currently not used. Some tasks cannot be
             %split, so this would be a way to mark those and to ensure they
             %are not split in the o.taskPlan. Not yet implemented.
+            p=inputParser;
+            p.addRequired('taskFun',@(x) isa(x,'function_handle'));
+            p.addParameter('name',[]);
+            p.addParameter('splittable',1);
+            p.parse(fun,varargin{:});
+            p = p.Results;
             
             if o.cic.trial>0
                 error('Tasks can only be added before c.run() or in beforeExperiment().');
             end
             
+            if isempty(p.name)
+                p.name = func2str(p.taskFun);
+            end
+            
             %Create a splittask object
-            newJob = neurostim.splittask(name,o,fun,splittable);
+            newJob = neurostim.splittask(p.name,o,p.taskFun,p.splittable);
             
             %Add it to the list.
             o.tasks = horzcat(o.tasks,newJob);
@@ -240,7 +272,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             end
             
             %Clear the previous schedule
-            o.taskPlan = [];
+            o.taskPlan = zeros(o.bigFrameInterval,o.nTasks);
             
             %Keep track of how much load has already been allocated to the
             %current frame (i), and how much of the current task (j) has
@@ -255,21 +287,35 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
                     end
                     
                     %Add as much of the the current task to this frame as we can
-                    o.taskPlan(i,j) = min(remTask(j),remFrameAlloc(i));
+                    if o.beforeFrameTasks(j).splittable
+                        o.taskPlan(i,j) = min(remTask(j),remFrameAlloc(i)); %Allocates some or all (if last frame)
+                    else
+                        %We can't split, so allocate to this frame only if more than half a nominal task remains.
+                        o.taskPlan(i,j) = double(remFrameAlloc(i) > 0.5);
+                    end
                     
                     %Update our record of things already alloacted
                     remTask(j) = remTask(j) - o.taskPlan(i,j);
-                    remFrameAlloc(i) = remFrameAlloc(i) - o.taskPlan(i,j);
+                    remFrameAlloc(i) = max(remFrameAlloc(i) - o.taskPlan(i,j),0); %Can be negative because of unsplittable tasks, so this forces zero
                     if ~remFrameAlloc(i)
                         %No further load available on this frame. Move to next.
                         break;
                     end
                 end
             end
+            
+            %Because of unsplittable tasks, we haven't necessarily assigned
+            %all to frames. Any remaining will have to be assigned to last frame.
+            o.taskPlan(i,:) = o.taskPlan(i,:)+remTask;
+            if sum(o.taskPlan(:))~=o.nTasks
+                keyboard;
+                error('Something went wrong with the scheduling of tasks. This is probably a bug.');
+            end
         end
         
         function splitTasks(o)
             %Read the task plan and split task objects accordingly.
+            %(nothing happens to unsplittable tasks)
             
             %First, re-combine all split tasks. This deletes all the sub-task children.
             recombine(o.beforeFrameTasks);
@@ -304,6 +350,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             littleFrameNum = frame2LittleFrame(1:o.cic.frame);
             nExecuted = accumarray(littleFrameNum,1);
             nDropped = 0;
+            ignoredDroppedFrames = [];
             
             %Count frame drops for each little frame
             fd=get(o.cic.prms.frameDrop,'trial',o.cic.trial,'struct',true);
@@ -311,6 +358,11 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
                 droppedFrames = fd.data(:,1);
                 droppedFrames(isnan(droppedFrames)) = [];
                 droppedFrames = droppedFrames + 1;% I DON'T KNOW WHY THIS IS NEEDED. See CIC.run()
+                
+                %We'll ignore frame-drops on first big frame
+                isInFirstBigFrame = droppedFrames<=o.nLittleFrames+1;
+                ignoredDroppedFrames = droppedFrames(isInFirstBigFrame);
+                droppedFrames(isInFirstBigFrame) = [];
                 
                 %Use unique() to do the count (ia is little frame number, ic provides the info needed to then count them
                 nDropped = zeros(o.bigFrameInterval,1);
@@ -323,7 +375,12 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             o.history.nTasksPerFrame(:,o.cic.trial) = o.nTasksPerFrame;
             o.history.nFramesPerLittleFrame(:,o.cic.trial) = nExecuted;
             o.history.nDroppedPerLittleFrame(:,o.cic.trial) = nDropped;
-            
+            if any(nDropped)
+                o.history.frameNumbers{o.cic.trial} = droppedFrames;
+            else
+                o.history.frameNumbers{o.cic.trial} = [];
+            end
+            o.history.ignoredDroppedFrames{o.cic.trial} = ignoredDroppedFrames;
             if o.showReport
                 report(o);
             end
@@ -334,14 +391,22 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
     methods (Access = protected)
         
         function report(o)
-            subplot(2,2,1);
+            subplot(3,2,1);
             plot(sum(o.history.nDroppedPerLittleFrame,1),'o-b','linewidth',1,'markerfacecolor','b','markersize',5,'markeredgecolor','w');
-            subplot(2,2,2);
+            subplot(3,2,2);
             imagesc(o.history.nDroppedPerLittleFrame(:,o.cic.trial)./o.history.nFramesPerLittleFrame(:,o.cic.trial)); set(gca,'clim',[0 1]);
-            subplot(2,2,3);
+            subplot(3,2,3);
             imagesc(o.history.nTasksPerFrame);
-            subplot(2,2,4);
+            subplot(3,2,4);
             imagesc(o.taskPlan);
+            
+            subplot(3,2,5:6); cla
+            frameNum = o.history.frameNumbers{o.cic.trial};
+            ignoredDroppedFrames = o.history.ignoredDroppedFrames{o.cic.trial};
+            plot(frameNum,ones(1,numel(frameNum)),'bo'); hold on;
+            plot(ignoredDroppedFrames,ones(1,numel(ignoredDroppedFrames)),'rx');
+
+            xlim([1,o.cic.frame]);
             drawnow;
         end
         %         end

@@ -7,19 +7,33 @@ commandwindow;
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
 c = myRig;
-c.trialDuration = 3000;
+c.trialDuration = 1000;
 c.saveEveryN = Inf;
 
 %% ============== Add stimuli ==================
 im=neurostim.stimuli.fastfilteredimage(c,'filtIm');
-im.frameInterval = 10;
+im.bigFrameInterval = 2;
 im.imageDomain = 'FREQUENCY';
 im.size = [1024,1024];
-im.width = 20;%im.size(1)./c.screen.xpixels*c.screen.width;
+im.width = im.size(1)./c.screen.xpixels*c.screen.width;
 im.height = im.width*im.size(1)/im.size(2);
-maskSD = 0.05;
-im.mask = ifftshift(normpdf(linspace(-1,1,im.size(1)),0,maskSD)'.*normpdf(linspace(-1,1,im.size(2)),0,maskSD));
 im.maskIsStatic = true;
+im.statsConstant = true;
+im.optimise = true;
+im.showReport = false;
+%im.mask = gaussLowPassMask(im,24);
+im.mask = annulusMask(im,'plot',false);
+
+% myIm = ones(im.size);
+% myIm = complex(myIm);
+% im.image=gpuArray(myIm);
+
+% m=zeros(im.size);
+% f1 = round(im.size/2+0.5+10);
+% f2 = round(im.size/2+0.5-10);
+% m(f1,f1) = 1;
+% m(f2,f2) = 1;
+% im.mask=gpuArray(ifftshift(m));
 
 %Specify experimental conditions
 myDesign=design('myFac');                      %Type "help neurostim/design" for more options.

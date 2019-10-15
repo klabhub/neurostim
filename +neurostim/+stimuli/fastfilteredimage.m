@@ -1,32 +1,31 @@
-classdef fastfilteredimage < neurostim.stimulus
+classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
     %Filter images/noise using an ampltidue mask in Fourier space.
     %
     properties (Access = private)
+        gpuDevice;
         sngImage_space;
         dblImage_space;
-        gpuImage_space;
-        gpuImage_freq;
-        gpuFiltImage_freq;
-        gpuMask_freq;
-        gpuFiltImageRawMean;
-        gpuFiltImageRawSTD;
-        rect;
-        frameInterval_f;
-        bigFrameCtr;  %Increments every time a new rand() image is created to ensure that we can reconstruct the stimulus offline
+        gpuImage_space@gpuArray;
+        gpuImage_freq@gpuArray;
+        gpuFiltImage_freq@gpuArray;
+        gpuMask_freq@gpuArray;
+        gpuFiltImageRawMean@gpuArray;
+        gpuFiltImageRawSTD@gpuArray;
+        filtImageRawSTD;
+        pvtMeanLum@single;
+        pvtContrast@single;
+        rect;        
         tex;
         ticStart;
+        normStatsDone = false;
     end
     
     properties (GetAccess = public, SetAccess = private)
-        nRandels;        
+        nRandels;
     end
     
     properties (GetAccess = public, SetAccess = protected)
-       
-    end
-    
-    properties
-        isNewFrame = false  %Flag that gets set to true on each frame that the noise is updated. Useful for syncing other stimuli/plugins.
+        
     end
     
     properties (Dependent, Access = protected)
@@ -39,26 +38,24 @@ classdef fastfilteredimage < neurostim.stimulus
             v = max(min(o.nRandels,10),round(o.propOfRandelsToLog*o.nRandels));
         end
     end
+    
     methods (Access = public)
         function o = fastfilteredimage(c,name)
             
-            o = o@neurostim.stimulus(c,name);
+            o = o@neurostim.stimuli.splittasksacrossframes(c,name);
             
             %% User-definable
-            defaultImage = imread('cameraman.tif');
-            o.addProperty('image',defaultImage);          %A string path to an image file, an image matrix, or a function handle that returns an image
+            o.addProperty('image',@randImage);          %A string path to an image file, an image matrix, or a function handle that returns an image
             o.addProperty('imageDomain','SPACE','validate',@(x) any(strcmpi(x,{'SPACE','FREQUENCY'})));
             o.addProperty('imageIsStatic',false);       %if true, image is computed once in beforeTrial() and never again. Otherwise, every frame
-            o.addProperty('mask',eye(5));
+            o.addProperty('mask',@(o) gaussLowPassMask(o,24));
             o.addProperty('maskIsStatic',true);
             o.addProperty('meanLum',0.25);                   %Mean luminance of the final image
             o.addProperty('contrast',0.5);                  %Contrast of the final image, defined as RMS contrast, std(L)/mean(L)
-            o.addProperty('size',size(defaultImage));
+            o.addProperty('size',[1024 1024]);
             o.addProperty('width',10);
             o.addProperty('height',10);
-            
-            %---Timing
-            o.addProperty('frameInterval',o.cic.frames2ms(3));                  %How long should each frame be shown for? default = 3 frames.
+            o.addProperty('statsConstant',false); %Set to true if mean lum and SD is constant across trials, saves on re-computing each frame.
             
             %---Logging options
             %WARNING: ONLY SET propOfRandelsToLog to 1 IF nRandels IS VERY SMALL! OTHERWISE, THE MEMORY LOAD REQUIRED COULD LEAD TO FRAMEDROPS.
@@ -80,14 +77,52 @@ classdef fastfilteredimage < neurostim.stimulus
             %We need our own RNG stream, to ensure its protected for stimulus reconstruction offline
             o.rng = requestRNGstream(c);
             
+            o.gpuDevice = gpuDevice;
+            reset(o.gpuDevice);
         end
         
-        function beforeExperiment(o)
-            %Check the RNG type. Needs to be 'threefry'
+        function setupTasks(o)
+            
+            %Create a list of the tasks to be done to create the filtered image.
+            tsks = {@initGPUarrays,@getImage,@getMask,@fftImage,@filterImage,@intensity2lum,@gatherToCPU,@single2double,@makeTexture};
+            
+            %Make the array of tasks, indicating that they are splittable across frames
+            for i=1:numel(tsks)
+                o.addTask(tsks{i},'splittable',0);
+            end
+            
+            %Separate tasks into ones we can do now, and ones that need to be done beforeFrame()
+            %Which of these can we do now?
+            isStatic = o.imageIsStatic & o.maskIsStatic;
+            fftNeeded = strcmpi(o.imageDomain,'SPACE');
+            doNow = [true,o.imageIsStatic,o.maskIsStatic,isStatic&fftNeeded,isStatic,isStatic,isStatic,isStatic,isStatic];
+            doLater = ~doNow;
+            doLater(4) = false; %FFT not yet implemented
+            
+            %Set up each task
+            for i=1:numel(o.tasks)
+                %When should it be done?
+                if doNow(i)
+                    o.tasks(i).when = 'beforeTrial';
+                elseif doLater(i)
+                    o.tasks(i).when = 'beforeFrame';
+                else
+                    o.tasks(i).enabled = 0;
+                end
+            end
+            
+            %Check that the random number generator is 'threefry'
+            %TODO
+            
+            o.pvtMeanLum = single(o.meanLum);
+            o.pvtContrast = single(o.contrast);
         end
         
+        function beforeBigFrame(o)
+            
+        end
         
-        function beforeTrial(o)
+        function initGPUarrays(o,~)
             
             %Create CPU and GPU arrays
             sz=o.size;
@@ -95,68 +130,107 @@ classdef fastfilteredimage < neurostim.stimulus
             o.dblImage_space = zeros(sz,'double');
             [o.gpuMask_freq,o.gpuFiltImage_freq]=deal(zeros(sz,'single','gpuArray'));
             
-            if o.imageIsStatic && strcmpi(o.imageDomain,'SPACE')                
-                o.gpuImage_space = gpuArray(single(o.image));
-            else
-                o.gpuImage_space = zeros(sz,'single','gpuArray');
-            end
-                        
-            if o.maskIsStatic
-                o.gpuMask_freq = gpuArray(single(o.mask));
-            else
-                o.gpuMask_freq = zeros(sz,'single','gpuArray');
-            end
+            o.gpuImage_space = zeros(sz,'single','gpuArray');
+            o.gpuMask_freq = zeros(sz,'single','gpuArray');
             
             o.rect = [-o.width/2,-o.height/2,o.width/2,o.height/2];
-            
-            o.bigFrameCtr = 0;
-            
-                        %Make sure the requested duration is a multiple of the display frame interval
-            tol = 0.1; %5% mismatch between requested frame duration and what is possible
-            frInt = o.cic.ms2frames(o.frameInterval,false);
-            o.frameInterval_f = round(frInt);
-            if ~isinf(frInt) && abs(frInt-o.frameInterval_f) > tol
-                o.writeToFeed(['Noise frameInterval not a multiple of the display frame interval. It has been rounded to ', num2str(o.cic.frames2ms(o.frameInterval_f)) ,'ms']);
-            end
-            
-
             o.nRandels = prod(o.size);
         end
         
-        function beforeFrame(o)
+        function getImage(o,~)
             
-            %Update the raster luminance values
-            curFr = o.frame;
-            frInt = o.frameInterval_f;
-            o.isNewFrame = (isinf(frInt) && curFr==0) || (~isinf(frInt)&&~mod(curFr,frInt));
-            if o.isNewFrame
-                %Calculate a new image
-                o.update();
-            
-                %Clera the existing texture
-                if curFr>0
-                    Screen('Close', o.tex);
-                end
-                
-                o.tic();
-                o.tex = Screen('MakeTexture',o.window,o.dblImage_space,[],[],2); %2 means 32-bit texture, 0 to 1 RGB range
-                o.toc();
+            %Load or construct the raw image
+            if isa(o.image,'function_handle')
+                im = o.image(o);
+            else
+                %It's just an image matrix.
+                im = o.image;
             end
-                                   
+            
+            if strcmpi(o.imageDomain,'FREQUENCY')
+                o.gpuImage_freq = im;
+            else
+                o.gpuImage_space = im;
+            end
+        end
+        
+        function getMask(o,~)
+            %Load or construct the raw image
+            if isa(o.mask,'function_handle')
+                o.gpuMask_freq = o.mask(o);
+            else
+                %It's just an image matrix.
+                o.gpuMask_freq = o.mask;
+            end
+        end
+        
+        function fftImage(o,~)
+            %Not yet implemented
+        end
+        
+        function filterImage(o,~)
+            %Mask.*Image
+            o.gpuFiltImage_freq  = o.gpuImage_freq.*o.gpuMask_freq;
+            
+            %IFFT2
+            o.gpuImage_space = real(ifft2(o.gpuFiltImage_freq));
+        end
+        
+        function intensity2lum(o,~)
+            %Normalise and apply mean luminance, RMS contrast
+            newMean = o.pvtMeanLum;
+            newSD = newMean*o.pvtContrast;
+            o.gpuImage_space = rescale(o,newMean,newSD);
+        end
+        
+        function gatherToCPU(o,~)
+            %Return filtered image to the CPU and convert to double for MakeTexture
+            o.sngImage_space = gather(o.gpuImage_space); %2ms
+        end
+        
+        function single2double(o,~)
+            o.dblImage_space = double(o.sngImage_space); %3ms
+        end
+        
+        function makeTexture(o,~)
+            if ~isempty(o.tex)
+                Screen('Close', o.tex);
+            end
+            o.tex = Screen('MakeTexture',o.window,o.dblImage_space,[],[],2); %2 means 32-bit texture, 0 to 1 RGB range
+        end
+        
+        function draw(o)
             Screen('DrawTexture',o.window,o.tex,[],o.rect,[],1);
         end
         
         function afterTrial(o)
+            Screen('Close', o.tex);
+            o.tex = [];
+            
+            afterTrial@neurostim.stimuli.splittasksacrossframes(o);
             o.logInfo();
+        end        
+        
+        function im = randImage(o)
+            
+            %Switch to using my RNG as the global stream
+            globStream = RandStream.setGlobalStream(o.rng);
+            
+            %Random image
+            im = neurostim.stimuli.fastfilteredimage.randComplexPhase(o.size);
+            
+            %Restore previous global stream
+            RandStream.setGlobalStream(globStream);
+            
         end
         
-        function afterExperiment(o)
-            %Experiment has been cancelled. Make sure we log last trial
-%             if ~isempty(o.clut)
-%                 %o.cleanUp() hasn't been called. Probably because "esc" was pressed
-%                 o.logInfo();
-%                 o.cleanUp();
-%             end
+        function maskIm = gaussLowPassMask(o,sd)
+            %Gaussian mask filter, centered on 0
+            sz = o.size;
+            if diff(sz)~=0
+                error('gaussLowPassMask currently only supports square images');
+            end
+            maskIm = gpuArray(ifftshift(fspecial('gaussian',sz(1),sd)));
         end
         
         function [clutVals,ixImage] = reconstructStimulus(o,varargin)
@@ -319,57 +393,92 @@ classdef fastfilteredimage < neurostim.stimulus
                 clutVals{i} = clutVals{i}(:,:,cbByFrame);
             end
         end
+        
+        function im = annulusMask(o,varargin)
+            %Annulus mask in Fourier domain. Use fftshift(im) to visualise it with zero in the center.
+            p=inputParser;
+            p.addParameter('maxSF',8.3); %Proportion of Nyquist.
+            p.addParameter('minSF',3.5);
+            p.addParameter('SFbandwidth',1.2);
+            p.addParameter('blurSD',0.5);
+            p.addParameter('orientation',0); %orientation of major axis for deformed annulus
+            p.addParameter('plot',false);
+            p.parse(varargin{:});
+            p=p.Results;
+            
+            if diff(o.size)~=0
+                error('annulusMask currently only supports square images.');
+            end
+            
+            nPix = o.size(1);
+            
+            %Set up pixel space
+            nPixPerNS = nPix/o.width;                %Display pixel resolution
+            
+            %Set up Fourier domain, in normalised coordinates
+            nyq = 1./sqrt(2); %Nyquist on oblique
+            
+            %X_deg = (0:nPix-1)*nPixPerDeg/nPix;             %Frequencies along FFT axis, without FFT shift
+            fx_ns = (-nPix/2:nPix/2-1)*(nPixPerNS/nPix);   %Frequencies along FFT axis, with FFT shift
+            maxSF_ns = max(fx_ns);
+            
+            sfNorm2sfNS = @(sf) sf*maxSF_ns;
+            
+            %Convert params to prop of nyq and then degrees
+            %             p.maxSF = sfNorm2sfNS(p.maxSF*nyq);
+            %             p.minSF = sfNorm2sfNS(p.minSF*nyq);
+            %             p.SFbandwidth = sfNorm2sfNS(p.SFbandwidth*nyq);
+            %             blurSD = sfNorm2sfNS(p.blurSD*nyq);
+            nyq = sfNorm2sfNS(nyq);
+            centerSF = mean([p.maxSF,p.minSF]);
+            
+            %X = linspace(-1,1,nPix);
+            [fSFh,fSFv]=meshgrid(fx_ns);
+            
+            % %% New method
+            [fTheta,fR]=cart2pol(fSFh,fSFv);
+            
+            %Center frequency
+            theta2centSF = @(th) ((cos(2*th+p.orientation+pi)+1)/2).*(p.maxSF-p.minSF)+p.minSF;
+            
+            distToCenterSF = @(th,r) abs(r-theta2centSF(th));
+            rAdj = @(th,r) max(distToCenterSF(th,r)-p.SFbandwidth/2,0);
+            tableTopGauss = @(th,r,sd) normpdf(rAdj(th,r),0,sd);
+            mask_freq = tableTopGauss(fTheta,fR,p.blurSD)';
+            
+            if p.plot
+                
+                %Mask in frequency domain
+                figure; h = [];
+                imagesc(fx_ns,fx_ns,mask_freq); axis image; colormap('gray');hold on; h(end+1) = gca;
+                [circX,circY]=pol2cart(linspace(-pi,pi,1000),1);
+                plot(nyq*circX,nyq*circY,'r'); plot(centerSF*circX,centerSF*circY,'y');
+                
+                %Mask in space
+                figure
+                mask_space = fftshift(ifft2(ifftshift(mask_freq), 'symmetric'));
+                imagesc(mask_space); axis image; colormap('gray'); hold on                
+            end
+            
+            im = ifftshift(mask_freq);            
+            im = im./max(im(:));
+            %im(im<eps) = 0;
+            im=gpuArray(im);
+        end
     end % public methods
     
     
-    methods (Access = protected)            
-        
-        function o = update(o)
-            
-            %Keep track of how many times we've updated
-            o.bigFrameCtr = o.bigFrameCtr+1;
-                        
-            %Switch to using my RNG as the global stream
-            globStream = RandStream.setGlobalStream(o.rng);
-            
-            sz = o.size;
-            
-            %Random image
-            o.gpuImage_freq = neurostim.stimuli.fastfilteredimage.randComplexPhase(sz);
-
-            %Mask.*Image
-            o.gpuFiltImage_freq  = o.gpuImage_freq.*o.gpuMask_freq;
-            
-            %IFFT2
-            o.gpuImage_space = real(ifft2(o.gpuFiltImage_freq));
-
-            %Normalise and apply mean luminance, RMS contrast
-            newMean = o.meanLum;
-            newSD = newMean*o.contrast;
-            if o.bigFrameCtr==1 &&  o.cic.trial==1
-                [o.gpuFiltImageRawMean,o.gpuFiltImageRawSTD] = meanstd(o); %2ms
-            end            
-            o.gpuImage_space = rescale(o,newMean,newSD);
-
-            %Return filtered image to the CPU and convert to double for MakeTexture
-            o.sngImage_space = gather(o.gpuImage_space); %2ms                     
-            o.dblImage_space = double(o.sngImage_space); %3ms
+    methods (Access = protected)
                 
-            %Restore previous global stream
-            RandStream.setGlobalStream(globStream);
-            
-        end
-        
         function tic(o)
-            if o.bigFrameCtr==100
-                o.ticStart=GetSecs;
-            end
+            o.ticStart=GetSecs;
         end
         
-        function toc(o)
-            if o.bigFrameCtr==100
-                1000*(GetSecs-o.ticStart)
+        function toc(o,waitForGPUFinish)
+            if nargin > 1 && waitForGPUFinish
+                wait(o.gpuDevice);
             end
+            disp(horzcat('Elapsed = ',num2str(1000*(GetSecs-o.ticStart)),' ms'));
         end
         
         function [meanVal,sd] = meanstd(o)
@@ -383,10 +492,23 @@ classdef fastfilteredimage < neurostim.stimulus
             %Efficient rescaling of an image, defined by its mean and SD
             %(so probably only meaningful for approximately Gaussian
             %intensity distributions.)
-            gpuIm = (o.gpuImage_space-o.gpuFiltImageRawMean)./o.gpuFiltImageRawSTD.*newSD+newMean;
+            if (o.statsConstant && ~o.normStatsDone) || ~o.statsConstant
+                [curMean,curSTD] = meanstd(o); %2ms
+                if o.statsConstant
+                    o.gpuFiltImageRawMean = curMean;
+                    o.gpuFiltImageRawSTD = curSTD;
+                    o.normStatsDone = true; %Prevent re-entry to meanstd()
+                end
+            else
+                %Use values stored on CPU
+                curMean = o.gpuFiltImageRawMean;
+                curSTD = o.gpuFiltImageRawSTD;
+            end
+            
+            gpuIm = max(min((o.gpuImage_space-curMean)./curSTD.*newSD+newMean,1),0);
         end
         
-
+        
         
     end % protected methods
     
@@ -395,7 +517,7 @@ classdef fastfilteredimage < neurostim.stimulus
         function logInfo(o)
             %Store some details to help reconstruct the stimulus offline
             %How many times the callbacks were called.
-            o.nBigFrames = o.bigFrameCtr;
+            o.nBigFrames = o.bigFrame;
             
             %The actual CLUT values used in the last frame (usually, only a subset)
             %o.randelVals = o.clut(:,1:o.nRandelsToLog);
@@ -439,6 +561,10 @@ classdef fastfilteredimage < neurostim.stimulus
         function im = randComplexPhase(sz)
             %Gaussian white noise.
             im = exp(1j*2*pi*rand(sz,'single','gpuArray')); %This gives random phases
-        end       
+        end
+        
+        
+        
     end
-end % classdef
+end
+% classdef

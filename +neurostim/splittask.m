@@ -71,6 +71,7 @@ classdef splittask < handle & matlab.mixin.Copyable
            if p==1
                %Nothing to do
                tOut = t;
+               return;
            end
            
            if ~t.splittable
@@ -193,11 +194,7 @@ classdef splittask < handle & matlab.mixin.Copyable
            %Which of the tasks in the list are siblings of the task t?
            v = arrayfun(@(k) ~isempty(k.parent) && isequal(k.parent,t.parent),tList);
        end
-              
-       function profile(t,isOn)
-           t.profiling = isOn;        
-       end
-       
+                     
        function updateCPUestimate(t,plotHist)
            nTasks = numel(t);
            for i=1:nTasks
@@ -209,6 +206,23 @@ classdef splittask < handle & matlab.mixin.Copyable
                    histogram(t(i).profile_dur,0:20); title(horzcat(t(i).name,'; - prop = ', num2str(t(i).propOfTask))); drawnow;
                end     
            end
+       end
+       
+       function h = report(t)
+           if ~t(1).plg.PROFILE
+               error('You need to set the PROFILE property of the parent plugin to true.');
+           end
+           
+           nTasks=numel(t);
+           
+           allVals = [t.profile_dur];
+           minVal = min(allVals);
+           maxVal = max(allVals);
+           for i=1:nTasks
+               subplot(nTasks,1,i);
+               h(i)=histogram(t(i).profile_dur,linspace(minVal,maxVal,500),'Normalization','probability'); title(t(i).name);
+           end
+           
        end
    end
 end
