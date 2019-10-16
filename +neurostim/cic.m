@@ -1109,6 +1109,16 @@ classdef cic < neurostim.plugin
                         end
                         
                         
+                        if c.timing.vsyncMode ==0
+                            %Stimuli should set and log their onsets/offsets as soon as they happen, in case other
+                            %properties in any afterFrame() depend on them. So, send the flip time those who requested it
+                            if ~isempty(c.flipCallbacks)
+                                flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
+                                cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
+                                c.flipCallbacks = {};
+                            end
+                        end
+                        
                         % In Vsyncmode 0, the frame will have flipped by
                         % now, we start the afterFrame functions in all
                         % plugins.
@@ -1130,10 +1140,31 @@ classdef cic < neurostim.plugin
                             % This will return the timing associated with
                             % the last completed flip.
                             startFlipTime = GetSecs;
-                            [ptbVbl,ptbStimOn,flipDoneTime] = Screen('AsyncFlipEnd',c.mainWindow);
+                            [ptbVbl,ptbStimOn,flipDoneTime] = Screen('AsyncFlipEnd',c.mainWindow); %Blocking call.
                             flipDuration = flipDoneTime-startFlipTime; % For loggin only; includes the busy wait time, but can be negative if the flip already completed
                             vblIsLate = ptbVbl-predictedVbl;
                             predictedVbl = ptbVbl+FRAMEDURATION; % Prediction for next frame
+                            
+                            % In vsyncMode==1 we call the flipCallbacks
+                            % once we know the actual ptbStimOn times and the 
+                            % flip has actually ocurred .
+                            % This means that in vsyncMode ==1 
+                            % afterFrame() should not use
+                            % .startTime and .stopTime. (shouldnt' really
+                            % do this ever).
+                            % the stimulus.logOnset/logOffset functions are
+                            % callled from inside the flipCallbacks and are
+                            % therefore guaranteed to run after the flip
+                            % has occured. Becuase afterFram() has already
+                            % completed in this mode, these are called
+                            % slightly later in vsync==1 than in vsync==0.
+                            if ~isempty(c.flipCallbacks)
+                                flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
+                                cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
+                                c.flipCallbacks = {};
+                            end
+                            
+                            
                         end
                         
                         if locPROFILE
@@ -1150,13 +1181,6 @@ classdef cic < neurostim.plugin
                             end
                         end
                         
-                        %Stimuli should set and log their onsets/offsets as soon as they happen, in case other
-                        %properties in any afterFrame() depend on them. So, send the flip time those who requested it
-                        if ~isempty(c.flipCallbacks)
-                            flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
-                            cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
-                            c.flipCallbacks = {};
-                        end
                     end % Trial running
                     c.stage = neurostim.cic.RUNNING; 
                     %Perform one last flip to clear the screen (if requested)

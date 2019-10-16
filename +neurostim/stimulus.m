@@ -464,6 +464,10 @@ classdef stimulus < neurostim.plugin
     
     methods (Access = {?neurostim.cic})
         function afterFlip(s,flipTime,ptbTime)
+            % flipTime = time in trial (relative to firstframe)
+            % ptbTime =  time in experiment.
+            % Both refer to the stimulus onset time estimated by the
+            % Screen('Flip') function (either synchronous or asynchronous).
             if s.logOnset                
                 %DEBUG only: s.writeToFeed([s.name ' on:' num2str(s.cic.frame) '(' num2str(flipTime) ',' num2str(ptbTime) ')'])
                 s.startTime = flipTime;
