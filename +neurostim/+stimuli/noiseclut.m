@@ -119,7 +119,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             o.addProperty('clutVals',[]);       %If requested, just log all luminance values.
             
             %We need our own RNG stream, to ensure its protected for stimulus reconstruction offline
-            o.rng = requestRNGstream(c);
+            addRNGstream(o);
             
         end
         

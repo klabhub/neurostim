@@ -15,7 +15,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         prms=struct;          % Structure to store all parameters
     end
     
-    properties (SetAccess=protected, GetAccess=public)
+    properties (SetAccess=private, GetAccess=public)
         rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
     
@@ -391,6 +391,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
           
             
+        end
+        
+        function addRNGstream(o,nStreams)
+            %Ask CIC to allocate RNG(s) to this plugin.
+            if nargin < 2
+                nStreams = 1;
+            end
+            o.rng = requestRNGstream(o.cic,nStreams);
         end
     end
     
