@@ -1,4 +1,5 @@
 classdef noisegrid < neurostim.stimuli.noiseclut
+    % TODO: clean up this help text, and unify across all child classes.    
     % Stimulus class to present random noise rasters (e.g. for white-noise analysis).
     % Luminance noise values are drawn from built-in probaility distributions or returned by a user-defined function.
     % Argument specification is based on that of the jitter() plugin (though custom function specification is slightly different... TODO: unify this and jitter())
@@ -12,10 +13,9 @@ classdef noisegrid < neurostim.stimuli.noiseclut
     % 
     %
     %   Settable properties:
-    %
+    %   sampleFun       - the name of a built-in distribution [default = 'uniform', see Matlab's makedist() for list of supported pdfs], or a handle to a custom function, f(o), which takes the plugin as a the lone argument)
     %   size_h,size_v   - dimensionality of the raster matrix
-    %   parms           - parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)
-    %   distribution    - the name of a built-in pdf [default = 'uniform'], or a handle to a custom function, f(o), which takes the plugin as a the lone argument)
+    %   parms           - parameters for the N-parameter pdf, as an N-length cell array (see RANDOM)    
     %   bounds          - 2-element vector specifying lower and upper bounds to truncate the distribution (default = [], i.e., unbounded). Bounds cannot be Inf.
     %   width           - width on screen (screen units)
     %   height          - height on screen (screen units)
@@ -28,7 +28,7 @@ classdef noisegrid < neurostim.stimuli.noiseclut
         function sz = imageSize(o)
             %Dimensionality of the image matrix 
             %We're obliged to define this function by abstract parent class
-            sz = [o.size_v,o.size_h];
+            sz = [o.size_h,o.size_w];
         end
     end
     
@@ -38,8 +38,8 @@ classdef noisegrid < neurostim.stimuli.noiseclut
             o = o@neurostim.stimuli.noiseclut(c,name);
             
             %User-definable
-            o.addProperty('size_h',20,'validate',@(x) isnumeric(x) & ndims(x)==2); %#ok<ISMAT>
-            o.addProperty('size_v',10,'validate',@(x) isnumeric(x) & ndims(x)==2); %#ok<ISMAT>
+            o.addProperty('size_w',20,'validate',@(x) isnumeric(x) & ndims(x)==2); %#ok<ISMAT>
+            o.addProperty('size_h',10,'validate',@(x) isnumeric(x) & ndims(x)==2); %#ok<ISMAT>
         end 
         
         function beforeTrial(o)
@@ -51,7 +51,7 @@ classdef noisegrid < neurostim.stimuli.noiseclut
             
             %Set up the CLUT and random variable callback functions
             initialise(o,im);
+
         end
-       
     end % public methods
 end % classdef

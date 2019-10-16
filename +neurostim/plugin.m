@@ -1,11 +1,11 @@
- classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogeneous
+classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogeneous
     % Base class for plugins. Includes logging, functions, etc.
     %
     properties (SetAccess=public)
         cic;  % Pointer to CIC
-        overlay@logical=false; % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
+        overlay@logical=false;      % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
         window;
-        feedStyle = '[0 0.5 0]'; % Command line color for writeToFeed messages.
+        feedStyle = '[0 0.5 0]';    % Command line color for writeToFeed messages.
         
         
     end
@@ -15,6 +15,10 @@
         name@char= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
         trialDynamicPrms;  %  A list of parameters that (can) change within a trial. See localizeParms for how it is filled and used.
+    end
+    
+    properties (SetAccess=private, GetAccess=public)
+        rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
     
     methods (Static, Sealed, Access=protected)
@@ -393,6 +397,14 @@
             
             
             
+        end
+        
+        function addRNGstream(o,nStreams)
+            %Ask CIC to allocate RNG(s) to this plugin.
+            if nargin < 2
+                nStreams = 1;
+            end
+            o.rng = requestRNGstream(o.cic,nStreams);
         end
     end
     
