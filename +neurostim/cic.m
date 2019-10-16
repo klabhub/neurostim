@@ -1566,8 +1566,7 @@ classdef cic < neurostim.plugin
             c.RandStreamCreateSeed = c.spareRNGstreams{1}.Seed; %All streams are built from the one seed, so we can just log the first one here.
             
             %Use the first as the current global stream and allocate it to CIC
-            c.rng = c.spareRNGstreams{1};
-            c.spareRNGstreams(1) = [];
+            addRNGstream(c); %allocates one to c.rng
             RandStream.setGlobalStream(c.rng);
         end
     end
