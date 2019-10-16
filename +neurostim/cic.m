@@ -46,7 +46,8 @@ classdef cic < neurostim.plugin
         
         timing = struct('vsyncMode',0,... % 0 = busy wait until vbl, 1 = schedule flip then return, 2 = free run
             'frameSlack',0.1,... % Allow x% slack of the frame in screen flip time.
-            'pluginSlack',0); % see plugin.m
+            'pluginSlack',0,...% see plugin.m
+            'useWhen',false);  %Use the when argument to Screen('Flip') or not.
         
         hardware                = struct('sound',struct('device',-1,'latencyClass',1) ... % Sound hardware settings (device = index of audio device to use, see plugins.sound
                                             ,'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
@@ -59,6 +60,7 @@ classdef cic < neurostim.plugin
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
         useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
+        spareRNGstreams = {};  %Cell array of independent RNG streams, not yet allocated (plugins can request one through requestRNGstream()).
         
         %% Keyboard interaction
         kbInfo@struct= struct('keys',{[]},... % PTB numbers for each key that is handled.
@@ -117,6 +119,11 @@ classdef cic < neurostim.plugin
         feedCache =struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'other',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
         feedCacheCntr=0;
         feedCacheWriteNow = false;
+        
+      
+    end
+    properties (SetAccess= private)
+        used =false; % Flag to make sure a user cannot reuse a cic object.
     end
     
     %% Dependent Properties
@@ -405,6 +412,9 @@ classdef cic < neurostim.plugin
             c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
+            %Build a set of RNG streams.
+            c.addProperty('RandStreamCreateSeed','shuffle'); %Used to set and store the seed used to create RNG streams
+            createRNGstreams(c);
         end
         
         function showCursor(c,name)
@@ -654,6 +664,8 @@ classdef cic < neurostim.plugin
         end
         
         function o = add(c,o)
+            assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
+            
             % Add a plugin.
             if ~isa(o,'neurostim.plugin')
                 error('Only plugin derived classes can be added to CIC');
@@ -869,7 +881,11 @@ classdef cic < neurostim.plugin
             % 'randomization' - 'SEQUENTIAL' or 'RANDOMWITHOUTREPLACEMENT'
             % 'nrRepeats' - number of repeats total
             % 'weights' - weighting of blocks
-           
+            
+            assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
+            c.used  = true;
+             
+            
             c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.            
                 
             %Check input
@@ -993,10 +1009,10 @@ classdef cic < neurostim.plugin
                         c.frame = c.frame+1;
                         
                         %% Check for end of trial
-                        if ~c.flags.trial || c.frame-1 >= ms2frames(c,c.trialDuration)  
-                            % if trial has ended (based on behaviors for
-                            % instance)
-                            % or if trialDuration has been reached, minus one frame for clearing screen
+                        if ~c.flags.trial || c.frame >= ms2frames(c,c.trialDuration)
+                            % if trial has ended (based on behaviors for instance)
+                            % or if trialDuration has been reached (the screen is cleared by a post-trial flip)
+                            
                             % We are going to the ITI.
                             c.flags.trial=false; % This will be the last frame.
                             clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
@@ -1029,7 +1045,16 @@ classdef cic < neurostim.plugin
                         % beampos: position of the monitor scanning beam when the time measurement was taken
                         
                         % Start (or schedule) the flip
-                        [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
+                        if c.timing.useWhen
+                            % Use the when argument - better(fewer drops)
+                            % on at least one Windows system (win7/Quadro
+                            % Pro/ViewPixx)
+                            [ptbVbl,ptbStimOn,~,missed] = Screen('Flip', c.mainWindow,frameDeadline,1-clr,c.timing.vsyncMode);
+                        else
+                            % Don't use the when (better on some linux
+                            % systems)
+                            [ptbVbl,ptbStimOn] = Screen('Flip', c.mainWindow,[],1-clr,c.timing.vsyncMode);
+                        end
                         if clr && locHAVEOVERLAY
                             Screen('FillRect', c.overlayWindow,0,c.overlayRect); % Fill with zeros;%clearOverlay(c,true);
                         end
@@ -1043,7 +1068,11 @@ classdef cic < neurostim.plugin
                             ptbVbl = GetSecs;
                             ptbStimOn = ptbVbl;
                         end
-                        missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
+                        if c.timing.useWhen
+                           % missed is calculated by Screen('FLIP') 
+                        else
+                            missed  = (ptbVbl-frameDeadline); % Positive is too late (i.e. a drop)
+                        end
                         
                         if locPROFILE && c.frame > 1
                             addProfile(c,'FRAMELOOP','cic',c.toc);
@@ -1068,7 +1097,7 @@ classdef cic < neurostim.plugin
                         %properties in any afterFrame() depend on them. So, send the flip time those who requested it
                         if ~isempty(c.flipCallbacks)
                             flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
-                            cellfun(@(s) s.afterFlip(flipTime),c.flipCallbacks);
+                            cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
                             c.flipCallbacks = {};
                         end
                         
@@ -1083,12 +1112,14 @@ classdef cic < neurostim.plugin
                     clearOverlay(c,c.itiClear);                    
                     c.trialStopTime = ptbStimOn*1000;
                     
-                    Priority(0);
-                    if ~c.flags.experiment || ~ c.flags.block ;break;end
-                    
                     c.frame = c.frame+1;
                     
-                    afterTrial(c);
+                    Priority(0);
+                                       
+                    afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
+                    
+                    %Exit experiment if requested
+                    if ~c.flags.experiment || ~ c.flags.block ;break;end
                 end % one block
                 
                 Screen('glLoadIdentity', c.mainWindow);
@@ -1496,6 +1527,36 @@ classdef cic < neurostim.plugin
             end
         end
         
+        function createRNGstreams(c, varargin)
+            %Create a set of independent RNG streams for use across all plugins.
+            %By default, all plugins, including cic, use a single global
+            %stream. However, a plugin can request its own stream (e.g. as
+            %currently done in noiseclut.m). See RandStream for info about
+            %creating streams in matlab and why we handle this centrally.
+            %We handle nStreams and seed arguments here, to provide defaults,
+            %but all other param-value pairs are passed onto the Matlab's RandStream.create().
+            %You could use the 'seed' argument to return CIC RNG streams to a
+            %previous state
+            p=inputParser;
+            p.KeepUnmatched = true;
+            p.addParameter('nStreams',3);       %We'll leave the argument validation to RandStream.
+            p.addParameter('seed','shuffle');
+            p.parse(varargin{:});
+            
+            %Put any RandStream param-value pairs into a cell array
+            prms = fieldnames(p.Unmatched);
+            vals = struct2cell(p.Unmatched);
+            args(1:2:numel(prms)*2-1) = prms;
+            args(2:2:numel(prms)*2) = vals;
+            
+            %Make the streams
+            c.spareRNGstreams = RandStream.create('mrg32k3a','NumStreams',p.Results.nStreams,'seed',p.Results.seed, 'cellOutput',true,args{:});
+            c.RandStreamCreateSeed = c.spareRNGstreams{1}.Seed; %All streams are built from the one seed, so we can just log the first one here.
+            
+            %Use the first as the current global stream and allocate it to CIC
+            addRNGstream(c); %allocates one to c.rng
+            RandStream.setGlobalStream(c.rng);
+        end
     end
     
     
@@ -1886,8 +1947,32 @@ classdef cic < neurostim.plugin
             Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);                        
             
         end
+        
     end
     
+    methods (Access=?neurostim.plugin)
+        function rng = requestRNGstream(c,nStreams)
+           %Plugins can request their own RNG stream. We created 3 RNG
+           %streams on construction of CIC, so allocate one of those now.
+           %If all are exhausted, issue error and instruct user to increase
+           %the initial allocation number before the first time any is used.
+           if nargin < 2
+               nStreams = 1;
+           end
+
+           %Make sure we have enough RNG streams left
+           if numel(c.spareRNGstreams) >= nStreams
+               %OK, assign it, remove from list.
+               rng = c.spareRNGstreams(1:nStreams);
+               c.spareRNGstreams(1:nStreams) = [];
+               if nStreams == 1
+                   rng = rng{1};
+               end
+           else
+               error('All RNG streams have already been allocated. Increase the number of streams by calling createRNGstreams() in your script as early as possible, before any of your or Matlab''s functions has used the global RNG stream. See RandStream for info about Matlab''s RNGs');
+           end
+        end
+    end
     
     
     methods (Static)

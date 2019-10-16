@@ -47,6 +47,12 @@ classdef (Abstract) behavior <  neurostim.plugin
     % determine the success of an entire trail (which may have other
     % behaviors too) [true]
     %
+    % transitionFunction - This is a user defined function (a function_handle) that will be called with
+    %                       cic as the first argument and the states as the 2nd and third (fromState,toState).
+    %                       This provides some flexibility to do something in response to transitions, without
+    %                       definng a new state machine). This function should not
+    %                       change anything about the state (just react to the
+    %                       transition). 
     % Functions to be used in experiment designs:
     %
     % startTime(o,state) - returns the time in the current trial when the
@@ -62,7 +68,12 @@ classdef (Abstract) behavior <  neurostim.plugin
         successEndsTrial    = false;         % Does reaching the success state end the trial?
         verbose             = true;
         required            = true;
-        
+        transitionFunction  = [];           % An optional function_handle that is called for each transition (e.g to respond to it in user code)
+                                            % This function will be called
+                                            % with CiC  as
+                                            % the first argument, and the
+                                            % from and to state names as the
+                                            % second and third.
     end
     
     properties (SetAccess=protected,GetAccess=public)
@@ -222,6 +233,14 @@ classdef (Abstract) behavior <  neurostim.plugin
             e.type = neurostim.event.ENTRY;
             futureState([],e); % Send the ENTRY signal to the new state.
             
+            if ~isempty(o.transitionFunction)
+                % Call a user defined function  (provides some flexibility
+                % to do something in response to transitions, without
+                % definng a new state machine). This function should not
+                % change anything about the state (just react to the
+                % transition). 
+                o.transitionFunction(o.cic,currentStateName,futureStateName);
+            end
             % Switch to new state and log the new name
             o.currentState = futureState; % Change the state           
             o.state = futureStateName; % Log time/state transition

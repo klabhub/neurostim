@@ -1,18 +1,14 @@
-classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
+classdef noiseradialgrid < neurostim.stimuli.noiseclut
     % Polar grid of noise
-    % Type >> help noiserastergrid for most info about this stimulus
+    % Type >> help noisegrid for most info about a similar stimulus.
     %
-    % See also noiseRasterRadialGridDemo, noiseRasterGridDemo, neurostim.stimuli.noiserasterclut, neurostim.stimuli.noiserasterradialgrid
-    properties (Dependent)
-        size
-    end
+    % See also noiseGridDemo, noiseRadialGridDemo, neurostim.stimuli.noiseclut, neurostim.stimuli.noiseradialgrid, neurostim.stimuli.noisehexgrid
+  
     
-    properties
-        
-    end
-    
-    methods
-        function sz = get.size(o)
+    methods (Access = protected)
+        function sz = imageSize(o)
+            %Size of the image matrix 
+            %We're obliged to define this function by abstract parent class
             %Size of the idImage matrix. Done this way so it can be accessed before runtime.
             sz = round(2*(o.cic.physical2Pixel(o.outerRad,0)-o.cic.physical2Pixel(0,0)))+1;
             sz = [sz sz];
@@ -20,9 +16,9 @@ classdef noiserasterradialgrid < neurostim.stimuli.noiserasterclut
     end
     
     methods (Access = public)
-        function o = noiserasterradialgrid(c,name)
+        function o = noiseradialgrid(c,name)
             
-            o = o@neurostim.stimuli.noiserasterclut(c,name);
+            o = o@neurostim.stimuli.noiseclut(c,name);
             
             %User-definable
             o.addProperty('nWedges',40,'validate',@(x) isnumeric(x));

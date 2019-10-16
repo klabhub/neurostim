@@ -16,6 +16,8 @@ classdef fixate  < neurostim.behaviors.eyeMovement
     % tolerance - width/height of the square tolerance window around X,Y
     % invert - invert the definition : eye position outside the tolerance is
     %           considered good, inside is bad.
+    %  allowBlinks  - ignore blinks.
+    %
     %
     % BK - July 2018
     
@@ -44,9 +46,14 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % Ignroe Entry/exit events.
             if t>o.from  % guard 1             
-                transition(o,@o.fail,e);
-            elseif isInWindow(o,e)  % guard 2
-                transition(o,@o.fixating,e);  %Note that there is no restriction on t so fixation can start any time  after t.on (which is when the behavior starts running)           
+                transition(o,@o.fail,e);     
+            else
+                [inside,isAllowedBlink] = isInWindow(o,e);  % guard 2
+                if isAllowedBlink
+                        % Stay in free viewing                    
+                elseif inside
+                    transition(o,@o.fixating,e);  %Note that there is no restriction on t so fixation can start any time  after t.on (which is when the behavior starts running)                               
+                end
             end
         end
         
@@ -58,13 +65,15 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             if e.isAfterTrial;transition(o,@o.success,e);end % if still in this state-> success
          	if ~e.isRegular ;return;end % No Entry/exit needed.
             % Guards 
-            inside  = isInWindow(o,e);
+            [inside,isAllowedBlink]  = isInWindow(o,e);
             complete = t>=o.to;
             % Transitions
-            if ~inside 
-                transition(o,@o.fail,e);
-            elseif complete
+            if complete
                  transition(o,@o.success,e);                
+            elseif isAllowedBlink
+                    % OK stay in fixating state                
+            elseif ~inside 
+                transition(o,@o.fail,e);
             end
         end
     end

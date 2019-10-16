@@ -30,6 +30,7 @@ classdef sound < neurostim.plugin
             o.addProperty('latencyClass',latencyClass);
             
             % Sound initialization
+            clear PsychPortAudio;   %Class seems to be not properly cleared sometimes, when Neurostim doesn't close gracefully.
             InitializePsychSound(latencyClass);
             
             % Opening here instead of beforeExperiment so that the actual

@@ -13,7 +13,8 @@ c = myRig;
 c.screen.colorMode = 'XYL'; % Tell PTB that we will use xyL to specify color
 c.screen.color.text = [0.33 0.33 1]; % TODO: Text does not seem to work in xyL
 c.screen.color.background = [0.33 0.33 20 ]; % Specify the color of the background
-c.screen.calibration.calFile = 'PTB3TestCal'; % Tell CIC which calibration file to use (this one is on the search path in PTB).
+c.screen.calFile = 'PTB3TestCal'; % Tell CIC which calibration file to use (this one is on the search path in PTB): monitor properties
+c.screen.colorMatchingFunctions = 'T_xyzJuddVos.mat'; % Tell CIC which CMF to use : speciifies human observer properties.
 
 % Set up some other properties of this experiment. None are critical for
 % calibrated color

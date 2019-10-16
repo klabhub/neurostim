@@ -7,19 +7,21 @@ classdef eyetracker < neurostim.plugin
 %
 %   sampleRate - rate of samples to be taken.
 %   backgroundColor - background colour for eyetracker functions.
-%   c oundColor - foreground colour for eyetracker functions.
+%   foregroundColor - foreground colour for eyetracker functions.
 %   clbTargetColor - calibration target color.
 %   clbTargetSize - calibration target size.
 %   eyeToTrack - one of 'left','right','binocular' or 0,1,2.
 %   useMouse - if set to true, uses the mouse coordinates as eye coordinates.
-
+%
+% Keyboard:
+%   Pressing 'w' simulates a 200 ms eye blink
     
     
     properties (Access=public)
         useMouse@logical=false;
         keepExperimentSetup@logical=true;
         eye@char='LEFT'; %LEFT,RIGHT, or BOTH
-      
+        tmr@timer;
     end
     
     properties
@@ -27,7 +29,7 @@ classdef eyetracker < neurostim.plugin
         y@double=NaN;
         z@double=NaN;
         pupilSize@double;
-        valid@logical = true;
+        valid@logical = true;  % valid=false signals a temporary absence of data (due to a blink for instance)
     end
     
     methods
@@ -43,7 +45,9 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('clbTargetColor',[1,0,0]);
             o.addProperty('clbTargetSize',0.25);
             o.addProperty('continuous',false);
-            o.addProperty('tolerance',3); % Used to set default tolerance on behaviors.eyeMovement
+            
+            o.addKey('w','Toggle Blink');
+            o.tmr = timer('name','eyetracker.blink','startDelay',200/1000,'ExecutionMode','singleShot','TimerFcn',{@o.openEye});
         end
         
         
@@ -57,6 +61,22 @@ classdef eyetracker < neurostim.plugin
                 end
             end
         end
+        
+        
+         function keyboard(o,key)
+            switch upper(key)
+                case 'W'
+                    % Simulate a blink
+                    o.valid = false;                    
+                    if strcmpi(o.tmr.Running,'Off')
+                        start(o.tmr);                    
+                    end                   
+            end
+         end
+         function openEye(o,varargin)
+             o.valid = true;
+             writeToFeed(o,['Blink Ends'])
+         end
     end
     
 end
