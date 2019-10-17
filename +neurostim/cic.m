@@ -372,7 +372,7 @@ classdef cic < neurostim.plugin
             p.addParameter('iti',1000);
             p.addParameter('cursor','none');
             p.addParameter('rootDir',strrep(fileparts(mfilename('fullpath')),'+neurostim',''));
-            p.addParameter('outputDir',getenv('TEMP'));
+            p.addParameter('outputDir',tempdir);
             p.addParameter('rngArgs',{});    %control RNG behaviour, including, for example, the number of streams, or using a particular seed. See createRNGstreams()     
             p.parse(varargin{:});
             p=p.Results;
