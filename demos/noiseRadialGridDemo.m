@@ -26,9 +26,9 @@ wn.nRadii = 6;
 wn.innerRad = 3;
 wn.height = 13;   %Width and height on screen
 wn.width = 13;
-wn.distribution = 'normal'; %Distribution from which luminance values are drawn
-wn.parms = {128 40};          %{mean sd}
-wn.bounds = [0 255];
+wn.sampleFun = 'normal'; %Distribution from which luminance values are drawn
+wn.parms = [0.5 0.15];          %{mean sd}
+wn.bounds = [0 1];
 wn.alphaMask = 0.5*ones(wn.size);
 
 %% Experimental design

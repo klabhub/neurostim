@@ -29,7 +29,7 @@ classdef starstim < neurostim.stimulus
     % (YYYMMDDHHMMSS.subject.edf). This plugin creates a subdirectory with
     % the name of the Neurostim file to store the NIC output files (this
     % assumes Neurostim has access to the same folder as the machine running
-    % the NIC; or at least a machine with a similar folder name...).
+    % the NIC; or at least a machine with the same name...).
     %
     % There are different modes to control stimulation, with increasing levels of
     % temporal and parameter control.  (.mode)
@@ -46,6 +46,8 @@ classdef starstim < neurostim.stimulus
     %  Here stimulation starts in each .enabled=true trial at starstim.on
     %  and ends .duration ms later.
     %
+    % EEGONLY:
+    %   No stimulation, just EEG recording
     %
     % Stimulation Type and Parameters
     %   .transition  - time in ms of the ramp up/down  (at least 100 ms)
@@ -54,7 +56,8 @@ classdef starstim < neurostim.stimulus
     %
     %   .amplitude (muA), .frequency (Hz) , .phase (deg) - tACS only :
     %                                       one value per channel. Integers only!
-    %   .mean                           - tDCS only : one integer value per channel. Must add up to zero.
+    %   .mean                           - tDCS only : one integer value per
+    %   channel. Must add up to zero.
     %
     %
     %
@@ -153,7 +156,7 @@ classdef starstim < neurostim.stimulus
                 if isempty(stts) || ~ischar(stts) || strcmpi(stts,'error/unknown')
                     v =false;
                 else
-                    v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP'});
+                    v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_EEG_ON'});
                 end
             end
             
@@ -225,6 +228,7 @@ classdef starstim < neurostim.stimulus
             
             
             o.addProperty('marker',''); % Used to log markers sent to NIC
+            o.addProperty('flipTime',[]); % USed to record fliptimes in logOnset function
             
             
             o.addProperty('eegChannels',[]); % Default to no EEG.
@@ -242,7 +246,7 @@ classdef starstim < neurostim.stimulus
             o.code('returnFromNIC') = 5; % confirming online change return from function call.
             o.code('protocolStarted') = 6;
             o.code('stopProtocol') = 7;
-            
+            o.code('stimOnset') = 8;
             
         end
         
@@ -304,10 +308,11 @@ classdef starstim < neurostim.stimulus
                 protocolSet = MatNICProtocolSet();
                 o.matNICVersion = protocolSet('MATNIC_VERSION');
             end
-            
+            unloadProtocol(o); % Remove whatever is loaded currently (if anything)
             % Prepare for EEG reading
             if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
                 openEegStream(o);
+            
             end
         end
         
@@ -358,7 +363,11 @@ classdef starstim < neurostim.stimulus
                 return; % No protocol loaded.
             end
             ret = MatNICUnloadProtocol(o.sock);
-            if ret<0
+            if ret==-8 % protocol running abort
+                stop(o);
+                % Then try again
+                unloadProtocol(o); 
+            elseif ret<0
                 o.checkRet(ret,'Could not unload the current protocol.')
             else
                 o.activeProtocol ='';
@@ -369,9 +378,12 @@ classdef starstim < neurostim.stimulus
         
         
         function beforeTrial(o)
-            
+            if isempty(o.protocol)
+                 o.cic.error('The Starstim plugin requires a protocol to be specified');
+                 return;
+            end
             %% Load the protocol if it has changed
-            if ~strcmpi(o.protocol,o.activeProtocol)
+            if ~strcmpi(o.protocol,o.activeProtocol) 
                 stop(o);
                 unloadProtocol(o);
                 loadProtocol(o);
@@ -402,7 +414,7 @@ classdef starstim < neurostim.stimulus
                     end
                 case 'TIMED'
                     
-                case 'NOSTIM'
+                case 'EEGONLY'
                     % Do nothing
                     
                 otherwise
@@ -416,9 +428,9 @@ classdef starstim < neurostim.stimulus
             % ******* DEVELOPER NOTE ****************
             % When adding more complex , timed modes of stimulation, take
             % care to ensure current conservation. This is tricky
-            % especially when ussing the MatNICOnlinetACSChange functiojn
+            % especially when ussing the MatNICOnlinetACSChange function
             % which applies frequency and phase changes immediately, and
-            % then ramps the amplitude. 
+            % then ramps the amplitude (best not to use that one). 
             
             switch upper(o.mode)
                 case {'BLOCKED','TRIAL'}
@@ -439,7 +451,7 @@ classdef starstim < neurostim.stimulus
                         rampUp(o,o.duration);
                         o.isTimedStarted = true;
                     end
-                case 'NOSTIM'
+                case 'EEGONLY'
                     %Do nothing
                 otherwise
                     o.cic.error(['Unknown starstim mode :' o.mode]);
@@ -463,7 +475,7 @@ classdef starstim < neurostim.stimulus
                     end
                 case 'TIMED'
                     o.isTimedStarted =false;
-                case 'NOSTIM'
+                case 'EEGONLY'
                     %nothing to do
                 otherwise
                     o.cic.error(['Unknown starstim mode :' o.mode]);
@@ -521,7 +533,9 @@ classdef starstim < neurostim.stimulus
             if isvalid(o.tmr)
                 o.tmr.stop; % Stop the timer
             end
-            rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
+            if ~strcmpi(o.mode,'EEGONLY')
+                rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
+            end
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
@@ -549,7 +563,7 @@ classdef starstim < neurostim.stimulus
             end
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
             
-        end
+         end
         
         function troubleShoot(o)
             %%
@@ -615,7 +629,7 @@ classdef starstim < neurostim.stimulus
                     if ~o.fake
                         % Note that this command sets freq and phase
                         % immediately and then ramps the amplitude. This
-                        % makes sense for ramping up from zero amplitude,                      
+                        % only makes sense for ramping up from zero amplitude,           
                         [ret] = MatNICOnlinetACSChange(perChannel(o,o.amplitude), perChannel(o,o.frequency), perChannel(o,o.phase), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,msg);
                     end
@@ -673,7 +687,7 @@ classdef starstim < neurostim.stimulus
             if ~o.fake
                 switch upper(o.type)
                     case 'TACS'
-                        %Do NOT use the tACSChange function: it will chnage
+                        %Do NOT use the MatNICOnlinetACSChange function: it will chnage
                         %frequency and phase immediately, but ramp down the
                         %amplitude... that can never be current-conserved
                         %and Starstim will dump exccess current through the
@@ -685,7 +699,7 @@ classdef starstim < neurostim.stimulus
                         [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
                     case 'TRNS'
-                        o.checkRet(-1,'tRNS Not implemented yet');
+                        o.checkRet(-1,'tRNS Not implemented yet');                   
                     otherwise
                         error(['Unknown stimulation type : ' o.type]);
                 end
@@ -711,7 +725,7 @@ classdef starstim < neurostim.stimulus
                 else
                     o.checkRet(ret,['Protocol ' o.protocol ' could not be started']);
                 end
-                waitFor(o,'CODE_STATUS_STIMULATION_FULL');
+                waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_EEG_ON'});
                 % This waitFor is slow, and adds at least 1s to
                 % the startup, but at least we're in a defined
                 % state after the wait.
@@ -881,6 +895,22 @@ classdef starstim < neurostim.stimulus
             o.mustExit = false;
             
         end
+        
+        function logOnset(s,flipTime)
+            % This function sends a message to NIC to indicate that
+            % a stimulus (s) just appeared on the screen (i.e. first frame flip)
+            % I use a static function to make the notation easier for the
+            % user, but by using CIC I nevertheless make use of the (only)
+            % starstim object that is currently loaded.
+            % INPUT
+            % s =  stimulus that generated the onset event.
+            % startTime = flipTime in clocktime (i.e. not relative to the
+            % trial)                        
+            s.cic.starstim.flipTime = flipTime;
+            sendMarker(s.cic.starstim,'stimOnset'); % Send a marker to NIC.
+        end
+
+        
     end
     
     

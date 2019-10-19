@@ -13,11 +13,11 @@ classdef (Abstract) adaptive < neurostim.plugin
     % BK - 11/2016
     
     properties    (SetAccess={?neurostim.design})
-        active@logical=true; % Used to bind an adaptive with a specific condition. See afterTrial below       
+        active@logical=true; % Used to bind an adaptive with a specific condition. See afterTrial below
     end
     
     properties (SetAccess=protected, GetAccess=public)
-        uid@double= [];        
+        uid@double= [];
     end
     
     methods (Abstract)
@@ -29,12 +29,12 @@ classdef (Abstract) adaptive < neurostim.plugin
     end
     
     properties (SetAccess=private)
-        overruleValue = []; %used to manually set the adaptive parameter value (for the rest of current trial) to something other than that returned by the adaptive algorithm. Ensures update() is based on the actual tested value. 
+        overruleValue = []; %used to manually set the adaptive parameter value (for the rest of current trial) to something other than that returned by the adaptive algorithm. Ensures update() is based on the actual tested value.
     end
     
     methods
         %% Operators to allow easy use of adaptive parameters in functions
-        function v = plus(x1,x2)            
+        function v = plus(x1,x2)
             if isa(x1,'neurostim.plugins.adaptive')
                 x1 = getValue(x1);
             end
@@ -49,7 +49,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             v = +x1;
         end
         
-       
+        
         function v = minus(x1,x2)
             if isa(x1,'neurostim.plugins.adaptive')
                 x1 = getValue(x1);
@@ -113,7 +113,7 @@ classdef (Abstract) adaptive < neurostim.plugin
     
     
     methods
-
+        
         
         function o = adaptive(c,funStr)
             % c= handle to CIC
@@ -131,9 +131,9 @@ classdef (Abstract) adaptive < neurostim.plugin
             o.addProperty('conditions',[]);% The condition that this adaptive parameter belongs to. Will be set by design.m
             o.addProperty('ignoreN',0); % Used to ignore the first N trials (set to 1 to ignroe the first, often missed trial)
             o.uid = u;
-            o.trialOutcome = funStr;            
+            o.trialOutcome = funStr;
         end
-
+        
         function activate(o,cond,toggle)
             if toggle
                 % Activating
@@ -142,11 +142,11 @@ classdef (Abstract) adaptive < neurostim.plugin
                 o.active= true;
             else
                 % Deactivate
-                o.active= false;                
+                o.active= false;
             end
         end
         
-         function values = whichParms(o,prm)
+        function values = whichParms(o,prm)
             % For this adaptive object, find out which  conditions in some other
             % plugin it responds to. This is useful to make sure that it is
             % responding to the correct conditions. Especially when using a
@@ -154,7 +154,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             %
             % prm = a parameter in a different object. E.g.
             % c.gabor.prms.orientation
-            % 
+            %
             [~,tr] = get(o.prms.conditions,'atTrialTime',inf,'withdataonly',true);
             values= unique(get(prm,'trial',tr,'atTrialTime',inf));
             
@@ -164,7 +164,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             % Duplicate an adaptive parm ; requires setting a new unique
             % id. Note that if you ask for more than one duplicate, the
             % first element in the array of duplicates will be the
-            % original, all others are new. 
+            % original, all others are new.
             % If you ask for one duplicate, with nm==1,
             % we'll assume you really just want the one you already have (so no duplicate).
             % If you really want one copy, call this without the second argument.
@@ -172,14 +172,14 @@ classdef (Abstract) adaptive < neurostim.plugin
             if nargin<2
                 nm = 1;
                 duplicateSingleton = true;
-            else 
-                duplicateSingleton = false;              
+            else
+                duplicateSingleton = false;
             end
-            if prod(nm)>1 || ~duplicateSingleton                
+            if prod(nm)>1 || ~duplicateSingleton
                 o(1) = o1;
                 % Recursive call to create copies
-                for i=2:prod(nm)                
-                    o(i) = duplicate(o1) ; %#ok<AGROW> These are copies.                   
+                for i=2:prod(nm)
+                    o(i) = duplicate(o1) ; %#ok<AGROW> These are copies.
                 end
                 o = reshape(o,nm);
             else
@@ -200,33 +200,34 @@ classdef (Abstract) adaptive < neurostim.plugin
         end
         
         function afterTrial(o)
-            % This is called after flow sends the AFTERTRIAL event            
-            % A default adaptive object, for instance a jitter assigned 
+            % This is called after flow sends the AFTERTRIAL event
+            % A default adaptive object, for instance a jitter assigned
             % directly to a plugin will have active=true and will be updated each trial.
             % When assigning an adaptive object to a design object its
-            % active property is set to false and toggled on each trial by flow 
+            % active property is set to false and toggled on each trial by flow
             % Whenever that specific object is used (i.e. the
             % condition to which it is assigned starts), its .active
             % is set to true (by flow) and when the trial is done flow sets
             % it back to false. That way the adaptive only gets updated
             % when "its" condition is run.
-            if o.active && o.cic.trial > o.ignoreN 
-                % Call the derived class function to update it                
+            if o.active && o.cic.trial > o.ignoreN
+                % Call the derived class function to update it
                 correct = o.trialOutcome; % Evaluate the function that the user provided.
-                    if numel(correct)>1 
-                        error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
-                    end
-                    update(o,correct); % Pass it to the derived class to update                                                            
-                    o.overruleValue = [];
+                if numel(correct)>1
+                    error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
+                end
+                update(o,correct); % Pass it to the derived class to update
+                o.overruleValue = [];
             else
-                % Ignoring this update 
-            end            
-        end 
-    end
-        
+                % Ignoring this update
+            end
+        end
         function beforeTrial(o)
             %Reset the overruled value.
             o.overruleValue = [];
         end
+        
     end
+    
+    
 end % classdef

@@ -90,6 +90,7 @@ switch upper(computerName)
         c.dirs.output= 'c:/temp';
         c.hardware.keyEcho  =true;
         c.useConsoleColor = true;
+        %c.timing.vSyncMode=1;
     case '2014B'
         scrNr = 2;
         rect = Screen('rect',scrNr);

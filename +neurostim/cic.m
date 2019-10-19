@@ -61,6 +61,7 @@ classdef cic < neurostim.plugin
         %% Logging/experimenter feedback during the experimtn
         messenger@neurostim.messenger;
         useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
+        spareRNGstreams = {};  %Cell array of independent RNG streams, not yet allocated (plugins can request one through requestRNGstream()).
         
         %% Keyboard interaction
         kbInfo@struct= struct('keys',{[]},... % PTB numbers for each key that is handled.
@@ -348,8 +349,10 @@ classdef cic < neurostim.plugin
     
     methods (Access=public)
         % Constructor.
-        function c= cic
-            
+        function c= cic(needPtb)
+            if nargin<1
+                needPtb=true; % Used by loadobj to create an empty cic without having PTB installed.
+            end
             %Check MATLAB version. Warn if using an older version.
             ver = version('-release');
             v=regexp(ver,'(?<year>\d+)(?<release>\w)','names');
@@ -359,8 +362,9 @@ classdef cic < neurostim.plugin
             
             c = c@neurostim.plugin([],'cic');
             
-            % Some very basic PTB settings that are enforced for all
-            KbName('UnifyKeyNames'); % Same key names across OS.
+            if needPtb
+                KbName('UnifyKeyNames'); % Same key names across OS.
+            end
             c.cursor = 'none';
             c.stage  = neurostim.cic.SETUP;
             % Initialize empty
@@ -395,10 +399,16 @@ classdef cic < neurostim.plugin
             c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
-            % Set up a messenger object that provides online feedback to the experimenter 
+            
+            % Set up a messenger object that provides online feedback to the experimenter
             % either on the local command prompt or on a remote Matlab instance. A remote messenger client can be added by
             % specifying a host name (c.messenger.host) or ip in the experiment file.
             c.messenger = neurostim.messenger;
+            
+            %Build a set of RNG streams.
+            c.addProperty('RandStreamCreateSeed','shuffle'); %Used to set and store the seed used to create RNG streams
+            createRNGstreams(c);
+            
         end
         
         function showCursor(c,name)
@@ -834,7 +844,7 @@ classdef cic < neurostim.plugin
             locPROFILE      = c.PROFILE;
             WHEN            = 0; % Always flip on the next VBL
             DONTCLEAR       = 1;
-           
+            
             
             if ~c.hardware.keyEcho
                 ListenChar(-1);
@@ -842,7 +852,6 @@ classdef cic < neurostim.plugin
             % We can only flush those keyboard devices that have been
             % activated:
             kbDeviceIndices = unique([c.kbInfo.default c.kbInfo.subject c.kbInfo.experimenter]);
-            
             while c.flags.experiment 
                   c.trial = c.trial+1;
                   c.condition = c.flow.conditionNr; % Tree-unique condition nr
@@ -873,12 +882,12 @@ classdef cic < neurostim.plugin
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
-                       c.stage = neurostim.cic.INTRIAL;
+                        c.stage = neurostim.cic.INTRIAL;
                         %% Check for end of trial
-                        if ~c.flags.trial || c.frame-1 >= ms2frames(c,c.trialDuration)
-                            % if trial has ended (based on behaviors for
-                            % instance)
-                            % or if trialDuration has been reached, minus one frame for clearing screen
+                        if ~c.flags.trial || c.frame >= ms2frames(c,c.trialDuration)
+                            % if trial has ended (based on behaviors for instance)
+                            % or if trialDuration has been reached (the screen is cleared by a post-trial flip)
+                            
                             % We are going to the ITI.
                             c.flags.trial=false; % This will be the last frame.
                             clr = c.itiClear; % Do not clear this last frame if the ITI should not be cleared
@@ -886,6 +895,7 @@ classdef cic < neurostim.plugin
                             clr = c.clear;
                         end
                         
+                        %% Before frame
                         % Call beforeFrame code in all plugins (i.e drawing
                         % to the backbuffer).
                         base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
@@ -916,15 +926,6 @@ classdef cic < neurostim.plugin
                         if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
                         
                         
-                        % vbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
-                        % stimOn: An estimate of Stimulus-onset time
-                        % flip: timestamp taken at the end of Flip's execution
-                        % missed: indicates if the requested presentation deadline for your stimulus has
-                        %           been missed. A negative value means that dead- lines have been satisfied.
-                        %            Positive values indicate a
-                        %            deadline-miss.
-                        % beampos: position of the monitor scanning beam when the time measurement was taken
-                        
                         
                         % In VSync mode 0 we start the flip and wait for it
                         % to finish before proceeding.
@@ -933,12 +934,36 @@ classdef cic < neurostim.plugin
                             % This is done synchronously; execution will
                             % wait here until after the flip has completed.
                             startFlipTime = GetSecs;
+                            % ptbVbl: high-precision estimate of the system time (in seconds) when the actual flip has happened
+                            % ptbStimOn: An estimate of Stimulus-onset time
+                            % flipDoneTime: timestamp taken at the end of Flip's execution
+                            % missed: indicates if the requested presentation deadline for your stimulus has
+                            %           been missed. A negative value means that dead- lines have been satisfied.
+                            %            Positive values indicate a
+                            %            deadline-miss.
+                            % beampos: position of the monitor scanning beam when the time measurement was taken
+                        
+                        
                             %Screen('Flip', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
                             [ptbVbl,ptbStimOn,flipDoneTime] = Screen('Flip', c.mainWindow,WHEN,1-clr,0,0);
                             flipDuration = flipDoneTime-startFlipTime; % For profiling only: includes the busy wait time
                             vblIsLate = ptbVbl-predictedVbl;
                             predictedVbl = ptbVbl+FRAMEDURATION; % Prediction for next frame
+                            % in vsyncMode ==0 we know the  frame has
+                            % flipped, log it now if it is the first frame.
+                            if c.frame == 1
+                                locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
+                                c.firstFrame = locFIRSTFRAMETIME;% log it
+                            end
+                            %Stimuli should set and log their onsets/offsets as soon as they happen, in case other
+                            %properties in any afterFrame() depend on them. So, send the flip time those who requested it
+                            if ~isempty(c.flipCallbacks)
+                                flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
+                                cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
+                                c.flipCallbacks = {};
+                            end
                         end
+                        
                         
                         % Special clearing instructions for overlays
                         if clr && locHAVEOVERLAY
@@ -955,9 +980,11 @@ classdef cic < neurostim.plugin
                         % In Vsyncmode 0, the frame will have flipped by
                         % now, we start the afterFrame functions in all
                         % plugins.
+                        
                         % In Vsyncmode 1 the frame may not have flipped
                         % yet, but because afterFrame code should not do
-                        % ANY drawing, we can start executing now. This
+                        % ANY drawing, we still start executing now (this is the
+                        % downside of mode 1). This
                         % essentially allows us to do this processing in
                         % the time that we're otherwise waiting for the
                         % flip to occur. This has substantial, measureable
@@ -973,10 +1000,34 @@ classdef cic < neurostim.plugin
                             % This will return the timing associated with
                             % the last completed flip.
                             startFlipTime = GetSecs;
-                            [ptbVbl,ptbStimOn,flipDoneTime] = Screen('AsyncFlipEnd',c.mainWindow);
+                            [ptbVbl,ptbStimOn,flipDoneTime] = Screen('AsyncFlipEnd',c.mainWindow); %Blocking call.
                             flipDuration = flipDoneTime-startFlipTime; % For loggin only; includes the busy wait time, but can be negative if the flip already completed
                             vblIsLate = ptbVbl-predictedVbl;
                             predictedVbl = ptbVbl+FRAMEDURATION; % Prediction for next frame
+                            % Log if this is the first frame
+                            if c.frame == 1
+                                locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
+                                c.firstFrame = locFIRSTFRAMETIME;% log it
+                            end
+                            
+                            % In vsyncMode==1 we call the flipCallbacks
+                            % once we know the actual ptbStimOn times and the
+                            % flip has actually ocurred .
+                            % This means that in vsyncMode ==1
+                            % afterFrame() should not use
+                            % .startTime and .stopTime. (shouldnt' really
+                            % do this ever).
+                            % the stimulus.logOnset/logOffset functions are
+                            % callled from inside the flipCallbacks and are
+                            % therefore guaranteed to run after the flip
+                            % has occured. Becuase afterFram() has already
+                            % completed in this mode, these are called
+                            % slightly later in vsync==1 than in vsync==0.
+                            if ~isempty(c.flipCallbacks)
+                                flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
+                                cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
+                                c.flipCallbacks = {};
+                            end
                         end
                         
                         if locPROFILE
@@ -984,49 +1035,35 @@ classdef cic < neurostim.plugin
                         end
                         
                         % check and log frame drops.
-                        if c.frame == 1
-                            locFIRSTFRAMETIME = ptbStimOn*1000; % Faster local access for trialDuration check
-                            c.firstFrame = locFIRSTFRAMETIME;% log it
-                        else
-                            if vblIsLate >ITSAMISS
-                                c.frameDrop = [c.frame-1 vblIsLate]; % Log frame and delta
-                            end
+                        if c.frame > 1 && vblIsLate >ITSAMISS
+                            c.frameDrop = [c.frame-1 vblIsLate]; % Log frame and delta
                         end
-                        
-                        
-                        %Stimuli should set and log their onsets/offsets as soon as they happen, in case other
-                        %properties in any afterFrame() depend on them. So, send the flip time those who requested it
-                        if ~isempty(c.flipCallbacks)
-                            flipTime = ptbStimOn*1000-locFIRSTFRAMETIME;
-                            cellfun(@(s) s.afterFlip(flipTime,ptbStimOn*1000),c.flipCallbacks);
-                            c.flipCallbacks = {};
-                        end
-                        %TO CHECK was missing in local
-                        % The current frame has been flipped. Process
-                        % afterFrame functions in all plugins
-                        base(c.pluginOrder,neurostim.stages.AFTERFRAME,c);
                         
                     end % Trial running
-                    c.stage = neurostim.cic.RUNNING; 
+                    c.stage = neurostim.cic.RUNNING;
                     %Perform one last flip and clear the screen (if requested)
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
                     c.frame = c.frame+1;
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;                    
+                    c.frame = c.frame+1;
+                    
                     Priority(0);
-                    if ~c.flags.experiment ;break;end %TO CHECK || ~flags.block?
-                    
-                    
-                      % Calls afterTrial on the current block/design.
+                    % Calls afterTrial on the current block/design.
                     % This assesses 'success' of the behavior and updates the design
                     % if needed (i.e. retrying failed trials)
-                    afterTrial(c.flow);
+
+                    afterTrial(c.flow); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
+                    %Exit experiment if requested
+                    if ~c.flags.experiment || ~ c.flags.block ;break;end
+                    
+                    
                     
                 
                 Screen('glLoadIdentity', c.mainWindow);
                if ~c.flags.experiment ;break;end %TO CHECK || ~flags.block?
             end %flow
-            c.stage = neurostim.cic.POST; 
+            c.stage = neurostim.cic.POST;
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
             clearOverlay(c,true);
@@ -1256,10 +1293,10 @@ classdef cic < neurostim.plugin
         % be placed.
         function updateOverlay(c,clut,index)
             if nargin<3
-                    index = [];
-                    if nargin <2
-                        clut  =[];
-                    end
+                index = [];
+                if nargin <2
+                    clut  =[];
+                end
             end
             
             [nrRows,nrCols] = size(c.screen.overlayClut);
@@ -1379,6 +1416,36 @@ classdef cic < neurostim.plugin
             end
         end
         
+        function createRNGstreams(c, varargin)
+            %Create a set of independent RNG streams for use across all plugins.
+            %By default, all plugins, including cic, use a single global
+            %stream. However, a plugin can request its own stream (e.g. as
+            %currently done in noiseclut.m). See RandStream for info about
+            %creating streams in matlab and why we handle this centrally.
+            %We handle nStreams and seed arguments here, to provide defaults,
+            %but all other param-value pairs are passed onto the Matlab's RandStream.create().
+            %You could use the 'seed' argument to return CIC RNG streams to a
+            %previous state
+            p=inputParser;
+            p.KeepUnmatched = true;
+            p.addParameter('nStreams',3);       %We'll leave the argument validation to RandStream.
+            p.addParameter('seed','shuffle');
+            p.parse(varargin{:});
+            
+            %Put any RandStream param-value pairs into a cell array
+            prms = fieldnames(p.Unmatched);
+            vals = struct2cell(p.Unmatched);
+            args(1:2:numel(prms)*2-1) = prms;
+            args(2:2:numel(prms)*2) = vals;
+            
+            %Make the streams
+            c.spareRNGstreams = RandStream.create('mrg32k3a','NumStreams',p.Results.nStreams,'seed',p.Results.seed, 'cellOutput',true,args{:});
+            c.RandStreamCreateSeed = c.spareRNGstreams{1}.Seed; %All streams are built from the one seed, so we can just log the first one here.
+            
+            %Use the first as the current global stream and allocate it to CIC
+            addRNGstream(c); %allocates one to c.rng
+            RandStream.setGlobalStream(c.rng);
+        end
     end
     
     
@@ -1508,7 +1575,7 @@ classdef cic < neurostim.plugin
         end
         
         
-         
+        
         %% PTB Imaging Pipeline Setup
         function PsychImaging(c)
             % Tthis initializes the
@@ -1520,7 +1587,7 @@ classdef cic < neurostim.plugin
             c.setupScreen; % Physical parameters
             colorOk = loadCalibration(c); % Monitor calibration parameters from file.
             
-           
+            
             PsychImaging('PrepareConfiguration');
             PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');% 32 bit frame buffer values
             PsychImaging('AddTask', 'General', 'NormalizedHighresColorRange');% Unrestricted color range
@@ -1585,7 +1652,7 @@ classdef cic < neurostim.plugin
             if c.screen.colorCheck
                 PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'CheckOnly');
             end
-            %% Open the window            
+            %% Open the window
             c.mainWindow = PsychImaging('OpenWindow',c.screen.number, c.screen.color.background,[c.screen.xorigin c.screen.yorigin c.screen.xorigin+c.screen.xpixels c.screen.yorigin+c.screen.ypixels],[],[],[],[],kPsychNeedFastOffscreenWindows);
             c.textWindow = c.mainWindow; % By default - changed below if needed.
             
@@ -1750,15 +1817,15 @@ classdef cic < neurostim.plugin
             
             %% Perform additional setup routines
             Screen(c.mainWindow,'BlendFunction',GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            assignWindow(c.pluginOrder); % Tell the plugins about this window            
+            assignWindow(c.pluginOrder); % Tell the plugins about this window
         end
-    
+        
         
         function KbQueueStop(c)
             for kb=1:numel(c.kbInfo.activeKb)
                 KbQueueStop(c.kbInfo.activeKb{kb});
                 KbQueueRelease(c.kbInfo.activeKb{kb});
-            end            
+            end
         end
         
         function colorOk = loadCalibration(c)
@@ -1799,6 +1866,29 @@ classdef cic < neurostim.plugin
         
     end
     
+    methods (Access=?neurostim.plugin)
+        function rng = requestRNGstream(c,nStreams)
+            %Plugins can request their own RNG stream. We created 3 RNG
+            %streams on construction of CIC, so allocate one of those now.
+            %If all are exhausted, issue error and instruct user to increase
+            %the initial allocation number before the first time any is used.
+            if nargin < 2
+                nStreams = 1;
+            end
+            
+            %Make sure we have enough RNG streams left
+            if numel(c.spareRNGstreams) >= nStreams
+                %OK, assign it, remove from list.
+                rng = c.spareRNGstreams(1:nStreams);
+                c.spareRNGstreams(1:nStreams) = [];
+                if nStreams == 1
+                    rng = rng{1};
+                end
+            else
+                error('All RNG streams have already been allocated. Increase the number of streams by calling createRNGstreams() in your script as early as possible, before any of your or Matlab''s functions has used the global RNG stream. See RandStream for info about Matlab''s RNGs');
+            end
+        end
+    end
     
     
     methods (Static)
@@ -1813,7 +1903,7 @@ classdef cic < neurostim.plugin
                 % Current CIC classdef does not match classdef in force
                 % when thi sobject was saved.
                 
-                c= neurostim.cic; % Create an empty cic of current classdef
+                c= neurostim.cic(false); % Create an empty cic of current classdef that does not need PTB (needPtb=false).
                 m= metaclass(c);
                 dependent = [m.PropertyList.Dependent];
                 settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
@@ -1826,20 +1916,20 @@ classdef cic < neurostim.plugin
                 toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
                 fprintf('Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
                 fprintf('Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
-               
+                
                 for i=1:numel(toCopy)
                     c.(toCopy{i}) = o.(toCopy{i}); % Assign default value
                 end
             else
                 c = o;
             end
-                
-                
+            
+            
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
             % This happens, for instance, when endExperiment is called by a plugin
             % during an ITI.
-           
+            
             % Add a fake firstFrame to fix this.
             lastTrial = c.prms.trial.cntr-1; % trial 0 is logged as well, so -1
             nrFF = c.prms.firstFrame.cntr-1;

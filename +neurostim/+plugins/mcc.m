@@ -16,7 +16,7 @@ classdef mcc < neurostim.plugins.daq
     %  Specify an aInOptions struct to specify which analog channels should
     %  be read from the MCC device. This struct is the same as the one
     %  discussed in DaqAInScan. For instance:     
-    %   options.channel = [0 ];    % Reord channel 0-1 in differential mode
+    %   options.channel = [0 ];    % Record channel 0-1 in differential mode
     %   options.range   = [0];     % 20 V range. 
     %   options.f = 1000;          % 1 Khz sampling rate
     %   options.count = Inf;       % Keep sampling until buffer full
