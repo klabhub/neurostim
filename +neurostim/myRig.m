@@ -7,6 +7,7 @@ pin.addParameter('smallWindow',false);   %Set to true to use a half-screen windo
 pin.addParameter('bgColor',[0.25,0.25,0.25]);
 pin.addParameter('eyelink',false);
 pin.addParameter('debug',false);
+pin.addParameter('cicConstructArgs',{});
 pin.parse(varargin{:});
 smallWindow = pin.Results.smallWindow;
 bgColor = pin.Results.bgColor;
@@ -15,7 +16,7 @@ bgColor = pin.Results.bgColor;
 import neurostim.*
 
 %Create a Command and Intelligence Center object - the central controller for Neurostim.
-c = cic;
+c = cic(pin.Results.cicConstructArgs{:});
 c.cursor = 'arrow';
 computerName = getenv('COMPUTERNAME');
 if isempty(computerName)
