@@ -197,7 +197,17 @@ classdef stg < neurostim.stimulus
             SUBDIR = 'MultiChannelSystems'; % Subdir with .dll for MultiChannel Systems devices.
             switch computer
                 case 'PCWIN64'
-                    o.assembly = NET.addAssembly(fullfile(here,SUBDIR,'McsUsbNet.dll'));
+                    try
+                        planA=fullfile(here,SUBDIR,'McsUsbNet.dll');
+                        o.assembly = NET.addAssembly(planA);
+                    catch me
+                        try
+                            planB=fullfile(here,SUBDIR,'McsUsbNet_v20.dll');
+                            o.assembly = NET.addAssembly(planB);
+                        catch metoo
+                            error('Could load neither MCS .NET library ''%s'' nor the backup plan ''%s'' ...',planA,planB);
+                        end
+                    end      
                 otherwise
                     error(['Sorry, the MCS .NET libraries are not available on your platform: ' computer]);
             end
