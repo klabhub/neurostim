@@ -1728,8 +1728,19 @@ classdef cic < neurostim.plugin
             if makeGPUstreams
                 %Make GPU streams that are identical to those on the CPU
                 c.spareRNGstreams_GPU = parallel.gpu.RandStream.create(p.type,'NumStreams',p.nStreams,'seed',c.spareRNGstreams{1}.Seed, 'NormalTransform',p.normalTransform, 'cellOutput',true);
+                
+                %Do a quick check to make sure that the CPU and GPU RNGs give the same result
+                cpuRNG = c.spareRNGstreams{1};
+                gpuRNG = c.spareRNGstreams_GPU{1};
+                origState = cpuRNG.State;
+                if ~isequal(cpuRNG.State,gpuRNG.State) || ~isequal(rand(cpuRNG,1,10),gather(rand(gpuRNG,1,10)))
+                    error('GPU and CPU RNGs are not matched. Something is wrong!');
+                else
+                    %All good. Restore initial state
+                    [cpuRNG.State,gpuRNG.State] = deal(origState);
+                end                
             end
-            
+                                  
             %Add a CPU stream to CIC
             addRNGstream(c);
                         
