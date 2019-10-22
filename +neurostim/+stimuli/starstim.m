@@ -379,7 +379,7 @@ classdef starstim < neurostim.stimulus
         
         function beforeTrial(o)
             if isempty(o.protocol)
-                 o.cic.error('The Starstim plugin requires a protocol to be specified');
+                 o.cic.error('STOPEXPERIMENT','The Starstim plugin requires a protocol to be specified');
                  return;
             end
             %% Load the protocol if it has changed
@@ -418,7 +418,7 @@ classdef starstim < neurostim.stimulus
                     % Do nothing
                     
                 otherwise
-                    o.cic.error(['Unknown starstim mode :' o.mode]);
+                    o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
             
             
@@ -454,7 +454,7 @@ classdef starstim < neurostim.stimulus
                 case 'EEGONLY'
                     %Do nothing
                 otherwise
-                    o.cic.error(['Unknown starstim mode :' o.mode]);
+                    o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
         end
         
@@ -478,7 +478,7 @@ classdef starstim < neurostim.stimulus
                 case 'EEGONLY'
                     %nothing to do
                 otherwise
-                    o.cic.error(['Unknown starstim mode :' o.mode]);
+                    o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
             
             % Send a trial start marker to the NIC
