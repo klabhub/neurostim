@@ -350,7 +350,8 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             end
             
             %Assign them to the little frames
-            newTasks = {};
+            newTasks = cell(1,o.nLittleFrames);
+            [newTasks{:}]=deal(neurostim.splittask);
             for i=1:o.nLittleFrames
                 curTasks = find(o.taskPlan(i,:));
                 for j=1:numel(curTasks)
