@@ -19,12 +19,14 @@ commandwindow;
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
 c = myRig('cicConstructArgs',{'rngArgs',{'type','gpuCompatible'}}); %We need to use an RNG on the GPU
-c.trialDuration = 1000;
+c.trialDuration = '@filtIm.duration';
 c.saveEveryN = Inf;
 
 %% ============== Add stimuli ==================
+imDuration = 1000;
 im=neurostim.stimuli.fastfilteredimage(c,'filtIm');
 im.bigFrameInterval = 50; %ms
+im.duration = imDuration + im.bigFrameInterval; %The image isn't actually shown until trialTime = im.bigFrameInterval, because first image is being computed, so this ensure that the visible part is on for imDuration
 im.imageDomain = 'FREQUENCY';
 im.size = [1024,1024];
 im.width = im.size(1)./c.screen.xpixels*c.screen.width;

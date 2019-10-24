@@ -5,6 +5,8 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
     %drops. Uses the splittask adaptive approach to distribute the task
     %load across the update interval frames and minimize frame drops.
     %
+    %NOTE: image is not shown on the screen until o.bigFrameInterval
+    %milliseconds after o.on (because first image is still being computed)
     %External functions that return an image or mask with random elements
     %must use o.rng in the calls to rand, randn,or randi (no other random
     %functions are supported on the GPU!)
@@ -23,6 +25,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         gpuFiltImageRawMean@gpuArray;
         gpuFiltImageRawSTD@gpuArray;
         filtImageRawSTD;
+        pvtNumImagesComputed;
         pvtMeanLum@single;
         pvtContrast@single;
         pvtSize;
@@ -87,8 +90,8 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             %% Internal use for mapping            
             %---logging of image luminance values
             o.addProperty('rngState',[]);               %Logged at the start of each trial.
-            o.addProperty('nBigFrames',0);              %Logged at the end of each trial
-            o.addProperty('lastImageShown',[]);         %Partial or complete log of luminance values, or a hash
+            o.addProperty('nImagesComputed',0);         %Logged at the end of each trial
+            o.addProperty('lastImageComputed',[]);      %Partial or complete log of luminance values, or a hash
             
             %Get the GPU device and reset it to clear any memory/tasks (not certain that this is needed)
             o.gpuDevice = gpuDevice;
@@ -104,7 +107,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         function setupTasks(o)
             
             %Create a list of the tasks to be done to create the filtered image.
-            tsks = {@initialise,@getImage,@getMask,@fftImage,@filterImage,@intensity2lum,@gatherToCPU,@single2double,@makeTexture};
+            tsks = {@initialise,@getImage,@getMask,@fftImage,@filterImage,@intensity2lum,@gatherToCPU,@finalise,@makeTexture};
             
             %Make the array of tasks, indicating that they are unsplittable across frames
             for i=1:numel(tsks)
@@ -166,6 +169,9 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             
             %Store the RNG state.
             o.rngState = o.rng.State;
+            
+            %Reset counter
+            o.pvtNumImagesComputed = 0;
         end
         
         function getImage(o,~)
@@ -219,10 +225,13 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             o.sngImage_space = gather(o.gpuImage_space);
         end
         
-        function single2double(o,~)
-            %This is a separate task because it was surprisingly slow with
-            %large images
-            o.dblImage_space = double(o.sngImage_space); 
+        function finalise(o,~)
+            %This is a separate task because double() was surprisingly slow with large images
+            o.dblImage_space = double(o.sngImage_space);
+            
+            %Increment the counter (done here because it is dblImage_space
+            %that is ultimately logged (last image only) for stimulus reconstruction
+            o.pvtNumImagesComputed = o.pvtNumImagesComputed + 1;
         end
         
         function makeTexture(o,~)
@@ -295,7 +304,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             
             %NS parameters                        
             nsPrms = {'image','imageDomain','imageIsStatic','mask','maskIsStatic','meanLum', ...
-                      'contrast','nBigFrames','size','statsConstant','rngState','lastImageShown'};                    
+                      'contrast','nImagesComputed','size','statsConstant','rngState','lastImageComputed'};                    
             getFun = @(thisPrm) get(o.prms.(thisPrm),'trial',p.trial,'atTrialTime',Inf);
             cellify = @(x) cellfun(@(y) squeeze(y),mat2cell(x,ones(1,size(x,1))),'unif',false);
             constantPrms = {};
@@ -309,7 +318,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
                 end
                 
                 %If all trials have the same value, only store it once (prevent OOM errors)
-                if all(cellfun(@(x) isequal(x,vals{1}),vals)) && ~strcmpi(nsPrms{i}, 'nBigFrames')
+                if all(cellfun(@(x) isequal(x,vals{1}),vals)) && ~strcmpi(nsPrms{i}, 'nImagesComputed')
                     vals = vals(1);
                     constantPrms = horzcat(constantPrms,nsPrms(i));
                 end
@@ -323,7 +332,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             %Replay the stimulus by restoring initial state of NS
             %parameters, then running tasks as before, excluding the ones
             %that use openGL, PTB etc.
-            needsRewind = ~ismember(nsPrms,{'rngState','nBigFrames','lastImageShown'}); %these ones were not set by user
+            needsRewind = ~ismember(nsPrms,{'rngState','nImagesComputed','lastImageComputed'}); %these ones were not set by user
             recapPrms = nsPrms(needsRewind);
             
             %Prepare the task objects
@@ -343,23 +352,23 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
                 %Restore the state of the RNG
                 o.rng.State = byTrial.rngState{t};
                 
-                %Run the beforeTrial tasks
-                nFrames = byTrial.nBigFrames{t};
-                im{t} = nans(byTrial.size{t2ix('size',t)},nFrames);
-                arrayfun(@(tsk) do(tsk),o.beforeTrialTasks);                
+                %Reconstruct the images by re-running the beforeTrial and beforeFrame tasks
+                arrayfun(@(tsk) do(tsk),o.beforeTrialTasks); 
+                nFrames = byTrial.nImagesComputed{t};
+                im{t} = nans(byTrial.size{t2ix('size',t)},nFrames+1); %plus 1 because from time zero until first big frame, our stimulus was not yet visible. So we'll leave a NaNs image in position 1.               
                 for f=1:nFrames
                     arrayfun(@(tsk) do(tsk),o.beforeFrameTasks);
-                    im{t}(:,:,f)=o.dblImage_space;
+                    im{t}(:,:,f+1)=o.dblImage_space;
                 end
                 
                 %Make sure the reconstruction matches, last frame checked only
-                lastRecoIm = im{t}(:,:,f);
+                lastRecoIm = im{t}(:,:,end);
                 switch upper(o.logMode)
                     case 'HASH'         
                         recoHash = neurostim.stimuli.fastfilteredimage.im2hash(lastRecoIm);
-                        isMatch = isequal(recoHash,byTrial.lastImageShown{t});
+                        isMatch = isequal(recoHash,byTrial.lastImageComputed{t});
                     case {'ALL','NTEXELS'}
-                        isMatch = isequal(lastRecoIm(1:o.pvtNTexelsToLog),byTrial.lastImageShown{t}(:)');
+                        isMatch = isequal(lastRecoIm(1:o.pvtNTexelsToLog),byTrial.lastImageComputed{t}(:)');
                 end
                 if ~isMatch
                     error('Reconstructed stimulus does not match the logged values.');
@@ -396,10 +405,11 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             
             for t=1:numel(p.trial)
                 
-                %Initially assume no drops. i.e. all repeats were due to intended frame interval
-                %and all repeats were shown (nothing guarantees that...
-                %could be mid-way through an interval when the stimulus/trial ends.
-                imIxByFrame = repelem(1:byTrial.nBigFrames{t},o.nLittleFrames*ones(1,byTrial.nBigFrames{t}));
+                %Initially assume no drops. i.e. all repeats were due to
+                %intended frame interval and all repeats were shown
+                %(nothing guarantees that... could be mid-way through an
+                %interval when the stimulus/trial ends. Gets fixed below.)
+                imIxByFrame = horzcat(ones(1,o.nLittleFrames), repelem(1:byTrial.nImagesComputed{t},o.nLittleFrames*ones(1,byTrial.nImagesComputed{t}))+1); %Concat and Plus-1 for same reason as above: Nan image in pos 1
                 
                 %Get the frame drop data for this trial
                 these = frDr.trial==p.trial(t);
@@ -561,16 +571,16 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         function logInfo(o)
             %Store some details to help reconstruct the stimulus offline
             %How many times was the task list executed?
-            o.nBigFrames = o.bigFrame;
+            o.nImagesComputed = o.pvtNumImagesComputed;
             
             %The actual luminance values used in the last frame (usually, only a hash or subset)
             switch upper(o.logMode)
                 case 'HASH'
-                    o.lastImageShown = neurostim.stimuli.fastfilteredimage.im2hash(o.dblImage_space);
+                    o.lastImageComputed = neurostim.stimuli.fastfilteredimage.im2hash(o.dblImage_space);
                 case {'ALL'}
-                    o.lastImageShown = o.dblImage_space;
+                    o.lastImageComputed = o.dblImage_space;
                 case 'NTEXELS'
-                    o.lastImageShown = o.dblImage_space(1:o.nTexelsToLog);
+                    o.lastImageComputed = o.dblImage_space(1:o.nTexelsToLog);
             end
         end
     end
