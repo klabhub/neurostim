@@ -28,7 +28,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
     
     %% Constants
     properties (Constant)
-        PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
+        PROFILE@logical = false;
     end
     
     properties (Access = private)
@@ -111,7 +111,6 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             o.littleFrame = 0;
             o.drawingStarted = false;
             o.bigFrame = 0;
-            o.isBigFrame = true;
             
             %A limitation of this stimulus in its current form is that bigFrameInterval has to
             %be constant for the whole experiment.
@@ -157,13 +156,11 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             %Which little frame are we up to?
             o.littleFrame = o.littleFrame+1;
             
+            %Is this a big frame?
+            o.isBigFrame  = o.littleFrame==o.nLittleFrames;
             if o.isBigFrame
                 o.bigFrame = o.bigFrame + 1;
             end
-            
-            %Is this a big frame?
-            o.isBigFrame  = o.littleFrame==o.nLittleFrames;
-
             
             %Do the tasks that have been allocated to this little frame, with or without profiling the tasks
             if o.PROFILE
@@ -239,7 +236,6 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             %Reset counters and task progress
             if o.isBigFrame
                 o.littleFrame = 0;
-                o.bigFrame = o.bigFrame+1;
             end
         end
     end % public methods
