@@ -75,7 +75,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             o.addProperty('maskIsStatic',true);
             o.addProperty('meanLum',0.25);                   %Mean luminance of the final image
             o.addProperty('contrast',0.5);                  %Contrast of the final image, defined as RMS contrast, std(L)/mean(L)
-            o.addProperty('size',[1024 1024]);
+            o.addProperty('size',[1024 1024],'validate',@(x) size(x,1)==1 && numel(x)==2);
             o.addProperty('width',10);
             o.addProperty('height',10);
             o.addProperty('statsConstant',false); %Set to true if mean lum and SD is constant across trials, saves on re-computing each frame.
@@ -355,7 +355,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
                 %Reconstruct the images by re-running the beforeTrial and beforeFrame tasks
                 arrayfun(@(tsk) do(tsk),o.beforeTrialTasks); 
                 nFrames = byTrial.nImagesComputed{t};
-                im{t} = nans(byTrial.size{t2ix('size',t)},nFrames+1); %plus 1 because from time zero until first big frame, our stimulus was not yet visible. So we'll leave a NaNs image in position 1.               
+                im{t} = nan(horzcat(byTrial.size{t2ix('size',t)},nFrames+1)); %plus 1 because from time zero until first big frame, our stimulus was not yet visible. So we'll leave a NaNs image in position 1.               
                 for f=1:nFrames
                     arrayfun(@(tsk) do(tsk),o.beforeFrameTasks);
                     im{t}(:,:,f+1)=o.dblImage_space;
