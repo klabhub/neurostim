@@ -329,10 +329,13 @@ classdef parameter < handle & matlab.mixin.Copyable
             % matches this cell/vector of elements.            
             % 'struct' - set to true to return all outputs as a data structure
             %
+                        
+            maxTrial = o.plg.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1
+            
             p =inputParser;
             p.addParameter('atTrialTime',[],@isnumeric); % Return values at this time in the trial
             p.addParameter('after','',@ischar); % Return the first value after this event in the trial
-            p.addParameter('trial',[],@isnumeric); % Return only values in these trials
+            p.addParameter('trial',[],@(tr) isnumeric(tr) && all(tr<=maxTrial & tr > 0)); % Return only values in these trials
             p.addParameter('withDataOnly',false,@islogical); % Only those values that have data
             p.addParameter('dataIsMember',{});  %Only when data is a member of the list
             p.addParameter('dataIsNotNan',false,@islogical);%Only when data is not nan.
@@ -341,7 +344,6 @@ classdef parameter < handle & matlab.mixin.Copyable
           
             p.parse(varargin{:});
         
-            maxTrial = o.plg.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1
             %% Extract the raw data from the log. All as single column.
             data = o.log(1:o.cntr)';
             time = o.time(1:o.cntr)'; % Force a column for consistency.

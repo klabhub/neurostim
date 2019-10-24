@@ -4,9 +4,9 @@ function fastFilteredImageDemo
 %This requires a modern nVidia card with up to date drivers, and the
 %Parallel Computing Toolbox. It relies on gpuArray objects.
 %
-%Frame drops are expected for first few frames, as it learns how to
-%distribute the load of computing images across frames. See
-%neurostim.stimuli.fastfilteredimage for more info on how to lock down an
+%Frame drops are possible/expected for first few frames, as it learns how
+%to distribute the load of computing images across frames optimally. See
+%neurostim.stimuli.fastfilteredimage for info on how to access and set this
 %optimal load distribution so that there are no frame drops right from the
 %start.
 %
@@ -24,7 +24,7 @@ c.saveEveryN = Inf;
 
 %% ============== Add stimuli ==================
 im=neurostim.stimuli.fastfilteredimage(c,'filtIm');
-im.bigFrameInterval = 2;
+im.bigFrameInterval = 50; %ms
 im.imageDomain = 'FREQUENCY';
 im.size = [1024,1024];
 im.width = im.size(1)./c.screen.xpixels*c.screen.width;
@@ -34,6 +34,7 @@ im.statsConstant = true;
 im.optimise = true;
 im.showReport = false;
 im.mask = gaussLowPassMask(im,24);
+
 %im.mask = deformedAnnulusMask(im,'plot',false);
 
 %Specify experimental conditions

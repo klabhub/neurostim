@@ -32,13 +32,10 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
     end
     
     properties (Access = private)
-        beforeTrialTasks@neurostim.splittask;   %Array of splittask objects (handles) to be done before trial. These aren't ever split, but having this allows for subclasses to put tasks here if constant over trials or in beforeFrameTasks if not (which can vary across experiemnts)
-        beforeFrameTasks@neurostim.splittask;   %Array of splittask objects to be done before frames
         nTasksPerFrame;                         %How many tasks should be done per litle frame? 1 x o.nTasks vector
         tasksByFrame@cell                       %1 x nLittleFrames cell array of task objects, executed in order
         taskPlan;                               %o.nLittleFrames x o.nTasks matrix of how tasks are distributed
         history;                                %Record of framed drop history
-        nLittleFrames;                          %Private copy of o.bigFrameInterval, for faster access.
     end
     
     properties (GetAccess = protected, SetAccess = private)
@@ -47,11 +44,14 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
     end
     
     properties (Access = protected)
+        beforeTrialTasks@neurostim.splittask;   %Array of splittask objects (handles) to be done before trial. These aren't ever split, but having this allows for subclasses to put tasks here if constant over trials or in beforeFrameTasks if not (which can vary across experiemnts)
+        beforeFrameTasks@neurostim.splittask;   %Array of splittask objects to be done before frames
         tasks@neurostim.splittask;              %All tasks.
     end
     
     properties (GetAccess = public, SetAccess = private)
-        littleFrame = 0;                        %Increments from 1:bigFrameInterval, then resets.
+        nLittleFrames;                          %number of frames within each big frame
+        littleFrame = 0;                        %Increments from 1:nLittleFrames, then resets.
         bigFrame = 0;                           %How many times has the image been updated?
         isBigFrame = false;                     %Flag to indicate that a frame is a big frame (i.e. update time)
         drawingStarted = false;                 %Has the stimulus appeared on the screen yet? (not true until the first big frame)
@@ -69,18 +69,24 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             o = o@neurostim.stimulus(c,name);
             
             %User-definable
-            o.addProperty('bigFrameInterval',5);        %How long should each frame be shown for? default = 5 frames.
+            o.addProperty('bigFrameInterval',o.cic.frames2ms(5));        %How long should each frame be shown for? default = 5 frames.
             o.addProperty('optimise',true);             %Should we update o.nTasksPerFrame on the fly, using frame drop counts?
             o.addProperty('learningRate',0.03);         %How responsive should we be from trial to trial?
-            o.addProperty('showReport',true);           %Plot frame-drops per trial and show task plan
-                        
-            o.writeToFeed('Warning: this is a new stimulus and has not been tested.');
+            o.addProperty('showReport',true);           %Plot frame-drops per trial and show task plan                        
         end
         
         function beforeExperiment(o)
             
+            %Make sure the requested duration is a multiple of the display frame interval
+            tol = 0.1; %5% mismatch between requested frame duration and what is possible
+            frInt = o.cic.ms2frames(o.bigFrameInterval,false);
+            frInt_rounded = round(frInt);
+            if ~isinf(frInt) && abs(frInt-frInt_rounded) > tol
+                o.writeToFeed(['Noise frameInterval not a multiple of the display frame interval. It has been rounded to ', num2str(o.cic.frames2ms(o.frameInterval_f)) ,'ms']);
+            end
+            
             %How many little frames are there? (passing to non-ns parameter for faster access.
-            o.nLittleFrames = o.bigFrameInterval;
+            o.nLittleFrames = frInt_rounded;
             
             %Allow the subclass to build the splittask objects and define
             %their properties, including whether they should be run
@@ -108,7 +114,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             
             %A limitation of this stimulus in its current form is that bigFrameInterval has to
             %be constant for the whole experiment.
-            if o.bigFrameInterval~=o.nLittleFrames
+            if o.cic.ms2frames(o.bigFrameInterval,true)~=o.nLittleFrames
                 error('bigFrameInterval changed value across trials. Not currently supported.');
             end
             
@@ -209,6 +215,23 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             o.nTotalTasks = numel(o.tasks);
         end
         
+        function deleteTask(o,name)
+           
+            %Remove task(s) from the list
+            kill = arrayfun(@(tsk) any(strcmpi(tsk.name,name)), o.tasks);
+            if ~any(kill)
+                warning('No such task exists. Nothing to do');
+                return;
+            end
+            o.tasks(kill) = [];
+            
+            %Re-check when they should be done
+            o.beforeTrialTasks = o.tasks(arrayfun(@(tsk) tsk.enabled && strcmpi(tsk.when,'BEFORETRIAL'),o.tasks));
+            o.beforeFrameTasks = o.tasks(arrayfun(@(tsk) tsk.enabled && strcmpi(tsk.when,'BEFOREFRAME'),o.tasks));
+            o.nTasks = numel(o.beforeFrameTasks);
+            
+        end
+        
         function afterFrame(o)
             %Reset counters and task progress
             if o.isBigFrame
@@ -272,14 +295,14 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             end
             
             %Clear the previous schedule
-            o.taskPlan = zeros(o.bigFrameInterval,o.nTasks);
+            o.taskPlan = zeros(o.nLittleFrames,o.nTasks);
             
             %Keep track of how much load has already been allocated to the
             %current frame (i), and how much of the current task (j) has
             %already been allocated
             remFrameAlloc = o.nTasksPerFrame;
             remTask = ones(1,o.nTasks);
-            for i=1:o.bigFrameInterval
+            for i=1:o.nLittleFrames
                 for j=1:o.nTasks
                     if ~remTask(j)
                         %Task completely allocated. Move onto next one.
@@ -365,7 +388,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
                 droppedFrames(isInFirstBigFrame) = [];
                 
                 %Use unique() to do the count (ia is little frame number, ic provides the info needed to then count them
-                nDropped = zeros(o.bigFrameInterval,1);
+                nDropped = zeros(o.nLittleFrames,1);
                 [lfNum,~,ic] = unique(frame2LittleFrame(droppedFrames));
                 counts = accumarray(ic,1);
                 nDropped(lfNum) = counts;
