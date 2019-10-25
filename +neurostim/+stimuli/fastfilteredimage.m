@@ -487,7 +487,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             [fTheta,fR]=cart2pol(fSFh,fSFv);
             
             %Center frequency
-            theta2centSF = @(th) ((cos(2*th+p.orientation+pi)+1)/2).*(p.maxSF-p.minSF)+p.minSF;
+            theta2centSF = @(th) ((cos(2*(th+p.orientation+pi/2))+1)/2).*(p.maxSF-p.minSF)+p.minSF;
             
             distToCenterSF = @(th,r) abs(r-theta2centSF(th));
             rAdj = @(th,r) max(distToCenterSF(th,r)-p.SFbandwidth/2,0);
