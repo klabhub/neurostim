@@ -72,7 +72,8 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             o.addProperty('bigFrameInterval',o.cic.frames2ms(5));        %How long should each frame be shown for? default = 5 frames.
             o.addProperty('optimise',true);             %Should we update o.nTasksPerFrame on the fly, using frame drop counts?
             o.addProperty('learningRate',0.03);         %How responsive should we be from trial to trial?
-            o.addProperty('showReport',true);           %Plot frame-drops per trial and show task plan                        
+            o.addProperty('showReport',true);           %Plot frame-drops per trial and show task plan
+            o.addProperty('loadByFrame',[]);            %Vector of length equal to the number of beforeFrameTasks, assigned to o.nTasksPerFrame and normalised
         end
         
         function beforeExperiment(o)
@@ -82,7 +83,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             frInt = o.cic.ms2frames(o.bigFrameInterval,false);
             frInt_rounded = round(frInt);
             if ~isinf(frInt) && abs(frInt-frInt_rounded) > tol
-                o.writeToFeed(['Noise frameInterval not a multiple of the display frame interval. It has been rounded to ', num2str(o.cic.frames2ms(o.frameInterval_f)) ,'ms']);
+                o.writeToFeed(['Noise frameInterval not a multiple of the display frame interval. It has been rounded to ', num2str(o.cic.frames2ms(frInt_rounded)) ,'ms']);
             end
             
             %How many little frames are there? (passing to non-ns parameter for faster access.
@@ -99,13 +100,24 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             o.nTasks = numel(o.beforeFrameTasks);
             
             %Set a default task plan if not supplied
-            if isempty(o.nTasksPerFrame)
+            if isempty(o.loadByFrame)
                 o.nTasksPerFrame = ones(1,o.nLittleFrames);  %This gets scaled up to sum to nTasks below
-            end           
+            else
+                %User-supplied plan. Start with it and stick with it (can still be altered by optimisation).
+                if ~isequal(size(o.loadByFrame(:)),[o.nLittleFrames,1])
+                    error('The load weight vector (o.loadByFrame) must be of size [1 o.nLittleFrames]');
+                end
+                o.nTasksPerFrame = o.loadByFrame(:)';
+                o.prms.loadByFrame.sticky = true;
+            end
                 
         end
         
         function beforeTrial(o)
+            if o.disabled
+               %Nothing to do this trial
+                return;
+            end
             
             %Reset some properties
             o.littleFrame = 0;
@@ -140,7 +152,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
         end
         
         function afterTrial(o)
-            if o.optimise
+            if o.optimise && o.drawingStarted && ~o.disabled
                 processFramedrops(o);
             end
         end
@@ -274,6 +286,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             
             %Convert the load to tasks-per-frame and set the ns param
             o.nTasksPerFrame = tsksPerFr./sum(tsksPerFr)*o.nTasks;
+            o.loadByFrame = o.nTasksPerFrame; %For logging only
         end
         
         function updateSchedule(o)
@@ -331,7 +344,6 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             %all to frames. Any remaining will have to be assigned to last frame.
             o.taskPlan(i,:) = o.taskPlan(i,:)+remTask;
             if sum(o.taskPlan(:))~=o.nTasks
-                keyboard;
                 error('Something went wrong with the scheduling of tasks. This is probably a bug.');
             end
         end

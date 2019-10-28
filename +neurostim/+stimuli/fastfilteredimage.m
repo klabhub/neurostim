@@ -69,7 +69,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
                         
             %% User-definable
             o.addProperty('image',@randComplexPhaseImage);          %A string path to an image file, an image matrix, or a function handle that returns an image
-            o.addProperty('imageDomain','SPACE','validate',@(x) any(strcmpi(x,{'SPACE','FREQUENCY'})));
+            o.addProperty('imageDomain','FREQUENCY','validate',@(x) any(strcmpi(x,{'SPACE','FREQUENCY'})));
             o.addProperty('imageIsStatic',false);       %if true, image is computed once in beforeTrial() and never again. Otherwise, every frame
             o.addProperty('mask',@(o) gaussLowPassMask(o,24));
             o.addProperty('maskIsStatic',true);
@@ -105,6 +105,10 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         end
         
         function setupTasks(o)
+            if o.disabled
+                %Nothing to do this trial
+                return;
+            end
             
             %Create a list of the tasks to be done to create the filtered image.
             tsks = {@initialise,@getImage,@getMask,@fftImage,@filterImage,@intensity2lum,@gatherToCPU,@finalise,@makeTexture};
@@ -247,9 +251,12 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         end
         
         function afterTrial(o)
-            Screen('Close', o.tex);
-            o.tex = [];
-            o.logInfo();
+            if ~isempty(o.tex)
+                %Our stimulus must have been shown, so do post-trial tasks
+                Screen('Close', o.tex);
+                o.tex = [];
+                o.logInfo();
+            end
             afterTrial@neurostim.stimuli.splittasksacrossframes(o);
         end        
         
@@ -442,6 +449,24 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             end
         end
         
+        function afterExperiment(o)
+            %Clear the memory in local variables
+            dumpArrays(o);
+            afterExperiment@neurostim.stimuli.splittasksacrossframes(o);
+        end
+        
+        function dumpArrays(o)
+            %Clear the memory in local variables
+            props = {'sngImage_space', 'dblImage_space','gpuImage_space','gpuImage_freq', 'gpuFiltImage_freq', 'gpuMask_freq', 'gpuFiltImageRawMean', 'gpuFiltImageRawSTD'};
+            for i=1:numel(props)
+                if isa(o.(props{i}),'gpuArray')
+                    o.(props{i}) = gpuArray;
+                else
+                    o.(props{i}) = [];
+                end
+            end
+        end
+        
         function im = deformedAnnulusMask(o,varargin)
             %Annulus mask in Fourier domain, with radius ? cos(orientation).
             p=inputParser;
@@ -454,58 +479,56 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             p.parse(varargin{:});
             p=p.Results;
             
-            if diff(o.pvtSize)~=0
-                error('annulusMask currently only supports square images.');
-            end
-            
-            nPix = o.size(1);
+%             if diff(o.size)~=0
+%                 error('annulusMask currently only supports square images.');
+%             end
             
             %Set up pixel space
-            nPixPerNS = nPix/o.width;                %Display pixel resolution
-            
-            %Set up Fourier domain, in normalised coordinates
-            nyq = 1./sqrt(2); %Nyquist on oblique
+            sz = o.size;
+            nPixPerNS = sz(2)/o.width;                %Display pixel resolution
             
             %X_deg = (0:nPix-1)*nPixPerDeg/nPix;             %Frequencies along FFT axis, without FFT shift
-            fx_ns = (-nPix/2:nPix/2-1)*(nPixPerNS/nPix);   %Frequencies along FFT axis, with FFT shift
-            maxSF_ns = max(fx_ns);
+            fx_ns = (-sz(2)/2:sz(2)/2-1)*(nPixPerNS/sz(2));   %Frequencies along FFT axis, with FFT shift
+            fy_ns = (-sz(1)/2:sz(1)/2-1)*(nPixPerNS/sz(1));   %Frequencies along FFT axis, with FFT shift
             
-            sfNorm2sfNS = @(sf) sf*maxSF_ns;
+            %What is the maximum SF
+            maxSF_ns = min([max(fx_ns),max(fy_ns)]);            
             
-            %Convert params to prop of nyq and then degrees
-            %             p.maxSF = sfNorm2sfNS(p.maxSF*nyq);
-            %             p.minSF = sfNorm2sfNS(p.minSF*nyq);
-            %             p.SFbandwidth = sfNorm2sfNS(p.SFbandwidth*nyq);
-            %             blurSD = sfNorm2sfNS(p.blurSD*nyq);
+            %Calculate nyquist limit
+            nyq = 1./sqrt(2); %Nyquist on oblique            
+            sfNorm2sfNS = @(sf) sf*maxSF_ns;           
             nyq = sfNorm2sfNS(nyq);
+            
+            %What is the center SF in the annulus?
             centerSF = mean([p.maxSF,p.minSF]);
             
-            %X = linspace(-1,1,nPix);
-            [fSFh,fSFv]=meshgrid(fx_ns);
+            [fSFh,fSFv]=meshgrid(fx_ns,fy_ns);
             
             % %% New method
             [fTheta,fR]=cart2pol(fSFh,fSFv);
             
             %Center frequency
-            theta2centSF = @(th) ((cos(2*(th+p.orientation+pi/2))+1)/2).*(p.maxSF-p.minSF)+p.minSF;
+            theta2centSF = @(th) ((cos(2*(th+p.orientation))+1)/2).*(p.maxSF-p.minSF)+p.minSF;
             
             distToCenterSF = @(th,r) abs(r-theta2centSF(th));
             rAdj = @(th,r) max(distToCenterSF(th,r)-p.SFbandwidth/2,0);
             tableTopGauss = @(th,r,sd) normpdf(rAdj(th,r),0,sd);
-            mask_freq = tableTopGauss(fTheta,fR,p.blurSD)';
+            mask_freq = tableTopGauss(fTheta,fR,p.blurSD);
             
             if p.plot
                 
                 %Mask in frequency domain
                 figure; h = [];
-                imagesc(fx_ns,fx_ns,mask_freq); axis image; colormap('gray');hold on; h(end+1) = gca;
+                imagesc(fy_ns,fx_ns,mask_freq); axis image; colormap('gray');hold on; h(end+1) = gca;
                 [circX,circY]=pol2cart(linspace(-pi,pi,1000),1);
                 plot(nyq*circX,nyq*circY,'r'); plot(centerSF*circX,centerSF*circY,'y');
+                title('Amplitude mask in Fourier domain (hSF, vSF)');
                 
                 %Mask in space
                 figure
                 mask_space = fftshift(ifft2(ifftshift(mask_freq), 'symmetric'));
-                imagesc(mask_space); axis image; colormap('gray'); hold on                
+                imagesc(mask_space); axis image; colormap('gray'); hold on;
+                title('Amplitude mask as convolution kernel in image space');
             end
             
             im = ifftshift(mask_freq);            
