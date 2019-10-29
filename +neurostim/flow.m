@@ -499,7 +499,7 @@ classdef flow <handle & matlab.mixin.Copyable
                 if rem(o.cic.trial,o.cic.saveEveryN)==0
                     ttt=tic;
                     o.cic.saveData;
-                    o.cic.writeToFeed('Saving the file took %f s',toc(ttt));
+                    o.cic.writeToFeed(sprintf('Saving the file took %f s',toc(ttt)));
                 end
             end
         end
@@ -564,7 +564,7 @@ classdef flow <handle & matlab.mixin.Copyable
             % blcks = cell array of handles to the blocks in the flow (at the root level)
             % ix = the index of these blocks in the .children array.
             
-            if o.nrChildren>1
+            if o.nrChildren>=1
                 stay = cellfun(@(x) (isa(x,'neurostim.flow')),o.children);
                 blcks = o.children(stay);
                 ix = find(stay);
@@ -690,7 +690,7 @@ classdef flow <handle & matlab.mixin.Copyable
             if o.cic.saveEveryBlock
                 ttt=tic;
                 o.cic.saveData;
-                o.cic.writeToFeed('Saving the file took %f s',toc(ttt));
+                o.cic.writeToFeed(sprintf('Saving the file took %f s',toc(ttt)));
             end            
             clearOverlay(o.cic,true);
             

@@ -16,6 +16,8 @@ classdef fixate  < neurostim.behaviors.eyeMovement
     % tolerance - width/height of the square tolerance window around X,Y
     % invert - invert the definition : eye position outside the tolerance is
     %           considered good, inside is bad.
+    %  allowBlinks  - ignore blinks.
+    %
     %
     % BK - July 2018
     
@@ -39,14 +41,15 @@ classdef fixate  < neurostim.behaviors.eyeMovement
         % some setup - most states don't have to do anything. 
         function freeViewing(o,t,e)
             % Free viewing has two transitions, either to fail (if we reach
-            % the time when the subject shoudl have been fisating (o.from)), 
-            % or to fixating (if the eye is in the window)
+            % the time when the subject should have been fisating (o.from)), 
+            % or to fixating (if the eye is in the window). Blinks are
+            % always ignored during this phase  (isInWindow will be false during blinks)
             if e.isAfterTrial;transition(o,@o.fail,e);end % if still in this state-> fail
             if ~e.isRegular ;return;end % Ignroe Entry/exit events.
             if t>o.from  % guard 1             
-                transition(o,@o.fail,e);
+                transition(o,@o.fail,e);     
             elseif isInWindow(o,e)  % guard 2
-                transition(o,@o.fixating,e);  %Note that there is no restriction on t so fixation can start any time  after t.on (which is when the behavior starts running)           
+             	transition(o,@o.fixating,e);  %Note that there is no restriction on t so fixation can start any time  after t.on (which is when the behavior starts running)                                               
             end
         end
         
@@ -58,13 +61,19 @@ classdef fixate  < neurostim.behaviors.eyeMovement
             if e.isAfterTrial;transition(o,@o.success,e);end % if still in this state-> success
          	if ~e.isRegular ;return;end % No Entry/exit needed.
             % Guards 
-            inside  = isInWindow(o,e);
-            complete = t>=o.to;
+            [inside,isAllowedBlink]  = isInWindow(o,e);
             % Transitions
-            if ~inside 
+            if isAllowedBlink
+                % OK stay in fixating state
+            elseif inside 
+                % Fixating inside
+                if t>=o.to % Complete   
+                   % Fixated long enough
+                   transition(o,@o.success,e);
+                end
+            else
+                % Not in an allowed blink, and not inside ->fail
                 transition(o,@o.fail,e);
-            elseif complete
-                 transition(o,@o.success,e);                
             end
         end
     end

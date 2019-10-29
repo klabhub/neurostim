@@ -1,0 +1,17 @@
+/* Shader to implement a CLUT in Neurostim, derived originally from Mario Kleiner's ClutBlitShader.frag for CLUT animation in PTB
+*
+* Shaun Cloherty and Adam Morris, 2018,2019
+*/
+
+#extension GL_ARB_texture_rectangle : enable
+
+uniform sampler2DRect Image;
+uniform sampler2DRect clut;
+
+void main()
+{
+    vec4 incolor = texture2DRect(Image, gl_TexCoord[0].st);
+    vec4 clutColor = texture2DRect(clut, incolor.rg);
+    gl_FragColor.rgb = clutColor.rgb;
+    gl_FragColor.a = incolor.a*clutColor.a;
+}

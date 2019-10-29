@@ -89,7 +89,7 @@ classdef jitter < neurostim.plugins.adaptive
                 end            
         end
         
-        function v =getValue(o)
+        function v =getAdaptValue(o)
             % Just return the currently stored value. The abstract adaptive
             % parent class requires that we implement this.
             v=o.value;

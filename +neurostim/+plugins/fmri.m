@@ -35,8 +35,7 @@ classdef fmri < neurostim.plugin
                        ListenChar(0); % Need to echo now
                     end                        
                     while (isempty(answer))
-                        o.cic.drawFormattedText('Which scan number is about to start?');
-                        Screen('Flip',o.cic.window);
+                        o.cic.drawFormattedText('Which scan number is about to start?','ShowNow',true);                        
                         disp('*****************************************')
                         commandwindow;
                         answer = input('Which scan number is about to start (for logging purposes)?','s');
@@ -54,8 +53,7 @@ classdef fmri < neurostim.plugin
                 
                 
                 % Now wait until the requested pre triggers have been recorded
-                o.cic.drawFormattedText('Start the scanner now ...');
-                Screen('Flip',o.cic.window);
+                o.cic.drawFormattedText('Start the scanner now ...','ShowNow',true);                
                 % Wait until the first trigger has been received
                 while o.trigger ==0
                     WaitSecs(0.1);
@@ -66,12 +64,11 @@ classdef fmri < neurostim.plugin
                     o.cic.KbQueueCheck;
                     if o.trigger < o.preTriggers
                         txt = ['Waiting for ' num2str(o.preTriggers-o.trigger) ' more triggers from the scanner'];
-                        o.cic.drawFormattedText(txt);
-                    end
-                    Screen('Flip',o.cic.window);
+                        o.cic.drawFormattedText(txt,'ShowNow',true);
+                    end                    
                 end
                 o.triggersComplete = true;
-                Screen('Flip',o.cic.window);
+                o.cic.drawFormattedText('','ShowNow',true);
             end
         end
         
