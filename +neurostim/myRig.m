@@ -81,9 +81,13 @@ switch upper(computerName)
         Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
     case 'SURFACE2017'
         scrNr = max(Screen('screens'));
-        fr = Screen('FrameRate',scrNr);
+        if scrNr==2
+            fr = 30;
+        else
+            fr = Screen('FrameRate',scrNr);
+        end            
         rect = Screen('rect',scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',max(fr,60),'screenNumber',scrNr);
+        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',fr,'screenNumber',scrNr);
         smallWindow = true;
         c.dirs.output= 'c:/temp';
         c.useConsoleColor = true;
