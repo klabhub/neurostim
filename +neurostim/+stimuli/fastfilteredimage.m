@@ -391,11 +391,14 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             
             %We need to take into account frame-drops. So gather info here
             frDr = get(o.cic.prms.frameDrop,'trial',p.trial,'struct',true);
-            stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
-            frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
-            
-            %Convert duration of frame drop from ms to frames (this assumes frames were synced?)
-            frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
+            framesWereDropped = ~iscell(frDr.data);
+            if framesWereDropped
+                stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
+                frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
+                
+                %Convert duration of frame drop from ms to frames (this assumes frames were synced?)
+                frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
+            end
             
             %Need to align the frame-drop data to the onset of this stimulus
             %On what c.frame did the stimulus appear, and how long was it shown?
@@ -420,19 +423,20 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
                 
                 %Get the frame drop data for this trial
                 these = frDr.trial==p.trial(t);
-                thisFrDrData = frDr.data(these,:);
-                
-                %Discard drops that happened before or after
-                kill = thisFrDrData(:,1)<stimStart.frame(t) | thisFrDrData(:,1)>stimStop.frame(t);
-                thisFrDrData(kill,:) = [];
-                
-                %Now re-number the frame drops relative to our first frame
-                thisFrDrData(:,1) = thisFrDrData(:,1) - stimStart.frame(t)+1;
-                
-                %Now add in the repeats caused by dropped frames
-                framesPerFrame = ones(size(imIxByFrame));
-                framesPerFrame(thisFrDrData(:,1)) = thisFrDrData(:,2)+1;
-                imIxByFrame = repelem(imIxByFrame,framesPerFrame);
+                thisFrDrData = frDr.data(these,:);                
+                if ~isempty(thisFrDrData)
+                    %Discard drops that happened before or after
+                    kill = thisFrDrData(:,1)<stimStart.frame(t) | thisFrDrData(:,1)>stimStop.frame(t);
+                    thisFrDrData(kill,:) = [];
+                    
+                    %Now re-number the frame drops relative to our first frame
+                    thisFrDrData(:,1) = thisFrDrData(:,1) - stimStart.frame(t)+1;
+                    
+                    %Now add in the repeats caused by dropped frames
+                    framesPerFrame = ones(size(imIxByFrame));
+                    framesPerFrame(thisFrDrData(:,1)) = thisFrDrData(:,2)+1;
+                    imIxByFrame = repelem(imIxByFrame,framesPerFrame);
+                end
                 
                 %**** BAND-AID
                 if stimDur_Fr(t) > numel(imIxByFrame)
@@ -457,7 +461,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         
         function dumpArrays(o)
             %Clear the memory in local variables
-            props = {'sngImage_space', 'dblImage_space','gpuImage_space','gpuImage_freq', 'gpuFiltImage_freq', 'gpuMask_freq', 'gpuFiltImageRawMean', 'gpuFiltImageRawSTD'};
+            props = {'sngImage_space', 'dblImage_space','gpuImage_space','gpuImage_freq', 'gpuFiltImage_freq', 'gpuMask_freq'};
             for i=1:numel(props)
                 if isa(o.(props{i}),'gpuArray')
                     o.(props{i}) = gpuArray;

@@ -131,7 +131,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             end
             
             %If the tasks have not yet been split, or we need to optimise, re-combine, re-split
-            if o.cic.trial==1 || o.optimise
+            if isempty(o.tasksByFrame) || o.optimise
                 
                 %Update the estimate of how the load should be distributed
                 updateFrameLoad(o);
@@ -257,7 +257,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             %How many tasks are we doing per frame? Initially, it's
             %nTasks/nLittleFrames (unless set by the user), but is altered to distribute frame drops uniformly.
             tsksPerFr = o.nTasksPerFrame;
-            if o.cic.trial>1
+            if ~isempty(o.history)
                 %Use frame drops to re-distribute the task load
                 %How many frame drops were there on each of the
                 %1:nLittleFrames over the whole last trial?
