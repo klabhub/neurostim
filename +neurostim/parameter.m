@@ -516,24 +516,24 @@ classdef parameter < handle & matlab.mixin.Copyable
                 %
                 timeShift = 0; %Will be changed below if there are drops
                 [fdData,fdTrial,fdTrialTime] = get(o.plg.cic.prms.frameDrop,'trial',trial);
-               
-                kill = isnan(fdData(:,1)); %frameDrop initialises to NaN
-                fdData(kill,:) = []; fdTrial(kill) = []; fdTrialTime(kill)=[];
                 if ~isempty(fdData)
-                    %Convert trialTime to frames
-                    trialTime_fr = o.plg.cic.ms2frames(trialTime);
-                    
-                    %What time did drops happen? Convert that to frames too
-                    timeOfDrop_fr = o.plg.cic.ms2frames(fdTrialTime);
-                    
-                    %How much time was added at each drop?
-                    durOfDrop_ms = (1000*fdData(:,2));
-                    
-                    %Count how many were dropped in total prior to the logged time of the event
-                    totTimeAdded = @(tr,t) sum(durOfDrop_ms(fdTrial==tr & timeOfDrop_fr<=t));
-                    timeShift = arrayfun(totTimeAdded,trial,trialTime_fr);
+                    kill = isnan(fdData(:,1)); %frameDrop initialises to NaN
+                    fdData(kill,:) = []; fdTrial(kill) = []; fdTrialTime(kill)=[];
+                    if ~isempty(fdData)
+                        %Convert trialTime to frames
+                        trialTime_fr = o.plg.cic.ms2frames(trialTime);
+                        
+                        %What time did drops happen? Convert that to frames too
+                        timeOfDrop_fr = o.plg.cic.ms2frames(fdTrialTime);
+                        
+                        %How much time was added at each drop?
+                        durOfDrop_ms = (1000*fdData(:,2));
+                        
+                        %Count how many were dropped in total prior to the logged time of the event
+                        totTimeAdded = @(tr,t) sum(durOfDrop_ms(fdTrial==tr & timeOfDrop_fr<=t));
+                        timeShift = arrayfun(totTimeAdded,trial,trialTime_fr);
+                    end
                 end
-                
                 %Shift event in time and convert to cic frame number (+1 becaude c.frame==1 when t==0)
                 frame = o.plg.cic.ms2frames(trialTime-timeShift)+1;
             else
