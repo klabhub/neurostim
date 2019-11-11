@@ -158,7 +158,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             o.gpuImage_space = zeros(o.pvtSize,'single','gpuArray');
             o.gpuMask_freq = zeros(o.pvtSize,'single','gpuArray');
             
-            o.rect = [-o.width/2,-o.height/2,o.width/2,o.height/2];
+            o.rect = [-o.width/2,o.height/2,o.width/2,-o.height/2];
             o.nTexels = prod(o.pvtSize);
             
             %Make sure we are logging texels appropriately.
