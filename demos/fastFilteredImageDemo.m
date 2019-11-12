@@ -1,14 +1,20 @@
 function fastFilteredImageDemo
-%Demo of fast filtered noise. Here, an orientation and SF mask is applied
-%in Fourier space, with new noise values generated every N display frames.
-%This requires a modern nVidia card with up to date drivers, and the
-%Parallel Computing Toolbox. It relies on gpuArray objects.
+%Demo of fast filtered noise and automatic re-distribution of computation
+%across frames to avoid frame drops. Here, we show low-pass filtered noise,
+%updated with new noise values every N-frames. All costly calcluations
+%(e.g. inverse Fourier transform) are performed on the GPU using Matlab's
+%gouArray class. This requires a modern nVidia card with up to date
+%drivers, and the Parallel Computing Toolbox.
 %
 %Frame drops are possible/expected for first few frames, as it learns how
 %to distribute the load of computing images across frames optimally. See
-%neurostim.stimuli.fastfilteredimage for info on how to access and set this
-%optimal load distribution so that there are no frame drops right from the
-%start.
+%neurostim.stimuli.fastfilteredimage and
+%neurostim.stimuli.splittasksacrossframes for info on how to access and set
+%this optimal load distribution so that there are no frame drops right from
+%the start.
+%
+%The demo shows a real-time report (perhaps hidden behind stimulus window)
+%of frame drops and how it is distributing the task load.
 %
 %Adam Morris, October, 2019
 
@@ -23,20 +29,20 @@ c.trialDuration = '@filtIm.on+filtIm.duration';
 c.saveEveryN = Inf;
 
 %% ============== Add stimuli ==================
-imDuration = 5000;
-
+frInterval = 1000./c.screen.frameRate;
+imDuration = 100*frInterval; %Show for 100 frames
 im=neurostim.stimuli.fastfilteredimage(c,'filtIm');
-im.bigFrameInterval = 100; %ms
-im.on=500-im.bigFrameInterval; %Our image isn't actually visible until *after* the first full interval (during which time it is being computed)
+im.bigFrameInterval = 3*frInterval; %ms, set here to 3 frames
+im.on=50*frInterval-im.bigFrameInterval; %Our image isn't actually visible until *after* the first full interval (during which time it is being computed)
 im.duration = imDuration + im.bigFrameInterval; %The image isn't actually shown until trialTime = im.bigFrameInterval, because first image is being computed, so this ensure that the visible part is on for imDuration
 im.imageDomain = 'FREQUENCY';
-im.size = [1024,1024];
-im.width = im.size(2)./c.screen.xpixels*c.screen.width;
-im.height = im.width*im.size(1)/im.size(2);
+im.size = [c.screen.ypixels,c.screen.ypixels];
+im.height = c.screen.height;
+im.width = im.height*im.size(2)/im.size(1);
 im.maskIsStatic = true;
 im.statsConstant = true;
 im.optimise = true;
-im.showReport = false;
+im.showReport = true;
 im.mask = gaussLowPassMask(im,24);
 
 %im.mask = deformedAnnulusMask(im,'plot',false);

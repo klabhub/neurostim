@@ -429,19 +429,24 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
         function report(o)
             subplot(3,2,1);
             plot(sum(o.history.nDroppedPerLittleFrame,1),'o-b','linewidth',1,'markerfacecolor','b','markersize',5,'markeredgecolor','w');
+            xlabel('Trial #'); ylabel('Total frame drops');
             subplot(3,2,2);
-            imagesc(o.history.nDroppedPerLittleFrame(:,o.cic.trial)./o.history.nFramesPerLittleFrame(:,o.cic.trial)); set(gca,'clim',[0 1]);
+            imagesc(o.history.nDroppedPerLittleFrame./o.history.nFramesPerLittleFrame); set(gca,'clim',[0 1]);
+            title('p(drop | trial)'); xlabel('Trial #'); ylabel('little frame #');
             subplot(3,2,3);
             imagesc(o.history.nTasksPerFrame);
+            title('Total task load by little frame'); xlabel('Trial #'); ylabel('little frame #');
             subplot(3,2,4);
+            
             imagesc(o.taskPlan);
+            title('Itemised load per little frame (current trial)'); xlabel('splittask #'); ylabel('little frame #')
             
             subplot(3,2,5:6); cla
             frameNum = o.history.frameNumbers{o.cic.trial};
             ignoredDroppedFrames = o.history.ignoredDroppedFrames{o.cic.trial};
             plot(frameNum,ones(1,numel(frameNum)),'bo'); hold on;
             plot(ignoredDroppedFrames,ones(1,numel(ignoredDroppedFrames)),'rx');
-
+            xlabel('Frame # of dropped frame');
             xlim([1,o.cic.frame]);
             drawnow;
         end

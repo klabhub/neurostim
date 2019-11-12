@@ -246,9 +246,6 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         
         function makeTexture(o,~)
             %The filtered image is ready, so put it into our texture
-            if ~isempty(o.tex_new)
-                Screen('Close', o.tex_new);
-            end
             o.tex_new = Screen('MakeTexture',o.window,o.dblImage_space,[],[],2); %2 means 32-bit texture, 0 to 1 RGB range
         end
         
@@ -261,7 +258,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             toDel = cellfun(@(tx) ~isempty(tx),textures);
             if any(toDel)
                 %Our stimulus must have been shown, so do post-trial tasks
-                Screen('Close', textures{toDel});
+                Screen('Close', unique([textures{toDel}]));
                 [o.tex_cur,o.tex_new] = deal([]);
                 o.logInfo();
             end
@@ -271,7 +268,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         function maskIm = gaussLowPassMask(o,sd)
             %Gaussian mask filter, centered on 0
             if diff(o.size)~=0
-                error('gaussLowPassMask currently only supports square images');
+                error('gaussLowPassMask currently only supports square images. This code needs to be updated like it has been already for deformedAnnulusMask()');
             end
             maskIm = gpuArray(ifftshift(fspecial('gaussian',o.size(1),sd)));
         end
