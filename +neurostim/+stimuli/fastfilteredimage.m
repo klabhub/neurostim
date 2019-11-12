@@ -30,7 +30,8 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         pvtContrast@single;
         pvtSize;
         rect;        
-        tex;
+        tex_cur;
+        tex_new;
         ticStart;
         normStatsDone = false;
     end
@@ -140,6 +141,11 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         
         function beforeBigFrame(o)
             
+            %Assign the new texture to the current texture, so that the visible image is updated
+            if ~isempty(o.tex_cur)
+                Screen('Close', o.tex_cur);
+            end
+            o.tex_cur = o.tex_new;
         end
         
         function initialise(o,~)
@@ -158,7 +164,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             o.gpuImage_space = zeros(o.pvtSize,'single','gpuArray');
             o.gpuMask_freq = zeros(o.pvtSize,'single','gpuArray');
             
-            o.rect = [-o.width/2,o.height/2,o.width/2,-o.height/2];
+            o.rect = [-o.width/2,-o.height/2,o.width/2,o.height/2];
             o.nTexels = prod(o.pvtSize);
             
             %Make sure we are logging texels appropriately.
@@ -239,22 +245,24 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         end
         
         function makeTexture(o,~)
-            %The filtered image is ready, so put it into out texture
-            if ~isempty(o.tex)
-                Screen('Close', o.tex);
+            %The filtered image is ready, so put it into our texture
+            if ~isempty(o.tex_new)
+                Screen('Close', o.tex_new);
             end
-            o.tex = Screen('MakeTexture',o.window,o.dblImage_space,[],[],2); %2 means 32-bit texture, 0 to 1 RGB range
+            o.tex_new = Screen('MakeTexture',o.window,o.dblImage_space,[],[],2); %2 means 32-bit texture, 0 to 1 RGB range
         end
         
         function draw(o)
-            Screen('DrawTexture',o.window,o.tex,[],o.rect,[],1);
+            Screen('DrawTexture',o.window,o.tex_cur,[],o.rect,[],1);
         end
         
         function afterTrial(o)
-            if ~isempty(o.tex)
+            textures = {o.tex_cur o.tex_new};
+            toDel = cellfun(@(tx) ~isempty(tx),textures);
+            if any(toDel)
                 %Our stimulus must have been shown, so do post-trial tasks
-                Screen('Close', o.tex);
-                o.tex = [];
+                Screen('Close', textures{toDel});
+                [o.tex_cur,o.tex_new] = deal([]);
                 o.logInfo();
             end
             afterTrial@neurostim.stimuli.splittasksacrossframes(o);
