@@ -424,7 +424,11 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
                 %intended frame interval and all repeats were shown
                 %(nothing guarantees that... could be mid-way through an
                 %interval when the stimulus/trial ends. Gets fixed below.)
-                imIxByFrame = horzcat(ones(1,o.nLittleFrames), repelem(1:byTrial.nImagesComputed{t},o.nLittleFrames*ones(1,byTrial.nImagesComputed{t}))+1); %Concat and Plus-1 for same reason as above: Nan image in pos 1
+                
+                %Image doesn't become visible until last frame of first
+                %cycle, so pad the sequence with this dead-time
+                preShowPad = ones(1,o.nLittleFrames-1); %-1 because image is updated on last little frame (i.e. bigFrame)
+                imIxByFrame = horzcat(preShowPad, repelem(1:byTrial.nImagesComputed{t},o.nLittleFrames*ones(1,byTrial.nImagesComputed{t}))+1); %Concat and Plus-1 for same reason as above: Nan image in pos 1
                 
                 %Get the frame drop data for this trial
                 these = frDr.trial==p.trial(t);
