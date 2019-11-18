@@ -13,6 +13,8 @@ classdef eScript < neurostim.plugin
         afterFrameFun@function_handle;
         beforeTrialFun@function_handle;
         afterTrialFun@function_handle;
+        beforeExperimentFun@function_handle;
+        afterExperimentFun@function_handle;
         keyFun@function_handle;
     end
     
@@ -35,7 +37,7 @@ classdef eScript < neurostim.plugin
             if ~isempty(o.afterFrameFun)
                 disp(['AfterFrame: ' func2str(o.afterFrameFun)]);
             end
-            if ~isempty(o.beforeTrialFun);
+            if ~isempty(o.beforeTrialFun)
                 disp(['BeforeTrial: ' func2str(o.beforeTrialFun)]);
             end
             if ~isempty(o.afterTrialFun)
@@ -44,7 +46,12 @@ classdef eScript < neurostim.plugin
             if ~isempty(o.keyFun)
                 disp(['Keyboard: ' func2str(o.keyFun)]);
             end
-
+            if ~isempty(o.beforeExperimentFun)
+                disp(['BeforeExperiment: ' func2str(o.beforeExperimentFun)]);
+            end
+            if ~isempty(o.afterExperimentFun)
+                disp(['AfterExperiment: ' func2str(o.afterExperimentFun)]);
+            end
             disp('****************************************')
             
         end
@@ -64,15 +71,19 @@ classdef eScript < neurostim.plugin
             
             switch upper(when)
                 case 'BEFOREFRAME'
-                    o.beforeFrameFun    = fun;
+                    o.beforeFrameFun        = fun;
                 case 'AFTERFRAME'
-                    o.afterFrameFun     = fun;
+                    o.afterFrameFun         = fun;
                 case 'BEFORETRIAL'
-                    o.beforeTrialFun    = fun;
+                    o.beforeTrialFun        = fun;
                 case 'AFTERTRIAL'
-                    o.afterTrialFun     = fun;
-                case 'KEYBOARD' 
-                    o.keyFun            = fun;
+                    o.afterTrialFun         = fun;
+                case 'BEFOREEXPERIMENT'
+                    o.beforeExperimentFun   = fun;
+                case 'AFTEREXPERIMENT'
+                    o.afterExperimentFun    = fun;
+                case 'KEYBOARD'
+                    o.keyFun                = fun;
                 otherwise
                     error(['The eScript plugin does not handle ' when ' events.']);
             end
@@ -127,7 +138,16 @@ classdef eScript < neurostim.plugin
                 o.afterTrialFun(o.cic);
             end
         end
-        
+        function beforeExperiment(o)
+            if ~isempty(o.beforeExperimentFun)           
+                o.beforeExperimentFun(o.cic);
+            end
+        end
+        function afterExperiment(o)
+            if ~isempty(o.afterExperimentFun)
+                o.afterExperimentFun(o.cic);
+            end
+        end
         function keyboard(o,key,time)
             if ~isempty(o.keyFun)
                o.keyFun(o,key,time);
