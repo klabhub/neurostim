@@ -1753,9 +1753,7 @@ classdef cic < neurostim.plugin
                 case 'LINLUT'
                     % Load a gamma table that linearizes each gun
                     % Dont do this for VPIXX etc. monitor types.(although this should work, LUM works better; not recommended).
-                    dac = ScreenDacBits(c.screen.number);
-                    iGamma = InvertGammaTable(c.screen.calibration.gammaInput,c.screen.calibration.gammaTable,2.^dac);
-                    Screen('LoadNormalizedGammaTable',c.screen.number,iGamma);
+                    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'LookupTable');
                 case 'LUM'
                     % The user specifies luminance values per gun as color.
                     % Calibrateed responses are based on the extended gamma
@@ -1918,7 +1916,14 @@ classdef cic < neurostim.plugin
             %% Add calibration to the window
             switch upper(c.screen.colorMode)
                 case 'LINLUT'
-                    % Nothing to do.
+                    % Invert the supplied gamma table
+                    
+                    % note: here we read the current gamma table to determine the number of slots in the 
+                    %       hardware lookup table and compute the inverse gamma table to suit...
+                    tbl = Screen('ReadNormalizedGammaTable', c.mainWindow);
+                    iGamma = InvertGammaTable(c.screen.calibration.gammaInput, c.screen.calibration.gammaTable, size(tbl,1));
+                    clear tbl
+                    PsychColorCorrection('SetLookupTable', c.mainWindow, iGamma, 'FinalFormatting');
                 case 'LUM'
                     % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
                     PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.ns.gamma);
