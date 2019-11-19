@@ -62,7 +62,7 @@
                 allowedBlink = false;
                 nin = nargin;
                 if nin < 3 || isempty(XY)
-                    XY = [o.X o.Y];
+                    XY = [+o.X +o.Y];
                 end
                 if nin < 4 || isempty(tol)
                     tol = o.tolerance;

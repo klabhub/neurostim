@@ -83,8 +83,8 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
             % button events will be the time that the button press
             % occurred as measured by datapixx, but in terms of the PTB
             % clock.
-            [v] = get(o.prms.button,'withDataOnly',true,'matrixIfPossible',true);
-            [vKey] = get(o.prms.keyIx,'withDataOnly',true,'matrixIfPossible',true);
+            [v] = get(o.prms.button,'withDataOnly',true,'matrixIfPossible',true,'dataIsNotNan',true);
+            [vKey] = get(o.prms.keyIx,'withDataOnly',true,'matrixIfPossible',true,'dataIsNotNan',true);
             if ~isempty(v)
                 vpxxT = v(:,end); % Last column has BoxTime
                 [ptbT, sd, ratio] = PsychDataPixx('BoxsecsToGetsecs', vpxxT);

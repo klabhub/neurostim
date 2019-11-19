@@ -289,14 +289,17 @@ classdef parameter < handle & matlab.mixin.Copyable
         function replaceLog(o,val,eTime)
             % This function replaces the log and time values with new
             % values. We use this, for instance, to re-time the button
-            % presses of the Vpixx response box in terms of PTB time.
+            % presses of the Vpixx response box in terms of PTB time.            
+            if size(val,2)~=numel(eTime)
+                warning('Mismatch between the number of values and time points in replaceLog ');
+            end            
             o.log = val;
             o.time = eTime(:)'; % Row
             o.capacity = numel(val);
             o.cntr = numel(val);
         end
         %% Functions to extract parm values from the log. use this to analyze the data
-        function [data,trial,trialTime,time,block] = get(o,varargin)
+        function [data,trial,trialTime,time,block,frame] = get(o,varargin)
             % Usage example:
             %     [data,trial,trialTime,time,block] = get(c.dots.prms.Y,'atTrialTime',Inf)
             %     data = get(c.dots.prms.Y,'struct',true)
@@ -309,6 +312,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % trialTime = Time relative to start of the trial
             % time  = time relative to start of the experiment
             % block = the block in which this trial occurred.
+            % frame = the value of c.frame at the time the event was logged (i.e. the c.run() loop number).
             %
             % Optional input arguments as param/value pairs:
             %
@@ -473,7 +477,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             
             if p.Results.dataIsNotNan
-                    out  = out | cellfun(@isnan,data);
+                    out  = out | cellfun(@(x) all(isnan(x)),data);
             end
             
             
@@ -503,10 +507,40 @@ classdef parameter < handle & matlab.mixin.Copyable
                 block = block(trial); % Match other info that is returned
             end
             
+            if (nargout >5 || p.Results.struct) && ~strcmp(o.name,'frameDrop')
+                % User asked for the c.frame number (loop number)
+                % c.frame is not logged, so we need to get frame drops and work back
+                % from there. c.frame increments once per loop in c.run()
+                %
+                timeShift = 0; %Will be changed below if there are drops
+                [fdData,fdTrial,fdTrialTime] = get(o.plg.cic.prms.frameDrop,'trial',trial);
+                if ~isempty(fdData)
+                    kill = isnan(fdData(:,1)); %frameDrop initialises to NaN
+                    fdData(kill,:) = []; fdTrial(kill) = []; fdTrialTime(kill)=[];
+                    if ~isempty(fdData)
+                        %Convert trialTime to frames
+                        trialTime_fr = o.plg.cic.ms2frames(trialTime);
+                        
+                        %What time did drops happen? Convert that to frames too
+                        timeOfDrop_fr = o.plg.cic.ms2frames(fdTrialTime);
+                        
+                        %How much time was added at each drop?
+                        durOfDrop_ms = (1000*fdData(:,2));
+                        
+                        %Count how many were dropped in total prior to the logged time of the event
+                        totTimeAdded = @(tr,t) sum(durOfDrop_ms(fdTrial==tr & timeOfDrop_fr<=t));
+                        timeShift = arrayfun(totTimeAdded,trial,trialTime_fr);
+                    end
+                end
+                %Shift event in time and convert to cic frame number (+1 becaude c.frame==1 when t==0)
+                frame = o.plg.cic.ms2frames(trialTime-timeShift)+1;
+            else
+                frame = nan(numel(trialTime),1);
+            end
             
             if p.Results.struct
                 %Return everything in a structure (done this way rather than using struct() because that function returns a struct array when "data" is a cell array)
-                tmp.data = data; tmp.trial = trial; tmp.trialTime = trialTime; tmp.time = time; tmp.block = block;
+                tmp.data = data; tmp.trial = trial; tmp.trialTime = trialTime; tmp.time = time; tmp.block = block; tmp.frame = frame;
                 data = tmp;
             end
         end
