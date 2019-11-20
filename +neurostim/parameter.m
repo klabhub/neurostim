@@ -108,6 +108,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.sticky = options.sticky;
             o.changesInTrial = options.changesInTrial;
             o.hasLocalized = checkLocalized(o.plg,nm);
+            if p.cic.loadedFromFile % We are loading from file, don't call the code below as it needs PTB for GetSecs.
+                return;
+            end
             setupDynProp(o,options);
             % Set the current value. This logs the value (and parses the
             % v if it is a neurostim function string)

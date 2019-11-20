@@ -120,6 +120,7 @@ classdef cic < neurostim.plugin
     end
     properties (SetAccess= private)
         used =false; % Flag to make sure a user cannot reuse a cic object.
+        loadedFromFile = false; % Flag set by loadobj - primarily used to avoid initializing things that are only relevant during the experiment.
     end
     
     %% Dependent Properties
@@ -360,9 +361,9 @@ classdef cic < neurostim.plugin
     
     methods (Access=public)
         % Constructor.
-        function c= cic(needPtb)
+        function c= cic(fromFile)
             if nargin<1
-                needPtb=true; % Used by loadobj to create an empty cic without having PTB installed.
+                fromFile=false; % Used by loadobj to create an empty cic without having PTB installed.
             end
             %Check MATLAB version. Warn if using an older version.
             ver = version('-release');
@@ -372,8 +373,8 @@ classdef cic < neurostim.plugin
             end
             
             c = c@neurostim.plugin([],'cic');
-            
-            if needPtb
+            c.loadedFromFile  =fromFile;
+            if ~c.loadedFromFile
                 KbName('UnifyKeyNames'); % Same key names across OS.
             end
             c.cursor = 'none';
@@ -1264,6 +1265,11 @@ classdef cic < neurostim.plugin
         
         %% Keyboard handling routines
         function addKeyStroke(c,key,keyHelp,plg,isSubject,fun)
+            if c.loadedFromFile
+                % When loading fro file, PTB may not be installed and none
+                % of the "online/intractive" funcationality is relevant. 
+                return;
+            end
             if ischar(key)
                 key = KbName(key);
             end
@@ -2043,7 +2049,7 @@ classdef cic < neurostim.plugin
                 % Current CIC classdef does not match classdef in force
                 % when thi sobject was saved.
                 
-                c= neurostim.cic(false); % Create an empty cic of current classdef that does not need PTB (needPtb=false).
+                c= neurostim.cic(true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
                 m= metaclass(c);
                 dependent = [m.PropertyList.Dependent];
                 settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
@@ -2062,8 +2068,11 @@ classdef cic < neurostim.plugin
                 end
             else
                 c = o;
+                c.loadedFromFile = true; % Set to true to avoid PTB dependencies
             end
             
+            
+              
             
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
