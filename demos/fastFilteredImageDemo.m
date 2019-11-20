@@ -32,7 +32,7 @@ c.saveEveryN = Inf;
 frInterval = 1000./c.screen.frameRate;
 imDuration = 100*frInterval; %Show for 100 frames
 im=neurostim.stimuli.fastfilteredimage(c,'filtIm');
-im.bigFrameInterval = 3*frInterval; %ms, set here to 3 frames
+im.bigFrameInterval = 4*frInterval; %ms, set here to 4 frames
 im.on=50*frInterval-im.bigFrameInterval; %Our image isn't actually visible until *after* the first full interval (during which time it is being computed)
 im.duration = imDuration + im.bigFrameInterval; %The image isn't actually shown until trialTime = im.bigFrameInterval, because first image is being computed, so this ensure that the visible part is on for imDuration
 im.imageDomain = 'FREQUENCY';
@@ -42,6 +42,7 @@ im.width = im.height*im.size(2)/im.size(1);
 im.maskIsStatic = true;
 im.statsConstant = true;
 im.optimise = true;
+im.learningRate = im.learningRate/4; %Best learning rate depends on many things, so some trial and error might be needed. This worked for me.
 im.showReport = true;
 im.mask = gaussLowPassMask(im,24);
 

@@ -164,7 +164,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             o.gpuImage_space = zeros(o.pvtSize,'single','gpuArray');
             o.gpuMask_freq = zeros(o.pvtSize,'single','gpuArray');
             
-            o.rect = [-o.width/2,-o.height/2,o.width/2,o.height/2];
+            o.rect = [-o.width/2,o.height/2,o.width/2,-o.height/2];
             o.nTexels = prod(o.pvtSize);
             
             %Make sure we are logging texels appropriately.
@@ -250,7 +250,13 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
         end
         
         function draw(o)
-            Screen('DrawTexture',o.window,o.tex_cur,[],o.rect,[],1);
+       
+            %We use 'drawTextures' rather than 'drawTexture' because it
+            %allows us to use an inverted o.rect (set in o.initialise().
+            %Without doing so, image matrices appear upside down relative
+            %to imagesc(), imshow() etc. Same o.rect argument to
+            %drawTexture causes error.
+            Screen('DrawTextures',o.window,o.tex_cur,[],o.rect,[],1);
         end
         
         function afterTrial(o)
@@ -657,7 +663,11 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
     methods (Static)        
         function h = im2hash(im)
             %Convert image into a checksum/hash.
-            h = neurostim.utils.DataHash(im,'array','hex','md5');
+            
+            %First, convert to an unsigned integer, so machine precision
+            %doesn't cause problems in recosntruction. 
+            im_int = uint16(im*1000);   %This means we are going to use 3 decimal places later to check for hash match
+            h = neurostim.utils.DataHash(im_int,'array','hex','md5');
         end
     end
 end
