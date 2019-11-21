@@ -81,11 +81,7 @@ switch upper(computerName)
         Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
     case 'SURFACE2017'
         scrNr = max(Screen('screens'));
-        if scrNr==2
-            fr = 30;
-        else
-            fr = Screen('FrameRate',scrNr);
-        end            
+        fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',fr,'screenNumber',scrNr);
         smallWindow = true;

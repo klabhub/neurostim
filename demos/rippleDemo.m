@@ -1,22 +1,28 @@
-function trellisDemo
-%% Trellis recording Demo
+%% Ripple closed-loop recording Demo
 %
-% BK - May 2017
+% BK - May 2017, Nov 2019
 
 import neurostim.*;
 %% Setup CIC and the stimuli.
-c = myRig;
+c = neurostim.myRig;
 c.screen.color.text = [1 0 0];  % A red text 
-c.screen.color.background = [0 0 0]; % A high luminance background that looks "white" (same luminance for each gun)
+c.screen.color.background = [0 0 0]; % 
 c.screen.type = 'GENERIC';
 c.trialDuration = 1000;
 c.iti           = 150;
-c.paradigm      = 'trellisDemo';
+c.paradigm      = 'rippleDemo';
 c.subjectNr      =  0;
 c.dirs.output = 'c:\temp\'; %This directory needs to exist on the Trellis computer.
+c.messenger.host = 'localhost';
 
-t= plugins.trellis(c);
-t.trialBit = 3; % At the start of each trial this bit goes high. Use to align times.
+
+fun = @(x) (updateLocal(x.messenger));
+c.addScript('BeforeTrial',fun); % Tell CIC to call this at the start of each trial.
+
+
+
+%t= plugins.ripple(c);
+%t.trialBit = 3; % At the start of each trial this bit goes high. Use to align times.
 
 
 % Convpoly to create the target patch
