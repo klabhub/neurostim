@@ -160,7 +160,7 @@ classdef feedback < neurostim.plugin
         function deliver(o,item)
             %Function that should be overloaded in derived class to deliver the feedback.
             %e.g. deliver juice, or present a feedback screen to a subject.            
-            o.writeToFeed('Feedback delivered for %d ms', o.(['item' num2str(item) 'duration']));
+            o.writeToFeed(sprintf('Feedback delivered for %d ms', o.(['item' num2str(item) 'duration'])));
         end
         
         function report(o) %#ok<MANU>
