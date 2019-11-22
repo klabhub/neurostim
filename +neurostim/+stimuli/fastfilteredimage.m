@@ -11,7 +11,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
     %must use o.rng in the calls to rand, randn,or randi (no other random
     %functions are supported on the GPU!)
     properties (Constant)
-        MAXTEXELSTOLOG = 20;
+        MAXTEXELSTOLOG = 100;
     end
     
     properties (Access = private)
@@ -46,18 +46,18 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
     end
     
     properties (Dependent, Access = protected)
-        pvtNTexelsToLog
+        pvtTexelsToLog
     end
     
     methods
-        function v = get.pvtNTexelsToLog(o)
+        function v = get.pvtTexelsToLog(o)
             switch upper(o.logMode)
                 case 'ALL'
-                    v = o.nTexels;
+                    v = 1:o.nTexels;
                 case 'HASH'
-                    v = 0;
+                    v = [];
                 case 'NTEXELS'
-                    v = o.nTexelsToLog;
+                    v = round(linspace(1,o.nTexels,o.nTexelsToLog));
             end
         end
     end
@@ -82,7 +82,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             o.addProperty('statsConstant',false); %Set to true if mean lum and SD is constant across trials, saves on re-computing each frame.
             
             %---Logging options            
-            o.addProperty('logMode','HASH', 'validate',@(x) ismember(upper(x),{'ALL','HASH','NTEXELS'}));
+            o.addProperty('logMode','NTEXELS', 'validate',@(x) ismember(upper(x),{'ALL','HASH','NTEXELS'}));
             o.addProperty('nTexelsToLog',[],'validate',@(x) (numel(x)==1)&(x>=0)); %CLUT values are logged at the end of each trial, and only the first 10% by default.
             
             %---Offline tools
@@ -169,12 +169,13 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             
             %Make sure we are logging texels appropriately.
             if isempty(o.nTexelsToLog)
-                o.nTexelsToLog = min(0.1*o.nTexels,o.MAXTEXELSTOLOG); %Log 10% by default, up to limit
+                o.nTexelsToLog = max(min(0.1*o.nTexels,o.MAXTEXELSTOLOG),1); %Log 10% by default, up to limit
             end
             
             %Make sure we aren't logging too much data.
-            if (o.pvtNTexelsToLog > o.MAXTEXELSTOLOG) && o.cic.trial==1                
-                warning(horzcat('**** You are logging ', num2str(o.pvtNTexelsToLog), ' image values every trial. This could cause memory problems and slow-down. Consider changing logMode.'));
+            nLogged = numel(o.pvtTexelsToLog);
+            if (nLogged>o.MAXTEXELSTOLOG) && o.cic.trial==1                
+                warning(horzcat('**** You are logging ', num2str(nLogged), ' image values every trial. This could cause memory problems and slow-down. Consider changing logMode.'));
             end
             
             %Store the RNG state.
@@ -360,7 +361,12 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             t2ix = @(prmName,t) ~ismember(prmName,constantPrms)*(t-1)+1; 
             
             for t=1:numel(p.trial)                       
-                
+                if ~byTrial.nImagesComputed{t}
+                    %Stimulus wasn't shown at all.
+                    im{t} = NaN;
+                    continue;
+                end
+                    
                 %Rewind the plugin, using the per-trial values or the lone value if constant
                 for i=1:numel(recapPrms)
                     prmName = recapPrms{i};
@@ -386,7 +392,9 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
                         recoHash = neurostim.stimuli.fastfilteredimage.im2hash(lastRecoIm);
                         isMatch = isequal(recoHash,byTrial.lastImageComputed{t});
                     case {'ALL','NTEXELS'}
-                        isMatch = isequal(lastRecoIm(1:o.pvtNTexelsToLog),byTrial.lastImageComputed{t}(:)');
+                        recoIm = round(lastRecoIm(o.pvtTexelsToLog),3); %Round to 3 decimals
+                        loggedIm = round(byTrial.lastImageComputed{t}(:)',3);
+                        isMatch = isequal(recoIm,loggedIm);
                 end
                 if ~isMatch
                     error('Reconstructed stimulus does not match the logged values.');
@@ -425,6 +433,12 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             stimDur_Fr = o.cic.ms2frames(stimStop.trialTime-stimStart.trialTime);
             
             for t=1:numel(p.trial)
+                
+                if ~byTrial.nImagesComputed{t}
+                    %Stimulus wasn't shown at all.
+                    imIx{t} = NaN;
+                    continue;
+                end
                 
                 %Initially assume no drops. i.e. all repeats were due to
                 %intended frame interval and all repeats were shown
@@ -622,7 +636,7 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
                 case {'ALL'}
                     o.lastImageComputed = o.dblImage_space;
                 case 'NTEXELS'
-                    o.lastImageComputed = o.dblImage_space(1:o.nTexelsToLog);
+                    o.lastImageComputed = o.dblImage_space(o.pvtTexelsToLog);
             end
         end
     end

@@ -232,7 +232,6 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             %Remove task(s) from the list
             kill = arrayfun(@(tsk) any(strcmpi(tsk.name,name)), o.tasks);
             if ~any(kill)
-                warning('No such task exists. Nothing to do');
                 return;
             end
             o.tasks(kill) = [];

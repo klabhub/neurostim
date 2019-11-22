@@ -45,7 +45,7 @@ im.optimise = true;
 im.learningRate = im.learningRate/4; %Best learning rate depends on many things, so some trial and error might be needed. This worked for me.
 im.showReport = true;
 im.mask = gaussLowPassMask(im,24);
-
+im.nTexelsToLog = 20;
 %im.mask = deformedAnnulusMask(im,'plot',false);
 
 %Specify experimental conditions
