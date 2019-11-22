@@ -34,7 +34,7 @@ classdef messenger < handle
     % BK March 2019.
     
     properties (Constant)
-        EMPTYCACHE = struct('style',cell(1000,1),'formatSpecs',cell(1000,1),'msg',cell(1000,1),'plg',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
+        EMPTYCACHE = struct('command',repmat({'CACHE'},[1000 1]),'style',cell(1000,1),'formatSpecs',cell(1000,1),'msg',cell(1000,1),'plg',cell(1000,1),'trialTime',cell(1000,1),'trial',cell(1000,1));
     end
     
     properties (SetAccess=public, GetAccess=public)
@@ -79,23 +79,25 @@ classdef messenger < handle
     
     methods
         function o= messenger(remote)
+            % Create a messenger. If the optional input is set to true,
+            % a remote messenger will be setup and this will start running
+            % updates on the default timer. 
             o = o@handle;            
             if nargin<1
                 remote =false;
             end
-            if remote
-                o.isRemote = true;
-                o.port = 1024;
-                o.host = '0.0.0.0';
+            if remote               
                 setupRemote(o);
             end
         end
+        
         function close(o)
             if o.hasRemote
-                data = getByteStreamFromArray('CLOSE');
-                binblockwrite(o.tcp,[double('#') 1 numel(data) data],'uint8');
+                data.command = 'CLOSE';
+                sendCommand(o,data);
             end
         end
+        
         function disp(o)
             if o.isRemote
                 disp(['Remote Messenger for ' o.tcp.RemoteHost]);
@@ -124,28 +126,34 @@ classdef messenger < handle
             end
         end
    
-        function sendCommand(o,update)
-            if ~isstruct(update);error('Update commands must be structs');end
-            if (o.isRemote && o.hasRemote)
-                % Send this update struct to the local side.
-                % update should be a struct where each field is a plugin 
-                % update.gabor.orientation = 0 (to update the gabor
+        function sendCommand(o,cmnd)
+            if o.hasRemote
+                % Send this update struct array to the other side.
+                % The struct should have a .command field that specifies
+                % the meaning of the command for all elements of the array.
+                % data.command = 'UPDATE'
+                % data.gabor.orientation = 0 (to update the gabor
                 % plugin's orientation parameter)                
-                data = getByteStreamFromArray(update);
+                data = getByteStreamFromArray(cmnd);
                 binblockwrite(o.tcp,[double('#') 1 numel(data) data],'uint8');
             end
             
         end
         
-        function printCache(o)
-            if (~o.isRemote && o.hasRemote)
-                % Send to remote messenger
-                data = getByteStreamFromArray(o.cache(1:o.cacheCntr));
-                binblockwrite(o.tcp,[double('#') 1 numel(data) data],'uint8');
+        function afterTrial(o)
+            % Called from cic.afterTrial (because messenger is not a plugin)
+            % This only runs on the local side.            
+            if o.hasRemote
+                % Send cache of writeToFeed to remote messenger
+                sendCommand(o,o.cache(1:o.cacheCntr));                
             end
-            
+            printCache(o);
+        end
+        
+        
+        function printCache(o)            
             if o.echo
-                % Also show locally
+                % Write out the cache (on either local or remote side)
                 [~,ix] = sortrows([[o.cache.trial]' [o.cache.trialTime]']);
                 for i=ix'
                     print(o,o.cache(i).inTrial,o.cache(i).style,o.cache(i).trial,o.cache(i).trialTime,o.cache(i).msg,o.cache(i).plg);
@@ -159,6 +167,9 @@ classdef messenger < handle
         function setupRemote(o)
             % Start a server on the remote to receive messages from the local client.
             o.checkToolbox;
+            o.isRemote = true;
+            o.port = 1024;
+            o.host = '0.0.0.0';
             [~,serverName] =system('hostname');
             serverName = deblank(serverName);
             o.tcp = tcpip(o.host,o.port,'NetworkRole','Server',...
@@ -169,29 +180,32 @@ classdef messenger < handle
                 'Timeout',o.timeout);
             o.tcp.BytesAvailableFcn = @o.updateRemote;
             o.tcp.BytesAvailableFcnMode = 'terminator';
-            o.tcp.ReadAsyncMode=  'continuous';
-            o.echo = true; % Server always echos
-            runRemote(o);
+            o.tcp.ReadAsyncMode=  'continuous';            
+            startRemote(o);
         end
         
-        function runRemote(o)
-            tmr = timerfind('Name','Logger');
+        function stopRemote(o) %#ok<MANU>
+            tmr = timerfind('Name','Messenger');
             if ~isempty(tmr)
                 stop(tmr);
                 delete(tmr);
-            end
+            end        
+        end
+        
+        function startRemote(o)
+            stopRemote(o);
             if strcmpi(o.host,'0.0.0.0')
                 hstStr = 'any host';
             else
                 hstStr = o.host;
             end
-            disp(['Waiting for a messenger connection on port ' num2str(o.port) ' from ' hstStr ]);
+            disp(['Waiting for a messenger connection on port ' num2str(o.port) ' from ' hstStr ' (Press Ctrl-C to terminate)']);
             fopen(o.tcp); % Busy wait until the client connects
             if strcmpi(o.tcp.Status,'Open')
                 disp(['Connected to ' o.tcp.RemoteHost]);
             end
             disp('Starting timer to read incoming feeds')
-            tmr = timer('BusyMode','drop','ExecutionMode','FixedRate','Period',o.timerPeriod,'TimerFcn',@o.updateRemote,'Name','Logger');
+            tmr = timer('BusyMode','drop','ExecutionMode','FixedRate','Period',o.timerPeriod,'TimerFcn',@o.updateRemote,'Name','Messenger');
             start(tmr);
             disp(['Timer running every '  num2str(o.timerPeriod) 's']);
         end
@@ -200,36 +214,36 @@ classdef messenger < handle
         % data.
         function updateRemote(o,tmr,event) %#ok<INUSD>
             if ~o.isRemote; return;end 
-            if o.tcp.BytesAvailable >0
+            while o.tcp.BytesAvailable >0
                 bytes = binblockread(o.tcp,'uint8'); % Retrieve bytestream encoded message
-                data= getArrayFromByteStream(uint8(bytes(4:end))); % Conver to Matlab vars.
-                if ischar(data)
-                    switch (data)
-                        case 'CLOSE'
-                            fclose(o.tcp);
-                            if o.autoRestart
-                                runRemote(o);
-                            end
-                        otherwise
-                            disp(data)
-                    end
-                elseif iscell(data)
+                data= getArrayFromByteStream(uint8(bytes(4:end))); % Conver to Matlab vars.               
+                if iscell(data)
                     % This was a call from the client sending a single print line (see o.print)
                     % This is not recommended - too much reading/writing.
                     print(o,data{:});
                 elseif isstruct(data)
-                    % This should be the cache that was sent from the
-                    % client.
-                    o.cache =data; % Store it on the host
-                    printCache(o); % Print it to the command line
+                    switch upper(data(1).command)
+                        case 'CACHE'
+                            o.cache =data; % Store it on the host
+                            printCache(o); % Print it to the command line
+                        case 'CLOSE'
+                            disp('Received CLOSE message from experiment');
+                            fclose(o.tcp);
+                            if o.autoRestart
+                                startRemote(o); % Will stop the timer, then wait for a new connection
+                            else
+                                stopRemote(o); % Stops the timer.
+                            end
+                    end
                 else
                     disp('Received unknown data object from the experiment computer')
                     data
                 end                
             end
             
-            if ~isempty(o.remoteFunction)
-                % Extra processing on the remote side.
+            %%
+            % Extra user-defined processing on the remote side.
+            if ~isempty(o.remoteFunction)               
                 update = o.remoteFunction(o); % Call the function the user provided with the (remote) messenger object
                 if isstruct(update) 
                     % If this is a command then send it to the local side.
@@ -250,13 +264,12 @@ classdef messenger < handle
             if o.tcp.BytesAvailable >0
                 bytes = binblockread(o.tcp,'uint8'); % Retrieve bytestream encoded message
                 data= getArrayFromByteStream(uint8(bytes(4:end))); % Conver to Matlab vars.
-                if ischar(data)
-                   disp(data)                   
-                elseif isstruct(data)
+                if isstruct(data) && isfield(data(1),'command') && strcmpi(data(1).command,'UPDATE')
                     % This should be plugin.property=value (e.g.
                     % data.gabor.contrast = 0.5  will set the gabor plugins
                     % contrast to 0.5
                     pluginNames =fieldnames(data);
+                    pluginNames = setdiff(pluginNames,{'command'});
                     for i=1:numel(pluginNames)
                         propertyNames= fieldnames(data.(pluginNames{i}));
                         for j=1:numel(propertyNames)

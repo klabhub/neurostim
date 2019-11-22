@@ -858,7 +858,7 @@ classdef cic < neurostim.plugin
                 c.saveData;
                 c.writeToFeed(sprintf('Saving the file took %f s',toc(ttt)));
             end
-            printCache(c.messenger);
+            afterTrial(c.messenger);
         end
         
         

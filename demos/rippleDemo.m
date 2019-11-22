@@ -1,4 +1,4 @@
-%% Ripple closed-loop recording Demo
+%% Ripple recording Demo
 %
 % BK - May 2017, Nov 2019
 
@@ -13,16 +13,20 @@ c.iti           = 150;
 c.paradigm      = 'rippleDemo';
 c.subjectNr      =  0;
 c.dirs.output = 'c:\temp\'; %This directory needs to exist on the Trellis computer.
-c.messenger.host = 'localhost';
 
 
-fun = @(x) (updateLocal(x.messenger));
-c.addScript('BeforeTrial',fun); % Tell CIC to call this at the start of each trial.
+% To use the cic.messenger to close the loop between Ripple analysis and 
+% the PTB stimuli, uncomment this to instruct CIC to update parameters
+% based on messsages received from a remote computer 
+% c.messenger.host = 'localhost';
+% fun = @(x) (updateLocal(x.messenger));  
+% c.addScript('BeforeFrame',fun);   %beforeTrial, or beforeFrame, depending
+% on need.
+% See tools/rippleClosedLoop for the remote processing part.
 
 
-
-%t= plugins.ripple(c);
-%t.trialBit = 3; % At the start of each trial this bit goes high. Use to align times.
+t= plugins.ripple(c);
+t.trialBit = 3; % At the start of each trial this bit goes high. Use to align times.
 
 
 % Convpoly to create the target patch
