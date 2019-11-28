@@ -373,8 +373,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     mismatch = nrCols ~=max(nrCols);
                     if any(mismatch)
                         if all(isnan([v{mismatch}]))
-                        [v{mismatch}] = deal(nan(1,max(nrCols)));
-                        end                        
+                            [v{mismatch}] = deal(nan(1,max(nrCols)));
+                            v =cat(1,v{:}); % Make it into a matrix; each row will be an entry in the table below.
+                        end                          
                     end
                 end
                     
