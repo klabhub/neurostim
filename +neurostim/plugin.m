@@ -364,7 +364,20 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             for i= 1:numel(p.Results.properties)
                 [v] = get(o.prms.(p.Results.properties{i}),'atTrialTime',p.Results.atTrialTime);
                 
-                
+                % If a parm is a vector in some trials but a scalar NaN in
+                % other trials, we make sure to create a matching vector of
+                % NaNs. (Otherwise the table will hae missing values, and
+                % BIDS validation will fail).
+                if iscell(v) && isnumeric(v{1})
+                    nrCols = cellfun(@(x) size(x,2),v);
+                    mismatch = nrCols ~=max(nrCols);
+                    if any(mismatch)
+                        if all(isnan([v{mismatch}]))
+                        [v{mismatch}] = deal(nan(1,max(nrCols)));
+                        end                        
+                    end
+                end
+                    
                 if isKey(p.Results.propertyProcessing,p.Results.properties{i})
                     fun = p.Results.propertyProcessing(p.Results.properties{i});
                     v= fun(v);
