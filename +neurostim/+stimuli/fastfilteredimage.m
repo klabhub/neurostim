@@ -505,17 +505,22 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
             p=inputParser;
             p.addParameter('maxSF',8.3); %cycles/screen width unit (NS)
             p.addParameter('minSF',3.5);
-            p.addParameter('SFbandwidth',1.2);
-            p.addParameter('blurSD',0.5);
+            p.addParameter('SFbandwidth',[]);
+            p.addParameter('blurSD',0.15);
             p.addParameter('orientation',0); %orientation of major axis for deformed annulus
             p.addParameter('plot',false);
             p.parse(varargin{:});
             p=p.Results;
             
-%             if diff(o.size)~=0
-%                 error('annulusMask currently only supports square images.');
-%             end
+            if p.maxSF<p.minSF
+                error('maxSF must be greater than or equal to minSF');
+            end
             
+            %By default, make the bandwidth half the difference in annulus radii.
+            if isempty(p.SFbandwidth)
+                p.SFbandwidth = 0.25*(p.maxSF-p.minSF);
+            end
+                
             %Set up pixel space
             sz = o.size;
             nPixPerNS = sz(2)/o.width;                %Display pixel resolution
