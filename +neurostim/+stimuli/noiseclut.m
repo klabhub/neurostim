@@ -271,11 +271,14 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             
             %We need to take into account frame-drops. So gather info here
             frDr = get(o.cic.prms.frameDrop,'trial',p.trial,'struct',true);
-            stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
-            frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
-            
-            %Convert duration of frame drop from ms to frames (this assumes frames were synced?)
-            frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
+            framesWereDropped = ~iscell(frDr.data);
+            if framesWereDropped
+                stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
+                frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
+                
+                %Convert duration of frame drop from ms to frames (this assumes frames were synced?)
+                frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
+            end
             
             %Need to align the frame-drop data to the onset of this stimulus
             %On what c.frame did the stimulus appear, and how long was it shown?
@@ -301,17 +304,20 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 these = frDr.trial==p.trial(i);
                 thisFrDrData = frDr.data(these,:);
                 
-                %Discard drops that happened before or after
-                kill = thisFrDrData(:,1)<stimStart.frame(i) | thisFrDrData(:,1)>stimStop.frame(i);
-                thisFrDrData(kill,:) = [];
-                
-                %Now re-number the frame drops relative to our first frame
-                thisFrDrData(:,1) = thisFrDrData(:,1) - stimStart.frame(i)+1;
-                
-                %Now add in the repeats caused by dropped frames
-                framesPerFrame = ones(size(cbByFrame));
-                framesPerFrame(thisFrDrData(:,1)) = thisFrDrData(:,2)+1;
-                cbByFrame = repelem(cbByFrame,framesPerFrame);
+                if ~isempty(thisFrDrData)
+                    
+                    %Discard drops that happened before or after
+                    kill = thisFrDrData(:,1)<stimStart.frame(i) | thisFrDrData(:,1)>stimStop.frame(i);
+                    thisFrDrData(kill,:) = [];
+                    
+                    %Now re-number the frame drops relative to our first frame
+                    thisFrDrData(:,1) = thisFrDrData(:,1) - stimStart.frame(i)+1;
+                    
+                    %Now add in the repeats caused by dropped frames
+                    framesPerFrame = ones(size(cbByFrame));
+                    framesPerFrame(thisFrDrData(:,1)) = thisFrDrData(:,2)+1;
+                    cbByFrame = repelem(cbByFrame,framesPerFrame);
+                end
                 
                 %**** BAND-AID
                 if stimDur_Fr(i) > numel(cbByFrame)
