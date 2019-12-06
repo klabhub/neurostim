@@ -6,10 +6,10 @@ classdef fastfilteredimage < neurostim.stimuli.splittasksacrossframes
     %load across the update interval frames and minimize frame drops.
     %
     %NOTE: image is not shown on the screen until o.bigFrameInterval
-    %milliseconds after o.on (because first image is still being computed)
-    %External functions that return an image or mask with random elements
-    %must use o.rng in the calls to rand, randn,or randi (no other random
-    %functions are supported on the GPU!)
+    %milliseconds (minus one frame) after o.on (because first image is
+    %still being computed) External functions that return an image or mask
+    %with random elements must use o.rng in the calls to rand, randn,or
+    %randi (no other random functions are supported on the GPU!)
     properties (Constant)
         MAXTEXELSTOLOG = 100;
     end

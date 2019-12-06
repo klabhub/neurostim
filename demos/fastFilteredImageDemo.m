@@ -13,8 +13,9 @@ function fastFilteredImageDemo
 %this optimal load distribution so that there are no frame drops right from
 %the start.
 %
-%The demo shows a real-time report (perhaps hidden behind stimulus window)
-%of frame drops and how it is distributing the task load.
+%The demo shows a real-time report of frame drops and how it is
+%distributing the task load. (perhaps hidden behind stimulus window. On
+%Windows, press "windows+right-arrow" keys once or twice to make visible)
 %
 %Adam Morris, October, 2019
 
@@ -33,7 +34,7 @@ frInterval = 1000./c.screen.frameRate;
 imDuration = 100*frInterval; %Show for 100 frames
 im=neurostim.stimuli.fastfilteredimage(c,'filtIm');
 im.bigFrameInterval = 4*frInterval; %ms, set here to 4 frames
-im.on=50*frInterval-im.bigFrameInterval; %Our image isn't actually visible until *after* the first full interval (during which time it is being computed)
+im.on=500-im.bigFrameInterval+1000/c.screen.frameRate; %Convoluted, but this will make the image visible at 500ms. Our image isn't actually visible until *after* the first full interval (during which time it is being computed), minus one frame (it's actually shown in the last frame of the first interval). 
 im.duration = imDuration + im.bigFrameInterval; %The image isn't actually shown until trialTime = im.bigFrameInterval, because first image is being computed, so this ensure that the visible part is on for imDuration
 im.imageDomain = 'FREQUENCY';
 im.size = [c.screen.ypixels,c.screen.ypixels];

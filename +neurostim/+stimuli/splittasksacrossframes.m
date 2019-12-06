@@ -8,7 +8,8 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
     %across frames and optimized to eliminate frame drops. The visible
     %image is updated every N frames.
     %
-    %See splittaskstimulus.m anfd fourierfiltimage for examples.
+    %See splittaskstimulus.m and fourierfiltimage for example child stimuli,
+    %and and splittaskDemoMinimal and fastFilteredImageDemo for a demo script.
     %
     %Subclasses provide a list of tasks to be done (function handles, see
     %addTask()) between one update of the image and the next. Each task is
@@ -25,6 +26,13 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
     %frame-drops across little frames is flat. i.e. the frame drops are
     %either not caused by our stimulus, or are as low as they can be given
     %the total task load.
+    %
+    %If o.showReport is true, a figure window will show a report of frame
+    %drops and how it is distributing the task load. (perhaps hidden behind
+    %stimulus window. On Windows, press "windows+right-arrow" keys once or
+    %twice to make visible)
+    %
+    %See fastFilteredImageDemo
     
     %% Constants
     properties (Constant)
@@ -79,7 +87,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
         function beforeExperiment(o)
             
             %Make sure the requested duration is a multiple of the display frame interval
-            tol = 0.1; %5% mismatch between requested frame duration and what is possible
+            tol = 0.1; %10% mismatch between requested frame duration and what is possible
             frInt = o.cic.ms2frames(o.bigFrameInterval,false);
             frInt_rounded = round(frInt);
             if ~isinf(frInt) && abs(frInt-frInt_rounded) > tol
@@ -108,7 +116,6 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
                     error('The load weight vector (o.loadByFrame) must be of size [1 o.nLittleFrames]');
                 end
                 o.nTasksPerFrame = o.loadByFrame(:)';
-                o.prms.loadByFrame.sticky = true;
             end
                 
         end
@@ -161,6 +168,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             if o.PROFILE
                 report(o.beforeFrameTasks);
             end
+            disp(horzcat('The final value of ''loadByFrame'' was [', num2str(o.loadByFrame), '].  You can set loadByFrame to those values in your script to jump straight to this schedule solution, and ''optimise'' to false to lock it in.'));
         end
         
         function beforeFrame(o)
@@ -342,7 +350,7 @@ classdef (Abstract) splittasksacrossframes < neurostim.stimulus
             %Because of unsplittable tasks, we haven't necessarily assigned
             %all to frames. Any remaining will have to be assigned to last frame.
             o.taskPlan(i,:) = o.taskPlan(i,:)+remTask;
-            if sum(o.taskPlan(:))~=o.nTasks
+            if round(sum(o.taskPlan(:)),3)~=o.nTasks
                 error('Something went wrong with the scheduling of tasks. This is probably a bug.');
             end
         end
