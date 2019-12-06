@@ -1111,7 +1111,6 @@ classdef cic < neurostim.plugin
                             c.firstFrame = locFIRSTFRAMETIME;% log it
                         else
                             if missed>ITSAMISS
-                                %************WHY IS THIS FRAME-1??? I don't get it!
                                 c.frameDrop = [c.frame-1 missed]; % Log frame and delta 
                             end
                         end
