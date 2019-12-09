@@ -203,11 +203,11 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
         % Users specify a radius and (optionally) a set of allowed angles
         % an empty set of angles means that the choice can be anywhere in
         % the annulus (continuous choice)
-        function [v,targetIx,isAllowedBlink] = isInAnnulus(o,e,tol)
+        function [inside,targetIx,isAllowedBlink] = isInAnnulus(o,e,tol)
             targetIx = [];
             if ~e.valid
                 isAllowedBlink = o.allowBlinks;
-                v = false;
+                inside = false;
             else
                 isAllowedBlink =false;
                 % Check that the eye is on the annlus within tolerance
@@ -216,15 +216,15 @@ classdef fixateThenChoose < neurostim.behaviors.fixate
                     tol = o.tolerance;
                 end
                 
-                v  = abs(hypot(e.X - o.X,e.Y- o.Y)-o.radius) < tol;
+                inside  = abs(hypot(e.X - o.X,e.Y- o.Y)-o.radius) < tol;
                 nrAngles = numel(o.angles);
-                if nrAngles > 0 && v
+                if nrAngles > 0 && inside
                     targetIx = matchingTarget(o,[e.X,e.Y]);
-                    v = ~isempty(targetIx) && v;
+                    inside = ~isempty(targetIx) && inside;
                 end
                 
                 if o.invert
-                    v = ~v;
+                    inside = ~inside;
                 end
             end
         end
