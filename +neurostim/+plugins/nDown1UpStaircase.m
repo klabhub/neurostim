@@ -20,11 +20,11 @@ classdef nDown1UpStaircase < neurostim.plugins.adaptive
     end
     
     properties (Access = public)
-        n@double;
-        min@double;
-        max@double;
-        delta@double;
-        weights@double; % 1x2, [up, down]
+        n;
+        min;
+        max;
+        delta;
+        weights; % 1x2, [up, down]
     end
     
     methods
@@ -86,7 +86,7 @@ classdef nDown1UpStaircase < neurostim.plugins.adaptive
             end            
         end
         
-        function v= getValue(o)
+        function v= getAdaptValue(o)
             % Return the current, internally stored, value
             v= o.value;
         end  

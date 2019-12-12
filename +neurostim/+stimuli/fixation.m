@@ -64,7 +64,7 @@ classdef fixation < neurostim.stimulus
                     radiustot = [repmat([locSize radius2],1,5) locSize];
                     x = cosd(anglesDeg).*radiustot;
                     y = sind(anglesDeg).*radiustot;
-                    Screen('FillPoly',o.cic.window, o.color, [x;y]', 0);
+                    Screen('FillPoly',o.window, o.color, [x;y]', 0);
 
             end
         end

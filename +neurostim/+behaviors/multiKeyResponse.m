@@ -52,7 +52,7 @@ classdef multiKeyResponse < neurostim.behaviors.keyResponse
             
             if tooLate 
                 transition(o,@o.fail,e);  %No key received this trial
-            else
+            elseif ~isempty(correct)
                 if correct
                     transition(o,@o.correctAnswer,e);
                 else             

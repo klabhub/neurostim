@@ -33,6 +33,7 @@ void main()
     /* Query current output texel position wrt. to Center of Gabor: */
     vec2 pos;
     vec2 coeff;
+    vec2 sigma2d;
     float sv;
     float ev;
    float alpha;
@@ -80,6 +81,19 @@ void main()
             ev = exp(-0.5*tmp);
             alpha =1.0;
         }
+    }else if (mask==5){
+        /* Gabor mask with different sigmas in x/y*/        
+        tmp = pos[0]*pos[0]/(sigma1*sigma1)+pos[1]*pos[1]/(sigma2*sigma2);
+
+       if (tmp>9.0){
+            /* Truncate at 3 sigma and make transparent */
+            alpha = 0.0; 
+            ev =0.0;
+        }else{
+            ev = exp(-0.5*tmp);
+            alpha =1.0;
+        }
+     
     }else{
         /* Throw an error; this is not a valid mask... */
         ev =1.0;
@@ -96,6 +110,12 @@ void main()
     }else if (flickerMode==3){
         /* square wave */
         tev = sign(sin(flickerPhase));
+    }else if (flickerMode ==4){
+        /*sinusoidal contrast modulation*/
+        tev = 1.0+sin(flickerPhase);
+    }else if (flickerMode ==5){
+        /* square wave contrast modualtion*/
+        tev = 1.0+sign(sin(flickerPhase));
     }else{
         /*throw an error - not a valid mode */
         tev =1.0;
