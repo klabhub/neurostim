@@ -2,13 +2,13 @@ classdef rogueReward < neurostim.plugin
     % Plugin to control the Rogue Rotary Reward System.
     % BK - 2018    
     properties (SetAccess = public)
-        portName@char  = 'COM4';
-        baudRate@double = 9600;
+        portName= 'COM4';
+        baudRate= 9600;
         newLine = {'CR','CR'}; % Must be CR       
     end
     
     properties (SetAccess =private)
-        s@serial;
+        s; %@serial object;
     end
     
     properties (Dependent)

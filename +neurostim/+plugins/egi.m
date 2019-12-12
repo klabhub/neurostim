@@ -20,8 +20,8 @@ classdef egi < neurostim.plugin
     % BK - Jan 2019. Overhaul, proper timing testing.
     
     properties
-        host@char = '10.10.10.42'; % '10.10.10.42' is NetStation default. (Note that this is NOT the IP of the amp)
-        port@double = 55513; % Default port for connection to NetStation.
+        host   = '10.10.10.42'; % '10.10.10.42' is NetStation default. (Note that this is NOT the IP of the amp)
+        port   = 55513; % Default port for connection to NetStation.
         syncLimit  = 2.5; % Limits for acceptable sync (in ms).       
     end
     properties (SetAccess= protected)

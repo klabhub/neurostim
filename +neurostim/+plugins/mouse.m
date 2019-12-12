@@ -9,13 +9,13 @@ classdef mouse < neurostim.plugin
   % 2019-03-25 - Shaun L. Cloherty <s.cloherty@ieee.org>
         
   properties
-    x@double = NaN; 
-    y@double = NaN;
-    z@double = NaN;
+    x= NaN; 
+    y= NaN;
+    z= NaN;
   
-    buttons@logical;
+    buttons;
     
-    valid@logical = true;  % valid=false signals a temporary absence of data
+    valid= true;  % valid=false signals a temporary absence of data
   end
     
   properties (Dependent)
@@ -35,15 +35,15 @@ classdef mouse < neurostim.plugin
     end
         
     function afterFrame(o)
-      [x,y,buttons] = o.cic.getMouse; % position in physical screen units
+      [thisX,thisY,bttons] = o.cic.getMouse; % position in physical screen units
 
-      o.x = x;
-      o.y = y;
+      o.x = thisX;
+      o.y = thisY;
       
-      o.buttons = buttons;
+      o.buttons = bttons;
       
       if o.logXY
-        o.xy = [x, y];
+        o.xy = [thisX, thisY];
       end
     end  
   end

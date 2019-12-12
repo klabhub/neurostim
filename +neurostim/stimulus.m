@@ -103,8 +103,8 @@ classdef stimulus < neurostim.plugin
     end
     
     properties (Access=private)
-        logOnset@logical=false;
-        logOffset@logical=false;           
+        logOnset=false;
+        logOffset=false;           
     end
     
     

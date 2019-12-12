@@ -2,14 +2,14 @@ classdef (Abstract) ePhys < neurostim.plugin
     % Abstract base class for electrophysiology acquisition systems e.g. Blackrock Central, Open Ephys GUI
     
     properties (Access = public) 
-        fakeConnection@logical = false;
+        fakeConnection = false;
         
         startMsg;
         stopMsg;
     end
     
     properties (SetAccess = protected, GetAccess = public)         
-        connectionStatus@logical = false;
+        connectionStatus = false;
         
         trialInfo;
     end

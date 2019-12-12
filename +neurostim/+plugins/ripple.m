@@ -46,21 +46,21 @@ classdef ripple < neurostim.plugin
     end
     
     properties (SetAccess=protected,GetAccess=public)          
-        tmr@timer; % Array of timer objects for digouts 1-5 (to handle duration of pulse)
+        tmr; % Array of timer objects for digouts 1-5 (to handle duration of pulse)
         currentDigout = false(1,neurostim.plugins.ripple.NRDIGOUT); % Track state of digout
     end
     
     properties (Dependent)
-        nipTime@double;             % Time in ms since NIP started
-        status@struct;              % Current Trellis status.
+        nipTime;             % Time in ms since NIP started
+        status;              % Current Trellis status.
         
         % Get channel numbers for all or a subset of "modalities"
-        stimChannels@double;       % Stimulation channels    [1-512]
-        microChannels@double;      % Electrode channels connected to Micro front end [1-512]
-        nanoChannels@double;       % Electrode channels connected to Nano front end [1 -512]
-        surfChannels@double;       % Surface channels [1-512]
-        analogChannels@double;     % Analog channels [SMA: 10241:10244. Micro-D: 10245:10268 -Audio: 10269, 10270]
-        allChannels@double;        % All channels.
+        stimChannels;       % Stimulation channels    [1-512]
+        microChannels;      % Electrode channels connected to Micro front end [1-512]
+        nanoChannels;       % Electrode channels connected to Nano front end [1 -512]
+        surfChannels;       % Surface channels [1-512]
+        analogChannels;     % Analog channels [SMA: 10241:10244. Micro-D: 10245:10268 -Audio: 10269, 10270]
+        allChannels;        % All channels.
                
     end
     

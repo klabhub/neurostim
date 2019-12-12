@@ -152,7 +152,6 @@ switch upper(computerName)
         %Screen('Preference', 'VBLTimestampingMode',3); % Beamposition queries work ok on PTB-P, so force their usage for Flip timing
         %Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
         c.timing.vsyncMode = 1; % 0 waits for the flip and makes timing most accurate.
-        c.timing.frameSlack = NaN;% NaN; % Not used in vsyncmode 0. A likely drop is one that is 25% late.        
         % We define a standard overlay clut with R, G,B, W the first 4
         % entries (and 0=black)
         c.screen.overlayClut = [1 0 0; ... % .color =1 will be max saturated red
@@ -211,7 +210,7 @@ switch upper(computerName)
         %Screen('Preference', 'VBLTimestampingMode',3); % Beamposition queries work ok on PTB-P, so force their usage for Flip timing
         %Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
         c.timing.vsyncMode = 0; % 0 waits for the flip and makes timing most accurate.
-        c.timing.frameSlack = NaN;% NaN; % Not used in vsyncmode 0. A likely drop is one that is 25% late.
+        
        
         % We define a standard overlay clut with R, G,B, W the first 4
         % entries (and 0=black)

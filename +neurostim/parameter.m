@@ -70,7 +70,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         funPrms;
         funStr = '';                % The neurostim function string
         validate =[];               % Validation function
-        plg@neurostim.plugin;       % Handle to the plugin that this belongs to.
+        plg; %@neurostim.plugin;    % Handle to the plugin that this belongs to.
         hDynProp;                   % Handle to the dynamic property
         hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
     end
@@ -613,7 +613,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % times for a given (vector of) experiment times.
             tr = eTime2TrialNumber(o,eventTime);
             trStartT = firstFrameTime(o);
-            if isempty(trStartT) &&  all(tr)==1
+            if isempty(trStartT) &&  all(tr==1)
                 error('This file contains 1 trial that did not even make it to the first frame. Nothing to analyze');
             end
             trTime = eventTime - trStartT(tr);

@@ -20,11 +20,11 @@ classdef nDown1UpStaircase < neurostim.plugins.adaptive
     end
     
     properties (Access = public)
-        n@double;
-        min@double;
-        max@double;
-        delta@double;
-        weights@double; % 1x2, [up, down]
+        n;
+        min;
+        max;
+        delta;
+        weights; % 1x2, [up, down]
     end
     
     methods

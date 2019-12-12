@@ -93,15 +93,15 @@ classdef design <handle & matlab.mixin.Copyable
     properties  (SetAccess =public, GetAccess=public)
         randomization='RANDOMWITHOUTREPLACEMENT';
         retry = 'IGNORE'; %IGNORE,IMMEDIATE,RANDOM
-        weights@double=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
+        weights=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
         maxRetry = Inf;
     end
     
     properties         (SetAccess =protected, GetAccess=public)
-        name@char;                      % The name of this design; bookkeeping/logging use only.
-        factorSpecs@cell={};            % A cell array of condition specifications for factorial designs
-        conditionSpecs@cell ={};         % Conditions specifications that deviate from the full factorial
-        list@double;                    % The order in which conditions will be run.
+        name;                      % The name of this design; bookkeeping/logging use only.
+        factorSpecs={};            % A cell array of condition specifications for factorial designs
+        conditionSpecs={};         % Conditions specifications that deviate from the full factorial
+        list;                    % The order in which conditions will be run.
         currentTrialIx =0;                   % The condition that will be run in this trial (index in to .list)
         retryCounter = [];
     end

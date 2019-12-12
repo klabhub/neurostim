@@ -11,26 +11,26 @@ classdef gui <neurostim.plugin
     %
     properties (Access=public)
         %% User-settable properties
-        xAlign@char = 'right';          % 'left', or 'right'
-        yAlign@char = '';         % center
-        spacing@double = 1.2;             % Space between lines
-        nrCharsPerLine@double= 50;      % Number of chars per line
-        font@char = 'Courier New';      % Font
-        fontSize@double = 15;           % Font size
+        xAlign = 'right';          % 'left', or 'right'
+        yAlign= '';         % center
+        spacing= 1.2;             % Space between lines
+        nrCharsPerLine= 50;      % Number of chars per line
+        font= 'Courier New';      % Font
+        fontSize= 15;           % Font size
         toleranceColor=[1 1 50];
         
         props ={'file','paradigm','startTimeStr','blockName','nrConditions','condition','trial','blockTrial/nrTrials','trial/nrTrialsTotal'}; % List of properties to monitor
-        header@char  = '';              % Header to add.
-        footer@char  = '';              % Footer to add.
-        showKeys@logical = true;        % Show defined keystrokes
+        header= '';              % Header to add.
+        footer= '';              % Footer to add.
+        showKeys= true;        % Show defined keystrokes
         updateEachFrame = false;        % Set to true to update every frame. (Costly; debug purposes only)
     end
     
     properties (Access=private)
         %% For internal use only.
-        paramText@char = '';
-        currentText@char = ''; %Internal storage for the current display
-        keyLegend@char= '';      % Internal storage for the key stroke legend
+        paramText= '';
+        currentText= ''; %Internal storage for the current display
+        keyLegend= '';      % Internal storage for the key stroke legend
         guiRect;
         guiFeed;
         guiFeedBack;
@@ -250,7 +250,7 @@ classdef gui <neurostim.plugin
                     if isnumeric(tmp)
                         tmp = num2str(tmp(:)');
                     elseif islogical(tmp)
-                        if (tmp);tmp = 'true';else tmp='false';end
+                        if (tmp);tmp = 'true';else ;tmp='false';end
                     end
                     if numel(str)>1
                         if j==1

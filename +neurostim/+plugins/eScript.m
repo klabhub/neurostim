@@ -9,13 +9,13 @@ classdef eScript < neurostim.plugin
     
     properties (SetAccess=protected)
         % Internal storage of the user-written functions
-        beforeFrameFun@function_handle;
-        afterFrameFun@function_handle;
-        beforeTrialFun@function_handle;
-        afterTrialFun@function_handle;
-        beforeExperimentFun@function_handle;
-        afterExperimentFun@function_handle;
-        keyFun@function_handle;
+        beforeFrameFun;     %@function_handle;
+        afterFrameFun;      %@function_handle;
+        beforeTrialFun;     %@function_handle;
+        afterTrialFun;      %@function_handle;
+        beforeExperimentFun;
+        afterExperimentFun;
+        keyFun;
     end
     
     
