@@ -859,7 +859,7 @@ classdef cic < neurostim.plugin
                 c.saveData;
                 c.writeToFeed(sprintf('Saving the file took %f s',toc(ttt)));
             end
-            printCache(c.messenger);
+            afterTrial(c.messenger);
         end
         
         
@@ -903,7 +903,7 @@ classdef cic < neurostim.plugin
             % Setup the messenger
             c.messenger.localCache = c.useFeedCache;
             c.messenger.useColor = c.useConsoleColor;
-            setupClient(c.messenger);
+            setupLocal(c.messenger,c);
             
             c.flags.experiment = true;  % Start with true, but any plugin code can set this to false by calling cic.error.
             

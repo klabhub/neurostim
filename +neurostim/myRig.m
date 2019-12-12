@@ -81,12 +81,8 @@ switch upper(computerName)
         c.useConsoleColor = true;
         Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
     case 'SURFACE2017'
-        scrNr = max(Screen('screens'));
-        if scrNr==2
-            fr = 30;
-        else
-            fr = Screen('FrameRate',scrNr);
-        end            
+        scrNr = 1; %max(Screen('screens'));
+        fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
         c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',42,'frameRate',fr,'screenNumber',scrNr);
         smallWindow = true;
