@@ -57,7 +57,7 @@ classdef jitter < neurostim.plugins.adaptive
             update(o); % Call it once now to initialize.
         end
         
-        function update(o,~)
+        function update(o)
             % The abstract adaptive parent class requires that we implement this
             % This is called after each trial. Update the internal value. The second arg is the success of the current trial, irrelevant here.            
                 if isa(o.distribution,'function_handle')
