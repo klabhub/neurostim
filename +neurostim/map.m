@@ -4,13 +4,13 @@ classdef  map < handle & containers.Map
         CHUNK = 10;             % Log size increase (NIY).
     end
     properties
-        keys@cell   = {};   % Current keys (char)
-        values@cell = {};   % Currently stored values (any)
+        keys= {};   % Current keys (char)
+        values= {};   % Currently stored values (any)
         log;                % The timed assignment log of all keys and values
     end
     
     properties (Dependent)
-        nrKeys@double;      % Number of keys currently stored in this map
+        nrKeys;      % Number of keys currently stored in this map
     end
     
     methods

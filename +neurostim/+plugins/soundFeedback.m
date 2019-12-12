@@ -8,7 +8,7 @@ classdef soundFeedback < neurostim.plugins.feedback
     % the 'path' directory, but full file names (includng path) can also be
     % given.
     properties (SetAccess=public)
-        path@char ='sounds'; % Set this to the folder that contains the sound files. Relative to cic.root
+        path ='sounds'; % Set this to the folder that contains the sound files. Relative to cic.root
         buffer  = []; %Vector of buffer handles created by PscyhPortAudio in plugins.sound.m
         waveform = {}; % Waveforms
     end

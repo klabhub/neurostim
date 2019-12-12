@@ -3,7 +3,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     %
     properties (SetAccess=public)
         cic;  % Pointer to CIC
-        overlay@logical=false;      % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
+        overlay=false;      % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
         window;
         feedStyle = '[0 0.5 0]';    % Command line color for writeToFeed messages.
         
@@ -12,7 +12,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     
     
     properties (SetAccess=protected, GetAccess=public)
-        name@char= '';   % Name of the plugin; used to refer to it within cic
+        name= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
         trialDynamicPrms;  %  A list of parameters that (can) change within a trial. See localizeParms for how it is filled and used.
     end

@@ -63,26 +63,26 @@ classdef eyelink < neurostim.plugins.eyetracker
     %
     % TK, BK,  2016,2017
     properties
-        el@struct;  % Information structure to communicate with Eyelink host
+        el; %@struct;  % Information structure to communicate with Eyelink host
         commands = {'link_sample_data = GAZE'};
-        edfFile@char = 'test.edf';
-        getSamples@logical=true;
-        getEvents@logical=false;
+        edfFile = 'test.edf';
+        getSamples =true;
+        getEvents =false;
         nTransferAttempts = 5;
         
-        callbackFun@char = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
+        callbackFun = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
         boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]         
         targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
         
-        doTrackerSetup@logical  = true;  % Do it before the next trial
-        doDriftCorrect@logical  = false;  % Do it before the next trial
+        doTrackerSetup = true;  % Do it before the next trial
+        doDriftCorrect = false;  % Do it before the next trial
     
       
     end
         
     properties (Dependent)
-        isRecording@logical;
-        isConnected@double;
+        isRecording;
+        isConnected; %double
     end
     
     methods

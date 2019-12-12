@@ -84,9 +84,9 @@ classdef (Abstract) behavior <  neurostim.plugin
         
     end
     properties (Dependent)
-        stateName@char;
-        isOn@logical;
-        stopTime@double; % time when fail or success state was reached.
+        stateName;
+        isOn;
+        stopTime; % time when fail or success state was reached.
         isSuccess;
         duration;
     end

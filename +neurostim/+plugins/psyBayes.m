@@ -15,8 +15,8 @@ classdef psyBayes < neurostim.plugins.adaptive
     % BK - Jun 2017
     
     properties (SetAccess=protected, GetAccess=public)
-        psy@struct; % The struct that containst the psy bookkeeping info.
-        method@char ='ent'; % Entropy maximization.
+        psy;% The struct that containst the psy bookkeeping info.
+        method ='ent'; % Entropy maximization.
         vars  = [1 1 1];% Which variables to estimate (mu,sigma, lapse);
     end
     
@@ -227,9 +227,8 @@ classdef psyBayes < neurostim.plugins.adaptive
                         end
                     end
                     
-                catch
-                    lasterr
-                    disp (['Failed to compute posterior on ' oo(j).name])
+                catch me                    
+                    disp (['Failed to compute posterior on ' oo(j).name ' (' me.message ')'])
                 end
                 conditionLabel{j} = [oo(j).design ' (' num2str(oo(j).conditions') ')' ];
             end

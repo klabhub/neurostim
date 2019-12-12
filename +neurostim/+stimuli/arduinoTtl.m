@@ -55,7 +55,7 @@ classdef arduinoTtl < neurostim.stimulus
     
     properties (Access=public)
         port; % char on windows, but don't know on linux,mac so leave type undefined
-        pins@double;
+        pins;
     end
     properties (Access=protected)
         link; % serial port connection

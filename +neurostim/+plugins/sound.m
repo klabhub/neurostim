@@ -1,7 +1,7 @@
 classdef sound < neurostim.plugin
     % Generic sound plugin for PTB. Add if using sound.
     properties (Access=public)
-        sampleRate@double = NaN;
+        sampleRate= NaN;
     end
     properties (SetAccess=protected,GetAccess=public)
         paHandle

@@ -13,7 +13,7 @@ classdef (Abstract) adaptive < neurostim.plugin
     % BK - 11/2016
     
     properties (SetAccess=protected, GetAccess=public)
-        uid@double= [];
+        uid = [];
     end
     
     methods (Abstract)

@@ -16,22 +16,22 @@ classdef event
         % purposes so the meaning of each is not necessarily the same.
         % (For instance X is horizontal eye position for the eyeMovement
         % behaviors, but mouse position for the base behavior class.)
-        type@double;
-        X@double;
-        Y@double;
-        Z@double;
-        key@char;
-        keyNr@double;
-        correct@logical;
-        isBitHigh@logical;
-        valid@logical;
+        type;
+        X;
+        Y;
+        Z;
+        key;
+        keyNr;
+        correct;
+        isBitHigh;
+        valid;
     end
     properties (Dependent)
-        isEntry@logical;
-        isRegular@logical;
-        isExit@logical;
-        isNoop@logical;
-        isAfterTrial@logical;
+        isEntry;
+        isRegular;
+        isExit;
+        isNoop;
+        isAfterTrial;
     end
     methods
         function v = get.isEntry(o)

@@ -80,23 +80,23 @@ classdef starstim < neurostim.stimulus
     % BK - Feb 2016, 2017
     
     properties (SetAccess =public, GetAccess=public)
-        stim@logical =false;
-        impedanceType@char = 'DC'; % Set to DC or AC to measure impedance at DC or xx Hz AC.
+        stim=false;
+        impedanceType= 'DC'; % Set to DC or AC to measure impedance at DC or xx Hz AC.
         NRCHANNELS = 8;  % nrChannels in your device.
         debug = false;
         
         % EEG parms that need fast acces (and therefore not a property)
         eegAfterTrial = []; % Function handle fun(eeg,time,starstimObject)
         eegAfterFrame = []; % Functiona handle fun(eeg,time,starstimObject)
-        eegStore@logical= false; % Store the eeg data in the starstim object. 
-        eegInit@logical = false; % Set to true to initialize eeg stream before experiment (and do not wait until the first trial with non empty o.eegChannels)
+        eegStore= false; % Store the eeg data in the starstim object. 
+        eegInit= false; % Set to true to initialize eeg stream before experiment (and do not wait until the first trial with non empty o.eegChannels)
     end
     % Public Get, but set through functions or internally
     properties (SetAccess=protected, GetAccess= public)
         NICVersion;
         matNICVersion;
-        code@containers.Map = containers.Map('KeyType','char','ValueType','double');
-        mustExit@logical = false;
+        code= containers.Map('KeyType','char','ValueType','double');
+        mustExit= false;
         
         lsl=[];  % The LsL library
         inlet=[];  % An LSL inlet
@@ -107,22 +107,22 @@ classdef starstim < neurostim.stimulus
     properties (Transient, SetAccess=protected, GetAccess= public)
         sock;               % Socket for communication with the host.
         markerStream;       % LSL stream to write markers in NIC
-        impedanceCheck@logical = false; % Set to false to skip the Z-check at the start of the experiment (debug only)
+        impedanceCheck= false; % Set to false to skip the Z-check at the start of the experiment (debug only)
         
-        isTimedStarted@logical = false;
-        isShamOn@logical = false;
+        isTimedStarted= false;
+        isShamOn= false;
         
-        activeProtocol@char='';
+        activeProtocol='';
         tmr; % A timer
     end
     
     
     % Dependent properties
     properties (Dependent)
-        status@char;        % Current status (queries the NIC)
-        protocolStatus@char;    % Current protocol status (queries the NIC)
-        isProtocolOn@logical;
-        isProtocolPaused@logical;
+        status;        % Current status (queries the NIC)
+        protocolStatus;    % Current protocol status (queries the NIC)
+        isProtocolOn;
+        isProtocolPaused;
     end
     
     methods % get/set dependent functions

@@ -95,7 +95,7 @@ gr =design('greenred');
 % like a patch that is first green and then turns more red over time.
 gr.fac1.patch.color = num2cell([lum' fliplr(lum)' zeros(numel(lum),1)],2) ;
 gr.randomization  ='sequential'; % Sequence through luminance. Press 'n' to go to the next.
-grBlck=block('lmBlock',gr);
+grBlck=block('grBlock',gr);
 grBlck.nrRepeats  = 1;
 
 

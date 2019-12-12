@@ -29,26 +29,26 @@ classdef messenger < handle
     
     properties (SetAccess=public, GetAccess=public)
         %% Properties of the remote server and local client
-        host@char=''; % The remote server to connect to  (empty means no remote server)
-        port@double =1024;
-        timerPeriod@double = 2; % the remote host will check for new inputs every 2 seconds.
+        host=''; % The remote server to connect to  (empty means no remote server)
+        port=1024;
+        timerPeriod= 2; % the remote host will check for new inputs every 2 seconds.
         
-        outputBufferSize@double = 100000; % bytes
-        inputBufferSize@double = 100000; % bytes
-        timeout@double = 1; % seconds      
+        outputBufferSize= 100000; % bytes
+        inputBufferSize= 100000; % bytes
+        timeout = 1; % seconds      
         
         
         %% Cache
-        localCache@logical = false;    % Write out only after the trial ends [false]
+        localCache= false;    % Write out only after the trial ends [false]
         cache = neurostim.messenger.EMPTYCACHE;  % initialize empty
-        cacheCntr@double =0;
-        echo@logical = true;            % Even when logging remotely, generate local echo too.
+        cacheCntr=0;
+        echo= true;            % Even when logging remotely, generate local echo too.
         
-        useColor@logical = true;        % Use cprintf's color functionality
+        useColor= true;        % Use cprintf's color functionality
         
     end
     properties (SetAccess=private, GetAccess=public)
-        isServer@logical = false;
+        isServer= false;
         tcp; % Leave this untyped so that someone without the TCPIP toolbox can use the object locally.
     end
     

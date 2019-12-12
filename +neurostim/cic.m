@@ -5,7 +5,7 @@ classdef cic < neurostim.plugin
     
     %% Constants
     properties (Constant)
-        PROFILE@logical = false; % Using a const to allow JIT to compile away profiler code
+        PROFILE = false; % Using a const to allow JIT to compile away profiler code
         SETUP   = 0;
         RUNNING = 1;
         INTRIAL = 2;
@@ -16,15 +16,15 @@ classdef cic < neurostim.plugin
     % These can be set in a script by a user to setup the
     % experiment
     properties (GetAccess=public, SetAccess =public)
-        mirrorPixels@double   = []; % Window coordinates.[left top width height].
+        mirrorPixels           = []; % Window coordinates.[left top width height].
         cursor = 'arrow';        % Cursor 'none','arrow';
         dirs                    = struct('root','','output','','calibration','')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
-        subjectNr@double        = [];
-        latinSqRow@double       = [];
-        runNr@double            = []; % Bookkeeping
-        paradigm@char           = 'test';
-        clear@double            = 1;   % Clear backbuffer after each swap. double not logical
-        itiClear@double         = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
+        subjectNr               = [];
+        latinSqRow              = [];
+        runNr                   = []; % Bookkeeping
+        paradigm                = 'test';
+        clear                   = 1;   % Clear backbuffer after each swap. double not logical
+        itiClear                 = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
         fileOverwrite           = false; % Allow output file overwrite.
         useConsoleColor         = false; % Set to true to allow plugins and stimuli use different colors to write to the console. There is some time-cost to this (R2018a), hence the default is false.
         saveEveryN              = 10;
@@ -54,18 +54,18 @@ classdef cic < neurostim.plugin
         
         flipCallbacks={}; %List of stimuli that have requested to be to called immediately after the flip, each as s.postFlip(flipTime).
         guiFlipEvery=[]; % if gui is on, and there are different framerates: set to 2+
-        guiOn@logical=false; %flag. Is GUI on?
+        guiOn   =false; %flag. Is GUI on?
         mirror =[]; % The experimenters copy
         ticTime = -Inf;
         
         %% Logging/experimenter feedback during the experimtn
-        messenger@neurostim.messenger;
+        messenger; % @neurostim.messenger;
         useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
         spareRNGstreams = {};  %Cell array of independent RNG streams, not yet allocated (plugins can request one through requestRNGstream()).
         spareRNGstreams_GPU = {};%Clones of the above CPU rng streams, operating on the GPU with gpuArray functions and objects
         
         %% Keyboard interaction
-        kbInfo@struct= struct('keys',{[]},... % PTB numbers for each key that is handled.
+        kbInfo  = struct('keys',{[]},... % PTB numbers for each key that is handled.
             'help',{{}},... % Help info for key
             'plugin',{{}},...  % Which plugin will handle the key (keyboard() will be called)
             'isSubject',{logical([])},... % Is this a key that is handled by subject keyboard ?
@@ -86,7 +86,7 @@ classdef cic < neurostim.plugin
         overlayWindow =[]; % The color overlay for special colormodes (VPIXX-M16)
         overlayRect = [];
         textWindow = []; % This is either the main or the overlay, depending on the mode.
-        stage@double;
+        stage;
         flags = struct('trial',true,'experiment',true,'block',true); % Flow flags
         
         frame = 0;      % Current frame
@@ -97,11 +97,11 @@ classdef cic < neurostim.plugin
         plugins;    % Vector of plugin handles.
         pluginOrder; % Vector of plugin handles, sorted by execution order
         
-        blocks@neurostim.block;     % Struct array with .nrRepeats .randomization .conditions
+        blocks;   % Struct array with .nrRepeats .randomization .conditions
         blockFlow =struct('list',[],'weights',[],'randomization','','latinSquareRow',[]);
         
         %% Logging and Saving
-        startTime@double    = 0; % The time when the experiment started running
+        startTime    = 0; % The time when the experiment started running
         stopTime = [];
         
         
@@ -138,8 +138,8 @@ classdef cic < neurostim.plugin
         file;           % Target file name
         fullFile;       % Target file name including path
         fullPath;       % Target path name
-        subject@char;   % Subject
-        startTimeStr@char;  % Start time as a HH:MM:SS string
+        subject;   % Subject
+        startTimeStr;  % Start time as a HH:MM:SS string
         blockName;      % Name of the current block
         trialTime;      % Time elapsed (ms) since the start of the trial
         nrTrialsTotal;   % Number of trials total (all blocks)
@@ -1496,7 +1496,7 @@ classdef cic < neurostim.plugin
                     
                     if  isempty(clut) && isempty(index)
                         % Nothing to do
-                    elseif numel(index) ~=size(clut,1) && size(clut,2) ==3 && all(index>0 && index < 255)
+                    elseif numel(index) ~=size(clut,1) && size(clut,2) ==3 && all(index>0 & index < 255)
                         % Put in new values
                         c.screen.overlayClut(index+1,:) = clut; % index +1 becuase the first entry (index =0) is always transparent
                     else
@@ -2051,7 +2051,7 @@ classdef cic < neurostim.plugin
                     PsychColorCorrection('SetLookupTable', c.mainWindow, iGamma, 'FinalFormatting');
                 case 'LUM'
                     % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
-                    PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.ns.gamma);
+                     PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.ns.gamma);
                     if isnan(c.screen.calibration.ns.bias)
                         % Only gamma defined
                         PsychColorCorrection('SetColorClampingRange',c.mainWindow,0,1); % In non-extended mode, luminance is between [0 1]
@@ -2272,7 +2272,7 @@ classdef cic < neurostim.plugin
                     vals{i,j} = c.profile.(plgns{i}).(items{j}); %#ok<AGROW>
                     out =isinf(vals{i,j}) | isnan(vals{i,j});
                     thisVals= min(vals{i,j}(~out),MAXDURATION);
-                    hist(thisVals,100);
+                    histogram(thisVals,100);
                     xlabel 'Time (ms)'; ylabel '#'
                     title(horzcat(items{j},'; Median = ', num2str(round(nanmedian(vals{i,j}),2))));
                 end

@@ -39,9 +39,9 @@ classdef mcc < neurostim.plugins.daq
     end
     
     properties (Dependent)
-        product@char;
-        status@struct;
-        aIn@logical; 
+        product;
+        status;
+        aIn; 
     end
     
     methods

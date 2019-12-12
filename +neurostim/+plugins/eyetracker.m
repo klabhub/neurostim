@@ -18,18 +18,18 @@ classdef eyetracker < neurostim.plugin
     
     
     properties (Access=public)
-        useMouse@logical=false;
-        keepExperimentSetup@logical=true;
-        eye@char='LEFT'; %LEFT,RIGHT, or BOTH
-        tmr@timer;
+        useMouse =false;
+        keepExperimentSetup =true;
+        eye='LEFT'; %LEFT,RIGHT, or BOTH
+        tmr; %@timer
     end
     
     properties
-        x@double=NaN; % Should have default values, otherwise bhavior checking can fail.
-        y@double=NaN;
-        z@double=NaN;
-        pupilSize@double;
-        valid@logical = true;  % valid=false signals a temporary absence of data (due to a blink for instance)
+        x=NaN; % Should have default values, otherwise bhavior checking can fail.
+        y=NaN;
+        z=NaN;
+        pupilSize;
+        valid= true;  % valid=false signals a temporary absence of data (due to a blink for instance)
     end
     
     methods
@@ -75,7 +75,7 @@ classdef eyetracker < neurostim.plugin
          end
          function openEye(o,varargin)
              o.valid = true;
-             writeToFeed(o,['Blink Ends'])
+             writeToFeed(o,'Blink Ends')
          end
     end
     

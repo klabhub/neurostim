@@ -10,7 +10,7 @@
     %
     % BK - Nov 2016
     properties (SetAccess=protected, GetAccess=public)
-        Q@struct; % The struct that containst the Quest bookkeeping info.
+        Q; % The struct that containst the Quest bookkeeping info.
         momentFun;
     end
     
