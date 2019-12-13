@@ -62,6 +62,7 @@ classdef cic < neurostim.plugin
         messenger; % @neurostim.messenger;
         useFeedCache = false;  % When true, command line output is only generated in the ITI, not during a trial (theoretical optimization,in practice this does not do much)
         spareRNGstreams = {};  %Cell array of independent RNG streams, not yet allocated (plugins can request one through requestRNGstream()).
+        spareRNGstreams_GPU = {};%Clones of the above CPU rng streams, operating on the GPU with gpuArray functions and objects
         
         %% Keyboard interaction
         kbInfo  = struct('keys',{[]},... % PTB numbers for each key that is handled.
@@ -361,10 +362,20 @@ classdef cic < neurostim.plugin
     
     methods (Access=public)
         % Constructor.
-        function c= cic(fromFile)
-            if nargin<1
-                fromFile=false; % Used by loadobj to create an empty cic without having PTB installed.
-            end
+
+        function c= cic(varargin)
+            
+            p=inputParser;
+            p.addParameter('trialDuration',1000);
+            p.addParameter('iti',1000);
+            p.addParameter('cursor','none');
+            p.addParameter('rootDir',strrep(fileparts(mfilename('fullpath')),'+neurostim',''));
+            p.addParameter('outputDir',tempdir);
+            p.addParameter('rngArgs',{});    %control RNG behaviour, including, for example, the number of streams, or using a particular seed. See createRNGstreams()     
+            p.addParameter('fromFile',false);   % Used by loadobj to create an empty cic without having PTB installed.
+            p.parse(varargin{:});
+            p=p.Results;
+            
             %Check MATLAB version. Warn if using an older version.
             ver = version('-release');
             v=regexp(ver,'(?<year>\d+)(?<release>\w)','names');
@@ -373,11 +384,14 @@ classdef cic < neurostim.plugin
             end
             
             c = c@neurostim.plugin([],'cic');
-            c.loadedFromFile  =fromFile;
+            
+            % Some very basic PTB settings that are enforced for all
+            c.loadedFromFile  =p.fromFile;
             if ~c.loadedFromFile
                 KbName('UnifyKeyNames'); % Same key names across OS.
             end
-            c.cursor = 'none';
+            c.cursor = p.cursor;
+
             c.stage  = neurostim.cic.SETUP;
             % Initialize empty
             c.startTime     = now;
@@ -387,8 +401,8 @@ classdef cic < neurostim.plugin
             
             % The root directory is the directory that contains the
             % +neurostim folder.
-            c.dirs.root     = strrep(fileparts(mfilename('fullpath')),'+neurostim','');
-            c.dirs.output   = getenv('TEMP');
+            c.dirs.root     = p.rootDir;
+            c.dirs.output   = p.outputDir;
             
             % Setup the keyboard handling
             % Keys handled by CIC
@@ -407,20 +421,20 @@ classdef cic < neurostim.plugin
             c.addProperty('blockTrial',0);
             c.addProperty('expScript',[]); % The contents of the experiment file
             c.addProperty('experiment',''); % The experiment file
-            c.addProperty('iti',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
-            c.addProperty('trialDuration',1000,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
+            c.addProperty('iti',p.iti,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
+            c.addProperty('trialDuration',p.trialDuration,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
-            
-            
+                        
             % Set up a messenger object that provides online feedback to the experimenter
             % either on the local command prompt or on a remote Matlab instance. A remote messenger client can be added by
             % specifying a host name (c.messenger.host) or ip in the experiment file.
             c.messenger = neurostim.messenger;
             
-            %Build a set of RNG streams.
-            c.addProperty('RandStreamCreateSeed','shuffle'); %Used to set and store the seed used to create RNG streams
-            createRNGstreams(c);
+            %Build a set of RNG streams. Arguments can be provided to
+            %control RNG behaviour, including, for example, the number of streams, or returning CIC
+            %to the state of a previous run to replay a "stochastic" stimulus (e.g. cic('rngArgs',{'seed',myStoredSeed})
+            createRNGstreams(c,p.rngArgs{:});
             
         end
         
@@ -1009,8 +1023,22 @@ classdef cic < neurostim.plugin
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
                             ptbVbl = Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
+                                       
                             if locHAVEOVERLAY
                                 clearOverlay(c,c.itiClear);
+                            end
+                            
+                            %Sitting idle in 'flip' during ITI seems to cause
+                            %unwanted behaviour when the trials starts, and for several frames into it.
+                            %at least on some Windows machines. e.g. the time to complete a call to rand()
+                            %was hugely variable and with occasional extreme lags.
+                            %Performance was improved massively if we add load here, to prevent the OS from releasing priority.
+                            %Here, we make an arbitrary assignment as a temporary fix. There would certainly be a
+                            %better way, but the obvious solution of not downgrading our Priority() in the
+                            %ITI didn't fix the problem. This did.                           
+                            postITIflip = GetSecs;
+                            while GetSecs-postITIflip < 0.6*FRAMEDURATION
+                                dummyAssignment=1;                                
                             end
                         end
                     else
@@ -1027,6 +1055,7 @@ classdef cic < neurostim.plugin
                     
                     % Timing the draw : commented out. See drawingFinished code below
                     % draw = nan(1,1000);
+
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -1111,7 +1140,7 @@ classdef cic < neurostim.plugin
                                 c.flipCallbacks = {};
                             end
                         end
-                        
+          
                         
                         % Special clearing instructions for overlays
                         if clr && locHAVEOVERLAY
@@ -1123,7 +1152,6 @@ classdef cic < neurostim.plugin
                             addProfile(c,'FRAMELOOP','cic',c.toc);
                             tic(c)
                         end
-                        
                         
                         % In Vsyncmode 0, the frame will have flipped by
                         % now, we start the afterFrame functions in all
@@ -1567,38 +1595,7 @@ classdef cic < neurostim.plugin
                 otherwise
                     error('No overlay for screen type : %s',c.screen.type);
             end
-        end
-        
-        function createRNGstreams(c, varargin)
-            %Create a set of independent RNG streams for use across all plugins.
-            %By default, all plugins, including cic, use a single global
-            %stream. However, a plugin can request its own stream (e.g. as
-            %currently done in noiseclut.m). See RandStream for info about
-            %creating streams in matlab and why we handle this centrally.
-            %We handle nStreams and seed arguments here, to provide defaults,
-            %but all other param-value pairs are passed onto the Matlab's RandStream.create().
-            %You could use the 'seed' argument to return CIC RNG streams to a
-            %previous state
-            p=inputParser;
-            p.KeepUnmatched = true;
-            p.addParameter('nStreams',3);       %We'll leave the argument validation to RandStream.
-            p.addParameter('seed','shuffle');
-            p.parse(varargin{:});
-            
-            %Put any RandStream param-value pairs into a cell array
-            prms = fieldnames(p.Unmatched);
-            vals = struct2cell(p.Unmatched);
-            args(1:2:numel(prms)*2-1) = prms;
-            args(2:2:numel(prms)*2) = vals;
-            
-            %Make the streams
-            c.spareRNGstreams = RandStream.create('mrg32k3a','NumStreams',p.Results.nStreams,'seed',p.Results.seed, 'cellOutput',true,args{:});
-            c.RandStreamCreateSeed = c.spareRNGstreams{1}.Seed; %All streams are built from the one seed, so we can just log the first one here.
-            
-            %Use the first as the current global stream and allocate it to CIC
-            addRNGstream(c); %allocates one to c.rng
-            RandStream.setGlobalStream(c.rng);
-        end
+        end               
     end
     
     
@@ -1707,6 +1704,116 @@ classdef cic < neurostim.plugin
     end
     
     methods (Access=private)
+        function createRNGstreams(c, varargin)
+            %USAGE:
+            %
+            %c.createRNGstreams('nStreams',4,'type','mrg32k3a','seed',mySeed);
+            %c.createRNGstreams('type','gpuCompatible');
+            %
+            %Create a set of independent RNG streams. One is assigned to
+            %CIC and used as the global RNG. Plugins can request their own
+            %with addRNGstream(o) (e.g. as currently done in noiseclut.m)
+            %to hold a private stream. See RandStream for info about
+            %creating streams in Matlab and why we handle this centrally.
+            %We handle some RandStream arguments here, to provide defaults,
+            %but all other param-value pairs are passed onto Matlab's
+            %RandStream.create(). You could use the 'seed' argument to
+            %return CIC RNG streams to a previous state.
+            %
+            %** Using RNGs with gpuArrays (Parallel Computing Toolbox) **
+            %
+            %gpuArrays are a fast way to make, for example, large random
+            %noise images (computed on the GPU). But if we do nothing,
+            %rand(..,'gpuArray'), randn(..,'gpuArray'), etc. will use an
+            %RNG that is not controlled by us, not independent of ours on
+            %the CPU, and not logged. Use 'gpuCompatible' type to force the
+            %CPU and GPU random number generators to match (seed,
+            %algorithm, normTransform) - there's only one we can use -
+            %allowing RNG streams of both types to be reconstructed
+            %offline.
+            %
+            %The N RNG streams on the CPU and CPU are clones, give
+            %identical numbers. addRNGstream(o,1,false) or
+            %addRNGstream(o,1,true), will add a CPU or GPU RNG respectively to
+            %your plugin (o.rng). The unused counterpart is deleted. i.e.
+            %stream 2 can be used as a CPU or GPU RNG but not both.
+            %
+            %You will need the Parallel Computing Toolbox to use gpuArrays
+            %and to re-gain access to a GPU-based RNG for a saved CIC
+            %object. Without it, load() will warn that it cannot create an
+            %object of class "RandStream" (class not found), but it is
+            %actualy looking for parallel.gpu.RandStream. You could still
+            %recreate your GPU streams using CPU-based RNGs with the
+            %parameters stored in c.rng. (Note, all streams are created
+            %from c.rng.Seed)
+            
+            p=inputParser;            
+            p.addParameter('type','mrg32k3a',@(t) ismember(t,{'gpuCompatible','mrg32k3a','mlfg6331_64', 'mrg32k3a','philox4x32_10','threefry4x64_20'}));  %These support multiple streams
+            p.addParameter('nStreams',3);       %We'll leave the argument validation to RandStream.
+            p.addParameter('seed','shuffle');   %shuffle means RandStream uses clocktime
+            p.addParameter('normalTransform',[]);
+            p.parse(varargin{:});
+             
+            %Put any RandStream param-value pairs into a cell array
+            prms = fieldnames(p.Unmatched);
+            vals = struct2cell(p.Unmatched);
+            args(1:2:numel(prms)*2-1) = prms;
+            args(2:2:numel(prms)*2) = vals;
+            
+            p = p.Results;
+            
+            if strcmpi(p.type,'gpuCompatible')
+                if ~any(arrayfun(@(pkg) strcmpi(pkg.Name,'Parallel Computing Toolbox'),ver))
+                    error('GPU operations requested but resource missing: Parallel Computing Toolbox must be installed.');
+                end         
+                if ~gpuDeviceCount
+                    error('GPU operations requested but resource missing: No gpuDevice on this system. Type "help gpuDevice" for info.');
+                end
+                
+                %The default cpu RNG algorithm does not exist on the GPU. Also, only the "inversion" normal transformation is supported on both CPU and GPU (needed for randn to produce identical numbers).
+                %So, check for those parameters here and overrule if necessary.
+                warning('RNG type has been switched to ''threefry'' to support GPU-based RNGs');
+                warning('RNG normal transformation has been switched to ''inversion'' to support GPU-based RNGs');
+                
+                if ~isempty(prms)
+                    warning('Supplied custom RNG arguments have been ignored to ensure CPU and GPU RNGs are identical');
+                end
+                
+                makeGPUstreams = true;
+                p.type = 'threefry4x64_20';
+                p.normalTransform = 'Inversion';
+                args={};
+            else
+                makeGPUstreams = false;
+            end
+            
+            %Make the CPU streams
+            c.spareRNGstreams = RandStream.create(p.type,'NumStreams',p.nStreams,'seed',p.seed, 'NormalTransform',p.normalTransform, 'cellOutput',true,args{:});            
+            
+            if makeGPUstreams
+                %Make GPU streams that are identical to those on the CPU
+                c.spareRNGstreams_GPU = parallel.gpu.RandStream.create(p.type,'NumStreams',p.nStreams,'seed',c.spareRNGstreams{1}.Seed, 'NormalTransform',p.normalTransform, 'cellOutput',true);
+                
+                %Do a quick check to make sure that the CPU and GPU RNGs give the same result
+                cpuRNG = c.spareRNGstreams{1};
+                gpuRNG = c.spareRNGstreams_GPU{1};
+                origState = cpuRNG.State;
+                if ~isequal(cpuRNG.State,gpuRNG.State) || ~isequal(rand(cpuRNG,1,10),gather(rand(gpuRNG,1,10)))
+                    error('GPU and CPU RNGs are not matched. Something is wrong!');
+                else
+                    %All good. Restore initial state
+                    [cpuRNG.State,gpuRNG.State] = deal(origState);
+                end                
+            end
+                                  
+            %Add a CPU stream to CIC
+            addRNGstream(c);
+                        
+            %Set the global CPU stream to use CIC's rng (we don't set the global stream on the GPU - that's up to plugins that request a GPU RNG to deal with)
+            RandStream.setGlobalStream(c.rng);
+            
+        end
+        
         function sanityChecks(c)
             % This function is called just before starting the first trial, whic his kist
             % after running beforeExperiment in all plugins. It serves to
@@ -2018,25 +2125,63 @@ classdef cic < neurostim.plugin
     end
     
     methods (Access=?neurostim.plugin)
-        function rng = requestRNGstream(c,nStreams)
-            %Plugins can request their own RNG stream. We created 3 RNG
+
+        function rng = requestRNGstream(c,nStreams,makeItAGPUrng)
+            %Plugins can request their own RNG stream. We created N (3) RNG
             %streams on construction of CIC, so allocate one of those now.
-            %If all are exhausted, issue error and instruct user to increase
-            %the initial allocation number before the first time any is used.
-            if nargin < 2
+            %If all are exhausted, issue error and instruct user to
+            %increase the initial allocation number through the rngArgs
+            %argument of the CIC constructor.
+            %
+            %Some plugins/tasks require an RNG on the GPU (for use with
+            %gpuArray objects), so if requested, return one of that type.
+            %
+            %nStreams [1]:          number of streams to add to this plugin. If
+            %                       greater than 1, o.rng will be a cell array of streams.
+            %makeItAGPUrng [false]: should the returned RNG(s) be on the CPU or GPU?
+            
+            if nargin < 2 || isempty(nStreams)
                 nStreams = 1;
             end
             
-            %Make sure we have enough RNG streams left
-            if numel(c.spareRNGstreams) >= nStreams
-                %OK, assign it, remove from list.
-                rng = c.spareRNGstreams(1:nStreams);
-                c.spareRNGstreams(1:nStreams) = [];
-                if nStreams == 1
-                    rng = rng{1};
+            if nargin < 3 || isempty(makeItAGPUrng)
+                makeItAGPUrng = false(1,nStreams);
+            end
+            
+            if nStreams~=numel(makeItAGPUrng)
+                error('''makeItAGPUrng'' must be a logical vector of length equal to nStreams');
+            end
+                        
+            %Make sure there are enough RNG streams left
+            if numel(c.spareRNGstreams)< nStreams
+                error('Not enough RNG streams available to meet the request. Increase the initial allocation through the ''rngArgs'' argument of the CIC constructor.');
+            end
+            
+            %Make sure that GPU-based RNGs were created, if one is requested
+            if any(makeItAGPUrng) && isempty(c.spareRNGstreams_GPU)
+                error('GPU RNG requested but CIC was not asked to create any of that type. Type "help neurostim.cic.createRNGstreams"');
+            end
+            
+            %OK, allocate them
+            for i=1:nStreams
+                if ~makeItAGPUrng(i)
+                    %Return a CPU rng
+                    rng{i} = c.spareRNGstreams{i};
+                else
+                    %Return a GPU rng
+                    rng{i} = c.spareRNGstreams_GPU{i};
                 end
-            else
-                error('All RNG streams have already been allocated. Increase the number of streams by calling createRNGstreams() in your script as early as possible, before any of your or Matlab''s functions has used the global RNG stream. See RandStream for info about Matlab''s RNGs');
+            end
+            
+            %Remove the allocated streams from CPU list (and GPU list if one was made, to keep both types in alignment)
+            c.spareRNGstreams(1:nStreams) = [];
+            if ~isempty(c.spareRNGstreams_GPU)
+                c.spareRNGstreams_GPU(1:nStreams) = [];
+            end
+            
+            
+            if numel(rng)==1
+                rng = rng{1};
             end
         end
     end
@@ -2054,7 +2199,7 @@ classdef cic < neurostim.plugin
                 % Current CIC classdef does not match classdef in force
                 % when thi sobject was saved.
                 
-                c= neurostim.cic(true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
+                c= neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
                 m= metaclass(c);
                 dependent = [m.PropertyList.Dependent];
                 settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];

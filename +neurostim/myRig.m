@@ -7,6 +7,7 @@ pin.addParameter('smallWindow',false);   %Set to true to use a half-screen windo
 pin.addParameter('bgColor',[0.25,0.25,0.25]);
 pin.addParameter('eyelink',false);
 pin.addParameter('debug',false);
+pin.addParameter('cicConstructArgs',{});
 pin.parse(varargin{:});
 smallWindow = pin.Results.smallWindow;
 bgColor = pin.Results.bgColor;
@@ -15,7 +16,7 @@ bgColor = pin.Results.bgColor;
 import neurostim.*
 
 %Create a Command and Intelligence Center object - the central controller for Neurostim.
-c = cic;
+c = cic(pin.Results.cicConstructArgs{:});
 c.cursor = 'arrow';
 computerName = getenv('COMPUTERNAME');
 if isempty(computerName)
@@ -25,6 +26,10 @@ end
 c.dirs.output = tempdir; % Output files will be stored here.
 
 switch upper(computerName)
+    case {'NS1'}
+        c = rig(c,'xpixels',1920,'ypixels',1080,'screenWidth',52,'frameRate',100,'screenNumber',1);
+        smallWindow = false;
+        
     case {'MU00101417X','NS2','NS3'}
         % Shaun's MacBook Pro, Marmolab Rig #1 (NS2) and the Psychophysics rig (NS3)
         c = marmolab.rigcfg('debug',pin.Results.debug);
@@ -152,6 +157,7 @@ switch upper(computerName)
         %Screen('Preference', 'VBLTimestampingMode',3); % Beamposition queries work ok on PTB-P, so force their usage for Flip timing
         %Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
         c.timing.vsyncMode = 1; % 0 waits for the flip and makes timing most accurate.
+        c.timing.frameSlack = NaN;% NaN; % Not used in vsyncmode 0. A likely drop is one that is 25% late.        
         % We define a standard overlay clut with R, G,B, W the first 4
         % entries (and 0=black)
         c.screen.overlayClut = [1 0 0; ... % .color =1 will be max saturated red
@@ -210,7 +216,7 @@ switch upper(computerName)
         %Screen('Preference', 'VBLTimestampingMode',3); % Beamposition queries work ok on PTB-P, so force their usage for Flip timing
         %Screen('Preference', 'ConserveVRAM', 4096); %kPsychUseBeampositionQueryWorkaround
         c.timing.vsyncMode = 0; % 0 waits for the flip and makes timing most accurate.
-        
+        c.timing.frameSlack = NaN;% NaN; % Not used in vsyncmode 0. A likely drop is one that is 25% late.
        
         % We define a standard overlay clut with R, G,B, W the first 4
         % entries (and 0=black)
