@@ -31,7 +31,7 @@ classdef keyResponse < neurostim.behavior
     % BK July 2018
     properties (SetAccess =protected)
         simKeySent;
-        acceptKey@logical = true; % Used by entry/exit events to restrict to single key
+        acceptKey = true; % Used by entry/exit events to restrict to single key
     end
     methods (Access = public)
         function o = keyResponse(c,name)
