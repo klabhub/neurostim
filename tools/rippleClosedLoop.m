@@ -5,10 +5,10 @@ classdef rippleClosedLoop  <handle
     % On a different computer, run
     % c=rippleClosedLoop;
     % start(c,'TimerPeriod',0.5);
-    % This will update the color of the patch in the experiment every 0.5s.
+    % This will set the color of the patch in the experiment every 0.5s.
     % To add your own code to run during the update, create a function that
     % takes two input arguments (signals and times) and one output (
-    % a struct with a field .command that has the value 'UPDATE' and each
+    % a struct with a field .command that has the value 'SETSTICKY' and each
     % other field is the name of a plugin whose property you wish to update
     % (see debugDataProcessor for an example).
     % c=rippleClosedLoop;
@@ -138,7 +138,7 @@ classdef rippleClosedLoop  <handle
         function cmd = debugDataProcessor(signals,times) %#ok<INUSD>
             % An example data processor
             fprintf('Received %d signals with mean %3.2f\n', numel(signals), mean(signals));
-            cmd.command= 'UPDATE';  % Must specify that this is an update command by adding a .command field with the value UPDATE
+            cmd.command= 'SETSTICKY';  % Must specify that this is an SETSTICKY command by adding a .command field with the value SETSTICKY (sticky means it will persist across trials/conditions)
             cmd.patch.color = rand(1,3); % Assign a random color to the patch plugin (this works with demos/rippleDemo)
         end
         

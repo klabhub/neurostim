@@ -56,7 +56,7 @@ classdef stg < neurostim.stimulus
     %
     % ## Programming notes
     % This code uses the STG Download mode (stimulus is prepared in matlab,
-    % sent to the device, and hten triggered). The resolution of the
+    % sent to the device, and then triggered). The resolution of the
     % sitmulus is 20 mus. This cannot be changed - trying to set the output
     % rate results in strange and somewhat unpredictable changes of the
     % stimulus shape. The support on the MCS website stated that output
