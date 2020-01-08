@@ -10,9 +10,9 @@ classdef feedback < neurostim.plugin
     % The criterion function is evaluated either after every frame
     % ('afterFrame') or at the end of the trial ('afterTrial'), e.g.,
     %
-    %   r = plugins.liquid('juice');
-    %   r.add('duration',100,'when','afterFrame','criterion','@fixation1.success');
-    %   r.add('duration',500,'when','afterTrial','criterion','@fixation2.success');
+    %   r = plugins.liquid(c,'juice');
+    %   r.add('duration',100,'when','afterFrame','criterion','@fixation1.isSuccess');
+    %   r.add('duration',500,'when','afterTrial','criterion','@fixation2.isSuccess');
     %
     % See add() below for usage details.
     
