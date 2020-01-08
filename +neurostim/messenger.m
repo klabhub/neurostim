@@ -252,7 +252,7 @@ classdef messenger < handle
             %%
             % Extra user-defined processing on the remote side.
             if ~isempty(o.remoteFunction)
-                update = o.remoteFunction(o); % Call the function the user provided with the (remote) messenger object
+                update = o.remoteFunction; % Call the function the user provided with the (remote) messenger object
                 if isstruct(update)
                     % If this is a command then send it to the local side.
                     sendCommand(o,update);
