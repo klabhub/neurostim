@@ -46,7 +46,7 @@ classdef ripple < neurostim.plugin
     end
     
     properties (SetAccess=protected,GetAccess=public)          
-        tmr; % Array of timer objects for digouts 1-5 (to handle duration of pulse)
+        tmr=timer; % Array of timer objects for digouts 1-5 (to handle duration of pulse)
         currentDigout = false(1,neurostim.plugins.ripple.NRDIGOUT); % Track state of digout
     end
     
@@ -125,7 +125,7 @@ classdef ripple < neurostim.plugin
                 error('The ripple plugin relies on xippmex, which could not be found. Please obtain it from your Trellis installation folder, and add it to the Matlab path');
             end
             
-            % Create a timer object for each digout channel (to 
+            % Create a timer object for each digout channel 
             for ch = 1:o.NRDIGOUT
                 o.tmr(ch) = timer('tag',['ripple_digout' num2str(ch)]);
             end                                                                    
