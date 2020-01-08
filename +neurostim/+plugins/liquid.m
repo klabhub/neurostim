@@ -33,7 +33,7 @@ classdef liquid < neurostim.plugins.feedback
         function o=liquid(c,name)
             o=o@neurostim.plugins.feedback(c,name);
             o.addProperty('device','mcc');
-            o.addProperty('deviceFun','digitalOut',@(x)(ischar(x) || isa(x,'function_handle')));
+            o.addProperty('deviceFun','digitalOut');
             o.addProperty('deviceChannel',1);
             o.addProperty('jackpotPerc',1);
             o.addProperty('jackpotDur',1000);
@@ -95,6 +95,8 @@ classdef liquid < neurostim.plugins.feedback
                 feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,true,duration);                                            
             elseif isa(o.deviceFun,'function_handle')
                 o.deviceFun(o.deviceChannel,true,duration);               
+            else
+                error('Char or function_handle for deviceFun only')
             end
         end
         
@@ -103,6 +105,8 @@ classdef liquid < neurostim.plugins.feedback
                 feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,false); 
              elseif isa(o.deviceFun,'function_handle')
                 o.deviceFun(o.deviceChannel,false);                
+            else
+                error('Char or function_handle for deviceFun only')
             end
         end
         
