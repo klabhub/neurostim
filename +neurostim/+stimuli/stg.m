@@ -277,18 +277,13 @@ classdef stg < neurostim.stimulus
             o.addProperty('persistent',false(1,o.nrChannels),'validate',@islogical); % Persistent means that it can last longer than a trial
             o.addProperty('enabled',true(1,o.nrChannels),'validate',@islogical); %
             
-            % Create a local memory of the patterns that have been sent to
-            % the device, this allows us to check whether the current pattern is different (and therefore
-            % needs to be sent to the device), or we can reuse the existing pattern on the device. see downloadStimulus for usage.
-            NRPARMS =6; % Storing 6 parms that uniquely define a stimulus
-            o.channelData = cell(o.nrChannels,NRPARMS);  % This is the bookkeeping cell array
             reset(o);
             
         end
         
         function beforeExperiment(o)
             % Connect to the device, and clear its memory to get a clean start..
-            connect(o);
+            
             reset(o);           
         end
         
@@ -394,6 +389,7 @@ classdef stg < neurostim.stimulus
                 o.device.Connect(o.deviceListEntry);
                 if ~o.isConnected
                     error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' stg device. Make sure MC Stimulus II is installed on your computer (www.multichannelsystems.com/software/mc-stimulus-ii).']);
+                    return;
                 end
                 
                 if o.downloadMode
@@ -410,9 +406,16 @@ classdef stg < neurostim.stimulus
         
         
         function reset(o)
-            % Make sure the device memory is cleared, and the device mode
-            % is set to the current value.
             
+            % Create a local memory of the patterns that have been sent to
+            % the device, this allows us to check whether the current pattern is different (and therefore
+            % needs to be sent to the device), or we can reuse the existing pattern on the device. see downloadStimulus for usage.
+            NRPARMS =6; % Storing 6 parms that uniquely define a stimulus
+            o.channelData = cell(o.nrChannels,NRPARMS);  % This is the bookkeeping cell array
+           
+            
+            % Make sure the device memory is cleared, and the device mode
+            % is set to the correct value.
             if o.currentMode
                 o.device.SetCurrentMode();
             else
@@ -473,18 +476,18 @@ classdef stg < neurostim.stimulus
         
         
         function streamStimulus(o)
-            
-             for thisChannel = o.channel
-                space = o.device.GetDataQueueSpace(thisChannel-1);
-                while space >= 500
-                % Calc Sin-Wave (16 bits) lower bits will be removed according resolution
-                    sinVal = 30000 * sin(2.0 * (1:500) * pi / 1000);
-                    data = NET.convertArray(sinVal, 'System.Int16');
-                    o.device.EnqueueData(thisChannel-1, data)
-                    space = o.device.GetDataQueueSpace(thisChannel-1)
-                end
-              end
-            
+            %%Not functional
+%              for thisChannel = o.channel
+%                 space = o.device.GetDataQueueSpace(thisChannel-1);
+%                 while space >= 500
+%                 % Calc Sin-Wave (16 bits) lower bits will be removed according resolution
+%                     sinVal = 30000 * sin(2.0 * (1:500) * pi / 1000);
+%                     data = NET.convertArray(sinVal, 'System.Int16');
+%                     o.device.EnqueueData(thisChannel-1, data)
+%                     space = o.device.GetDataQueueSpace(thisChannel-1)
+%                 end
+%               end
+%             
         end
         
         function downloadStimulus(o)
