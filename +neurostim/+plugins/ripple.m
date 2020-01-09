@@ -14,9 +14,9 @@ classdef ripple < neurostim.plugin
     %   drive    - Map a drive on the neurostim ccomputer to a different
     %               drive on the computer running Trellis (in case they are not saving
     %               to the same place on a network)
-    %   channels   - A vector of channel numbers (e.g. 129:192 for the
+    %   channel   - A vector of channel numbers (e.g. 129:192 for the
     %                   first 64 channels on port B)
-    %  electrodes  - For each channel, an electrode that it connects to.
+    %  electrode  - For each channel, an electrode that it connects to.
     %                   e.g. (1:64). 
     %               Channels/electrodes does not change the
     %               recording/streaming but it allows analysis software
@@ -29,9 +29,9 @@ classdef ripple < neurostim.plugin
     %  t.trialBit = 3; % Signal start/stop on SMA digital output 3 (whcih is looped to input 3)
     %  t.drive = {'z:\','c:\'};  % Whatever Neurostim wants to save to z:\
     %                               we put on c:\ on the Trellis computer
-    %  t.channels = 129:160 ; % For this animal we connect a single 32
+    %  t.channel = 129:160 ; % For this animal we connect a single 32
     %  channel front end to Port B - those channels are 129:160.
-    % t.electrodes = 1:32; % When analyzing these data we refer to the
+    % t.electrode = 1:32; % When analyzing these data we refer to the
     % first channel as electrode 1 and the last channel (160) as electrode 32.
     %
     % You can also deliver reward through Trellis - see plugins.liquid
@@ -154,7 +154,7 @@ classdef ripple < neurostim.plugin
                 end            
             elseif channel == 5 && isa(value,'uint16')
                 % MicroD out (16 unsigned bits)
-                xippmex('digout',channel,value);
+                xippmex('digout',channel,double(value));
             else
                 % Must be an error.
                 error(['Channel ' num2str(channel) ' cannot be set to ' num2str(value)]);
@@ -309,5 +309,21 @@ classdef ripple < neurostim.plugin
             end
             o.trialStop = o.nipTime; % Store niptime
         end
-    end        
+    end
+    
+    methods (Static)        
+        function logOnset(s,startTime)
+            % This function sets the digout on the NIP as a way to encode
+            % that a stimulus just appeared on the screen (i.e. first frame flip)
+            % I use a static function to make the notation easier for the
+            % user, but by using CIC I nevertheless make use of the ripple
+            % object that is currently loaded.
+            % INPUT
+            % s =  stimulus
+            % startTime = flipTime in clocktime (i.e. not relative to the
+            % trial)
+            
+            s.cic.ripple.digout(5,uint16(startTime));
+        end
+    end
 end
