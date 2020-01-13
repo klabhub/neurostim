@@ -10,9 +10,9 @@ classdef starstim < neurostim.stimulus
     %  Streaming layer 1.
     %
     %  Note that Markers (e.g. TrialStart) will not be saved if the name does
-    %  not match 'Neurostim' (but on the neurostim side there is no way to detect this). 
+    %  not match 'Neurostim' (but on the neurostim side there is no way to detect this).
     % Your only cue that something is wrong is that you will not see
-    % markers in the NIC window. 
+    % markers in the NIC window.
     %
     % A protocol (defined in the NIC) specifies which electrodes are
     % connected, which record EEG, and which stimulate. You select a protocol
@@ -88,7 +88,7 @@ classdef starstim < neurostim.stimulus
         % EEG parms that need fast acces (and therefore not a property)
         eegAfterTrial = []; % Function handle fun(eeg,time,starstimObject)
         eegAfterFrame = []; % Functiona handle fun(eeg,time,starstimObject)
-        eegStore= false; % Store the eeg data in the starstim object. 
+        eegStore= false; % Store the eeg data in the starstim object.
         eegInit= false; % Set to true to initialize eeg stream before experiment (and do not wait until the first trial with non empty o.eegChannels)
     end
     % Public Get, but set through functions or internally
@@ -312,7 +312,7 @@ classdef starstim < neurostim.stimulus
             % Prepare for EEG reading
             if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
                 openEegStream(o);
-            
+                
             end
         end
         
@@ -366,7 +366,7 @@ classdef starstim < neurostim.stimulus
             if ret==-8 % protocol running abort
                 stop(o);
                 % Then try again
-                unloadProtocol(o); 
+                unloadProtocol(o);
             elseif ret<0
                 o.checkRet(ret,'Could not unload the current protocol.')
             else
@@ -379,11 +379,11 @@ classdef starstim < neurostim.stimulus
         
         function beforeTrial(o)
             if isempty(o.protocol)
-                 o.cic.error('STOPEXPERIMENT','The Starstim plugin requires a protocol to be specified');
-                 return;
+                o.cic.error('STOPEXPERIMENT','The Starstim plugin requires a protocol to be specified');
+                return;
             end
             %% Load the protocol if it has changed
-            if ~strcmpi(o.protocol,o.activeProtocol) 
+            if ~strcmpi(o.protocol,o.activeProtocol)
                 stop(o);
                 unloadProtocol(o);
                 loadProtocol(o);
@@ -430,7 +430,7 @@ classdef starstim < neurostim.stimulus
             % care to ensure current conservation. This is tricky
             % especially when ussing the MatNICOnlinetACSChange function
             % which applies frequency and phase changes immediately, and
-            % then ramps the amplitude (best not to use that one). 
+            % then ramps the amplitude (best not to use that one).
             
             switch upper(o.mode)
                 case {'BLOCKED','TRIAL'}
@@ -459,7 +459,7 @@ classdef starstim < neurostim.stimulus
         end
         
         function afterFrame(o)
-            %handleEeg(o,o.eegAfterFrame); DISABLED FOR NOW - not likely to be fast enough... need some pacer. 
+            %handleEeg(o,o.eegAfterFrame); DISABLED FOR NOW - not likely to be fast enough... need some pacer.
         end
         
         function afterTrial(o)
@@ -563,7 +563,7 @@ classdef starstim < neurostim.stimulus
             end
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
             
-         end
+        end
         
         function troubleShoot(o)
             %%
@@ -629,7 +629,7 @@ classdef starstim < neurostim.stimulus
                     if ~o.fake
                         % Note that this command sets freq and phase
                         % immediately and then ramps the amplitude. This
-                        % only makes sense for ramping up from zero amplitude,           
+                        % only makes sense for ramping up from zero amplitude,
                         [ret] = MatNICOnlinetACSChange(perChannel(o,o.amplitude), perChannel(o,o.frequency), perChannel(o,o.phase), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,msg);
                     end
@@ -699,7 +699,7 @@ classdef starstim < neurostim.stimulus
                         [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
                     case 'TRNS'
-                        o.checkRet(-1,'tRNS Not implemented yet');                   
+                        o.checkRet(-1,'tRNS Not implemented yet');
                     otherwise
                         error(['Unknown stimulation type : ' o.type]);
                 end
@@ -892,8 +892,34 @@ classdef starstim < neurostim.stimulus
     
     methods (Static)
         function o= loadobj(o)
+            if isstruct(o)
+                % Update to current classdef.
+                current = neurostim.stimuli.starstim(neurostim.cic('fromFile',true)); % Create current
+                fromFile = o;
+                 %-- This cannot be moved to a function/script due to class access
+                %permissions.
+                m= metaclass(current);
+                dependent = [m.PropertyList.Dependent];
+                % Find properties that we can set now (based on the stored fromFile object)
+                settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
+                storedFn = fieldnames(fromFile);
+                missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
+                missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
+                toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
+                fprintf('Fixing backward compatibility of stored Neurostim object')
+                fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
+                fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
+                for i=1:numel(toCopy)
+                    try
+                        current.(toCopy{i}) = fromFile.(toCopy{i});
+                    catch
+                        fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
+                    end
+                end
+                % --- 
+                o = current;
+            end
             o.mustExit = false;
-            
         end
         
         function logOnset(s,flipTime)
@@ -905,11 +931,11 @@ classdef starstim < neurostim.stimulus
             % INPUT
             % s =  stimulus that generated the onset event.
             % startTime = flipTime in clocktime (i.e. not relative to the
-            % trial)                        
+            % trial)
             s.cic.starstim.flipTime = flipTime;
             sendMarker(s.cic.starstim,'stimOnset'); % Send a marker to NIC.
         end
-
+        
         
     end
     

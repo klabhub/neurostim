@@ -362,7 +362,7 @@ classdef cic < neurostim.plugin
     
     methods (Access=public)
         % Constructor.
-
+        
         function c= cic(varargin)
             
             p=inputParser;
@@ -371,7 +371,7 @@ classdef cic < neurostim.plugin
             p.addParameter('cursor','none');
             p.addParameter('rootDir',strrep(fileparts(mfilename('fullpath')),'+neurostim',''));
             p.addParameter('outputDir',tempdir);
-            p.addParameter('rngArgs',{});    %control RNG behaviour, including, for example, the number of streams, or using a particular seed. See createRNGstreams()     
+            p.addParameter('rngArgs',{});    %control RNG behaviour, including, for example, the number of streams, or using a particular seed. See createRNGstreams()
             p.addParameter('fromFile',false);   % Used by loadobj to create an empty cic without having PTB installed.
             p.parse(varargin{:});
             p=p.Results;
@@ -391,7 +391,7 @@ classdef cic < neurostim.plugin
                 KbName('UnifyKeyNames'); % Same key names across OS.
             end
             c.cursor = p.cursor;
-
+            
             c.stage  = neurostim.cic.SETUP;
             % Initialize empty
             c.startTime     = now;
@@ -425,7 +425,7 @@ classdef cic < neurostim.plugin
             c.addProperty('trialDuration',p.trialDuration,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
-                        
+            
             % Set up a messenger object that provides online feedback to the experimenter
             % either on the local command prompt or on a remote Matlab instance. A remote messenger client can be added by
             % specifying a host name (c.messenger.host) or ip in the experiment file.
@@ -1004,7 +1004,7 @@ classdef cic < neurostim.plugin
             % activated:
             kbDeviceIndices = unique([c.kbInfo.default c.kbInfo.subject c.kbInfo.experimenter]);
             for blockCntr=1:c.nrBlocks
-                if ~c.flags.experiment;break;end % in case a plugin has generated a STOPEXPERIMENT error                
+                if ~c.flags.experiment;break;end % in case a plugin has generated a STOPEXPERIMENT error
                 c.flags.block = true;
                 c.block = c.blockFlow.list(blockCntr); % Logged.
                 c.blockCntr= blockCntr;
@@ -1023,7 +1023,7 @@ classdef cic < neurostim.plugin
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
                             ptbVbl = Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
-                                       
+                            
                             if locHAVEOVERLAY
                                 clearOverlay(c,c.itiClear);
                             end
@@ -1035,10 +1035,10 @@ classdef cic < neurostim.plugin
                             %Performance was improved massively if we add load here, to prevent the OS from releasing priority.
                             %Here, we make an arbitrary assignment as a temporary fix. There would certainly be a
                             %better way, but the obvious solution of not downgrading our Priority() in the
-                            %ITI didn't fix the problem. This did.                           
+                            %ITI didn't fix the problem. This did.
                             postITIflip = GetSecs;
                             while GetSecs-postITIflip < 0.6*FRAMEDURATION
-                                dummyAssignment=1;                                
+                                dummyAssignment=1;
                             end
                         end
                     else
@@ -1055,7 +1055,7 @@ classdef cic < neurostim.plugin
                     
                     % Timing the draw : commented out. See drawingFinished code below
                     % draw = nan(1,1000);
-
+                    
                     while (c.flags.trial && c.flags.experiment)
                         %%  Trial runnning -
                         c.frame = c.frame+1;
@@ -1119,8 +1119,8 @@ classdef cic < neurostim.plugin
                             %            Positive values indicate a
                             %            deadline-miss.
                             % beampos: position of the monitor scanning beam when the time measurement was taken
-                        
-                        
+                            
+                            
                             %Screen('Flip', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
                             [ptbVbl,ptbStimOn,flipDoneTime] = Screen('Flip', c.mainWindow,WHEN,1-clr,0,0);
                             flipDuration = flipDoneTime-startFlipTime; % For profiling only: includes the busy wait time
@@ -1140,7 +1140,7 @@ classdef cic < neurostim.plugin
                                 c.flipCallbacks = {};
                             end
                         end
-          
+                        
                         
                         % Special clearing instructions for overlays
                         if clr && locHAVEOVERLAY
@@ -1295,7 +1295,7 @@ classdef cic < neurostim.plugin
         function addKeyStroke(c,key,keyHelp,plg,isSubject,fun)
             if c.loadedFromFile
                 % When loading fro file, PTB may not be installed and none
-                % of the "online/intractive" funcationality is relevant. 
+                % of the "online/intractive" funcationality is relevant.
                 return;
             end
             if ischar(key)
@@ -1595,7 +1595,7 @@ classdef cic < neurostim.plugin
                 otherwise
                     error('No overlay for screen type : %s',c.screen.type);
             end
-        end               
+        end
     end
     
     
@@ -1747,13 +1747,13 @@ classdef cic < neurostim.plugin
             %parameters stored in c.rng. (Note, all streams are created
             %from c.rng.Seed)
             
-            p=inputParser;            
+            p=inputParser;
             p.addParameter('type','mrg32k3a',@(t) ismember(t,{'gpuCompatible','mrg32k3a','mlfg6331_64', 'mrg32k3a','philox4x32_10','threefry4x64_20'}));  %These support multiple streams
             p.addParameter('nStreams',3);       %We'll leave the argument validation to RandStream.
             p.addParameter('seed','shuffle');   %shuffle means RandStream uses clocktime
             p.addParameter('normalTransform',[]);
             p.parse(varargin{:});
-             
+            
             %Put any RandStream param-value pairs into a cell array
             prms = fieldnames(p.Unmatched);
             vals = struct2cell(p.Unmatched);
@@ -1765,7 +1765,7 @@ classdef cic < neurostim.plugin
             if strcmpi(p.type,'gpuCompatible')
                 if ~any(arrayfun(@(pkg) strcmpi(pkg.Name,'Parallel Computing Toolbox'),ver))
                     error('GPU operations requested but resource missing: Parallel Computing Toolbox must be installed.');
-                end         
+                end
                 if ~gpuDeviceCount
                     error('GPU operations requested but resource missing: No gpuDevice on this system. Type "help gpuDevice" for info.');
                 end
@@ -1788,7 +1788,7 @@ classdef cic < neurostim.plugin
             end
             
             %Make the CPU streams
-            c.spareRNGstreams = RandStream.create(p.type,'NumStreams',p.nStreams,'seed',p.seed, 'NormalTransform',p.normalTransform, 'cellOutput',true,args{:});            
+            c.spareRNGstreams = RandStream.create(p.type,'NumStreams',p.nStreams,'seed',p.seed, 'NormalTransform',p.normalTransform, 'cellOutput',true,args{:});
             
             if makeGPUstreams
                 %Make GPU streams that are identical to those on the CPU
@@ -1803,12 +1803,12 @@ classdef cic < neurostim.plugin
                 else
                     %All good. Restore initial state
                     [cpuRNG.State,gpuRNG.State] = deal(origState);
-                end                
+                end
             end
-                                  
+            
             %Add a CPU stream to CIC
             addRNGstream(c);
-                        
+            
             %Set the global CPU stream to use CIC's rng (we don't set the global stream on the GPU - that's up to plugins that request a GPU RNG to deal with)
             RandStream.setGlobalStream(c.rng);
             
@@ -2043,7 +2043,7 @@ classdef cic < neurostim.plugin
                 case 'LINLUT'
                     % Invert the supplied gamma table
                     
-                    % note: here we read the current gamma table to determine the number of slots in the 
+                    % note: here we read the current gamma table to determine the number of slots in the
                     %       hardware lookup table and compute the inverse gamma table to suit...
                     tbl = Screen('ReadNormalizedGammaTable', c.mainWindow);
                     iGamma = InvertGammaTable(c.screen.calibration.gammaInput, c.screen.calibration.gammaTable, size(tbl,1));
@@ -2051,7 +2051,7 @@ classdef cic < neurostim.plugin
                     PsychColorCorrection('SetLookupTable', c.mainWindow, iGamma, 'FinalFormatting');
                 case 'LUM'
                     % Default gamma is set to 2.2. User can change in c.screen.calibration.gamma
-                     PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.ns.gamma);
+                    PsychColorCorrection('SetEncodingGamma', c.mainWindow,1./c.screen.calibration.ns.gamma);
                     if isnan(c.screen.calibration.ns.bias)
                         % Only gamma defined
                         PsychColorCorrection('SetColorClampingRange',c.mainWindow,0,1); % In non-extended mode, luminance is between [0 1]
@@ -2125,7 +2125,7 @@ classdef cic < neurostim.plugin
     end
     
     methods (Access=?neurostim.plugin)
-
+        
         function rng = requestRNGstream(c,nStreams,makeItAGPUrng)
             %Plugins can request their own RNG stream. We created N (3) RNG
             %streams on construction of CIC, so allocate one of those now.
@@ -2151,7 +2151,7 @@ classdef cic < neurostim.plugin
             if nStreams~=numel(makeItAGPUrng)
                 error('''makeItAGPUrng'' must be a logical vector of length equal to nStreams');
             end
-                        
+            
             %Make sure there are enough RNG streams left
             if numel(c.spareRNGstreams)< nStreams
                 error('Not enough RNG streams available to meet the request. Increase the initial allocation through the ''rngArgs'' argument of the CIC constructor.');
@@ -2194,35 +2194,38 @@ classdef cic < neurostim.plugin
         
         function c = loadobj(o)
             
-            
             if isstruct(o)
                 % Current CIC classdef does not match classdef in force
-                % when thi sobject was saved.
-                
-                c= neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
-                m= metaclass(c);
+                % when this object was saved.
+                current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
+                fromFile = o;               
+                %-- This cannot be moved to a function due to class access
+                %permissions.
+                m= metaclass(current);
                 dependent = [m.PropertyList.Dependent];
-                settable = ~dependent & ~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
-                storedFn = fieldnames(o);
-                disp('Fixing backward compatibility of stored CIC object')
-                
+                % Find properties that we can set now (based on the stored fromFile object)
+                settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
+                storedFn = fieldnames(fromFile);
                 missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
-                
                 missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
                 toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
-                fprintf('Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
-                fprintf('Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
-                
+                fprintf('Fixing backward compatibility of stored Neurostim object')
+                fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
+                fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
                 for i=1:numel(toCopy)
-                    c.(toCopy{i}) = o.(toCopy{i}); % Assign default value
+                    try
+                        current.(toCopy{i}) = fromFile.(toCopy{i});
+                    catch
+                        fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
+                    end
                 end
+                %---
+                c = current;
             else
                 c = o;
                 c.loadedFromFile = true; % Set to true to avoid PTB dependencies
             end
             
-            
-              
             
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
