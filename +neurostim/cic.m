@@ -672,9 +672,16 @@ classdef cic < neurostim.plugin
         function disp(c)
             % Provide basic information about the CIC
             for i=1:numel(c)
-                disp(char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
-                    ['Stimuli: ' num2str(c(i).nrStimuli) ', Blocks: ' num2str(c(i).nrBlocks) ', Conditions: [' strtrim(sprintf('%d ',[c(i).blocks.nrConditions])) '], Trials: [' strtrim(sprintf('%d ',[c(i).blocks.nrTrials])) ']' ],...
-                    ['File: ' c.fullFile '.mat']));
+                msg = char(['CIC. Started at ' datestr(c(i).startTime,'HH:MM:SS') ],...
+                    ['Stimuli: ' num2str(c(i).nrStimuli) ', Blocks: ' num2str(c(i).nrBlocks)]);
+                if c(i).nrBlocks
+                    msg = char(msg, ['Conditions: ' strtrim(sprintf('%d ',[c(i).blocks.nrConditions])) ...
+                        ', Trials: ' strtrim(sprintf('%d ',[c(i).blocks.nrTrials]))]);
+                end
+                
+                msg = char(msg, ['File: ' c.fullFile '.mat']);
+
+                disp(msg)
             end
         end
         
