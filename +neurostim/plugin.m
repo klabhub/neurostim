@@ -26,6 +26,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             o = neurostim.plugin([],'defaultScalarElement');
         end
     end
+    
+    
     methods (Access=public)
         
         function o=plugin(c,n)
@@ -39,7 +41,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 c.add(o);
             end
             
-                
+            
         end
         
         
@@ -375,10 +377,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         if all(isnan([v{mismatch}]))
                             [v{mismatch}] = deal(nan(1,max(nrCols)));
                             v =cat(1,v{:}); % Make it into a matrix; each row will be an entry in the table below.
-                        end                          
+                        end
                     end
                 end
-                    
+                
                 if isKey(p.Results.propertyProcessing,p.Results.properties{i})
                     fun = p.Results.propertyProcessing(p.Results.properties{i});
                     v= fun(v);
@@ -466,7 +468,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     
     methods (Access = public)
         
-        function baseBeforeExperiment(o)                                                            
+        function baseBeforeExperiment(o)
             beforeExperiment(o);
         end
         
@@ -475,7 +477,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         function baseBeforeTrial(o)
-            beforeTrial(o);           
+            beforeTrial(o);
         end
         function baseBeforeFrame(o)
             beforeFrame(o);
@@ -485,7 +487,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             afterFrame(o);
         end
         
-        function baseAfterTrial(o)           
+        function baseAfterTrial(o)
             afterTrial(o);
         end
         
@@ -540,17 +542,17 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             o.trialDynamicPrms{1,nrDynamic+1} = ['loc_' prm.name] ;
             o.trialDynamicPrms{2,nrDynamic+1} = prm; % Store the handle to the parms
             prm.changesInTrial = true;
-        end                            
+        end
     end
     
     methods (Access={?neuorstim.plugin,?neurostim.parameter})
         
-         %Accessing neurostim.parameters is much slower than accessing a raw
+        %Accessing neurostim.parameters is much slower than accessing a raw
         %member variable. Because we define many such parms (with addProperty) in the base
         %stimulus /plugin classes, and becuase they need to be read each
         %frame ( see stimulus.baseBeforeFrame) this adds substantial
-        %overhead (~ 1ms per stimulus) and can quickly lead to framedrops. 
-        % In any given experiment most parameters never change during the trial 
+        %overhead (~ 1ms per stimulus) and can quickly lead to framedrops.
+        % In any given experiment most parameters never change during the trial
         % so checing every frame is a waste. This function makes local
         % member variable copies to speedup this access.
         % 1. A plugin derived class defines member variables whose names start with loc_
@@ -563,11 +565,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         % Currently this is implemented for the neurostim.stimulus class
         % where it leads to most improvement in perforamace. Users may not
         % need this, but could add it to their own code if they run into
-        % performance issues. See neurostim.stimulus for more tips. 
+        % performance issues. See neurostim.stimulus for more tips.
         %
         % The code below (Called after the user beforeTrial code, but before the trial
-        % really starts, and then again with frameUpdate == true before each beforeFrame) 
-        % will make sure that the localized variables (loc_ ) have the correct value throughout 
+        % really starts, and then again with frameUpdate == true before each beforeFrame)
+        % will make sure that the localized variables (loc_ ) have the correct value throughout
         % the triall
         function localizeParms(o,frameUpdate)
             if nargin<2
@@ -587,7 +589,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
             else
                 % A call just after beforeTrial user code. Create a list
-                % of loc_ variables             
+                % of loc_ variables
                 classInfo      = metaclass(o);
                 targetMembers = {classInfo.PropertyList.Name};
                 targetMembers = targetMembers(startsWith(targetMembers,'loc_'));
@@ -599,7 +601,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 % (row 1) and the associated neurostim.parameter (row 2).
                 % This will be used in the frameUpdate call to this
                 % function.
-                o.trialDynamicPrms = cell(2,0); 
+                o.trialDynamicPrms = cell(2,0);
             end
             
             for prm = 1:numel(targetMembers)
@@ -627,7 +629,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             classInfo  = metaclass(o);
             yesno = ismember(['loc_' nm],{classInfo.PropertyList.Name});
         end
-       
+        
     end
     
     methods (Sealed)
@@ -643,8 +645,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 case neurostim.stages.BEFOREEXPERIMENT
                     for o=oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                          % Store the list of localized parameters.
-                         baseBeforeExperiment(o);
+                        % Store the list of localized parameters.
+                        baseBeforeExperiment(o);
                         if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end
                     end
                     % All plugins BEFOREEXPERIMENT functions have been processed,
