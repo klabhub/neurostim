@@ -7,6 +7,7 @@ classdef fmri < neurostim.plugin
         lastTrigger = -Inf;
     end
     methods
+             
         function o = fmri(c)
             o = o@neurostim.plugin(c,'fmri');
             o.addProperty('scanNr',[]);
@@ -94,6 +95,35 @@ classdef fmri < neurostim.plugin
                     o.trigger = o.trigger+1;
                     o.lastTrigger = o.cic.clockTime;
             end
+        end
+    end
+    
+       
+    methods (Static)  
+        function p = guiLayout(p,name)
+            % Call the base layout first
+            p = neurostim.plugin.guiLayout(p,name);
+            % Then add plugin specific elements
+
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 40 22];
+            h.Text = 'Scan';
+            
+            h = uieditfield(p, 'numeric','Tag','ScanNr');
+            h.Position = [110 17 40 22];
+            h.Value=0;
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [160 39 45 22];
+            h.Text = 'Max TR';
+            
+            h = uieditfield(p, 'numeric','Tag','MaxTR');
+            h.Value = 6;
+            h.Position = [160 17 40 22];                   
         end
     end
 end

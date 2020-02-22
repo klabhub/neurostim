@@ -448,7 +448,58 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         
-        
+    end
+      
+    methods (Static)
+  
+        function p = guiLayout(p,name)
+            % Call the base layout first
+            p = neurostim.plugin.guiLayout(p,name);
+            % Then add plugin specific elements
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 30 22];
+            h.Text = 'Tol.';
+            
+            h = uieditfield(p, 'numeric','Tag','Tolerance');
+            h.Position = [110 17 30 22];
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [145 39 60 22];
+            h.Text = 'Skip Calib.';
+            
+            h = uicheckbox(p,'Tag','SkipCal');
+            h.Position = [165 17 22 22];
+            h.Text = '';
+            h.Value=  false;
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [205 39 60 22];
+            h.Text = 'Calib.';
+            
+            h =uidropdown(p,'Tag','Calibration');
+            h.Position = [205 17 60 22];
+            h.Items = {'HV9','HV5','HV5C'};
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [270 39 60 22];
+            h.Text = 'Eye';
+            
+            h =uidropdown(p,'Tag','Eye');
+            h.Position = [270 17 60 22];
+            h.Items = {'Left','Right','Both'};
+            
+          
+        end
     end
     
   

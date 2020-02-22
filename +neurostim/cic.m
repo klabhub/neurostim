@@ -21,7 +21,8 @@ classdef cic < neurostim.plugin
         dirs                    = struct('root','','output','','calibration','')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
         subjectNr               = [];
         latinSqRow              = [];
-        runNr                   = []; % Bookkeeping
+        runNr                   = []; % Bookkeeping. runNr is a sequential number indicating the number of times the same subject has run the experiment. 
+        seqNr                   = []; %Bookkeeping. seqNr is a sequential number indicating how many subjects have already run this experiment.
         paradigm                = 'test';
         clear                   = 1;   % Clear backbuffer after each swap. double not logical
         itiClear                 = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)

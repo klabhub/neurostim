@@ -29,6 +29,7 @@ classdef egi < neurostim.plugin
         nrInQ = 0;
     end
     methods (Access=public)
+          
         function o = egi(c)            
             if isempty(which('NetStation.m'))
                 error('Cannot find the NetStation.m file. Please add it to your path( from psychtoolbox). ');                
@@ -244,4 +245,37 @@ classdef egi < neurostim.plugin
             hEgi.addToEventQueue(thisE);
         end
     end
+    
+    
+    methods (Static)
+  
+        function p = guiLayout(p,name)
+            % Call the base layout first
+            p = neurostim.plugin.guiLayout(p,name);
+            % Then add plugin specific elements
+
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 30 22];
+            h.Text = 'Host';
+            
+            h = uieditfield(p, 'text','Tag','Host');
+            h.Position = [110 17 200 22];
+            h.Value= '10.10.10.42';
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [315 39 100 22];
+            h.Text = 'Clock Offset';
+            
+            h = uieditfield(p, 'numeric','Tag','ClockOffset');
+            h.Value = 0;
+            h.Position = [315 17 100 22];
+                 
+        end
+        
+      end
 end

@@ -896,7 +896,7 @@ classdef starstim < neurostim.stimulus
                 % Update to current classdef.
                 current = neurostim.stimuli.starstim(neurostim.cic('fromFile',true)); % Create current
                 fromFile = o;
-                 %-- This cannot be moved to a function/script due to class access
+                %-- This cannot be moved to a function/script due to class access
                 %permissions.
                 m= metaclass(current);
                 dependent = [m.PropertyList.Dependent];
@@ -916,7 +916,7 @@ classdef starstim < neurostim.stimulus
                         fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
                     end
                 end
-                % --- 
+                % ---
                 o = current;
             end
             o.mustExit = false;
@@ -937,6 +937,24 @@ classdef starstim < neurostim.stimulus
         end
         
         
+    end
+    
+    methods (Static)
+        
+        function p= guiLayout(p,name)
+            % Call the base layout first
+            p = neurostim.plugin.guiLayout(p,name);
+            % Then add plugin specific elements
+
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 30 22];
+            h.Text = 'Host';
+            
+            h = uieditfield(p, 'text','Tag','Host');
+            h.Position = [110 17 200 22];
+        end
     end
     
     
