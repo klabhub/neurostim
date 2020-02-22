@@ -1,4 +1,4 @@
-function c= runGuiDemo(varargin)
+function [c] = runGuiDemo(varargin)
 % Demo to show adaptive threshold estimation.
 %
 % The subjects task is to detect the location of a Gabor:  left (press
@@ -21,7 +21,7 @@ if ~run
     return;
 end
 
-method = settings.experiment.mode; % Read the mode from the modes in the GUI.
+method = settings.mode; % Read the mode from the modes in the GUI.
 pianola = true; % Set this to true to simulate responses, false to provide your own responses ('a'=left,'l' = right).
 
 
