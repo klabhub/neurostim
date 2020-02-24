@@ -22,6 +22,10 @@ classdef eyetracker < neurostim.plugin
         keepExperimentSetup =true;
         eye='LEFT'; %LEFT,RIGHT, or BOTH
         tmr; %@timer
+        
+        doTrackerSetupEachBlock = false %Return to tracker setup before the first trial of every block.
+        doTrackerSetup = true;  % Do it before the next trial. Initialised to true to do setup on first trial.
+        doDriftCorrect = false;  % Do it before the next trial
     end
     
     properties
@@ -50,7 +54,12 @@ classdef eyetracker < neurostim.plugin
             o.tmr = timer('name','eyetracker.blink','startDelay',200/1000,'ExecutionMode','singleShot','TimerFcn',{@o.openEye});
         end
         
-        
+        function beforeBlock(o)
+            if o.doTrackerSetupEachBlock
+                %Return to tracker setup before the first trial of every block.
+                o.doTrackerSetup = true; %Will be done in next beforeTrial()
+            end
+        end
         
         function afterFrame(o)
             if o.useMouse
@@ -61,22 +70,22 @@ classdef eyetracker < neurostim.plugin
                 end
             end
         end
-        
-        
-         function keyboard(o,key)
+                
+        function keyboard(o,key)
             switch upper(key)
                 case 'W'
                     % Simulate a blink
-                    o.valid = false;                    
+                    o.valid = false;
                     if strcmpi(o.tmr.Running,'Off')
-                        start(o.tmr);                    
-                    end                   
+                        start(o.tmr);
+                    end
             end
-         end
-         function openEye(o,varargin)
-             o.valid = true;
-             writeToFeed(o,'Blink Ends')
-         end
+        end
+        
+        function openEye(o,varargin)
+            o.valid = true;
+            writeToFeed(o,'Blink Ends')
+        end
     end
     
 end
