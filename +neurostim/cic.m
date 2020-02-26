@@ -520,32 +520,33 @@ classdef cic < neurostim.plugin
          
             here = pwd;
             cd(repo);
+            version.remote = git('remote get-url origin');
+            version.branch = git('rev-parse --abbrev-ref HEAD');
             [txt] = git('status --porcelain');
             changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','names');
             nrMods= numel(changes);
             if nrMods>0
-                disp([num2str(nrMods) ' files have changed (or need to be added). These have to be committed before running this experiment']);
+                fprintf(2,'%d files have changed in %s:%s. \n These have to be committed before running this experiment.\n',nrMods,version.remote,version.branch);
                 changes.mods;
                 if silent
                     msg = ['Silent commit  before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
                 else
-                    msg = input('Code has changed. Please provide a commit message','s');
+                    msg = input('Code has changed. Please provide a commit message: ','s');
                 end
                 git('add :/'); % Add all changes.
                 [txt,status]=  git(['commit -m "' msg '"']);
                 if status >0
                     disp(txt);
-                    error('File commit failed.');
+                    error('git file commit failed.');
                 end
             end
             
-            %% now read the commit id
+            %% Read the commit id
             txt = git('show -s');
             hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
             version.hash = hash.id;
-            version.remote = git('remote get-url origin');
-            version.branch = git('rev-parse --abbrev-ref HEAD');
-            c.repoVersion = version;         % STore it.                
+           
+            c.repoVersion = version;         % Store it.                
             cd(here);
         end
         function addScript(c,when, fun,keys)
