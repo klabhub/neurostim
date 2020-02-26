@@ -21,7 +21,7 @@ classdef cic < neurostim.plugin
         dirs                    = struct('root','','output','','calibration','')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
         subjectNr               = [];
         latinSqRow              = [];
-        runNr                   = []; % Bookkeeping. runNr is a sequential number indicating the number of times the same subject has run the experiment. 
+        runNr                   = []; % Bookkeeping. runNr is a sequential number indicating the number of times the same subject has run the experiment.
         seqNr                   = []; %Bookkeeping. seqNr is a sequential number indicating how many subjects have already run this experiment.
         paradigm                = 'test';
         clear                   = 1;   % Clear backbuffer after each swap. double not logical
@@ -373,7 +373,7 @@ classdef cic < neurostim.plugin
             p.addParameter('rootDir',strrep(fileparts(mfilename('fullpath')),'+neurostim',''));
             p.addParameter('outputDir',tempdir);
             p.addParameter('rngArgs',{});    %control RNG behaviour, including, for example, the number of streams, or using a particular seed. See createRNGstreams()
-            p.addParameter('fromFile',false);   % Used by loadobj to create an empty cic without having PTB installed.            
+            p.addParameter('fromFile',false);   % Used by loadobj to create an empty cic without having PTB installed.
             p.parse(varargin{:});
             p=p.Results;
             
@@ -485,22 +485,23 @@ classdef cic < neurostim.plugin
                 c.(label) = value;
             end
         end
-        function versionTracker(c,silent,repo) 
+        function versionTracker(c,silent,repo,commitLocalMods)
             % Git Tracking Interface
             % When called, this function checks which version (i.e. git hash id)
-            % of the Neurostim toolbox is currently in use. 
+            % of the Neurostim toolbox is currently in use.
             % If there are local changes, the function forces a commit (and
             % therefore a new hash id).
             %
             % The hash id and the Psychtoobox Version are stored in the CIC
             % object such that the complete code state can be reproduced later.
-            % 
+            %
             % INPUT
             % c  = CIC object
             % silent = toggle to indicate whether commits of local changes
             % are done silently, or require a commit message. [false]
             % repo = The folder of the repository whose version should be
             % tracked [defaults to the folder that contains neurostim.cic].
+            % commitLocalMods = Set to false to store current hash without commiting local modifications.
             %
             % You can also use this to track another repository (for
             % instance, one that contains your experiments; just provide
@@ -508,16 +509,23 @@ classdef cic < neurostim.plugin
             % to the gitVersion cic property).
             %
             % BK  - Apr 2016
-            if nargin<3
-                repo = fileparts(mfilename('fullpath')); % By default, log the neurostim repo
-                if nargin <2 
-                    silent = false;                    
+            if nargin <4
+                commitLocalMods = true;
+                if nargin<3 
+                    repo ='';
+                    if nargin <2
+                        silent = false;
+                    end
                 end
-            end            
+            end                        
             if isempty(which('git'))
                 error('The gitTracker class depends on a wrapper for git that you can get from github.com/manur/MATLAB-git');
             end
-         
+            
+            if isempty(repo)
+               repo = fileparts(mfilename('fullpath')); % By default, log the neurostim repo
+            end
+            
             here = pwd;
             cd(repo);
             version.remote = git('remote get-url origin');
@@ -525,7 +533,7 @@ classdef cic < neurostim.plugin
             [txt] = git('status --porcelain');
             changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','names');
             nrMods= numel(changes);
-            if nrMods>0
+            if commitLocalMods && nrMods>0
                 fprintf(2,'%d files have changed in %s:%s. \n These have to be committed before running this experiment.\n',nrMods,version.remote,version.branch);
                 changes.mods;
                 if silent
@@ -539,14 +547,15 @@ classdef cic < neurostim.plugin
                     disp(txt);
                     error('git file commit failed.');
                 end
+                nrMods =0;
             end
             
             %% Read the commit id
             txt = git('show -s');
             hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
             version.hash = hash.id;
-           
-            c.repoVersion = version;         % Store it.                
+            version.nrMods = nrMods;
+            c.repoVersion = version;         % Store it.
             cd(here);
         end
         function addScript(c,when, fun,keys)
@@ -657,7 +666,7 @@ classdef cic < neurostim.plugin
             
         end
         
-        function value = hasPlugin(c,plgName)           
+        function value = hasPlugin(c,plgName)
             value = ~isempty(c.plugins) && any(strcmpi(plgName,{c.plugins.name}));
         end
         
@@ -689,7 +698,7 @@ classdef cic < neurostim.plugin
                 end
                 
                 msg = char(msg, ['File: ' c.fullFile '.mat']);
-
+                
                 disp(msg)
             end
         end
@@ -2214,7 +2223,7 @@ classdef cic < neurostim.plugin
                 % Current CIC classdef does not match classdef in force
                 % when this object was saved.
                 current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
-                fromFile = o;               
+                fromFile = o;
                 %-- This cannot be moved to a function due to class access
                 %permissions.
                 m= metaclass(current);
