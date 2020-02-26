@@ -534,7 +534,7 @@ classdef cic < neurostim.plugin
             changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','names');
             nrMods= numel(changes);
             if commitLocalMods && nrMods>0
-                fprintf(2,'%d files have changed in %s:%s. \n These have to be committed before running this experiment.\n',nrMods,version.remote,version.branch);
+                writeToFeed(c,sprintf('%d files have changed in %s - branch %s.',nrMods,version.remote,version.branch));
                 changes.mods;
                 if silent
                     msg = ['Silent commit  before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
@@ -546,8 +546,10 @@ classdef cic < neurostim.plugin
                 if status >0
                     disp(txt);
                     error('git file commit failed.');
+                else
                 end
                 nrMods =0;
+                writeToFeed(c,'Committed changes to git.');
             end
             
             %% Read the commit id
