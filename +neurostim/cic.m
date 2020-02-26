@@ -541,10 +541,11 @@ classdef cic < neurostim.plugin
             
             %% now read the commit id
             txt = git('show -s');
-            version.hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
+            hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
+            version.hash = hash.id;
             version.remote = git('remote get-url origin');
             version.branch = git('rev-parse --abbrev-ref HEAD');
-            c.repoVersion = version;                        
+            c.repoVersion = version;         % STore it.                
             cd(here);
         end
         function addScript(c,when, fun,keys)

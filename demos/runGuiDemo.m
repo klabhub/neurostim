@@ -34,7 +34,6 @@ pianola = true; % Set this to true to simulate responses, false to provide your 
 % Or use this one for an observer with some zero mean gaussian noise on the threshold
 simulatedObserver = '@(grating.contrast< (0.05*randn + (0.1+0.5*(cic.condition-1))))+1.0';
 %% Setup the controller 
-c= myRig;
 c.trialDuration = Inf;
 c.screen.color.background = [ 0.5 0.5 0.5];
 c.subjectNr= 0;
