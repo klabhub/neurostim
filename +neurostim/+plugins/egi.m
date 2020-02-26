@@ -246,6 +246,18 @@ classdef egi < neurostim.plugin
         end
     end
     
+    %% GUI Functions
+     methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = eyelink plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+            o.host = parms.Host;
+            o.clockOffset = parms.ClockOffset;            
+        end
+     end
     
     methods (Static)
   

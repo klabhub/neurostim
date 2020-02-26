@@ -939,9 +939,27 @@ classdef starstim < neurostim.stimulus
         
     end
     
-    methods (Static)
-        
-        function p= guiLayout(p,name)
+    
+    %% GUI Functions
+     methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = eyelink plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+            if strcmpi(parms.onOffFakeKnob,'Fake')
+                o.fake=true;
+            else
+                o.fake =false;
+            end
+            o.host = parms.Host;
+        end
+     end
+     
+    methods (Static)       
+
+     function p= guiLayout(p,name)
             % Call the base layout first
             p = neurostim.plugin.guiLayout(p,name);
             % Then add plugin specific elements

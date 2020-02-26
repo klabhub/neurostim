@@ -98,7 +98,18 @@ classdef fmri < neurostim.plugin
         end
     end
     
-       
+    %% GUI Functions
+     methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = eyelink plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+            o.scanNr = parms.ScanNr;
+            o.maxTriggerTime = parms.maxTT;            
+        end
+     end
     methods (Static)  
         function p = guiLayout(p,name)
             % Call the base layout first
@@ -119,11 +130,23 @@ classdef fmri < neurostim.plugin
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [160 39 45 22];
-            h.Text = 'Max TR';
+            h.Text = 'Max TT';
             
-            h = uieditfield(p, 'numeric','Tag','MaxTR');
+            h = uieditfield(p, 'numeric','Tag','MaxTT');
             h.Value = 6;
-            h.Position = [160 17 40 22];                   
+            h.Position = [160 17 40 22];   
+            
+            
+             h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [205 39 45 22];
+            h.Text = 'Pre Triggers';
+            
+            h = uieditfield(p, 'numeric','Tag','PreTriggers');
+            h.Value = 9;
+            h.Position = [205 17 40 22];                   
+
         end
     end
 end
