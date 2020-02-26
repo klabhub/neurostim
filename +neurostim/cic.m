@@ -544,7 +544,7 @@ classdef cic < neurostim.plugin
             version.hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
             version.remote = git('remote get-url origin');
             version.branch = git('rev-parse --abbrev-ref HEAD');
-            c.gitVersion = version;                        
+            c.repoVersion = version;                        
             cd(here);
         end
         function addScript(c,when, fun,keys)
