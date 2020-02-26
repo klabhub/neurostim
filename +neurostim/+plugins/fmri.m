@@ -107,7 +107,7 @@ classdef fmri < neurostim.plugin
             % guiLayout, named after the Tag property
             %
             o.scanNr = parms.ScanNr;
-            o.maxTriggerTime = parms.maxTT;            
+            o.maxTriggerTime = parms.MaxTT;            
         end
      end
     methods (Static)  
