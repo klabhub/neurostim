@@ -373,7 +373,7 @@ classdef cic < neurostim.plugin
             p.addParameter('rootDir',strrep(fileparts(mfilename('fullpath')),'+neurostim',''));
             p.addParameter('outputDir',tempdir);
             p.addParameter('rngArgs',{});    %control RNG behaviour, including, for example, the number of streams, or using a particular seed. See createRNGstreams()
-            p.addParameter('fromFile',false);   % Used by loadobj to create an empty cic without having PTB installed.
+            p.addParameter('fromFile',false);   % Used by loadobj to create an empty cic without having PTB installed.            
             p.parse(varargin{:});
             p=p.Results;
             
@@ -425,7 +425,10 @@ classdef cic < neurostim.plugin
             c.addProperty('iti',p.iti,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',p.trialDuration,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
+            c.addProperty('ptbVersion',Screen('Version')); % Log PTB Version used to run this experiment
+            c.addProperty('repoVersion',[]); % Information on the git version/hash. See cic.versionTracker
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
+            
             
             % Set up a messenger object that provides online feedback to the experimenter
             % either on the local command prompt or on a remote Matlab instance. A remote messenger client can be added by
@@ -482,40 +485,41 @@ classdef cic < neurostim.plugin
                 c.(label) = value;
             end
         end
-        function versionTracker(c,silent,push) %#ok<INUSD>
+        function versionTracker(c,silent,repo) 
             % Git Tracking Interface
+            % When called, this function checks which version (i.e. git hash id)
+            % of the Neurostim toolbox is currently in use. 
+            % If there are local changes, the function forces a commit (and
+            % therefore a new hash id).
             %
-            % The idea:
-            % A laboratory forks the GitHub repo to add their own experiments
-            % in the experiments folder.  These additions are only tracked in the
-            % forked repo, so the central code maintainer does not have to be bothered
-            % by it. The new laboratory can still contribute to the core code, by
-            % making changes and then sending pull requests.
+            % The hash id and the Psychtoobox Version are stored in the CIC
+            % object such that the complete code state can be reproduced later.
+            % 
+            % INPUT
+            % c  = CIC object
+            % silent = toggle to indicate whether commits of local changes
+            % are done silently, or require a commit message. [false]
+            % repo = The folder of the repository whose version should be
+            % tracked [defaults to the folder that contains neurostim.cic].
             %
-            % The goal of the gitTracker is to log the state of the entire repo
-            % for a particular laboratory at the time an experiment is run. It checks
-            % whether there are any uncommitted changes, and asks/forces them to be
-            % committed before the experiment runs. The hash corresponding to the final
-            % commit is stored in the data file such that the complete code state can
-            % easily be reproduced later.
+            % You can also use this to track another repository (for
+            % instance, one that contains your experiments; just provide
+            % the repo folder as the 3rd input, its version will be added
+            % to the gitVersion cic property).
             %
             % BK  - Apr 2016
             if nargin<3
-                push =false; %#ok<NASGU>
-                if nargin <2
-                    silent = false;
+                repo = fileparts(mfilename('fullpath')); % By default, log the neurostim repo
+                if nargin <2 
+                    silent = false;                    
                 end
-            end
-            
-            if ~exist('git.m','file')
+            end            
+            if isempty(which('git'))
                 error('The gitTracker class depends on a wrapper for git that you can get from github.com/manur/MATLAB-git');
             end
-            
-            [status] = system('git --version');
-            if status~=0
-                error('versionTracker requires git. Please install it first.');
-            end
-            
+         
+            here = pwd;
+            cd(repo);
             [txt] = git('status --porcelain');
             changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','names');
             nrMods= numel(changes);
@@ -523,11 +527,12 @@ classdef cic < neurostim.plugin
                 disp([num2str(nrMods) ' files have changed (or need to be added). These have to be committed before running this experiment']);
                 changes.mods;
                 if silent
-                    msg = ['Silent commit  (' getenv('USER') ' before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
+                    msg = ['Silent commit  before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
                 else
                     msg = input('Code has changed. Please provide a commit message','s');
                 end
-                [txt,status]=  git(['commit -a -m ''' msg ' ('  getenv('USER') ' ) ''']);
+                git('add .'); % Add all changes.
+                [txt,status]=  git(['commit -m "' msg '"']);
                 if status >0
                     disp(txt);
                     error('File commit failed.');
@@ -536,10 +541,11 @@ classdef cic < neurostim.plugin
             
             %% now read the commit id
             txt = git('show -s');
-            hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
-            c.addProperty('githash',hash.id);
-            [~,ptb] =PsychtoolboxVersion;
-            c.addProperty('PTBVersion',ptb);
+            version.hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
+            version.remote = git('remote get-url origin');
+            version.branch = git('rev-parse --abbrev-ref HEAD');
+            c.gitVersion = version;                        
+            cd(here);
         end
         function addScript(c,when, fun,keys)
             % It may sometimes be more convenient to specify a function m-file
