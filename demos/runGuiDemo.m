@@ -15,7 +15,7 @@ function [c] = runGuiDemo(varargin)
 import neurostim.*
 
 [run,c,settings] = nsGui.parse(varargin{:},...  % Any parameters that the GUI sends (required)
-                                'Panels',{'plugins.eyelink','stimuli.starstim'},...  % List any Plugins that this experiment needs
+                                'Panels',{'plugins.eyelink','stimuli.starstim','plugins.egi'},...  % List any Plugins that this experiment needs
                                 'Modes',{'QUEST','STAIRCASE'});  % List modes of the experiment
 if ~run    
     return;

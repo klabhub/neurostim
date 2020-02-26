@@ -461,7 +461,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.doTrackerSetup    = ~parms.SkipCal;
             o.eye               = parms.Eye;
             
-            switch (p.Calibration)
+            switch (parms.Calibration)
                 case 'HV5C'
                     % Calibrate center screen only
                     left =0.33;mid= 0.5;

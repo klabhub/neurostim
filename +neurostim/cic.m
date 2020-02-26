@@ -649,8 +649,8 @@ classdef cic < neurostim.plugin
             
         end
         
-        function value = hasPlugin(c,plgName)
-            value = any(strcmpi(plgName,{c.plugins.name}));
+        function value = hasPlugin(c,plgName)           
+            value = ~isempty(c.plugins) && any(strcmpi(plgName,{c.plugins.name}));
         end
         
         function value = hasStimulus(c,stmName)
