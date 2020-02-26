@@ -506,6 +506,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             h.Position = [130 17 22 22];
             h.Text = '';
             h.Value=  false;
+            h.Tooltip = 'Check to skip calibration at the start of the experiment';
             
             
             h = uilabel(p);
@@ -517,6 +518,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             h =uidropdown(p,'Tag','Calibration');
             h.Position = [175 17 60 22];
             h.Items = {'HV9','HV5','HV5C'};
+            h.Tooltip = 'Pick a calibration mode';
             
             
             h = uilabel(p);
@@ -528,7 +530,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             h =uidropdown(p,'Tag','Eye');
             h.Position = [235 17 60 22];
             h.Items = {'Left','Right','Both'};
-            
+            h.Tooltip = 'Select which eye to track';
             
         end
     end

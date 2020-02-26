@@ -125,6 +125,7 @@ classdef fmri < neurostim.plugin
             h = uieditfield(p, 'numeric','Tag','ScanNr');
             h.Position = [110 17 40 22];
             h.Value=0;
+            h.Tooltip = 'Enter the scan number (as defined by the scanner)';
             
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
@@ -135,7 +136,7 @@ classdef fmri < neurostim.plugin
             h = uieditfield(p, 'numeric','Tag','MaxTT');
             h.Value = 6;
             h.Position = [160 17 40 22];   
-            
+            h.Tooltip = 'The experiment will stop if the scanner fails to send a trigger for this many seconds';
             
              h = uilabel(p);
             h.HorizontalAlignment = 'left';
@@ -146,7 +147,8 @@ classdef fmri < neurostim.plugin
             h = uieditfield(p, 'numeric','Tag','PreTriggers');
             h.Value = 9;
             h.Position = [205 17 40 22];                   
-
+            h.Tooltip = 'The experiment starts once this many triggers have been received from the scanner';
+            
         end
     end
 end
