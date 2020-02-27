@@ -16,12 +16,11 @@ classdef fmri < neurostim.plugin
             o.addProperty('triggerKey','t');
             o.addProperty('triggersComplete',[],'sticky',true);
             o.addProperty('maxTriggerTime',inf); % If no Triggers for x s, the experiment ends
+            o.addProperty('fake',false);
+            o.addProperty('fakeTR',2);
             o.addKey('t');            
         end
-        
-        function beforeExperiment(o)
-            
-        end
+ 
         
         function beforeTrial(o)
             % The goal here is to wait until the pre-triggers have been
@@ -51,6 +50,9 @@ classdef fmri < neurostim.plugin
                     o.scanNr =answer;
                 end
                 
+                if o.fake
+                    startFakeScanner(o);
+                end
                 
                 
                 % Now wait until the requested pre triggers have been recorded
@@ -93,9 +95,32 @@ classdef fmri < neurostim.plugin
             switch upper(key)
                 case 'T'
                     o.trigger = o.trigger+1;
-                    o.lastTrigger = o.cic.clockTime;
+                    o.lastTrigger = o.cic.clockTime;               
             end
         end
+        
+        %% Some debugging functionality to fake a scan trigger with TR
+        function startFakeScanner(o)
+            tmr= timer('Name','FakeScanner','Period',o.fakeTR,'StartDelay',0,'ExecutionMode','fixedRate','TimerFcn',@o.generateTrigger);
+            start(tmr);
+            writeToFeed(o,['Started fake scanner triggers with TR =' num2str(o.fakeTR)]); 
+        end
+        
+        function generateTrigger(o,tmr,evt) %#ok<INUSD>
+            keyboard(o,'T');
+            writeToFeed(o,'Fake scan trigger');
+        end
+        
+        function stopFakeScanner(o)
+            tmr = timerfind('Name','FakeScanner');
+            stop(tmr);
+            delete(tmr);
+            writeToFeed(o,'Stopped fake scanner triggers.');
+        end
+        function afterExperiment(o)
+           stopFakeScanner(o); 
+        end
+                           
     end
     
     %% GUI Functions
@@ -107,7 +132,8 @@ classdef fmri < neurostim.plugin
             % guiLayout, named after the Tag property
             %
             o.scanNr = parms.ScanNr;
-            o.maxTriggerTime = parms.MaxTT;            
+            o.maxTriggerTime = parms.MaxTT;       
+            o.fake = strcmpi(parms.onOffFakeKnob,'fake');
         end
      end
     methods (Static)  

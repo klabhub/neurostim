@@ -1459,6 +1459,8 @@ classdef cic < neurostim.plugin
             if ~isempty(pin.Results.outputDir)
                 c.dirs.output  = pin.Results.outputDir;
             end
+            
+            if ~hasPlugin(c,'eye') 
             if pin.Results.eyelink
                 neurostim.plugins.eyelink(c);
                 if ~isempty(pin.Results.eyelinkCommands)
@@ -1469,6 +1471,7 @@ classdef cic < neurostim.plugin
             else
                 e = neurostim.plugins.eyetracker(c);      %If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
                 e.useMouse = true;
+            end
             end
             if pin.Results.mcc
                 neurostim.plugins.mcc(c);

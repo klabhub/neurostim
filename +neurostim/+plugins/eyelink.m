@@ -112,12 +112,13 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('host','');
             o.addProperty('F9PassThrough',true); % simulate F9 press on Eyelink host to do quick drift correct
             o.addProperty('transferFile',true); % afterExperiment - transfer file from the Host to here. (Only set to false in debugging to speed things  up)
+            o.addProperty('fake',false);            
         end
         
         function beforeExperiment(o)
             %Initalise default Eyelink el structure and set some values.
             % first call it with the mainWindow
-            
+            if o.fake; beforeExperiment@neurostim.plugins.eyetracker(o);return;end
             
             o.el=EyelinkInitDefaults(o.cic.mainWindow);
             setParms(o);
@@ -236,6 +237,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function afterExperiment(o)
+            if o.fake; afterExperiment@neurostim.plugins.eyetracker(o);return;end
             
             o.cic.drawFormattedText('Transfering data from Eyelink host, please wait.','ShowNow',true);
             Eyelink('StopRecording');
@@ -264,6 +266,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function beforeTrial(o)
+            if o.fake; beforeTrial@neurostim.plugins.eyetracker(o);return;end
             
             if ~o.useMouse && (o.doTrackerSetup || o.doDriftCorrect)
                 % Prepare for Eyelink drawing.
@@ -325,7 +328,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function afterFrame(o)
-            
+            if o.fake; afterFrame@neurostim.plugins.eyetracker(o);return;end
             %             if ~o.isRecording
             %                 o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
             %                 return;
@@ -395,6 +398,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function keyboard(o,key,~)
+            if o.fake; keyboard@neurostim.plugins.eyetracker(o,key);return;end
             switch upper(key)
                 case 'F9'
                     % Do a manual drift correction right now, by sending an
@@ -460,6 +464,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             %
             o.doTrackerSetup    = ~parms.SkipCal;
             o.eye               = parms.Eye;
+            o.fake              = strcmpi(parms.onOffFakeKnob,'fake');
             
             switch (parms.Calibration)
                 case 'HV5C'
