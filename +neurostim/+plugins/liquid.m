@@ -31,6 +31,9 @@ classdef liquid < neurostim.plugins.feedback
     
     methods (Access=public)
         function o=liquid(c,name)
+            if nargin<2
+                name = 'liquid';
+            end
             o=o@neurostim.plugins.feedback(c,name);
             o.addProperty('device','mcc');
             o.addProperty('deviceFun','digitalOut');
@@ -114,5 +117,66 @@ classdef liquid < neurostim.plugins.feedback
             %Provide an update of performance to the user.
             o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total duration: ',num2str(o.totalDelivered)));
         end
+    end
+    
+    
+     %%  GUI functions
+    methods (Access= public)
+        function guiSet(o,parms)
+            o.jackpotDur = parms.JackpotDur;
+            o.jackpotPerc = parms.JackpotPerc;
+            durations = str2num(parms.Duration); %#ok<ST2NM>
+            for i=1:o.nItems                
+               o.(['item', num2str(i) 'duration']) = durations(min(i,numel(durations)));
+            end
+        end
+    end
+    
+    
+    methods (Static)
+        
+        function guiLayout(p)
+            % Add plugin specific elements
+             
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [100 39 30 22];
+            h.Text = 'Reward';
+            
+            
+            h = uieditfield(p, 'text','Tag','Duration'); % Must be text to allow vectors.
+            h.Position = [100 17 50 22];
+            h.Value= '200';
+            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [160 39 50 22];
+            h.Text = 'Jackpot';
+            
+            h = uieditfield(p, 'numeric','Tag','JackpotDur');
+            h.Value = 1000;
+            h.Position = [160 17 50 22];
+            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [210 39 50 22];
+            h.Text = '% Jackpot';
+            
+            h = uieditfield(p, 'numeric','Tag','JackpotPerc');
+            h.Value = 0.01;
+            h.Position = [210 17 50 22];
+            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
+            
+            
+            
+            
+        end
+        
     end
 end
