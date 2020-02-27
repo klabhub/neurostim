@@ -52,6 +52,7 @@ import neurostim.*
         h = uieditfield(p, 'text','Tag','color');
         h.Position = [60 17 100 22];
         h.Tooltip ='Background color';
+       %TODO LiveUpdates h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(txt,evt,p,'grating.color');
     end
 
 [run,c,settings] = nsGui.parse(varargin{:},...  % Any parameters that the GUI sends (required)
