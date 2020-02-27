@@ -3,6 +3,7 @@ function c = myRig(varargin)
 %Convenience function to set up a CIC object with appropriate settings for the current rig/computer.
 %Feel free to add your PC/rig to the list
 pin = inputParser;
+pin.addParameter('cic',[]);  % This property is set by nsGUI
 pin.addParameter('smallWindow',false);   %Set to true to use a half-screen window
 pin.addParameter('bgColor',[0.25,0.25,0.25]);
 pin.addParameter('eyelink',false);
@@ -15,8 +16,17 @@ bgColor = pin.Results.bgColor;
 
 import neurostim.*
 
-%Create a Command and Intelligence Center object - the central controller for Neurostim.
-c = cic(pin.Results.cicConstructArgs{:});
+
+
+import neurostim.*
+if isempty(pin.Results.cic)
+    %Create a Command and Intelligence Center object - the central controller for Neurostim.
+    c = cic(pin.Results.cicConstructArgs{:});
+else
+    % Use the cic created by nsGui
+    c = pin.Results.cic;
+end
+
 c.cursor = 'arrow';
 computerName = getenv('COMPUTERNAME');
 if isempty(computerName)
@@ -52,25 +62,7 @@ switch upper(computerName)
         %Home
         c = rig(c,'xorigin',950,'yorigin',550,'xpixels',1920,'ypixels',1200,'screenWidth',42,'frameRate',60,'screenNumber',0);
         smallWindow = true;
-        
-           
-    case 'KLAB-U'
-        %if pin.Results.debug
-        scrNr = 2;
-        rect = Screen('rect',scrNr);
-        hz=Screen('NominalFrameRate', scrNr);
-        c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',40,'frameRate',hz,'screenNumber',scrNr);
-        smallWindow = false;
-        Screen('Preference', 'SkipSyncTests', 2);
-        %         else
-        %             scrNr = 1;
-        %             rect = Screen('rect',scrNr);
-        %             c = rig(c,'xpixels',rect(3),'ypixels',rect(4),'screenWidth',60,'frameRate',60,'screenNumber',scrNr);
-        %             smallWindow = false;
-        %              Screen('Preference', 'SkipSyncTests', 0);
-        %         end
-        c.useConsoleColor = true;
-        
+                     
     case 'NEUROSTIMM'
         scrNr=0;
         rect = Screen('rect',scrNr);
