@@ -500,13 +500,13 @@ classdef cic < neurostim.plugin
             % silent = toggle to indicate whether commits of local changes
             % are done silently, or require a commit message. [false]
             % repo = The folder of the repository whose version should be
-            % tracked [defaults to the folder that contains neurostim.cic].
+            % tracked [if empty it defaults to the folder that contains neurostim.cic].
             % commitLocalMods = Set to false to store current hash without commiting local modifications.
             %
             % You can also use this to track another repository (for
             % instance, one that contains your experiments; just provide
             % the repo folder as the 3rd input, its version will be added
-            % to the gitVersion cic property).
+            % to the repoVersion cic property).
             %
             % BK  - Apr 2016
             if nargin <4
@@ -531,9 +531,10 @@ classdef cic < neurostim.plugin
             version.remote = git('remote get-url origin');
             version.branch = git('rev-parse --abbrev-ref HEAD');
             [txt] = git('status --porcelain');
-            changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','names');
+            changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','tokens');
             nrMods= numel(changes);
             if commitLocalMods && nrMods>0
+                % Commit all changes to the current branch
                 writeToFeed(c,sprintf('%d files have changed in %s - branch %s.',nrMods,version.remote,version.branch));
                 changes.mods;
                 if silent
@@ -547,8 +548,7 @@ classdef cic < neurostim.plugin
                     disp(txt);
                     error('git file commit failed.');
                 else
-                end
-                nrMods =0;
+                end                
                 writeToFeed(c,'Committed changes to git.');
             end
             
@@ -556,7 +556,7 @@ classdef cic < neurostim.plugin
             txt = git('show -s');
             hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
             version.hash = hash.id;
-            version.nrMods = nrMods;
+            version.changes = changes;
             c.repoVersion = version;         % Store it.
             cd(here);
         end
@@ -974,7 +974,7 @@ classdef cic < neurostim.plugin
             if ~exist(c.fullPath,'dir')
                 success = mkdir(c.fullPath);
                 if ~success
-                    error(horzcat('Save folder ', c.fullPath, ' does not exist and could not be created. Check drive/write access.'));
+                    error(horzcat('Save folder ', strrep(c.fullPath,'\','/'), ' does not exist and could not be created. Check drive/write access.'));
                 end
             end
             
