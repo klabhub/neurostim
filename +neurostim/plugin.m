@@ -766,32 +766,23 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     
      %% GUI Functios
     methods (Access= public)
-        function guiSet(o,~)
+        function guiSet(o,parms) %#ok<INUSD>
             %The nsGui calls this just before the experiment starts; derived plugins
             % with gui panels shoould use it to transfer values from the
             % guipanel (using handle h) into property settings. The base plugin class does
-            % nothing (Except a warning).
+            % nothing (Except a warning).See plugins.eyelink for an
+            % example.
             writeToFeed(o,['The ' o.name ' plugin has no setFromGui function. GUI settings will be ignored']);
         end
     end
 
     
     methods (Static, Access=public)
-        function p = guiLayout(parent,name)
-            % A plugin can define an uipanel that is added to the nsGui at
-            % runtime. The derived function must return a handle to the
-            % uipanel. (see plugins.eyelink for an example)
-            %% Setup generic ui
-            p= uipanel('Tag',name,'Parent',parent);
-            p.Title = name;
-            p.FontWeight = 'Bold';
-            p.Position = [189 1 438 77];            
-            % Add a knob
-            h = uiknob(p, 'discrete');
-            h.Tag = 'onOffFakeKnob';
-            h.Items = {'Off', 'Fake', 'On'};
-            h.Position = [30 8 31 31];
-            h.ValueChangedFcn = @nsGui.colorState;                       
+        function guiLayout(parent) %#ok<INUSD>
+            % nsGui calls this function with parent set to the parent uipanel
+            % Plugins can add graphical (appdesigner) elements to this parent. 
+            % See plugins.eyelink for an example
+                          
         end        
     end
 end

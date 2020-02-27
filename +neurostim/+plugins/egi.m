@@ -261,10 +261,8 @@ classdef egi < neurostim.plugin
     
     methods (Static)
   
-        function p = guiLayout(p,name)
-            % Call the base layout first
-            p = neurostim.plugin.guiLayout(p,name);
-            % Then add plugin specific elements
+        function guiLayout(p)
+            % Add plugin specific elements
 
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
