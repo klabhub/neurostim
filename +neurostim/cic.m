@@ -489,7 +489,7 @@ classdef cic < neurostim.plugin
             % Git Tracking Interface
             % When called, this function checks which version (i.e. git hash id)
             % of the Neurostim toolbox is currently in use.
-            % If there are local changes, the function forces a commit (and
+            % If there are local changes, the function can force a commit (and
             % therefore a new hash id).
             %
             % The hash id and the Psychtoobox Version are stored in the CIC
