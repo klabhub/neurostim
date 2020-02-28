@@ -15,8 +15,7 @@
         <!-- matlabroot/toolbox/matlab/icons -->
         <!-- A Getting Started Guide usually comes first -->
         <tocitem target="GettingStarted.html" image="HelpIcon.GETTING_STARTED">
-            Getting Started with the Neurostim Toolbox
-            <tocitem target="GettingStarted.html#1">System Requirements</tocitem>
+            Getting Started with the Neurostim Toolbox            
         </tocitem>
         <!-- User Guide comes next -->
         <tocitem target="nsGui.html" image="HelpIcon.USER_GUIDE">Using the GUI            
