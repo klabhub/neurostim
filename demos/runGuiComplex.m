@@ -38,7 +38,7 @@ import neurostim.*
         % Note that this is case-sensitive
         h.Position = [5 17 22 22];
         h.Text = '';
-        h.Value=  false;
+        h.Value=  true;
         h.Tooltip = 'Check to run a simulated observer.';
         
         % add an uiedit field to set the color (because we want to specify a vector 
@@ -51,6 +51,7 @@ import neurostim.*
         h.Text = 'Color';            
         h = uieditfield(p, 'text','Tag','color');
         h.Position = [60 17 100 22];
+        h.Value = '[0.5 0.5 0.5]';
         h.Tooltip ='Background color';
 
     end

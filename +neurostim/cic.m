@@ -536,7 +536,7 @@ classdef cic < neurostim.plugin
             if commitLocalMods && nrMods>0
                 % Commit all changes to the current branch
                 writeToFeed(c,sprintf('%d files have changed in %s - branch %s.',nrMods,version.remote,version.branch));
-                changes.mods;
+                changes{:}
                 if silent
                     msg = ['Silent commit  before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
                 else
