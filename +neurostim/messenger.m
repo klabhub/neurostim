@@ -64,6 +64,10 @@ classdef messenger < handle
     
     
     methods
+        function s= struct(o)
+            s= builtin('struct',o);
+            s= rmfield(s,{'cache','EMPTYCACHE'});            
+        end
         function o= messenger(startAsServer)
             o = o@handle;
             if nargin<1

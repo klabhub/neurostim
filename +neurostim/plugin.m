@@ -15,11 +15,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         name= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
         trialDynamicPrms;  %  A list of parameters that (can) change within a trial. See localizeParms for how it is filled and used.
-        NOTEXPORTED = {};
     end
     
     properties (SetAccess=private, GetAccess=public)
-        rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.        
+        rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
     
     
@@ -46,34 +45,30 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
         end
         
+        function s =struct(o)
+             s =builtin('struct',o);
+            s =rmfield(s,{'feedStyle','trialDynamicPrms','window','cic','prms'});
+        end
+        
         function v = export(o)
             % Create a container.Map with the name of the property as the
             % key and a cell array containing values and time points as the
             % value.
-            m = metaclass(o);            
-            out = ismember({m.PropertyList.Name},cat(2,o.NOTEXPORTED,{'prms','cic','NOTEXPORTED'}));
+            v = struct('Name',o.name);
+            m = metaclass(o);
+            names= {m.PropertyList.Name};
+            out = ismember(names,o.NOTEXPORTED);
+            out = out |  strncmpi(names,'loc_',4); % Don't export localized copies
             exportList = m.PropertyList';
             exportList(out) = [];
-            for prop = exportList
-                if strcmpi(prop.GetAccess,'private');continue;end
-                propMeta = metaclass(o.(prop.Name));
-                switch propMeta.Name
-                    case {'logical','double','char','single','struct','cell'}
-                        v(prop.Name) = o.(prop.Name);
-                    case 'RandStream'
-                        st = warning('off');
-                        v(prop.Name) = struct(o.(prop.Name));
-                        warning(st);
-                    otherwise
-                        disp ([prop.Name  ':' propMeta.Name])                        
-                end
-            end
+            v = neurostim.plugin.toStruct(v,o,exportList);
             % Now do the prms.
             fn = fieldnames(o.prms);
             for i=1:numel(fn)
-                v(fn{i}) = export(o.prms.(fn{i}));
+                v.(fn{i}) = export(o.prms.(fn{i}));
             end
         end
+        
         
         
         
@@ -791,6 +786,57 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             else
                 oo.window = oo.cic.mainWindow;
             end
+        end
+    end
+    
+    methods (Static)
+        function v = toStruct(o,name)
+            %             for prop = exportList
+            %                 if strcmpi(prop.GetAccess,'private') || prop.Dependent ; continue;end
+            %                 propMeta = metaclass(o.(prop.Name));
+            %                 switch propMeta.Name
+            %                     case {'logical','double','char','single','cell'}
+            %                         v.(prop.Name) = o.(prop.Name);
+            %                     case 'struct'
+            %                         % A struct could contain another object...
+            %                          thisPropMeta = metaclass(o.(prop.Name));
+            %                         fn = fieldnames(o.(prop.Name));
+            %                         for i=1:numel(fn)
+            %                             tmp.(fn{i} = neurostim.plugin.toStruct(struct,o.(prop.Name),thisPropMeta);
+            %                         v.(prop.Name) = tmp;
+            %                     otherwise
+            %                         st = warning('off');
+            %                         try
+            %                         v.(prop.Name) = struct(o.(prop.Name));
+            %                         catch
+            %                             disp (['Failed to export:' prop.Name  ':' propMeta.Name])
+            %                         end
+            %                         warning(st);
+            %                 end
+            %             end
+            
+            propMeta = metaclass(o);
+            switch propMeta.Name
+                case {'logical','double','char','single','cell'}
+                    v.(name) = o;
+                case 'struct'
+                    % A struct could contain another object...
+                    fn = fieldnames(o);
+                    for i=1:numel(fn)
+                      %  tmp.(fn{i} = neurostim.plugin.toStruct(struct,o.(prop.Name),thisPropMeta);
+                        v.(name)=neurostim.plugin.toStruct(o.(fn{i}),fn{i});
+                    end
+                otherwise
+                    stat = warning('off');
+                    try
+                        str= struct(o);
+                        v.(name) = neurostim.plugin.toStruct(str,'name');
+                    catch
+                        disp (['Failed to export:' name  ':' propMeta.Name])
+                    end
+                    warning(stat);
+            end
+            
         end
     end
     

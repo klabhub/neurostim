@@ -147,6 +147,7 @@ classdef stimulus < neurostim.plugin
         
         function s = stimulus(c,name)
             s = s@neurostim.plugin(c,name);
+            s.NOTEXPORTED = cat(2,s.NOTEXPORTED,{'onsetFunction','offsetFunction','flags','stimstart','stimstop'});
             
             %% user-settable properties
             s.addProperty('X',0,'validate',@isnumeric);

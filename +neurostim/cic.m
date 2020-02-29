@@ -385,7 +385,7 @@ classdef cic < neurostim.plugin
             end
             
             c = c@neurostim.plugin([],'cic');
-            c.NOTEXPORTED = {'flipCallbacks','messenger','spareRNGstreams','spareRNGstreams_GPU','stimuli','plugins','pluginOrder','blocks','propsToInform','behaviors','cic'};
+            
             % Some very basic PTB settings that are enforced for all
             c.loadedFromFile  =p.fromFile;
             if ~c.loadedFromFile
@@ -439,13 +439,17 @@ classdef cic < neurostim.plugin
             
         end
         
+        function s=struct(c)
+            s =builtin('struct',c);
+            s =rmfield(s,{'funPropsToMake','flipCallbacks','messenger','spareRNGstreams','spareRNGstreams_GPU','stimuli','plugins','pluginOrder','blocks','propsToInform','behaviors','cic'});
+        end
         function v = export(c)
            % Export cic itself
-            v = containers.Map('ExportTime',now,'UniformValues',false);               
-            v('cic')= export@neurostim.plugin(c);
+            v = struct('ExportTime',now);               
+            v.cic= export@neurostim.plugin(c);
            % Then export all plugins and stimuli
            for o=c.pluginOrder
-               v(o.name) = export(o);
+               v.(o.name) = export(o);
            end            
         end
         
