@@ -126,6 +126,10 @@ classdef parameter < handle & matlab.mixin.Copyable
             setValue(o,[],v);
         end
         
+        function v = export(o)
+            v = {o.log(1:o.cntr),o.time(1:o.cntr)};
+        end
+        
         function stopLog(o)
             o.noLog =true;
         end

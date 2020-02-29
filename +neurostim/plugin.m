@@ -15,11 +15,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         name= '';   % Name of the plugin; used to refer to it within cic
         prms=struct;          % Structure to store all parameters
         trialDynamicPrms;  %  A list of parameters that (can) change within a trial. See localizeParms for how it is filled and used.
+        NOTEXPORTED = {};
     end
     
     properties (SetAccess=private, GetAccess=public)
-        rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
+        rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.        
     end
+    
     
     methods (Static, Sealed, Access=protected)
         function o= getDefaultScalarElement
@@ -43,6 +45,36 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
             
         end
+        
+        function v = export(o)
+            % Create a container.Map with the name of the property as the
+            % key and a cell array containing values and time points as the
+            % value.
+            m = metaclass(o);            
+            out = ismember({m.PropertyList.Name},cat(2,o.NOTEXPORTED,{'prms','cic','NOTEXPORTED'}));
+            exportList = m.PropertyList';
+            exportList(out) = [];
+            for prop = exportList
+                if strcmpi(prop.GetAccess,'private');continue;end
+                propMeta = metaclass(o.(prop.Name));
+                switch propMeta.Name
+                    case {'logical','double','char','single','struct','cell'}
+                        v(prop.Name) = o.(prop.Name);
+                    case 'RandStream'
+                        st = warning('off');
+                        v(prop.Name) = struct(o.(prop.Name));
+                        warning(st);
+                    otherwise
+                        disp ([prop.Name  ':' propMeta.Name])                        
+                end
+            end
+            % Now do the prms.
+            fn = fieldnames(o.prms);
+            for i=1:numel(fn)
+                v(fn{i}) = export(o.prms.(fn{i}));
+            end
+        end
+        
         
         
         

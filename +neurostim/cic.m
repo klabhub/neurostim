@@ -9,7 +9,7 @@ classdef cic < neurostim.plugin
         SETUP   = 0;
         RUNNING = 1;
         INTRIAL = 2;
-        POST    = 3;
+        POST    = 3;     
     end
     
     %% Public properties
@@ -376,6 +376,7 @@ classdef cic < neurostim.plugin
             p.parse(varargin{:});
             p=p.Results;
             
+            
             %Check MATLAB version. Warn if using an older version.
             ver = version('-release');
             v=regexp(ver,'(?<year>\d+)(?<release>\w)','names');
@@ -384,7 +385,7 @@ classdef cic < neurostim.plugin
             end
             
             c = c@neurostim.plugin([],'cic');
-            
+            c.NOTEXPORTED = {'flipCallbacks','messenger','spareRNGstreams','spareRNGstreams_GPU','stimuli','plugins','pluginOrder','blocks','propsToInform','behaviors','cic'};
             % Some very basic PTB settings that are enforced for all
             c.loadedFromFile  =p.fromFile;
             if ~c.loadedFromFile
@@ -436,6 +437,16 @@ classdef cic < neurostim.plugin
             %to the state of a previous run to replay a "stochastic" stimulus (e.g. cic('rngArgs',{'seed',myStoredSeed})
             createRNGstreams(c,p.rngArgs{:});
             
+        end
+        
+        function v = export(c)
+           % Export cic itself
+            v = containers.Map('ExportTime',now,'UniformValues',false);               
+            v('cic')= export@neurostim.plugin(c);
+           % Then export all plugins and stimuli
+           for o=c.pluginOrder
+               v(o.name) = export(o);
+           end            
         end
         
         function showCursor(c,name)
