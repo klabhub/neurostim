@@ -127,6 +127,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function v = export(o)
+            % At export time  only the values and times in the log matter.
             v.value = o.log(1:o.cntr);
             v.time = o.time(1:o.cntr);
         end

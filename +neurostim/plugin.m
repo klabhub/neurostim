@@ -45,7 +45,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         function v = export(o,doNotExport)
+            % Plugins export all public properties except this list:
+            % A cleaner way to do this would be to make these members
+            % non-public (then the utils.export function would ignore them)
+            pluginsDoNotExport = {'feedStyle','trialDynamicPrms','window','cic','onsetFunction','offsetFunction','flags','diodePosition','overlay','stimstart','stimstop'};
             if nargin <2
+                % A derived class can call this with an extra doNotExport list
                 doNotExport = {};
             end
             m = metaclass(o);
@@ -57,14 +62,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             out = out | ~strcmpi(access,'public');
             out = out | [m.PropertyList.Dependent]==1;
             names(out) = [];
-            names= setxor(names,cat(2,doNotExport,{'feedStyle','trialDynamicPrms','window','cic','onsetFunction','offsetFunction','flags','diodePosition','overlay','stimstart','stimstop'}));
-
-            v= neurostim.utils.export(o,names);
-            % Now do the prms.
-%             fn = fieldnames(o.prms);
-%             for i=1:numel(fn)
-%                 v.(fn{i}) = export(o.prms.(fn{i}));
-%             end
+            names= setxor(names,cat(2,doNotExport,pluginsDoNotExport));
+            v= neurostim.utils.export(o,names); % Now call the utils function; it wil loop and recurse where necessary.
         end
         
         
