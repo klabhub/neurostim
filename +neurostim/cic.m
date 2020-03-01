@@ -436,21 +436,21 @@ classdef cic < neurostim.plugin
             %control RNG behaviour, including, for example, the number of streams, or returning CIC
             %to the state of a previous run to replay a "stochastic" stimulus (e.g. cic('rngArgs',{'seed',myStoredSeed})
             createRNGstreams(c,p.rngArgs{:});
-            
+           
         end
         
-        function s=struct(c)
-            s =builtin('struct',c);
-            s =rmfield(s,{'funPropsToMake','flipCallbacks','messenger','spareRNGstreams','spareRNGstreams_GPU','stimuli','plugins','pluginOrder','blocks','propsToInform','behaviors','cic'});
-        end
         function v = export(c)
            % Export cic itself
-            v = struct('ExportTime',now);               
-            v.cic= export@neurostim.plugin(c);
+            v = struct('ExportTime',now);    
+            doNotExport = {'funPropsToMake','flipCallbacks','messenger','spareRNGstreams','spareRNGstreams_GPU','stimuli','plugins','pluginOrder','blocks','propsToInform','behaviors'}; 
+            v.cic= export@neurostim.plugin(c,doNotExport);
            % Then export all plugins and stimuli
            for o=c.pluginOrder
-               v.(o.name) = export(o);
-           end            
+               v.(o.name) = neurostim.utils.export(o);
+           end  
+            for o=c.behaviors
+               v.(o.name) = neurostim.utils.export(o);
+           end  
         end
         
         function showCursor(c,name)

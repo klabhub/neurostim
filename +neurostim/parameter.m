@@ -127,7 +127,8 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function v = export(o)
-            v = {o.log(1:o.cntr),o.time(1:o.cntr)};
+            v.value = o.log(1:o.cntr);
+            v.time = o.time(1:o.cntr);
         end
         
         function stopLog(o)

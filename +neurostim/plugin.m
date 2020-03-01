@@ -42,31 +42,29 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 c.add(o);
             end
             
-            
         end
         
-        function s =struct(o)
-             s =builtin('struct',o);
-            s =rmfield(s,{'feedStyle','trialDynamicPrms','window','cic','prms'});
-        end
-        
-        function v = export(o)
-            % Create a container.Map with the name of the property as the
-            % key and a cell array containing values and time points as the
-            % value.
-            v = struct('Name',o.name);
+        function v = export(o,doNotExport)
+            if nargin <2
+                doNotExport = {};
+            end
             m = metaclass(o);
             names= {m.PropertyList.Name};
-            out = ismember(names,o.NOTEXPORTED);
-            out = out |  strncmpi(names,'loc_',4); % Don't export localized copies
-            exportList = m.PropertyList';
-            exportList(out) = [];
-            v = neurostim.plugin.toStruct(v,o,exportList);
+            out  = strncmpi(names,'loc_',4);            
+            access = {m.PropertyList.GetAccess};
+            no = cellfun(@iscell,access);
+            [access{no}] =deal('no');
+            out = out | ~strcmpi(access,'public');
+            out = out | [m.PropertyList.Dependent]==1;
+            names(out) = [];
+            names= setxor(names,cat(2,doNotExport,{'feedStyle','trialDynamicPrms','window','cic','onsetFunction','offsetFunction','flags','diodePosition','overlay','stimstart','stimstop'}));
+
+            v= neurostim.utils.export(o,names);
             % Now do the prms.
-            fn = fieldnames(o.prms);
-            for i=1:numel(fn)
-                v.(fn{i}) = export(o.prms.(fn{i}));
-            end
+%             fn = fieldnames(o.prms);
+%             for i=1:numel(fn)
+%                 v.(fn{i}) = export(o.prms.(fn{i}));
+%             end
         end
         
         
