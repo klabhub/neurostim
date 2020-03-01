@@ -9,7 +9,7 @@ classdef cic < neurostim.plugin
         SETUP   = 0;
         RUNNING = 1;
         INTRIAL = 2;
-        POST    = 3;
+        POST    = 3;     
     end
     
     %% Public properties
@@ -376,6 +376,7 @@ classdef cic < neurostim.plugin
             p.parse(varargin{:});
             p=p.Results;
             
+            
             %Check MATLAB version. Warn if using an older version.
             ver = version('-release');
             v=regexp(ver,'(?<year>\d+)(?<release>\w)','names');
@@ -435,7 +436,21 @@ classdef cic < neurostim.plugin
             %control RNG behaviour, including, for example, the number of streams, or returning CIC
             %to the state of a previous run to replay a "stochastic" stimulus (e.g. cic('rngArgs',{'seed',myStoredSeed})
             createRNGstreams(c,p.rngArgs{:});
-            
+           
+        end
+        
+        function v = export(c)
+           % Export cic itself
+            v = struct('ExportTime',now);    
+            doNotExport = {'funPropsToMake','flipCallbacks','messenger','spareRNGstreams','spareRNGstreams_GPU','stimuli','plugins','pluginOrder','blocks','propsToInform','behaviors'}; 
+            v.cic= export@neurostim.plugin(c,doNotExport);
+           % Then export all plugins and stimuli
+           for o=c.pluginOrder
+               v.(o.name) = neurostim.utils.export(o);
+           end  
+            for o=c.behaviors
+               v.(o.name) = neurostim.utils.export(o);
+           end  
         end
         
         function showCursor(c,name)

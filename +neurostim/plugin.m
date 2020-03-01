@@ -21,6 +21,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
     
+    
     methods (Static, Sealed, Access=protected)
         function o= getDefaultScalarElement
             o = neurostim.plugin([],'defaultScalarElement');
@@ -41,8 +42,31 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 c.add(o);
             end
             
-            
         end
+        
+        function v = export(o,doNotExport)
+            % Plugins export all public properties except this list:
+            % A cleaner way to do this would be to make these members
+            % non-public (then the utils.export function would ignore them)
+            pluginsDoNotExport = {'feedStyle','trialDynamicPrms','window','cic','onsetFunction','offsetFunction','flags','diodePosition','overlay','stimstart','stimstop'};
+            if nargin <2
+                % A derived class can call this with an extra doNotExport list
+                doNotExport = {};
+            end
+            m = metaclass(o);
+            names= {m.PropertyList.Name};
+            out  = strncmpi(names,'loc_',4);            
+            access = {m.PropertyList.GetAccess};
+            no = cellfun(@iscell,access);
+            [access{no}] =deal('no');
+            out = out | ~strcmpi(access,'public');
+            out = out | [m.PropertyList.Dependent]==1;
+            names(out) = [];
+            names= setxor(names,cat(2,doNotExport,pluginsDoNotExport));
+            v= neurostim.utils.export(o,names); % Now call the utils function; it wil loop and recurse where necessary.
+        end
+        
+        
         
         
         
@@ -760,6 +784,5 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 oo.window = oo.cic.mainWindow;
             end
         end
-    end
-    
+    end       
 end
