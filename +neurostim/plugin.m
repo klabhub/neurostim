@@ -784,57 +784,5 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 oo.window = oo.cic.mainWindow;
             end
         end
-    end
-    
-    methods (Static)
-        function v = toStruct(o,name)
-            %             for prop = exportList
-            %                 if strcmpi(prop.GetAccess,'private') || prop.Dependent ; continue;end
-            %                 propMeta = metaclass(o.(prop.Name));
-            %                 switch propMeta.Name
-            %                     case {'logical','double','char','single','cell'}
-            %                         v.(prop.Name) = o.(prop.Name);
-            %                     case 'struct'
-            %                         % A struct could contain another object...
-            %                          thisPropMeta = metaclass(o.(prop.Name));
-            %                         fn = fieldnames(o.(prop.Name));
-            %                         for i=1:numel(fn)
-            %                             tmp.(fn{i} = neurostim.plugin.toStruct(struct,o.(prop.Name),thisPropMeta);
-            %                         v.(prop.Name) = tmp;
-            %                     otherwise
-            %                         st = warning('off');
-            %                         try
-            %                         v.(prop.Name) = struct(o.(prop.Name));
-            %                         catch
-            %                             disp (['Failed to export:' prop.Name  ':' propMeta.Name])
-            %                         end
-            %                         warning(st);
-            %                 end
-            %             end
-            
-            propMeta = metaclass(o);
-            switch propMeta.Name
-                case {'logical','double','char','single','cell'}
-                    v.(name) = o;
-                case 'struct'
-                    % A struct could contain another object...
-                    fn = fieldnames(o);
-                    for i=1:numel(fn)
-                      %  tmp.(fn{i} = neurostim.plugin.toStruct(struct,o.(prop.Name),thisPropMeta);
-                        v.(name)=neurostim.plugin.toStruct(o.(fn{i}),fn{i});
-                    end
-                otherwise
-                    stat = warning('off');
-                    try
-                        str= struct(o);
-                        v.(name) = neurostim.plugin.toStruct(str,'name');
-                    catch
-                        disp (['Failed to export:' name  ':' propMeta.Name])
-                    end
-                    warning(stat);
-            end
-            
-        end
-    end
-    
+    end       
 end
