@@ -32,13 +32,25 @@ if nargin<2
 else 
     subset= true;
 end
+persistent stack
+if isempty(stack)
+    stack = {};
+end
 
 meta = metaclass(o);
 hasExport = ismember('export',{meta.MethodList.Name});
+
 if hasExport && ~subset
     % Call the objects export function - CIC, plugin, and parameter have
     % their own export functions.
-    v  =export(o);
+    if ismember(meta.Name,stack)
+        % Recursion. Skip
+        v.(matlab.lang.makeValidName(meta.Name)) = 'not exported (recursion)';
+    else
+        stack = cat(2,stack,{meta.Name});
+        v  =export(o);
+        stack = stack(1:end-1);
+    end
 else
     if isstruct(o)
         % Export all fields
