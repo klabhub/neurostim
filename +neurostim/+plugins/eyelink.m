@@ -118,7 +118,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         function beforeExperiment(o)
             %Initalise default Eyelink el structure and set some values.
             % first call it with the mainWindow
-            if o.fake; beforeExperiment@neurostim.plugins.eyetracker(o);return;end
+            if o.fake; o.useMouse= true; beforeExperiment@neurostim.plugins.eyetracker(o);return;end
             
             o.el=EyelinkInitDefaults(o.cic.mainWindow);
             setParms(o);
