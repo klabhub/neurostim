@@ -10,12 +10,12 @@ classdef eyelink < neurostim.plugins.eyetracker
     % then set c.eye.backgroundColor.
     %
     % Use with non LUM color modes and VPIXX requires a modified dispatchCallback
-    % that is in the tools directory (neurostimEyelinkDispatchCallback.). 
+    % that is in the tools directory (neurostimEyelinkDispatchCallback.).
     % Use o.overlay =  true to draw text (white) and the calibration targets to
     % the VPIXX overlay (using index colors that you define in
     % c.screen.overlayClut) and the eye image to the main window (which can
     % be M16 mode. If the eye image is very dim, use e.boostEyeImage to
-    % boost its luminance  - a factor of 5 works well. 
+    % boost its luminance  - a factor of 5 works well.
     % Settting o.overlay to false will draw everything to the VPIXX main
     % window. The boostEyeImage factor will then scale the luminance of
     % calibration targets and text as well.
@@ -71,12 +71,15 @@ classdef eyelink < neurostim.plugins.eyetracker
         nTransferAttempts = 5;
         
         callbackFun = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
-        boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]         
+        boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]
         targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
         
- 
-    end
+        doTrackerSetup = true;  % Do it before the next trial
+        doDriftCorrect = false;  % Do it before the next trial
         
+        
+    end
+    
     properties (Dependent)
         isRecording;
         isConnected; %double
@@ -109,20 +112,21 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('host','');
             o.addProperty('F9PassThrough',true); % simulate F9 press on Eyelink host to do quick drift correct
             o.addProperty('transferFile',true); % afterExperiment - transfer file from the Host to here. (Only set to false in debugging to speed things  up)
+            o.addProperty('fake',false);            
         end
         
         function beforeExperiment(o)
             %Initalise default Eyelink el structure and set some values.
             % first call it with the mainWindow
-            
+            if o.fake; beforeExperiment@neurostim.plugins.eyetracker(o);return;end
             
             o.el=EyelinkInitDefaults(o.cic.mainWindow);
-            setParms(o);            
+            setParms(o);
             
             if o.overlay
                 % Draw targets and text on the overlay, but the main window
                 % has to be the mainWindow, because the callback calls flip
-                % on it.   Note that this only works if the callback is sset to 
+                % on it.   Note that this only works if the callback is sset to
                 % use neurostimEyelinkDispatchCallback, which is located i
                 % neurostim/tools
                 o.targetWindow = o.cic.overlayWindow; % Used by neurostim modified callback function only
@@ -131,15 +135,15 @@ classdef eyelink < neurostim.plugins.eyetracker
             else
                 o.targetWindow = o.window; % Everything goes to the main window
             end
-                
+            
             if ~isempty(o.host)  &&  Eyelink('IsConnected')==0
                 Eyelink('SetAddress',o.host);
             end
-            %Initialise connection to Eyelink.            
+            %Initialise connection to Eyelink.
             if ~o.useMouse
                 result = Eyelink('Initialize', o.callbackFun);
             else
-                result = Eyelink('InitializeDummy', o.callbackFun);                            
+                result = Eyelink('InitializeDummy', o.callbackFun);
             end
             
             if result ~=0
@@ -225,7 +229,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 o.el.calibrationtargetwidth = o.clbTargetSize/2/o.cic.screen.width*100; %default to half radius
             else
                 o.el.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
-            end    
+            end
             o.el.callback  = o.callbackFun;
             o.el.hPlugin   = o; % Store a handle to the Eyelink plugin so that the callback handler functionc can use it
             o.el.window  = o.cic.mainWindow; % Always main window
@@ -233,6 +237,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function afterExperiment(o)
+            if o.fake; afterExperiment@neurostim.plugins.eyetracker(o);return;end
             
             o.cic.drawFormattedText('Transfering data from Eyelink host, please wait.','ShowNow',true);
             Eyelink('StopRecording');
@@ -261,6 +266,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function beforeTrial(o)
+            if o.fake; beforeTrial@neurostim.plugins.eyetracker(o);return;end
             
             if ~o.useMouse && (o.doTrackerSetup || o.doDriftCorrect)
                 % Prepare for Eyelink drawing.
@@ -268,7 +274,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                 % transformations.
                 Screen('glPushMatrix',o.window);
                 Screen('glLoadIdentity',o.window);
-                                
+                
                 % Do setup or drift correct
                 if o.doTrackerSetup
                     if o.boostEyeImage>1 && strcmpi(o.cic.screen.colorMode,'LUM') && ~isnan(o.cic.screen.calibration.ns.bias)
@@ -277,14 +283,14 @@ classdef eyelink < neurostim.plugins.eyetracker
                         % very dim on a calibrated display. We hack that
                         % here by just boosting the gain of the extended gamma temporarily.
                         
-                        % out = bias + gain * ((lum-minLum)./(maxLum-minLum)) ^1./gamma )                      
-                        PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max/o.boostEyeImage,o.cic.screen.calibration.ns.gain,o.cic.screen.calibration.ns.bias);                        
+                        % out = bias + gain * ((lum-minLum)./(maxLum-minLum)) ^1./gamma )
+                        PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max/o.boostEyeImage,o.cic.screen.calibration.ns.gain,o.cic.screen.calibration.ns.bias);
                     end
                     EyelinkDoTrackerSetup(o.el);
                     if o.boostEyeImage>1 && strcmpi(o.cic.screen.colorMode,'LUM') && ~isnan(o.cic.screen.calibration.ns.bias)
                         % Restore originalm, calibrated settings
                         PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max, o.cic.screen.calibration.ns.gain ,o.cic.screen.calibration.ns.bias);
-                    end                        
+                    end
                 elseif o.doDriftCorrect
                     EyelinkDoDriftCorrect(o.el); % Using default center of screen.
                 end
@@ -322,26 +328,26 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function afterFrame(o)
-            
-%             if ~o.isRecording
-%                 o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
-%                 return;
-%             end
+            if o.fake; afterFrame@neurostim.plugins.eyetracker(o);return;end
+            %             if ~o.isRecording
+            %                 o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
+            %                 return;
+            %             end
             
             if o.getSamples
-                % Continuous samples requested               
-                  % get the sample in the form of an event structure
-                  sample = Eyelink( 'NewestFloatSample');                    
-                  if ~isstruct(sample) 
-                      % No sample or other error, just continue to next
-                      % frame 
-                  else
+                % Continuous samples requested
+                % get the sample in the form of an event structure
+                sample = Eyelink( 'NewestFloatSample');
+                if ~isstruct(sample)
+                    % No sample or other error, just continue to next
+                    % frame
+                else
                     % convert to physical coordinates
                     eyeNr = str2eye(o,o.eye);
                     [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
                     o.pupilSize = sample.pa(eyeNr+1);
-                    o.valid  = any(sample.gx(eyeNr+1)~=o.el.MISSING_DATA); % Blink or other missing data.                                                           
-                  end
+                    o.valid  = any(sample.gx(eyeNr+1)~=o.el.MISSING_DATA); % Blink or other missing data.
+                end
             end
             if o.getEvents
                 % Only events requested
@@ -392,6 +398,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function keyboard(o,key,~)
+            if o.fake; keyboard@neurostim.plugins.eyetracker(o,key);return;end
             switch upper(key)
                 case 'F9'
                     % Do a manual drift correction right now, by sending an
@@ -445,9 +452,91 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         
-        
     end
     
-  
+    %% GUI function
+    methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = eyelink plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+            o.doTrackerSetup    = ~parms.SkipCal;
+            o.eye               = parms.Eye;
+            o.fake              = strcmpi(parms.onOffFakeKnob,'fake');
+            
+            switch (parms.Calibration)
+                case 'HV5C'
+                    % Calibrate center screen only
+                    left =0.33;mid= 0.5;
+                    x = o.cic.screen.xpixels* [mid mid mid left 1-left];
+                    y = o.cic.screen.ypixels* [mid 1-left left mid  mid];
+                    xy = cat(2,num2str(x'),','*ones(5,1),num2str(y'),','*ones(5,1))';
+                    xy = xy(1:end-1);
+                    o.clbType = 'HV5';
+                    o.eye.commands = {'calibration_type = HV5',...
+                        'generate_default_targets = NO',...
+                        'enable_automatic_calibration = NO',...
+                        'calibration_samples = 5',...
+                        'calibration_sequence = 0,1,2,3,4',...
+                        ['calibration_targets =' xy ],...
+                        'validation_samples = 5',...
+                        'validation_sequence = 0,1,2,3,4',...
+                        ['validation_targets =' xy],...
+                        'val_repeat_first_target=YES',...
+                        'cal_repeat_first_target=YES'};
+                otherwise
+                    % Just set it.
+                    o.clbType = parms.Calibration;
+                    
+            end
+        end
+    end
+    
+    methods (Static, Access=public)
+        
+        function guiLayout(p)
+            % Add plugin specific elements            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 60 22];
+            h.Text = 'Skip Calib.';
+            
+            h = uicheckbox(p,'Tag','SkipCal');
+            h.Position = [130 17 22 22];
+            h.Text = '';
+            h.Value=  false;
+            h.Tooltip = 'Check to skip calibration at the start of the experiment';
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [175 39 60 22];
+            h.Text = 'Calib.';
+            
+            h =uidropdown(p,'Tag','Calibration');
+            h.Position = [175 17 60 22];
+            h.Items = {'HV9','HV5','HV5C'};
+            h.Tooltip = 'Pick a calibration mode';
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [235 39 60 22];
+            h.Text = 'Eye';
+            
+            h =uidropdown(p,'Tag','Eye');
+            h.Position = [235 17 60 22];
+            h.Items = {'Left','Right','Both'};
+            h.Tooltip = 'Select which eye to track';
+            
+        end
+    end
+    
+    
     
 end
