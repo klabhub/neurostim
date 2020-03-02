@@ -134,6 +134,7 @@ classdef fmri < neurostim.plugin
             o.scanNr = parms.ScanNr;
             o.maxTriggerTime = parms.MaxTT;       
             o.fake = strcmpi(parms.onOffFakeKnob,'fake');
+                
         end
      end
     methods (Static)  
@@ -171,6 +172,23 @@ classdef fmri < neurostim.plugin
             h.Value = 9;
             h.Position = [205 17 40 22];                   
             h.Tooltip = 'The experiment starts once this many triggers have been received from the scanner';
+            
+            h = uibutton(p,'Push','Text','Quench');
+            h.Position = [255 17 65 22];
+            h.ButtonPushedFcn = @stopFake;
+            h.Tooltip = 'Push this is the fake scanner keeps running after the experiment ends...';
+            function stopFake(o,e)
+                knob = findobj(o.Parent,'Tag','onOffFakeKnob');
+                if ~isempty(knob)
+                if strcmpi(knob.Value,'Fake') 
+                    tmr = timerfind('Name','FakeScanner');
+                    if isa(tmr,'timer')
+                        stop(tmr);
+                        delete(tmr);                    
+                    end
+                end
+                end
+            end
             
         end
     end
