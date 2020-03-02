@@ -73,10 +73,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         callbackFun = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
         boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]
         targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
-        
-        doTrackerSetup = true;  % Do it before the next trial
-        doDriftCorrect = false;  % Do it before the next trial
-        
+           
         
     end
     
