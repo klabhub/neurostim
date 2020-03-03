@@ -67,15 +67,15 @@ classdef viewpoint < neurostim.plugins.eyetracker
     %       'gazeSpace_MouseAction Simulation' for debugging?
     commands = {};
         
-    vpxPath@char = ''; % path to save .vpx file(s) (on the remote Viewpoint PC)
+    vpxPath = ''; % path to save .vpx file(s) (on the remote Viewpoint PC)
 
-    vpxFile@char = 'test.vpx';
+    vpxFile = 'test.vpx';
         
-    getSamples@logical = true;
-    getEvents@logical = false;
+    getSamples = true;
+    getEvents = false;
   
-    doTrackerSetup@logical = true; % do setup/calibration before the next trial
-    doDriftCorrect@logical = false; % do drift correction before the next trial
+    doTrackerSetup = true; % do setup/calibration before the next trial
+    doDriftCorrect = false; % do drift correction before the next trial
     
     % ip address and port of the remote Viewpoint PC
     ipAddress = '192.168.1.2';
@@ -86,8 +86,8 @@ classdef viewpoint < neurostim.plugins.eyetracker
   end
     
   properties (Dependent)
-    isConnected@double;
-    isRecording@logical;
+    isConnected;
+    isRecording;
   end
     
   methods % get/set methods
