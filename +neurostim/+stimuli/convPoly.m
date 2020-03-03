@@ -16,7 +16,16 @@ classdef convPoly < neurostim.stimulus
     %  frequency = sinusoidal flicker frequency in Hz  [0].
     %  phase - phase of the flicker in degrees. [0]
     % amplitude - amplitude of the flicker.  [Default is 0: no flicker]
+    % 
+    % Calculating the new color from the paramets on each frame is a time
+    % consuming operation (reading the parameters mainly). So if you know
+    % that the parameters do not change with in a trial, you can pre-compute the
+    % sinusoid before the trial by setting preCalc to true. [Default is
+    % false]
+    %
     properties
+        colorPerFrame;
+        nrFramesPreCalc;
     end
     
     methods (Access = public)
@@ -33,28 +42,53 @@ classdef convPoly < neurostim.stimulus
             o.addProperty('frequency',0,'validate',@isnumeric); % Hz
             o.addProperty('phase',0,'validate',@isnumeric); % degrees
             o.addProperty('amplitude',0,'validate',@isnumeric); %o.color is the mean,
+            o.addProperty('preCalc',false);
         end
         
+        function beforeTrial(o)
+            if o.preCalc  
+                if o.frequency ==0
+                    o.nrFramesPreCalc =1;
+                else
+                    o.nrFramesPreCalc=  round(o.cic.screen.frameRate/o.frequency);
+                    if abs(o.nrFramesPreCalc -o.cic.screen.frameRate/o.frequency)>0.01
+                        writeToFeed(o,'ConvPoly: this flicker frequency does not fit...rounding artefacts?');
+                    end
+                end
+                 t = repmat((0:(o.nrFramesPreCalc-1))'/o.cic.screen.frameRate,[1 size(o.color,2)]);                
+                o.colorPerFrame =  repmat(o.color,[size(t,1) 1]) .* (1+o.amplitude.*sind(o.phase + 360*t*o.frequency));                
+            end
+        end
+        
+        
         function beforeFrame(o)
-            
             if isempty(o.vx) || isempty(o.vy) 
-                %Compute vertices
+                % Compute vertices
                 th = linspace(0,2*pi,o.nSides+1);
-                [o.vx,o.vy] = pol2cart(th,o.radius);
+                [vx,vy] = pol2cart(th,o.radius);
+            else
+                % Use supplied verticies
+                vx = o.vx;
+                vy = o.vy;
             end
             
             if o.amplitude>0
                 % Use sinusoidal flicker
-                thisColor  = o.color * (1+o.amplitude*sind(o.phase + 360*o.time*(o.frequency/1000)));
+                if o.preCalc
+                    ix = mod(o.frame-1,o.nrFramesPreCalc)+1;
+                    thisColor = o.colorPerFrame(ix,:);
+                else
+                    thisColor  = o.color * (1+o.amplitude*sind(o.phase + 360*o.time*(o.frequency/1000)));
+                end
             else
                 thisColor = o.color;
             end
             
             %Draw
             if o.filled
-                Screen('FillPoly',o.window, thisColor,[o.vx(:),o.vy(:)],1);
+                Screen('FillPoly',o.window, thisColor,[vx(:),vy(:)],1);
             else
-                Screen('FramePoly',o.window, thisColor,[o.vx(:),o.vy(:)],o.linewidth);
+                Screen('FramePoly',o.window, thisColor,[vx(:),vy(:)],o.linewidth);
             end
         end
     end

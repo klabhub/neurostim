@@ -13,19 +13,22 @@ classdef (Abstract) adaptive < neurostim.plugin
     % BK - 11/2016
     
     properties (SetAccess=protected, GetAccess=public)
-        uid@double= [];
+        uid = [];
     end
     
     methods (Abstract)
-        % update(s) should change the internal state of the adaptive object using the outcome of the current
-        % trial (result = TRUE/Correct or FALSE/Incorrect).
-        update(s,result);
+        % update(s) should change the internal state of the adaptive object
+        % using the value (o.lastValue) and outcome of the just-completed trial
+        % (i.e. o.lastOutcome = TRUE/Correct or FALSE/Incorrect).
+        update(s);
         % getAdaptValue returns the current parameter value from the adaptive algorithm.
         v= getAdaptValue(s);
     end
     
     properties (SetAccess=private)
         overruleValue = []; %used to manually set the adaptive parameter value (for the rest of current trial) to something other than that returned by the adaptive algorithm. Ensures update() is based on the actual tested value. 
+        lastOutcome = [];   %True/false, the outcome of the most recent trial
+        lastValue = [];     %The value of the adaptive parameter at the time the outcome was evaluated
     end
     
     methods
@@ -199,23 +202,24 @@ classdef (Abstract) adaptive < neurostim.plugin
         function afterTrial(o)
             % This is called after cic sends the AFTERTRIAL event
             % (in cic.run)  
-            % An emply o.design means that the adaptive parameter was
+            % An empty o.design means that the adaptive parameter was
             % assigned directly to a plugin property (probably a jitter)
             % and not part of a design. These get updated after every
             % trial, irrespective of the current condition/design. 
             % Adaptive parameters defined as part of a design only get
             % updated when "their" condition/design is the currently active
             % one.
-
             if isempty(o.design) || (strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions))% Check that this adaptive belongs to the current condition
                if o.cic.trial > o.ignoreN 
-                    % Call the derived class function to update it                
-                    correct = o.trialOutcome; % Evaluate the function that the user provided.
-                    if numel(correct)>1 
-                        error(['Your ''correct'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
+                    % Evaluate the function that the user provided (returning correct/incorrect) and store it.
+                    %We'll use it to update the adaptive value in beforeTrial()
+                    o.lastOutcome = o.trialOutcome;
+                    if numel(o.lastOutcome)>1 
+                        error(['Your ''trialOutcome'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
                     end
-                    update(o,correct); % Pass it to the derived class to update
-                    o.overruleValue = [];
+                    
+                    %Also store the value used
+                    o.lastValue = o.getValue;
                else
                    % Ignoring this trial                       
                end
@@ -223,6 +227,14 @@ classdef (Abstract) adaptive < neurostim.plugin
         end 
         
         function beforeTrial(o)
+
+            if ~isempty(o.lastOutcome)
+                % Allow the derived class to update (based on lastValue and lastOutcome)
+                update(o); 
+                o.lastOutcome = [];
+                o.lastValue = []; 
+            end
+            
             %Reset the overruled value.
             o.overruleValue = [];
         end

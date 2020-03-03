@@ -51,13 +51,13 @@ classdef block < dynamicprops
         afterMessage='';
         beforeFunction; % function handle which takes cic as first arg
         afterFunction;
-        beforeKeyPress@logical = true;
-        afterKeyPress@logical = true;
+        beforeKeyPress= true;
+        afterKeyPress= true;
         nrRetried = 0;
     end
     
     properties (GetAccess=public, SetAccess = protected)
-        designs@neurostim.design; % The collection of designs that will run in this block
+        designs;% @neurostim.design; % The collection of designs that will run in this block
         list=[];    % Order of the designs that will be run.
         name='';    % Name of the block
         designIx;      % Design we are currently running
@@ -69,7 +69,7 @@ classdef block < dynamicprops
         nrTrials;
         nrPlannedTrials;
         condition;  % Linear index, current condition
-        done@logical; % Any trials left in this block?
+        done; % Any trials left in this block?
         design;  % current design
     end
     

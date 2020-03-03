@@ -18,18 +18,22 @@ classdef eyetracker < neurostim.plugin
     
     
     properties (Access=public)
-        useMouse@logical=false;
-        keepExperimentSetup@logical=true;
-        eye@char='LEFT'; %LEFT,RIGHT, or BOTH
-        tmr@timer;
+        useMouse =false;
+        keepExperimentSetup =true;
+        eye='LEFT'; %LEFT,RIGHT, or BOTH
+        tmr; %@timer
+        
+        doTrackerSetupEachBlock = false %Return to tracker setup before the first trial of every block.
+        doTrackerSetup = true;  % Do it before the next trial. Initialised to true to do setup on first trial.
+        doDriftCorrect = false;  % Do it before the next trial
     end
     
     properties
-        x@double=NaN; % Should have default values, otherwise behavior checking can fail.
-        y@double=NaN;
-        z@double=NaN;
-        pupilSize@double;
-        valid@logical = true;  % valid=false signals a temporary absence of data (due to a blink for instance)
+        x=NaN; % Should have default values, otherwise bhavior checking can fail.
+        y=NaN;
+        z=NaN;
+        pupilSize;
+        valid= true;  % valid=false signals a temporary absence of data (due to a blink for instance)
     end
     
     methods
@@ -52,6 +56,13 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('clbMatrix',[],'sticky',true); % local calibration matrix (optional)
         end
         
+        function beforeBlock(o)
+            if o.doTrackerSetupEachBlock
+                %Return to tracker setup before the first trial of every block.
+                o.doTrackerSetup = true; %Will be done in next beforeTrial()
+            end
+        end
+        
         function afterFrame(o)
             if o.useMouse
                 [currentX,currentY,buttons] = o.cic.getMouse;
@@ -61,15 +72,15 @@ classdef eyetracker < neurostim.plugin
                 end
             end
         end
-
+        
         function keyboard(o,key)
             switch upper(key)
                 case 'W'
                     % Simulate a blink
-                    o.valid = false;                    
+                    o.valid = false;
                     if strcmpi(o.tmr.Running,'Off')
-                        start(o.tmr);                    
-                    end                   
+                        start(o.tmr);
+                    end
             end
         end
         

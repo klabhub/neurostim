@@ -29,8 +29,8 @@ classdef texture < neurostim.stimulus
         
   % dependent properties, calculated on the fly...
   properties (Dependent, SetAccess = private, GetAccess = public)
-    texIds@cell; % list of all texture ids
-    numTex@double; % the number of textures
+    texIds; % list of all texture ids
+    numTex; % the number of textures
   end
   
   methods % set/get dependent properties
@@ -67,7 +67,7 @@ classdef texture < neurostim.stimulus
       
       % check if ID already exists
       idx = o.getIdx(id);
-      if isempty(idx),
+      if isempty(idx)
         % new texture
         idx = length(o.tex)+1;
       end
@@ -81,7 +81,7 @@ classdef texture < neurostim.stimulus
 
     function beforeExperiment(o)
       % create the ptb textures
-      for ii = 1:o.numTex,
+      for ii = 1:o.numTex
         o.tex{ii}.ptr = Screen('MakeTexture',o.window,o.tex{ii}.img);
       end
     end
@@ -107,25 +107,25 @@ classdef texture < neurostim.stimulus
                length(o.xoffset),length(o.yoffset)]);
  
       width = o.width;
-      if length(width) ~= 1 && length(width) ~= n,
+      if length(width) ~= 1 && length(width) ~= n
         o.cic.error('STOPEXPERIMENT',sprintf('%s.width must be 1x1 or 1x%i',o.name,n));
       end
       width(1:n) = width;
       
       height = o.height;
-      if length(height) ~= 1 && length(height) ~= n,
+      if length(height) ~= 1 && length(height) ~= n
         o.cic.error('STOPEXPERIMENT',sprintf('%s.height must be 1x1 or 1x%i',o.name,n));
       end
       height(1:n) = height;
       
       xoffset = o.xoffset;
-      if length(xoffset) ~= 1 && length(xoffset) ~= n,
+      if length(xoffset) ~= 1 && length(xoffset) ~= n
         o.cic.error('STOPEXPERIMENT',sprintf('%s.xoffset must be 1x1 or 1x%i',o.name,n));
       end
       xoffset(1:n) = xoffset;
       
       yoffset = o.yoffset;
-      if length(yoffset) ~= 1 && length(yoffset) ~= n,
+      if length(yoffset) ~= 1 && length(yoffset) ~= n
         o.cic.qerror('STOPEXPERIMENT',sprintf('%s.yoffset must be 1x1 or 1x%i',o.name,n));
       end
       yoffset(1:n) = yoffset;
@@ -142,12 +142,12 @@ classdef texture < neurostim.stimulus
   methods (Access = protected)
     function idx = getIdx(o,id)
       % get index into tex of supplied id(s)
-      if isempty(o.tex),
+      if isempty(o.tex)
         idx = [];
         return;
       end
 
-      if ~iscell(id),
+      if ~iscell(id)
         id = arrayfun(@(x) x,id,'UniformOutput',false);
       end
       
@@ -168,8 +168,8 @@ classdef texture < neurostim.stimulus
       
       sz(1:2) = sz; % force 1x2 vector
 
-      x = [0:sz(2)-1]/sz(2);
-      y = [0:sz(1)-1]/sz(1);
+      x = (0:sz(2)-1)/sz(2);
+      y = (0:sz(1)-1)/sz(1);
       [x,y] = meshgrid(x-0.5,y-0.5);
           
       [~,r] = cart2pol(x,y);

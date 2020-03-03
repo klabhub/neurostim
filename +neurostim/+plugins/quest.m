@@ -10,7 +10,7 @@
     %
     % BK - Nov 2016
     properties (SetAccess=protected, GetAccess=public)
-        Q@struct; % The struct that containst the Quest bookkeeping info.
+        Q; % The struct that containst the Quest bookkeeping info.
         momentFun;
     end
     
@@ -73,17 +73,11 @@
             o.momentFun = funs{ismember({'QUANTILE','MEAN','MODE'},p.Results.pdfMoment)};
         end
         
-        function update(o,correct)
+        function update(o)
             % The abstract adaptive parent class requires that we implement this
-            % This is called after each trial. Update the internal value. The second arg is the success of the current trial, as determined
-            % in the parent class, using the trialResullt function
-            % specified by the user when constructing an object of this
-            % class.
-            parmValue = o.getValue; % This is the value that was used previously
-            intensity = o.p2i(parmValue); % Converti it to Quest intensity
-            if ~isempty(correct)
-                o.Q=QuestUpdate(o.Q,intensity,correct); % Add the new datum .
-            end
+            % This is called after each trial. Update the internal value.
+            intensity = o.p2i(o.lastValue); % Converti it to Quest intensity            
+            o.Q=QuestUpdate(o.Q,intensity,o.lastOutcome); % Add the new datum .
         end
         
         function v =getAdaptValue(o)

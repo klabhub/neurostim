@@ -20,11 +20,11 @@ classdef nDown1UpStaircase < neurostim.plugins.adaptive
     end
     
     properties (Access = public)
-        n@double;
-        min@double;
-        max@double;
-        delta@double;
-        weights@double; % 1x2, [up, down]
+        n;
+        min;
+        max;
+        delta;
+        weights; % 1x2, [up, down]
     end
     
     methods
@@ -66,12 +66,11 @@ classdef nDown1UpStaircase < neurostim.plugins.adaptive
             o.value = startValue;
         end
         
-        function update(o,correct)
+        function update(o)
             % calculate and return the updated property value
-            
-            % current value
-            v = o.getValue; 
-            if correct
+            v = o.lastValue;
+
+            if o.lastOutcome
                 % increment correct count
                 o.cnt = o.cnt + 1;                
                 if o.cnt >= o.n
