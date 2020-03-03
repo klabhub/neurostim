@@ -36,6 +36,10 @@ classdef eyetracker < neurostim.plugin
         valid= true;  % valid=false signals a temporary absence of data (due to a blink for instance)
     end
     
+    properties (SetAccess={?neurostim.plugin}, GetAccess={?neurostim.plugin}, Hidden)
+        loc_clbMatrix;
+    end
+    
     methods
         function o = eyetracker(c)
             o = o@neurostim.plugin(c,'eye'); % Always eye such that it can be accessed through cic.eye
@@ -108,7 +112,7 @@ classdef eyetracker < neurostim.plugin
         
         function [nx,ny] = raw2ns(o,x,y,cm)
           if nargin < 4
-            cm = o.clbMatrix;
+            cm = o.loc_clbMatrix;
           end
           
           if ~isempty(cm)
@@ -124,7 +128,7 @@ classdef eyetracker < neurostim.plugin
         
         function [x,y] = ns2raw(o,nx,ny,cm)
           if nargin < 4
-            cm = o.clbMatrix;
+            cm = o.loc_clbMatrix;
           end
           
           [x,y] = o.cic.physical2Pixel(nx,ny);
