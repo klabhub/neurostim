@@ -77,6 +77,10 @@ classdef eyelink < neurostim.plugins.eyetracker
  
     end
         
+    properties (SetAccess= {?neurostim.plugin}, GetAccess={?neurostim.plugin}, Hidden)
+        loc_useRawData;
+    end
+    
     properties (Dependent)
         isRecording;
         isConnected; %double
@@ -84,7 +88,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     
     methods
         function v = get.isRecording(~)
-            v =Eyelink('CheckRecording');%returns 0 if connected.
+            v = Eyelink('CheckRecording');%returns 0 if connected.
             v = v==0;
         end
         
@@ -347,7 +351,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % convert to physical coordinates
                     eyeNr = str2eye(o,o.eye);
 
-                    if o.useRawData
+                    if o.loc_useRawData
                       % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
                       [o.x,o.y] = o.raw2ns(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
                     else
