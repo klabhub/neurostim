@@ -2274,11 +2274,11 @@ classdef cic < neurostim.plugin
                 items = fieldnames(c.profile.(plgns{i}));
                 items(strcmpi(items,'cntr'))=[];
                 nPlots = numel(items);
-                nPerCol = floor(sqrt(nPlots));
-                nPerRow = ceil(nPlots/nPerCol);
+                nPerRow = floor(sqrt(nPlots));
+                nPerCol = ceil(nPlots/nPerRow);
                 
                 for j=1:nPlots
-                    subplot(nPerRow,nPerCol,j);
+                    subplot(nPerCol,nPerRow,j);
                     vals{i,j} = c.profile.(plgns{i}).(items{j}); %#ok<AGROW>
                     out =isinf(vals{i,j}) | isnan(vals{i,j});
                     thisVals= min(vals{i,j}(~out),MAXDURATION);
