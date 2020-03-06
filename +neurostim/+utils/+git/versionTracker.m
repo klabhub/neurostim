@@ -77,7 +77,10 @@ version.branch = git('rev-parse --abbrev-ref HEAD');
 if p.Results.commit && hasChanges
     % Commit all changes to the current branch
     fprintf('%d files have changed in %s - branch %s.\n',numel(changes),version.remote,version.branch);
-    changes{:} %#ok<NOPRT>  Show on command line
+    changes =[changes{:}];
+    for i=1:numel(changes)
+        fprintf('Local changes in %s \n',changes{i});
+    end
     if p.Results.silent
         msg = ['Silent commit  before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
     else
