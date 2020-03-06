@@ -14,7 +14,7 @@ commandwindow;
 neurostim.utils.git.checkout('master',fileparts(which('neurostim.cic'))); 
 % You need to call this at the top of the experiment file before any of the 
 % functions in the toolbox have been called. The Matlab JIT compiler then
-% (presumably?) uses the uptodate versions below. 
+% uses the uptodate versions in the code below. 
 
 % You can also use this for your own experiments repository by passing its
 % folder as the second argument.  But if git checkouts change the current file

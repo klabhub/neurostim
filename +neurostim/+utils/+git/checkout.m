@@ -67,5 +67,5 @@ if hasChanges && ~branchSwitched
     end
 end
 cd (here);
-rehash;
+rehash; % Make sure that any changes are included in the JIT
 end

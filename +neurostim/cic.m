@@ -374,7 +374,7 @@ classdef cic < neurostim.plugin
         % Constructor.
         
         function c= cic(varargin)
-            disp('Bla')
+            
             p=inputParser;
             p.addParameter('trialDuration',1000);
             p.addParameter('iti',1000);
