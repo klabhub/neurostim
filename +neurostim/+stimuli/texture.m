@@ -5,7 +5,7 @@ classdef texture < neurostim.stimulus
   %   id      - id(s) of the texture(s) to show on
   %             the next frame
   %   width   - width on screen (screen units)
-  %   hight   - height on screen (screen units)
+  %   height  - height on screen (screen units)
   %   xoffset - offset applied to X coordinate (default: 0)
   %   yoffset - offset applied to Y coordinate (default: 0)
   %

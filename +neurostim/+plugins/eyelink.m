@@ -74,10 +74,12 @@ classdef eyelink < neurostim.plugins.eyetracker
         boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]
         targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
         
-        doTrackerSetup = true;  % Do it before the next trial
-        doDriftCorrect = false;  % Do it before the next trial
+
+ 
+    end
         
-        
+    properties (SetAccess= {?neurostim.plugin}, GetAccess={?neurostim.plugin}, Hidden)
+        loc_useRawData;
     end
     
     properties (Dependent)
@@ -87,7 +89,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     
     methods
         function v = get.isRecording(~)
-            v =Eyelink('CheckRecording');%returns 0 if connected.
+            v = Eyelink('CheckRecording');%returns 0 if connected.
             v = v==0;
         end
         
@@ -110,6 +112,9 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
             o.addProperty('clbType','HV9');
             o.addProperty('host','');
+            
+            o.addProperty('useRawData',false);
+
             o.addProperty('F9PassThrough',true); % simulate F9 press on Eyelink host to do quick drift correct
             o.addProperty('transferFile',true); % afterExperiment - transfer file from the Host to here. (Only set to false in debugging to speed things  up)
             o.addProperty('fake',false);            
@@ -155,7 +160,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             
             %Tell Eyelink about the pixel coordinates
-            Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',o.cic.screen.xorigin,o.cic.screen.yorigin,o.cic.screen.xorigin+o.cic.screen.xpixels,o.cic.screen.yorigin + o.cic.screen.ypixels);
+            Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',o.cic.screen.xorigin,o.cic.screen.yorigin,o.cic.screen.xorigin + o.cic.screen.xpixels,o.cic.screen.yorigin + o.cic.screen.ypixels);
             Eyelink('Command', 'calibration_type = %s',o.clbType);
             Eyelink('command', 'sample_rate = %d',o.sampleRate);
             
@@ -178,6 +183,11 @@ classdef eyelink < neurostim.plugins.eyetracker
                     Eyelink('Command','binocular_enabled=YES');
                     Eyelink('Command','active_eye=LEFT,RIGHT');
                     Eyelink('Message','%s', 'EYE_USED 2');
+            end
+                
+            if o.useRawData
+              % add raw pupil (x,y) to the link data stream
+              o.command('link_sample_data = PUPIL,AREA');
             end
             
             %Pass all commands to Eyelink
@@ -344,7 +354,15 @@ classdef eyelink < neurostim.plugins.eyetracker
                 else
                     % convert to physical coordinates
                     eyeNr = str2eye(o,o.eye);
-                    [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
+
+                    if o.loc_useRawData
+                      % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
+                      [o.x,o.y] = o.raw2ns(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                    else
+                      % get gaze position (in display pixels)
+                      [o.x,o.y] = o.raw2ns(sample.gx(eyeNr+1),sample.gy(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                    end
+                                        
                     o.pupilSize = sample.pa(eyeNr+1);
                     o.valid  = any(sample.gx(eyeNr+1)~=o.el.MISSING_DATA); % Blink or other missing data.
                 end
@@ -406,7 +424,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                     if o.F9PassThrough
                         % If the tracker has been setup to use F9 as the
                         % online drift correct button (i.e. key_function F9
-                        % “online_dcorr_trigger” is in the final.ini), then
+                        % Â“online_dcorr_triggerÂ” is in the final.ini), then
                         % just sending an F9 does an immediate drift
                         % correct without interfering with the operation on
                         % the stimulus end (i.e. here)
