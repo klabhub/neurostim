@@ -67,4 +67,5 @@ if hasChanges && ~branchSwitched
     end
 end
 cd (here);
+rehash;
 end
