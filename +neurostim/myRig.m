@@ -2,7 +2,9 @@ function c = myRig(varargin)
 % This is a template for a convenience function that sets up a CIC object 
 % with appropriate settings for the current rig/computer. Rather than
 % changing this file (inside the neurostim toolbox), make a copy and put
-% that in your own experiments repository. 
+% that in your own experiments repository or somewhere else ahead of the 
+% neurostim.myRig function on your search path.
+% 
 % 
 % Note that nsGui calls this function with 'cic' set to the cic object as
 % defined by the settings in the GUI and with 'debug' set as selected in the
@@ -49,10 +51,10 @@ c.hardware.keyEcho        = true;
 c.timing.vsyncMode        = 0; % 0 waits for the flip and makes timing most accurate.
 c.screen.colorMode        = 'RGB';        
 c.screen.type             = 'GENERIC';                    
-
+c.cursor                  = 'arrow';  % Probably easiest for user to keep seeing the mouse in a demo.
 %% Lab default settings that vary with debug flag
 if pin.Results.debug
-    c.cursor = 'arrow';
+    
 else
     % Actual Experiment
     Screen('Preference', 'SkipSyncTests', 0); % Make sure PTB runs its tests.    
@@ -74,7 +76,7 @@ switch upper(computerName)
         c.screen.height     = c.screen.width*c.screen.ypixels/c.screen.xpixels;
 
     otherwise
-        warning('This computer (%s) is not recognised. Using default settings.\nHint: edit %s to prevent this warning.',computerName,strrep(fullfile(here,myRigFile),'\','/'));
+        warning('This computer (%s) is not recognised. Using default settings.\nHint: Make your own myRig function to prevent this warning. Starting from %s.',computerName,strrep(fullfile(here,myRigFile),'\','/'));
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);

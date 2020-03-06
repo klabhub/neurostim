@@ -76,7 +76,16 @@ classdef cic < neurostim.plugin
             'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
             'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
             'activeKb',{[]});  % Indices of keyboard that have keys associated with them. Set and used internally)
-        
+       
+        %% Git version tracking
+        % Set on=true to use version tracking. When false, no tracking is
+        % used.
+        % Set commit=true to always commit local changes (when false, local
+        % commits are ignored).
+        % Set silent = true to generate an automatic commit message (when
+        % false, the user is asked to provide one).
+        % See neurostim.utils.git.versionTracker        
+        gitTracker = struct('on',false,'silent',false,'commit',true);
     end
     
     %% Protected properties.
@@ -485,81 +494,7 @@ classdef cic < neurostim.plugin
                 c.(label) = value;
             end
         end
-        function versionTracker(c,silent,repo,commitLocalMods)
-            % Git Tracking Interface
-            % When called, this function checks which version (i.e. git hash id)
-            % of the Neurostim toolbox is currently in use.
-            % If there are local changes, the function can force a commit (and
-            % therefore a new hash id).
-            %
-            % The hash id and the Psychtoobox Version are stored in the CIC
-            % object such that the complete code state can be reproduced later.
-            %
-            % INPUT
-            % c  = CIC object
-            % silent = toggle to indicate whether commits of local changes
-            % are done silently, or require a commit message. [false]
-            % repo = The folder of the repository whose version should be
-            % tracked [if empty it defaults to the folder that contains neurostim.cic].
-            % commitLocalMods = Set to false to store current hash without commiting local modifications.
-            %
-            % You can also use this to track another repository (for
-            % instance, one that contains your experiments; just provide
-            % the repo folder as the 3rd input, its version will be added
-            % to the repoVersion cic property).
-            %
-            % BK  - Apr 2016
-            if nargin <4
-                commitLocalMods = true;
-                if nargin<3 
-                    repo ='';
-                    if nargin <2
-                        silent = false;
-                    end
-                end
-            end                        
-            if isempty(which('git'))
-                error('The gitTracker class depends on a wrapper for git that you can get from github.com/manur/MATLAB-git');
-            end
-            
-            if isempty(repo)
-               repo = fileparts(mfilename('fullpath')); % By default, log the neurostim repo
-            end
-            
-            here = pwd;
-            cd(repo);
-            version.remote = git('remote get-url origin');
-            version.branch = git('rev-parse --abbrev-ref HEAD');
-            [txt] = git('status --porcelain');
-            changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','tokens');
-            nrMods= numel(changes);
-            if commitLocalMods && nrMods>0
-                % Commit all changes to the current branch
-                writeToFeed(c,sprintf('%d files have changed in %s - branch %s.',nrMods,version.remote,version.branch));
-                changes{:}
-                if silent
-                    msg = ['Silent commit  before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
-                else
-                    msg = input('Code has changed. Please provide a commit message: ','s');
-                end
-                git('add :/'); % Add all changes.
-                [txt,status]=  git(['commit -m "' msg '"']);
-                if status >0
-                    disp(txt);
-                    error('git file commit failed.');
-                else
-                end                
-                writeToFeed(c,'Committed changes to git.');
-            end
-            
-            %% Read the commit id
-            txt = git('show -s');
-            hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
-            version.hash = hash.id;
-            version.changes = changes;
-            c.repoVersion = version;         % Store it.
-            cd(here);
-        end
+                              
         function addScript(c,when, fun,keys)
             % It may sometimes be more convenient to specify a function m-file
             % as the basic control script (rather than write a plugin that does
@@ -941,6 +876,9 @@ classdef cic < neurostim.plugin
             AssertOpenGL;
             sca; % Close any open PTB windows.
             
+            % Git version tracking            
+            c.repoVersion = neurostim.utils.git.versionTracker(c.gitTracker);
+                               
             % Setup the messenger
             c.messenger.localCache = c.useFeedCache;
             c.messenger.useColor = c.useConsoleColor;
@@ -1065,7 +1003,7 @@ classdef cic < neurostim.plugin
                             %ITI didn't fix the problem. This did.
                             postITIflip = GetSecs;
                             while GetSecs-postITIflip < 0.6*FRAMEDURATION
-                                dummyAssignment=1;
+                                dummyAssignment=1; %#ok<NASGU>
                             end
                         end
                     else
@@ -1398,7 +1336,7 @@ classdef cic < neurostim.plugin
                 c.lastFrameDrop=c.lastFrameDrop+nrFramedrops;
             end
         end
-                            
+
         
         function addFunProp(c,plugin,prop)
             %Function properties are constructed at run-time
@@ -2110,6 +2048,7 @@ classdef cic < neurostim.plugin
             end
             
             %OK, allocate them
+            rng = cell(1,nStreams);
             for i=1:nStreams
                 if ~makeItAGPUrng(i)
                     %Return a CPU rng
@@ -2214,11 +2153,11 @@ classdef cic < neurostim.plugin
                 items = fieldnames(c.profile.(plgns{i}));
                 items(strcmpi(items,'cntr'))=[];
                 nPlots = numel(items);
-                nPerCol = floor(sqrt(nPlots));
-                nPerRow = ceil(nPlots/nPerCol);
+                nPerRow = floor(sqrt(nPlots));
+                nPerCol = ceil(nPlots/nPerRow);
                 
                 for j=1:nPlots
-                    subplot(nPerRow,nPerCol,j);
+                    subplot(nPerCol,nPerRow,j);
                     vals{i,j} = c.profile.(plgns{i}).(items{j}); %#ok<AGROW>
                     out =isinf(vals{i,j}) | isnan(vals{i,j});
                     thisVals= min(vals{i,j}(~out),MAXDURATION);
@@ -2292,24 +2231,30 @@ classdef cic < neurostim.plugin
             ylabel '#drops'
             
             if c.nrBehaviors>0
-                
+                %% Compare frame drops to state transitions  
+                % Currenlty only loking at the first transition iunto a
+                % state...
                 figure('Name',[c.file ' - framedrop report for behavior state changes'])
                 B = c.behaviors;
                 nrB = numel(B);
                 colors = 'rgbcmyk';
                 for i=1:nrB
                     subplot(nrB,1,i)
-                    [state,stateTrial,stateStartT] = get(B(i).prms.state,'atTrialTime',[],'withDataOnly',true);
+                    % Get first state transition in trials with drops, 
+                    [state,stateTrial,stateStartT] = get(B(i).prms.state,'atTrialTime',[],'withDataOnly',true,'trial',unique(tr),'first',1);
                     uStates = unique(state);
-                    relativeTime  = ti(stateTrial)-stateStartT;
                     for s=1:numel(uStates)
                         thisState = ismember(state,uStates{s});
-                        plot(relativeTime(thisState),stateTrial(thisState),['.' colors(s)]);
+                        thisTrials = stateTrial(thisState);
+                        trialsWithStateAndDrops = tr(ismember(tr,thisTrials));
+                        dropTime = ti(ismember(tr,trialsWithStateAndDrops));
+                        relativeTime = dropTime-stateStartT(trialsWithStateAndDrops);                                       
+                        plot(relativeTime,trialsWithStateAndDrops,['o' colors(s)]);
                         hold on
                     end
                     xlabel('Time from State start (ms)')
                     ylabel 'Trial'
-                    title ([B(i).name '- State Transitions INTO'])
+                    title ([B(i).name '- First State Transitions INTO'])
                     set(gca,'YLim',[0 max(stateTrial)+1],'YTick',1:max(stateTrial),'XLIm',[-slack*meanDuration (1+slack)*meanDuration])
                     legend (uStates)
                 end

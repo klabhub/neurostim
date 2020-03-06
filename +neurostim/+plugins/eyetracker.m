@@ -36,8 +36,12 @@ classdef eyetracker < neurostim.plugin
         valid= true;  % valid=false signals a temporary absence of data (due to a blink for instance)
     end
     
+    properties (SetAccess={?neurostim.plugin}, GetAccess={?neurostim.plugin}, Hidden)
+        loc_clbMatrix;
+    end
+    
     methods
-        function o= eyetracker(c)
+        function o = eyetracker(c)
             o = o@neurostim.plugin(c,'eye'); % Always eye such that it can be accessed through cic.eye
             
             o.addProperty('eyeClockTime',[]);
@@ -52,6 +56,8 @@ classdef eyetracker < neurostim.plugin
             
             o.addKey('w','Toggle Blink');
             o.tmr = timer('name','eyetracker.blink','startDelay',200/1000,'ExecutionMode','singleShot','TimerFcn',{@o.openEye});
+
+            o.addProperty('clbMatrix',[],'sticky',true); % local calibration matrix (optional)
         end
         
         function beforeBlock(o)
@@ -70,7 +76,7 @@ classdef eyetracker < neurostim.plugin
                 end
             end
         end
-                
+        
         function keyboard(o,key)
             switch upper(key)
                 case 'W'
@@ -86,6 +92,56 @@ classdef eyetracker < neurostim.plugin
             o.valid = true;
             writeToFeed(o,'Blink Ends')
         end
+        
+        % Helper functions to transform eye sample data to/from neurostim's
+        % physical coords.
+        %
+        % Any eye tracker can achieve the rescaling to screen pixels that
+        % they require (e.g., from camera pixels in the case of the Eyelink
+        % raw/pupil data, or from normalized coords in the case of the
+        % Arrington eye tracker) by defining the appropriate o.clbMatrix.
+        %
+        % Other transformations (offset/translation, scaling or even
+        % rotation) are also possible if required/desired, for example to
+        % implement local calibration or automatic on-the-fly adjustment
+        % of eye calibration.
+        %
+        % These functions can also be used when loading eye data for
+        % analysis, ensuring that the transformations applied on- and
+        % off-line are identical.
+        
+        function [nx,ny] = raw2ns(o,x,y,cm)
+          if nargin < 4
+            cm = o.loc_clbMatrix;
+          end
+          
+          if ~isempty(cm)
+            % apply local calibration/transformation matrix
+            xy = [x,y,ones(size(x))]*cm;
+          
+            x = xy(:,1);
+            y = xy(:,2);
+          end
+          
+          [nx,ny] = o.cic.pixel2Physical(x,y);
+        end
+        
+        function [x,y] = ns2raw(o,nx,ny,cm)
+          if nargin < 4
+            cm = o.loc_clbMatrix;
+          end
+          
+          [x,y] = o.cic.physical2Pixel(nx,ny);
+          
+          if ~isempty(cm)
+            % invert local calibration/transformation matrix
+            xy = [x,y,ones(size(x))]/cm;
+          
+            x = xy(:,1);
+            y = xy(:,2);
+          end
+        end
+        
     end
     
 end
