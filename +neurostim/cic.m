@@ -76,7 +76,18 @@ classdef cic < neurostim.plugin
             'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
             'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
             'activeKb',{[]});  % Indices of keyboard that have keys associated with them. Set and used internally)
-        
+       
+        %% Git version tracking
+        % Set on=true to use version tracking. When false, no tracking is
+        % used.
+        % Set commit=true to always commit local changes (when false, local
+        % commits are ignored).
+        % Set silent = true to generate an automatic commit message (when
+        % false, the user is asked to provide one).
+        % See neurostim.utils.git.versionTracker
+        % branch is an optional user-defined parameter to force a specific branch of the
+        % repository. Empty means 'keep the current branch'
+        gitTracker = struct('on',false,'silent',false,'commit',true,'branch','');
     end
     
     %% Protected properties.
@@ -485,81 +496,7 @@ classdef cic < neurostim.plugin
                 c.(label) = value;
             end
         end
-        function versionTracker(c,silent,repo,commitLocalMods)
-            % Git Tracking Interface
-            % When called, this function checks which version (i.e. git hash id)
-            % of the Neurostim toolbox is currently in use.
-            % If there are local changes, the function can force a commit (and
-            % therefore a new hash id).
-            %
-            % The hash id and the Psychtoobox Version are stored in the CIC
-            % object such that the complete code state can be reproduced later.
-            %
-            % INPUT
-            % c  = CIC object
-            % silent = toggle to indicate whether commits of local changes
-            % are done silently, or require a commit message. [false]
-            % repo = The folder of the repository whose version should be
-            % tracked [if empty it defaults to the folder that contains neurostim.cic].
-            % commitLocalMods = Set to false to store current hash without commiting local modifications.
-            %
-            % You can also use this to track another repository (for
-            % instance, one that contains your experiments; just provide
-            % the repo folder as the 3rd input, its version will be added
-            % to the repoVersion cic property).
-            %
-            % BK  - Apr 2016
-            if nargin <4
-                commitLocalMods = true;
-                if nargin<3 
-                    repo ='';
-                    if nargin <2
-                        silent = false;
-                    end
-                end
-            end                        
-            if isempty(which('git'))
-                error('The gitTracker class depends on a wrapper for git that you can get from github.com/manur/MATLAB-git');
-            end
-            
-            if isempty(repo)
-               repo = fileparts(mfilename('fullpath')); % By default, log the neurostim repo
-            end
-            
-            here = pwd;
-            cd(repo);
-            version.remote = git('remote get-url origin');
-            version.branch = git('rev-parse --abbrev-ref HEAD');
-            [txt] = git('status --porcelain');
-            changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','tokens');
-            nrMods= numel(changes);
-            if commitLocalMods && nrMods>0
-                % Commit all changes to the current branch
-                writeToFeed(c,sprintf('%d files have changed in %s - branch %s.',nrMods,version.remote,version.branch));
-                changes{:} %#ok<NOPRT>
-                if silent
-                    msg = ['Silent commit  before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
-                else
-                    msg = input('Code has changed. Please provide a commit message: ','s');
-                end
-                git('add :/'); % Add all changes.
-                [txt,status]=  git(['commit -m "' msg '"']);
-                if status >0
-                    disp(txt);
-                    error('git file commit failed.');
-                else
-                end                
-                writeToFeed(c,'Committed changes to git.');
-            end
-            
-            %% Read the commit id
-            txt = git('show -s');
-            hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
-            version.hash = hash.id;
-            version.changes = changes;
-            c.repoVersion = version;         % Store it.
-            cd(here);
-        end
+                              
         function addScript(c,when, fun,keys)
             % It may sometimes be more convenient to specify a function m-file
             % as the basic control script (rather than write a plugin that does
@@ -941,6 +878,9 @@ classdef cic < neurostim.plugin
             AssertOpenGL;
             sca; % Close any open PTB windows.
             
+            % Git version tracking            
+            neurostim.utils.git.versionTracker(c.gitTracker);
+                               
             % Setup the messenger
             c.messenger.localCache = c.useFeedCache;
             c.messenger.useColor = c.useConsoleColor;
