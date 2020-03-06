@@ -6,12 +6,28 @@ function gitTrackerDemo
 import neurostim.*
 commandwindow;
 
+
+%% Git Tracker advanced
+% If you want to make sure that this experiment always uses the most
+% up-to-date version (and a specific branch, here 'master') of the
+% neurostim toolbox,use this:
+neurostim.utils.git.checkout('master',fileparts(which('neurostim.cic'))); 
+% You need to call this at the top of the experiment file before any of the 
+% functions in the toolbox have been called. The Matlab JIT compiler then
+% (presumably?) uses the uptodate versions below. 
+disp('its a six')
+% You can also use this for your own experiments repository by passing its
+% folder as the second argument.  But I am not sure what happens if that
+% update changes the experiment file itself...
+
 %% ========= Specify rig configuration  =========
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
 c = myRig;
 
-%% Git Version tracker options
+%% Git Version tracker standard
+% These CIC options make sure the code used to run an experiment can be
+% re-created at a later time.
 c.gitTracker.on = true; % We will track the Neurostim version used in each experiment.
 c.gitTracker.commit = true; % If there are local changes to the Neurostim toolbox, they will be committed before the experiment starts.
 c.gitTracker.silent = false; % The user will be asked to provide a commit message.
