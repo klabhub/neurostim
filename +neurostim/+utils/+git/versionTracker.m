@@ -96,7 +96,7 @@ if p.Results.commit && hasChanges
     else
         msg = input('Code has changed. Please provide a commit message: ','s');
     end
-    git('add :/'); % Add all changes.
+    cmdout = git('add :/'); %#ok<NASGU> % Add all changes.
     [txt,status]=  git(['commit -m "' msg '"']);
     if status >0
         disp(txt);

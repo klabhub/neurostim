@@ -46,15 +46,15 @@ else
     branchSwitched = false;
 end
 
-git('fetch --all');
+cmdout = git('fetch --all'); %#ok<NASGU>
 [hasChanges,changes] = neurostim.utils.git.hasChanges(repoFolder);
 if hasChanges
     stash = ['Auto stash : ' datestr(now,'ddmmmyy@HHMMSS')];
-    git(['stash save ' stash ]);
+    cmdout = git(['stash save ' stash ]); %#ok<NASGU>
 end
 
-git(['checkout ' branch])
-git(['pull origin ' branch] );
+cmdout = git(['checkout ' branch]);%#ok<NASGU>
+cmdout = git(['pull origin ' branch]);%#ok<NASGU>
 if hasChanges && ~branchSwitched
     answer = questdlg(['Reapply ' num2str(numel(changes)) ' local changes to the ' repoFolder '?']);
     if strcmpi(answer,'Yes')
