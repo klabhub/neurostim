@@ -49,7 +49,6 @@ p = inputParser;
 p.addParameter('commit',true,@islogical);
 p.addParameter('silent',false,@islogical);
 p.addParameter('folder','',@ischar);
-p.addParameter('branch','',@ischar);
 p.addParameter('on',false,@islogical);
 p.StructExpand = true;
 p.parse(varargin{:});
