@@ -2362,24 +2362,30 @@ classdef cic < neurostim.plugin
             ylabel '#drops'
             
             if c.nrBehaviors>0
-                
+                %% Compare frame drops to state transitions  
+                % Currenlty only loking at the first transition iunto a
+                % state...
                 figure('Name',[c.file ' - framedrop report for behavior state changes'])
                 B = c.behaviors;
                 nrB = numel(B);
                 colors = 'rgbcmyk';
                 for i=1:nrB
                     subplot(nrB,1,i)
-                    [state,stateTrial,stateStartT] = get(B(i).prms.state,'atTrialTime',[],'withDataOnly',true);
+                    % Get first state transition in trials with drops, 
+                    [state,stateTrial,stateStartT] = get(B(i).prms.state,'atTrialTime',[],'withDataOnly',true,'trial',unique(tr),'first',1);
                     uStates = unique(state);
-                    relativeTime  = ti(stateTrial)-stateStartT;
                     for s=1:numel(uStates)
                         thisState = ismember(state,uStates{s});
-                        plot(relativeTime(thisState),stateTrial(thisState),['.' colors(s)]);
+                        thisTrials = stateTrial(thisState);
+                        trialsWithStateAndDrops = tr(ismember(tr,thisTrials));
+                        dropTime = ti(ismember(tr,trialsWithStateAndDrops));
+                        relativeTime = dropTime-stateStartT(trialsWithStateAndDrops);                                       
+                        plot(relativeTime,trialsWithStateAndDrops,['o' colors(s)]);
                         hold on
                     end
                     xlabel('Time from State start (ms)')
                     ylabel 'Trial'
-                    title ([B(i).name '- State Transitions INTO'])
+                    title ([B(i).name '- First State Transitions INTO'])
                     set(gca,'YLim',[0 max(stateTrial)+1],'YTick',1:max(stateTrial),'XLIm',[-slack*meanDuration (1+slack)*meanDuration])
                     legend (uStates)
                 end

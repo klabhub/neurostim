@@ -349,7 +349,8 @@ classdef parameter < handle & matlab.mixin.Copyable
             % 'dataIsMember' - return only those events where the data
             % matches this cell/vector of elements.
             % 'struct' - set to true to return all outputs as a data structure
-            %
+            % 'first' - return the first N (applied after all other
+            % selections)
                         
             maxTrial = o.plg.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1
             
@@ -362,6 +363,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             p.addParameter('dataIsNotNan',false,@islogical);%Only when data is not nan.
             p.addParameter('matrixIfPossible',true); % Convert to a [NRTRIALS N] matrix if possible
             p.addParameter('struct',false,@islogical); % Pack the output arguments into a structure.
+            p.addParameter('first',inf); % Return the first N (defaults to all =inf)
             
             p.parse(varargin{:});
             
@@ -520,6 +522,14 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             
             
+            if ~isinf(p.Results.first)
+                % Take first N in each trial
+                out =false(size(data));
+                for tr = unique(trial)'
+                    stay = trial==tr;
+                   out = out | cumsum(stay)>p.Results.first;
+                end
+            end
             
             
             
