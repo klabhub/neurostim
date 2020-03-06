@@ -62,12 +62,13 @@ if isempty(which('git'))
     error('The neurostim.utils.git functions  depend on a wrapper for git that you can get from github.com/manur/MATLAB-git');
 end
 
+
 if isempty(p.Results.folder)
     folder = fileparts(which('neurostim.cic'));
 else
     folder = p.Results.folder;
 end
-
+fprintf('Updating/checking the %s git repository. Please wait.\n',folder);
 here = pwd;
 cd(folder);
 version.remote = git('remote get-url origin');
@@ -97,4 +98,5 @@ hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
 version.hash = hash.id;
 version.changes = changes;
 cd(here);
+fprintf('Git version tracking complete and stored.');
 end

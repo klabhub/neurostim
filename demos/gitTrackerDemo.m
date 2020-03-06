@@ -25,6 +25,7 @@ c.addPropsToInform('choice.correct','f1.stateName'); % Show this value on the co
 if isempty(c.pluginsByClass('eyetracker'))
     e = neurostim.plugins.eyetracker(c);      %Eye tracker plugin not yet added, so use the virtual one. Mouse is used to control gaze position (click)
     e.useMouse = true;
+    c.cursor ='arrow';
 end
 
 %% ============== Add stimuli ==================

@@ -877,7 +877,7 @@ classdef cic < neurostim.plugin
             sca; % Close any open PTB windows.
             
             % Git version tracking            
-            neurostim.utils.git.versionTracker(c.gitTracker);
+            c.repoVersion = neurostim.utils.git.versionTracker(c.gitTracker);
                                
             % Setup the messenger
             c.messenger.localCache = c.useFeedCache;
