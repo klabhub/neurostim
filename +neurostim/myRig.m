@@ -51,10 +51,10 @@ c.hardware.keyEcho        = true;
 c.timing.vsyncMode        = 0; % 0 waits for the flip and makes timing most accurate.
 c.screen.colorMode        = 'RGB';        
 c.screen.type             = 'GENERIC';                    
-
+c.cursor                  = 'arrow';  % Probably easiest for user to keep seeing the mouse in a demo.
 %% Lab default settings that vary with debug flag
 if pin.Results.debug
-    c.cursor = 'arrow';
+    
 else
     % Actual Experiment
     Screen('Preference', 'SkipSyncTests', 0); % Make sure PTB runs its tests.    
