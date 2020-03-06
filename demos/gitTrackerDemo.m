@@ -15,10 +15,12 @@ neurostim.utils.git.checkout('master',fileparts(which('neurostim.cic')));
 % You need to call this at the top of the experiment file before any of the 
 % functions in the toolbox have been called. The Matlab JIT compiler then
 % (presumably?) uses the uptodate versions below. 
-disp('its a six')
+
 % You can also use this for your own experiments repository by passing its
-% folder as the second argument.  But I am not sure what happens if that
-% update changes the experiment file itself...
+% folder as the second argument.  But if git checkouts change the current file
+% they will not be used... So ideally , you'd call git.checkout before
+% actually starting the experiment. The nsGui does something like that to
+% keep versions up to date and synced with the HEAD in the remote git repo.
 
 %% ========= Specify rig configuration  =========
 
