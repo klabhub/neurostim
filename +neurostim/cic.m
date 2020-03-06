@@ -536,7 +536,7 @@ classdef cic < neurostim.plugin
             if commitLocalMods && nrMods>0
                 % Commit all changes to the current branch
                 writeToFeed(c,sprintf('%d files have changed in %s - branch %s.',nrMods,version.remote,version.branch));
-                changes{:}
+                changes{:} %#ok<NOPRT>
                 if silent
                     msg = ['Silent commit  before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
                 else
@@ -1065,7 +1065,7 @@ classdef cic < neurostim.plugin
                             %ITI didn't fix the problem. This did.
                             postITIflip = GetSecs;
                             while GetSecs-postITIflip < 0.6*FRAMEDURATION
-                                dummyAssignment=1;
+                                dummyAssignment=1; %#ok<NASGU>
                             end
                         end
                     else
@@ -2110,6 +2110,7 @@ classdef cic < neurostim.plugin
             end
             
             %OK, allocate them
+            rng = cell(1,nStreams);
             for i=1:nStreams
                 if ~makeItAGPUrng(i)
                     %Return a CPU rng
