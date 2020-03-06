@@ -6,28 +6,19 @@ function version =versionTracker(varargin)
 % entire repository) in the experiment output data. 
 % 
 % In addition, it can be desirable to make sure that experiments always run
-% the most up-to-date version in a specific branch of the code repository. 
+% the most up-to-date version of the code repository. 
 % 
 % This function helps to achieve both of these goals. It is called from
 % cic.run at the start of an experiment if c.gitTracker.on ==ttrue.
 % The cic.gitTracker struct is used to chose between various options:
 % EXAMPLE:
 % You want to log the version of the neurostim toolbox that is used, but 
-% do not care about local changes and the currently checked out branch of
-% the toolbox should be kept (whatever it is).
-% Use:  c.gitTracker.commit = false, c.gitTracker.branch ='';
+% do not care about local changes 
+% Use:  c.gitTracker.commit = false, 
 % A more prudent strategy is to commit local changes:
-% Use:  c.gitTracker.commit = true, c.gitTracker.branch ='';
+% Use:  c.gitTracker.commit = true,
 % This will ask the user for a commit message, which you can autogenerate
 % with c.gitTracker.silent=true.
-% And, if your experiment machine is sometimes used for development, you
-% may wish to make sure that only the master branch is used in an experiment:
-% Use:  c.gitTracker.commit = true, c.gitTracker.branch ='master';
-% In this case, local changes are stashed, then the branch is checked out
-% and brought up to date with the origin. If the folder was on a different branch
-% the local changes will remain in the stash, if the branch did not change,
-% the user is asked whether to reapply the stash to the now up-to-date
-% folder. 
 %
 % The function returns a struct that includes information on the remote
 % repository, as well as the hash id such that the complete code state can
@@ -42,7 +33,6 @@ function version =versionTracker(varargin)
 % are done silently, or require a commit message. [false]
 % 'folder' = The folder of the repository whose version should be
 % tracked [if empty or absent it defaults to the folder that contains neurostim.cic].
-% 'branch' = The branch to use.
 %
 % OUTPUT
 % versioon  = Struct with .remote .branch, .changes, and .hash
@@ -81,9 +71,6 @@ end
 
 here = pwd;
 cd(folder);
-if ~isempty(p.Results.branch)
-    neurostim.utils.git.checkout(p.Results.branch,folder);
-end
 version.remote = git('remote get-url origin');
 version.branch = git('rev-parse --abbrev-ref HEAD');
 [hasChanges,changes] = neurostim.utils.git.hasChanges(folder);

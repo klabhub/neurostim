@@ -15,6 +15,11 @@ function branch = checkout(branch,repoFolder)
 % whether the stash should be reapplied.
 % If the stash was on a different branch, then the user does not get this
 % option (the stash can be applied manually later).
+%
+% Note that this function should not be used once an experiment is started;
+% if you do, you change the code on the fly and it is not 100% clear which
+% versions will run... The nsGui uses this function to update the code base
+% before the experiment starts.
 % 
 %  BK  -Feb 2020
 if ~exist(repoFolder,'dir')

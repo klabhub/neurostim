@@ -84,10 +84,8 @@ classdef cic < neurostim.plugin
         % commits are ignored).
         % Set silent = true to generate an automatic commit message (when
         % false, the user is asked to provide one).
-        % See neurostim.utils.git.versionTracker
-        % branch is an optional user-defined parameter to force a specific branch of the
-        % repository. Empty means 'keep the current branch'
-        gitTracker = struct('on',false,'silent',false,'commit',true,'branch','');
+        % See neurostim.utils.git.versionTracker        
+        gitTracker = struct('on',false,'silent',false,'commit',true);
     end
     
     %% Protected properties.
