@@ -210,6 +210,28 @@ classdef eyelink < neurostim.plugins.eyetracker
         
         function setParms(o)
             % Careful, Eyelink toolbox uses British spelling...
+            
+            if strcmpi(o.clbType,'HV5C')
+                    % Calibrate HV5 but center screen only
+                    left =0.33;mid= 0.5;
+                    x = o.cic.screen.xpixels* [mid mid mid left 1-left];
+                    y = o.cic.screen.ypixels* [mid 1-left left mid  mid];
+                    xy = cat(2,num2str(x'),','*ones(5,1),num2str(y'),','*ones(5,1))';
+                    xy = xy(1:end-1);
+                    o.clbType = 'HV5';
+                    o.command({'calibration_type = HV5',...
+                        'generate_default_targets = NO',...
+                        'enable_automatic_calibration = NO',...
+                        'calibration_samples = 5',...
+                        'calibration_sequence = 0,1,2,3,4',...
+                        ['calibration_targets =' xy ],...
+                        'validation_samples = 5',...
+                        'validation_sequence = 0,1,2,3,4',...
+                        ['validation_targets =' xy],...
+                        'val_repeat_first_target=YES',...
+                        'cal_repeat_first_target=YES'});                    
+            end
+            
             if isempty(o.backgroundColor)
                 % If the user did not set the background for the eyelink
                 % then use screen background
@@ -396,21 +418,25 @@ classdef eyelink < neurostim.plugins.eyetracker
         % Add an eyelink command that will be executed before the
         % experiment starts. Passing an empty string resets the command
         % list.
-        function command(o,commandStr)
+        function command(o,newCommands)
             %Currently, only beforeExperiment commands are accepted
             if o.cic.trial>0
                 o.cic.error('STOPEXPERIMENT','Eyelink commands are currently not permitted once the experiment has started.');
             end
             
             %Assign the command
-            if isempty(commandStr)
+            if isempty(newCommands)
                 o.commands= {};
             else
-                o.commands = cat(2,o.commands,{commandStr});
-                if ~isempty(strfind(upper(commandStr),'LINK_SAMPLE_DATA')) %#ok<STREMP>
+                if iscell(newCommands)
+                    o.commands = cat(2,o.commands,newCommands);
+                else % is char
+                o.commands = cat(2,o.commands,{newCommands});
+                if ~isempty(strfind(upper(newCommands),'LINK_SAMPLE_DATA')) %#ok<STREMP>
                     o.getSamples = true;
-                elseif ~isempty(strfind(upper(commandStr),'LINK_EVENT_DATA')) %#ok<STREMP>
+                elseif ~isempty(strfind(upper(newCommands),'LINK_EVENT_DATA')) %#ok<STREMP>
                     o.getEvents = true;
+                end                                    
                 end
             end
         end
@@ -484,31 +510,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.eye               = parms.Eye;
             o.fake              = strcmpi(parms.onOffFakeKnob,'fake');
             
-            switch (parms.Calibration)
-                case 'HV5C'
-                    % Calibrate center screen only
-                    left =0.33;mid= 0.5;
-                    x = o.cic.screen.xpixels* [mid mid mid left 1-left];
-                    y = o.cic.screen.ypixels* [mid 1-left left mid  mid];
-                    xy = cat(2,num2str(x'),','*ones(5,1),num2str(y'),','*ones(5,1))';
-                    xy = xy(1:end-1);
-                    o.clbType = 'HV5';
-                    o.eye.commands = {'calibration_type = HV5',...
-                        'generate_default_targets = NO',...
-                        'enable_automatic_calibration = NO',...
-                        'calibration_samples = 5',...
-                        'calibration_sequence = 0,1,2,3,4',...
-                        ['calibration_targets =' xy ],...
-                        'validation_samples = 5',...
-                        'validation_sequence = 0,1,2,3,4',...
-                        ['validation_targets =' xy],...
-                        'val_repeat_first_target=YES',...
-                        'cal_repeat_first_target=YES'};
-                otherwise
-                    % Just set it.
-                    o.clbType = parms.Calibration;
-                    
-            end
+          
         end
     end
     
