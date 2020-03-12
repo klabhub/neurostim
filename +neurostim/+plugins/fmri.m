@@ -20,6 +20,7 @@ classdef fmri < neurostim.plugin
             o.addProperty('triggersComplete',[],'sticky',true);
             o.addProperty('maxTriggerTime',inf); % If no Triggers for x s, the experiment ends
             o.addProperty('subjectAnswer',''); %         
+            o.addProperty('fake',false);
             o.addProperty('fakeTR',2);
             o.addKey('t');            
         end
