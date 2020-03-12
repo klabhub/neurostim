@@ -56,19 +56,18 @@ classdef fmri < neurostim.plugin
                     if ~isempty(key2)
                         addKey(o,key2.key,key2.help,key2.isSubject,key2.fun,true,key2.plg);
                     end
-                    
-                end
-                subjectTalk = strcmpi(o.subjectAnswer,o.subjectStartKeys{1});
-                if subjectTalk
-                    o.cic.drawFormattedText('One moment please...','ShowNow',true);  
-                    commandwindow;
-                    fprintf(2,'******************************************\n');
-                    fprintf(2,'Subject wishes to talk to the experimenter.\n');                            
-                    fprintf(2,'******************************************\n');                    
-                    input('Press enter when done','s');                        
-                else
-                    o.cic.drawFormattedText('Starting soon...','ShowNow',true);  
-                end
+                    subjectTalk = strcmpi(o.subjectAnswer,o.subjectStartKeys{1});
+                    if subjectTalk
+                        o.cic.drawFormattedText('One moment please...','ShowNow',true);  
+                        commandwindow;
+                        fprintf(2,'******************************************\n');
+                        fprintf(2,'Subject wishes to talk to the experimenter.\n');                            
+                        fprintf(2,'******************************************\n');                    
+                        input('Press enter when done','s');                        
+                    end
+                end                                
+                o.cic.drawFormattedText('Starting soon...','ShowNow',true);  
+                
                 % Get scan number information
                 if isempty(o.scanNr) || o.scanNr ==0
                     answer=[];
