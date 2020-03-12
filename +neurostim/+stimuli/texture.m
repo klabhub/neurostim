@@ -1,5 +1,5 @@
 classdef texture < neurostim.stimulus
-  % Stimulus class to manage and present textures.
+  % Stimulus class to manage and present textures and images.
   %
   % Settable properties:
   %   id      - id(s) of the texture(s) to show on
@@ -12,10 +12,11 @@ classdef texture < neurostim.stimulus
   % Public methods:
   %   add(id,img)     - add img to the texture library, with identifier id
   %   mkwin(sz,sigma) - calculate a gaussian transparency mask/window
+  %   replace(id,img) - replace the id with a new image.
   %
   % Multiple textures can be rendered simultaneously by setting
   % any or all of the settable properties to be a 1xN vector.
-
+ 
   % 2016-10-08 - Shaun L. Cloherty <s.cloherty@ieee.org>
   
   properties (Access = private)
@@ -55,15 +56,36 @@ classdef texture < neurostim.stimulus
       
       o.addProperty('xoffset',0.0,'validate',@isnumeric);
       o.addProperty('yoffset',0.0,'validate',@isnumeric);
+      
+      o.addProperty('filterMode',1,'validate',@isnumeric); % 1 -bilinear interpolation
+      o.addProperty('globalAlpha',1,'validate',@isnumeric); % 1 fully opaque
     end
-        
+    
+    
+    function o = replace(o,id,img)
+        % Replace a texture with a new image.
+        idx = o.getIdx(id);
+        if isempty(idx)
+            error('ID %d does not exist in this texture stimulus',id);
+        else
+            if ~isempty(o.tex{idx}.ptr)
+                % Close the texture 
+                Screen('Close',o.tex{idx}.ptr);
+            end
+            o.tex(idx) = [];
+            o = add(o,id,img);
+        end        
+    end
+    
     function o = add(o,id,img)
       % add IMG to the texture library, with texture id ID
       %
       % IMG can be a NxM matrix of pixel luminance values (0..255), an
       % NxMx3 matrix containing pixel RGB values (0..255) or an NxMx4
       % matrix containing pixel RGBA values. Alpha values range between
-      % 0 (transparent) and 255 (opaque)
+      % 0 (transparent) and 255 (opaque), or it can be a char with the name
+      % of a file that contains the texture/image. This file will be read
+      % with imread.
       
       % check if ID already exists
       idx = o.getIdx(id);
@@ -74,6 +96,12 @@ classdef texture < neurostim.stimulus
       
       assert(numel(idx) == 1,'Duplicate texture Id %s found!',id);
 
+      if ischar(img)
+         if ~exist(img,'file')
+            error(['No such image file: ' img]);
+         end
+         img = imread(img);        
+      end
       o.tex{idx} = struct('id',id,'img',img,'ptr',[]);
       
       o.id = id; % last texture added is displayed next...?
@@ -134,8 +162,8 @@ classdef texture < neurostim.stimulus
       rect = rect + kron([-1,1],[width(:),-1*height(:)]/2);    
 
       % draw the texture
-      filterMode = 1; % bilinear interpolation
-      Screen('DrawTextures',o.window,ptr,[],rect',[],filterMode);
+      
+      Screen('DrawTextures',o.window,ptr,[],rect',[],o.filterMode,o.globalAlpha);
     end    
   end % public methods
     
