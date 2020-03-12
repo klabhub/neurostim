@@ -7,7 +7,7 @@ classdef fmri < neurostim.plugin
         lastTrigger = -Inf;
         subjectStartKeys = {}; % 'Want to talk key, want to start key'
         subjectStartMessage = ''; % Message shown to the subject before trial 1; explain the keys above.
-        
+        operatorMessages = false; % false means command line only, true means show to subject screen
     end
     methods
         function o = fmri(c)
@@ -18,7 +18,7 @@ classdef fmri < neurostim.plugin
             o.addProperty('triggerKey','t');
             o.addProperty('triggersComplete',[],'sticky',true);
             o.addProperty('maxTriggerTime',inf); % If no Triggers for x s, the experiment ends
-            o.addProperty('subjectAnswer',''); %
+            o.addProperty('subjectAnswer',''); %         
             o.addKey('t');            
         end
         
@@ -46,19 +46,29 @@ classdef fmri < neurostim.plugin
                     o.subjectAnswer='';                                      
                     o.cic.drawFormattedText(o.subjectStartMessage,'ShowNow',true);                        
                     while (isempty(o.subjectAnswer))                        
-                        KbQueueCheck(c);
+                        KbQueueCheck(o.cic);
+                        pause(0.5);
                     end
                     % Put original key mapping back
                     if ~isempty(key1)
-                        addKey(o,key1.key,key1.help,key1.isSubject,key1.fun,true);
+                        addKey(o,key1.key,key1.help,key1.isSubject,key1.fun,true,key1.plg);
                     end
                     if ~isempty(key2)
-                        addKey(o,key2.key,key2.help,key2.isSubject,key2.fun,true);
+                        addKey(o,key2.key,key2.help,key2.isSubject,key2.fun,true,key2.plg);
                     end
                     
                 end
                 subjectTalk = strcmpi(o.subjectAnswer,o.subjectStartKeys{1});
-                
+                if subjectTalk
+                    o.cic.drawFormattedText('One moment please...','ShowNow',true);  
+                    commandwindow;
+                    fprintf(2,'******************************************\n');
+                    fprintf(2,'Subject wishes to talk to the experimenter.\n');                            
+                    fprintf(2,'******************************************\n');                    
+                    input('Press enter when done','s');                        
+                else
+                    o.cic.drawFormattedText('Starting soon...','ShowNow',true);  
+                end
                 % Get scan number information
                 if isempty(o.scanNr) || o.scanNr ==0
                     answer=[];
@@ -66,12 +76,11 @@ classdef fmri < neurostim.plugin
                        ListenChar(0); % Need to echo now
                     end                        
                     while (isempty(answer))
-                        o.cic.drawFormattedText('Which scan number is about to start?','ShowNow',true);                        
-                        disp('*****************************************')
-                        if subjectTalk
-                            fprintf(2,'Subject wishes to talk to the experimenter\n');
-                        end
-                        commandwindow;
+                        commandwindow;                                                                           
+                        if o.operatorMessages
+                            o.cic.drawFormattedText('Which scan number is about to start?','ShowNow',true);                        
+                        end                           
+                        fprintf('*****************************************\n');
                         answer = input('Which scan number is about to start (for logging purposes)?','s');
                         answer = str2double(answer);
                         if isnan(answer)
@@ -85,9 +94,12 @@ classdef fmri < neurostim.plugin
                 end
                 
                 
-                
                 % Now wait until the requested pre triggers have been recorded
-                o.cic.drawFormattedText('Start the scanner now ...','ShowNow',true);                
+                if o.operatorMessages
+                    o.cic.drawFormattedText('Start the scanner now ...','ShowNow',true);                
+                else
+                    fprintf(2,'Start the scanner now ...');
+                end
                 % Wait until the first trigger has been received
                 while o.trigger ==0
                     WaitSecs(0.1);
@@ -127,7 +139,7 @@ classdef fmri < neurostim.plugin
                 case 'T'
                     o.trigger = o.trigger+1;
                     o.lastTrigger = o.cic.clockTime;
-                case o.subjectStartKeys
+                case upper(o.subjectStartKeys)
                     o.subjectAnswer = key;                   
             end
         end
