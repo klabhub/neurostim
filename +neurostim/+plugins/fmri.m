@@ -6,7 +6,7 @@ classdef fmri < neurostim.plugin
     properties
         lastTrigger = -Inf;
         subjectStartKeys = {}; % 'Want to talk key, want to start key'
-        subjectFormatSpec = 'Press %s to talk, %s to start the run';
+        subjectStartMessage = ''; % Message shown to the subject before trial 1; explain the keys above.
         
     end
     methods
@@ -44,7 +44,7 @@ classdef fmri < neurostim.plugin
                     key1 = addKey(o,o.subjectStartKeys{1},'Talk',true,[],true);
                     key2 = addKey(o,o.subjectStartKeys{2},'Start',true,[],true);                    
                     o.subjectAnswer='';                                      
-                    o.cic.drawFormattedText(sprintf(o.subjectFormatSpec,o.subjectStartKeys{:}),'ShowNow',true);                        
+                    o.cic.drawFormattedText(o.subjectStartMessage,'ShowNow',true);                        
                     while (isempty(o.subjectAnswer))                        
                         KbQueueCheck(c);
                     end
