@@ -160,6 +160,12 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             
             %Tell Eyelink about the pixel coordinates
+            % Note: with a screen to the left of the main screen, the
+            % xorigin can be negative (in Win10); that can cause weird
+            % problems in Eyelink. The user should set explicitly set the origin to be
+            % zero in that case (instead of setting it to [] which will detect the negativ origin)
+            % Could fix that here, but not sure whether
+            % there are other consequences... BK - Mar 2020          
             Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',o.cic.screen.xorigin,o.cic.screen.yorigin,o.cic.screen.xorigin + o.cic.screen.xpixels,o.cic.screen.yorigin + o.cic.screen.ypixels);
             Eyelink('Command', 'calibration_type = %s',o.clbType);
             Eyelink('command', 'sample_rate = %d',o.sampleRate);
@@ -510,6 +516,11 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.eye               = parms.Eye;
             o.fake              = strcmpi(parms.onOffFakeKnob,'fake');
             o.clbType           = parms.Calibration;
+            if isempty(parms.bgColor)
+                o.backgroundColor = [];
+            else
+                o.backgroundColor = str2num(parms.bgColor); %#ok<ST2NM>
+            end
           
         end
     end
@@ -553,6 +564,19 @@ classdef eyelink < neurostim.plugins.eyetracker
             h.Position = [235 17 60 22];
             h.Items = {'Left','Right','Both'};
             h.Tooltip = 'Select which eye to track';
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [295 39 60 22];
+            h.Text = 'BG Color';
+            
+            h =uieditfield('text','Tag','bgColor','parent',p);
+            h.Position = [295 17 60 22];
+            h.Value= '';
+            h.Tooltip = 'Specify background color (RGB). Leave empty to use cic.screen.color.background ';
+            
             
         end
     end
