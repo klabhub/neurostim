@@ -56,7 +56,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-        function addKey(o,key,keyHelp,isSubject,fun)
+        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force)
             %  addKey(o,key,keyHelp,isSubject,fun)
             % Runs a function in response to a specific key press.
             % key - a single key (string)
@@ -64,20 +64,26 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % isSubject - bool to indicate whether this is a key press the
             % subject should do. (Defaults to true for stimuli, false for
             % plugins)
-            % The user must implement keyboard(o,key) or provide a
+            % fun - The user must implement keyboard(o,key) or provide a
             % handle to function that takes a plugin/stimulus and a key as
             % input.
+            % force - set to true to force adding this key (and thereby
+            % taking it away from anihter plugin). This only makes sense if
+            % you restore it soon after, using the returned keyInfo.
             nin =nargin;
-            if nin<5
-                fun =[];
-                if nin < 4
-                    isSubject = isa(o,'neurostim.stimulus');
-                    if nin <3
-                        keyHelp = '?';
+            if nin <6
+                force =false;
+                if nin<5
+                    fun =[];
+                    if nin < 4
+                        isSubject = isa(o,'neurostim.stimulus');
+                        if nin <3
+                            keyHelp = '?';
+                        end
                     end
                 end
             end
-            addKeyStroke(o.cic,key,keyHelp,o,isSubject,fun);
+            oldKey = addKeyStroke(o.cic,key,keyHelp,o,isSubject,fun,force);
         end
         
         % Convenience wrapper; just passed to CIC
