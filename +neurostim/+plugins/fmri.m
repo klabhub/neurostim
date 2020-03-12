@@ -5,6 +5,9 @@ classdef fmri < neurostim.plugin
     %
     properties
         lastTrigger = -Inf;
+        subjectStartKeys = {}; % 'Want to talk key, want to start key'
+        subjectFormatSpec = 'Press %s to talk, %s to start the run';
+        
     end
     methods
              
@@ -16,7 +19,7 @@ classdef fmri < neurostim.plugin
             o.addProperty('triggerKey','t');
             o.addProperty('triggersComplete',[],'sticky',true);
             o.addProperty('maxTriggerTime',inf); % If no Triggers for x s, the experiment ends
-            o.addProperty('fake',false);
+            o.addProperty('subjectAnswer',''); %
             o.addProperty('fakeTR',2);
             o.addKey('t');            
         end
@@ -28,6 +31,33 @@ classdef fmri < neurostim.plugin
             % interacts directly with PTB Screen and other functionality
             % which is not recommended in general (but necessary here).
             if o.cic.trial==1
+                
+                if numel(o.subjectStartKeys)==2
+                    % Ask the subject to start or talk.
+                    % Force replace these two keys with the ones specified
+                    % for the fmri plugin (due to the limited number of
+                    % keys or the desire to reuse the same keys and
+                    % minimize subject movement, we have to force replace
+                    % these keys that may also be in use by a stimulus;
+                    % the original mapping is restored below, before the trial starts).
+                    key1 = addKey(o,o.subjectStartKeys{1},'Talk',true,[],true);
+                    key2 = addKey(o,o.subjectStartKeys{2},'Start',true,[],true);                    
+                    o.subjectAnswer='';                                      
+                    o.cic.drawFormattedText(sprintf(o.subjectFormatSpec,o.subjectStartKeys{:}),'ShowNow',true);                        
+                    while (isempty(o.subjectAnswer))                        
+                        KbQueueCheck(c);
+                    end
+                    % Put original key mapping back
+                    if ~isempty(key1)
+                        addKey(o,key1.key,key1.help,key1.isSubject,key1.fun,true);
+                    end
+                    if ~isempty(key2)
+                        addKey(o,key2.key,key2.help,key2.isSubject,key2.fun,true);
+                    end
+                    
+                end
+                subjectTalk = strcmpi(o.subjectAnswer,o.subjectStartKeys{1});
+                
                 % Get scan number information
                 if isempty(o.scanNr) || o.scanNr ==0
                     answer=[];
@@ -37,6 +67,9 @@ classdef fmri < neurostim.plugin
                     while (isempty(answer))
                         o.cic.drawFormattedText('Which scan number is about to start?','ShowNow',true);                        
                         disp('*****************************************')
+                        if subjectTalk
+                            fprintf(2,'Subject wishes to talk to the experimenter\n');
+                        end
                         commandwindow;
                         answer = input('Which scan number is about to start (for logging purposes)?','s');
                         answer = str2double(answer);
@@ -96,6 +129,8 @@ classdef fmri < neurostim.plugin
                 case 'T'
                     o.trigger = o.trigger+1;
                     o.lastTrigger = o.cic.clockTime;               
+                case o.subjectStartKeys
+                    o.subjectAnswer = key;                   
             end
         end
         
