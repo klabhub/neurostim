@@ -1276,20 +1276,21 @@ classdef cic < neurostim.plugin
                 else
                     % Forcing a replacement - return old key so that the
                     % user can restore later.
-                    oldKey.key = c.kbInfo.keys{ix};
+                    oldKey.key = c.kbInfo.keys(ix);
                     oldKey.help = c.kbInfo.help{ix};
                     oldKey.plg = c.kbInfo.plugin{ix};
-                    oldKey.plg  = c.kbInfo.isSubject(ix);
-                    oldKey.fun  = c.kbInfo.fun{ix};    
+                    oldKey.isSubject  = c.kbInfo.isSubject(ix);
+                    oldKey.fun  = c.kbInfo.fun{ix};                                          
                 end
             else
                 oldKey = [];
+                ix = numel(c.kbInfo.keys)+1; % Add a new one
             end            
-            c.kbInfo.keys(end+1)  = key;
-            c.kbInfo.help{end+1} = keyHelp;
-            c.kbInfo.plugin{end+1} = plg; % Handle to plugin to call keyboard()
-            c.kbInfo.isSubject(end+1) = isSubject;
-            c.kbInfo.fun{end+1} = fun;            
+            c.kbInfo.keys(ix)  = key;
+            c.kbInfo.help{ix} = keyHelp;
+            c.kbInfo.plugin{ix} = plg; % Handle to plugin to call keyboard()
+            c.kbInfo.isSubject(ix) = isSubject;
+            c.kbInfo.fun{ix} = fun;            
         end        
         
         function removeKeyStroke(c,key)
