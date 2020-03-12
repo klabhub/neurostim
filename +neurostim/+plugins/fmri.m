@@ -1,12 +1,15 @@
 classdef fmri < neurostim.plugin
-    % fMRI plugin that pauses an experiment at the start until a specified
+    % fMRI plugin that allows subjects to indicate whether they are ready
+    % and pauses an experiment at the start until a specified
     % number of triggers has been recorded. During the scan the plugin
-    % only logs the incoming triggers.
-    %
+    % logs the incoming triggers.
+    % In fake mode, the plugin generates its own scan triggers. 
+    % For logging purposes, the plugn records the scan number (i.e. the
+    % number assigned to the run by the MRI Scanner).
     properties
         lastTrigger = -Inf;
         subjectStartKeys = {}; % 'Want to talk key, want to start key'
-        subjectStartMessage = ''; % Message shown to the subject before trial 1; explain the keys above.
+        subjectStartMessage = ''; % Message shown to the subject before trial 1; explain the keys above.'Press left to talk, right to start the experiment'
         operatorMessages = false; % false means command line only, true means show to subject screen
     end
     methods
@@ -165,7 +168,9 @@ classdef fmri < neurostim.plugin
             writeToFeed(o,'Stopped fake scanner triggers.');
         end
         function afterExperiment(o)
-           stopFakeScanner(o); 
+            if o.fake
+            stopFakeScanner(o); 
+            end
         end
                            
     end
