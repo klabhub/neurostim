@@ -11,12 +11,8 @@ classdef stimulus < neurostim.plugin
     %   rx, ry, rz - rotation of the stimulus
     %   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
     %       details)
-    %   diode - This simplifies the use of a photdiode to test stimulus or onset
-    % of offset timing. See diodeFlasher.m  Defaults to empty (i.e. no
-    % diode used).
-    %       
-    %   mccChannel - a linked MCC Channel to output alongside a stimulus.
     %
+    % To monitor onset/offset timing of a stimulus, see stimuli.diodeFlasher
     %
     
     properties
@@ -26,6 +22,9 @@ classdef stimulus < neurostim.plugin
         % input
         onsetFunction = [];
         offsetFunction = [];
+    end
+    
+    properties (SetAccess =?neurostim.stimuli.diodeFlasher)
         diode = []; 
     end
     
