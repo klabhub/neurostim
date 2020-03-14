@@ -5,6 +5,24 @@ classdef diodeFlasher < neurostim.stimulus
     % some external DAQ to get an accurate assement of the physical onset
     % time of the stimulus.
     %
+    % In an experiment with a photodiode, you want only two states; below
+    % photodiode threshold (.lowColor)  and one above (.highColor). 
+    % In most experiments the screen goes to the background color during
+    % the ITI.
+    % If this background color triggers the diode, you woudl get multiple detections
+    % in each trial (and possibly no detection of stimulus onset). To avoid
+    % this, the diodeFlasher by default sets cic.itiClear to false, such
+    % tha tthe lowCOlor will be shown (in the diodeFlasher location)
+    % throughout the ITI. If this causes problems in your experiment
+    % (because other stimuli need to be turned off during the ITI and you
+    % have no other way (e.g. by using their .duration) to achieve this,
+    % then you can set the diodeFlasher.itiClear =true  (but then you'll
+    % need a background color that does not trigger the diode).
+    % EXMPLE:   
+    % To track the onset of a stimulus called 'grating'
+    % fl = stimuli.diodeFlasher(c,'grating')
+    % and then set one or more of the properties of fl: 
+    %
     % location 'sw','nw', 'ne' 'se' - corners of the screen
     % size - size of the flasher in fractions of the screen.
     % whenOff- set to true to flahs the highColor when the targetStimulus
@@ -12,13 +30,15 @@ classdef diodeFlasher < neurostim.stimulus
     % highColor - color of the flasher square when the targetStimulus is
     %               'on'
     % lowColor  - color of the flasher sqyare when the targetStiulus i off.
-    % stimIsOn - internal flag signalling the state of the targetStimulus
-    % targetStimulus - name of the stimulus whose onset/offset changes the
-    % state of the diodeFlasher.
     % itiClear - Flag to clear to the background color during the ITI (i.e.
     % it will set cic.itiClear. The default is false so that the flasher has
     % a defined color during the ITI (lowColor).
     %
+    % Internal bookkeeping properties:
+    % stimIsOn - internal flag signalling the state of the targetStimulus
+    % targetStimulus - name of the stimulus whose onset/offset changes the
+    % state of the diodeFlasher.
+    % 
     % BK Mar 2020
     
     properties  (Transient)
@@ -42,7 +62,7 @@ classdef diodeFlasher < neurostim.stimulus
             o.addProperty('stimIsOn',false,'validate',@isnumeric);
             o.addProperty('targetStimulus',targetStimulus,'validate',@ischar);
             o.addProperty('itiClear',false,'validate',@islogical);
-            o.duration = inf;
+            o.duration = inf; % Keep low color during iti
         end
         
         function setStimulusState(o,state)
