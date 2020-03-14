@@ -579,6 +579,14 @@ classdef cic < neurostim.plugin
             if ~isempty(c.stimuli)
                 defaultOrder = cat(2,defaultOrder,{c.stimuli.name});
             end
+            ix =  ismember(defaultOrder,'diodeFlasher');
+            if any(ix)
+                % Make sure diodeFlasher is last in line so that it can get
+                % updated by all stimuli.                 
+                defaultOrder(ix)=[];
+                defaultOrder = cat(2,defaultOrder,'diodeFlasher');                                
+            end
+            
             if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
             else
@@ -1066,7 +1074,7 @@ classdef cic < neurostim.plugin
                         % After the KB check, a behavioral requirement
                         % can have terminated the trial. Check for that.
                         if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
-                        
+                         
                         
                         
                         % In VSync mode 0 we start the flip and wait for it
@@ -1183,9 +1191,14 @@ classdef cic < neurostim.plugin
                     end % Trial running
                     c.stage = neurostim.cic.RUNNING;
                     %Perform one last flip to clear the screen (if requested)
-                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
+                    if c.clear && ~c.itiClear && c.timing.vsyncMode ==1
+                        %
+                          base(c.pluginOrder,neurostim.stages.BEFOREFRAME,c);
+                    end
+                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
+                    
                     
                     c.frame = c.frame+1;
                     
@@ -1601,6 +1614,7 @@ classdef cic < neurostim.plugin
                 end
             end
         end
+                
     end
     
     methods (Access=private)
