@@ -579,6 +579,7 @@ classdef cic < neurostim.plugin
             if ~isempty(c.stimuli)
                 defaultOrder = cat(2,defaultOrder,{c.stimuli.name});
             end
+            
             if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
             else
@@ -596,6 +597,15 @@ classdef cic < neurostim.plugin
                     newOrder = cat(2,'gui',newOrder(~isGui));
                 end
             end
+            
+            ix =  ismember(newOrder,'diodeFlasher');
+            if any(ix)
+                % Make sure diodeFlasher is last in line so that it can get
+                % updated by all stimuli.                 
+                newOrder(ix)=[];
+                newOrder = cat(2,newOrder,'diodeFlasher');                                
+            end
+
             c.pluginOrder = [];
             for i=1:numel(newOrder)
                 c.pluginOrder =cat(2,c.pluginOrder,c.(newOrder{i}));
@@ -1054,20 +1064,29 @@ classdef cic < neurostim.plugin
                         % Let the GPU start processing this
                         Screen('DrawingFinished',c.mainWindow,1-clr);
                         
-                        if c.timing.vsyncMode ==1
-                            % In vsyncMode 1 we schedule the flip now (but
-                            % then proceed asynchronously to do some
-                            % non-drawing related tasks).
-                            %Screen('AsyncFlipBegin', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
-                            Screen('AsyncFlipBegin',c.mainWindow,WHEN,1-clr,0,0);
-                        end
+                       
                         
                         KbQueueCheck(c);
                         % After the KB check, a behavioral requirement
                         % can have terminated the trial. Check for that.
                         if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
-                        
-                        
+                         
+                        if c.timing.vsyncMode ==1
+                            % In vsyncMode 1 we schedule the flip now (but
+                            % then proceed asynchronously to do some
+                            % non-drawing related tasks).
+                            %Screen('AsyncFlipBegin', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
+                            % Note that this should be after the clr =
+                            % c.itiClear line, otherwise the scheduled clr
+                            % argument could be different from the desired
+                            % clr if itiClear = false). In principle we
+                            % could catch this condition after the
+                            % frameloop and then draw the last frame again,
+                            % but the small performance enhancement
+                            % (checking the keyboard) does not seem worth
+                            % it.
+                            Screen('AsyncFlipBegin',c.mainWindow,WHEN,1-clr,0,0);
+                        end
                         
                         % In VSync mode 0 we start the flip and wait for it
                         % to finish before proceeding.
@@ -1183,9 +1202,10 @@ classdef cic < neurostim.plugin
                     end % Trial running
                     c.stage = neurostim.cic.RUNNING;
                     %Perform one last flip to clear the screen (if requested)
-                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
+                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
+                    
                     
                     c.frame = c.frame+1;
                     
@@ -1601,6 +1621,7 @@ classdef cic < neurostim.plugin
                 end
             end
         end
+                
     end
     
     methods (Access=private)

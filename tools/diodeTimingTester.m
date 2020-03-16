@@ -107,16 +107,16 @@ g.duration          = inf;
 g.phaseSpeed        = 10;
 
 %% Setup for timing test using a photo diode
-% To test onset timing, we use the .diode property of the stimulus class.
+% To test onset timing, we use a diodeFlasher 
 % It presents a small white square in the top left corner
-% of the screen that turns on/off with the stimulus (this is built-in to
-% all stimuli).
+% of the screen that turns on/off with the target stimulus 
 % On a generic monitor color should be [r g b].
 % Size is specified as a fraction of the horizontal number of pixels in the monitor
-g.diode.on = true;% This will turn on at stimulus onset. The photo diode should be pointed at the NorthWest corner to detect the onset.
-g.diode.location= 'nw';
-g.diode.color = [1 1 1];
-g.diode.size = 0.01;
+fl = stimuli.diodeFlasher(c,'grating'); % 'grating' specifies that this diodeFlasher will be synced with the grating onset
+fl.location= 'nw';
+fl.highColor = [1 1 1]; % When 'grating' is 'on', the square will have this color
+fl.lowColor = [];  %  When grating is off the square will have this color ([] means same as cic.background).
+fl.size = 0.01;
 
 %% Setup data acquisition device
 switch upper(device)
