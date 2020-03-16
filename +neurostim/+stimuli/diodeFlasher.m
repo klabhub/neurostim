@@ -48,6 +48,7 @@ classdef diodeFlasher < neurostim.stimulus
         loc_whenOff;
         loc_lowColor;
         loc_highColor;
+        targetStimIsOn;
     end
     
     methods
@@ -58,11 +59,11 @@ classdef diodeFlasher < neurostim.stimulus
             o.addProperty('size',0.05,'validate',@isnumeric);
             o.addProperty('whenOff',false,'validate',@islogical);
             o.addProperty('highColor',[1 1 1],'validate',@isnumeric);
-            o.addProperty('lowColor',[],'validate',@isnumeric);
-            o.addProperty('stimIsOn',false,'validate',@isnumeric);
+            o.addProperty('lowColor',[],'validate',@isnumeric);            
             o.addProperty('targetStimulus',targetStimulus,'validate',@ischar);
             o.addProperty('itiClear',false,'validate',@islogical);
             o.duration = inf; % Keep low color during iti
+            o.targetStimIsOn = false; 
         end
         
         function setStimulusState(o,state)
@@ -70,7 +71,7 @@ classdef diodeFlasher < neurostim.stimulus
             % that the diodeFlasher is always processed last
             % (cic.pluginOder), this state will be used before the frame
             % that triggered the state change is drawn.
-            o.stimIsOn = state;
+            o.targetStimIsOn = state;
         end
         
         function beforeExperiment(o)
@@ -108,12 +109,13 @@ classdef diodeFlasher < neurostim.stimulus
         
         function beforeFrame(o)
             Screen('glLoadIdentity', o.window); % This code is in pixels to have the same size on the screen always
-            if xor(o.loc_whenOff,o.stimIsOn)
+            if xor(o.loc_whenOff,o.targetStimIsOn)
                 % Target stimulus is on, and whenOff is false, or target
                 % stimulus is off and whenOff is true: show the flash
+                % (highColor)
                 Screen('FillRect',o.window,o.loc_highColor,o.diodePosition);
             else
-                % Show background
+                % Show lowColor 
                 Screen('FillRect',o.window,o.loc_lowColor,o.diodePosition);
             end
         end
