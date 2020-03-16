@@ -2,8 +2,8 @@ function c = myRig(varargin)
 % This is a template for a convenience function that sets up a CIC object 
 % with appropriate settings for the current rig/computer. Rather than
 % changing this file (inside the neurostim toolbox), make a copy and put
-% that in your own experiments repository or somewhere else ahead of the 
-% neurostim.myRig function on your search path.
+% that in your own experiments repository or somewhere else ahead on the search path 
+% compared to this template myRig function 
 % 
 % 
 % Note that nsGui calls this function with 'cic' set to the cic object as
