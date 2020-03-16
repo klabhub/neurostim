@@ -78,7 +78,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     if nin<5
                         fun =[];
                         if nin < 4
-                            isSubject = isa(o,'neurostim.stimulus');
+                            isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
                             if nin <3
                                 keyHelp = '?';
                             end
