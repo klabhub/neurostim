@@ -579,13 +579,6 @@ classdef cic < neurostim.plugin
             if ~isempty(c.stimuli)
                 defaultOrder = cat(2,defaultOrder,{c.stimuli.name});
             end
-            ix =  ismember(defaultOrder,'diodeFlasher');
-            if any(ix)
-                % Make sure diodeFlasher is last in line so that it can get
-                % updated by all stimuli.                 
-                defaultOrder(ix)=[];
-                defaultOrder = cat(2,defaultOrder,'diodeFlasher');                                
-            end
             
             if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
@@ -604,6 +597,15 @@ classdef cic < neurostim.plugin
                     newOrder = cat(2,'gui',newOrder(~isGui));
                 end
             end
+            
+            ix =  ismember(newOrder,'diodeFlasher');
+            if any(ix)
+                % Make sure diodeFlasher is last in line so that it can get
+                % updated by all stimuli.                 
+                newOrder(ix)=[];
+                newOrder = cat(2,newOrder,'diodeFlasher');                                
+            end
+
             c.pluginOrder = [];
             for i=1:numel(newOrder)
                 c.pluginOrder =cat(2,c.pluginOrder,c.(newOrder{i}));
