@@ -82,10 +82,10 @@ classdef texture < neurostim.stimulus
       %
       % IMG can be a NxM matrix of pixel luminance values (0..255), an
       % NxMx3 matrix containing pixel RGB values (0..255) or an NxMx4
-      % matrix containing pixel RGBA values. Alpha values range between
-      % 0 (transparent) and 255 (opaque), or it can be a char with the name
-      % of a file that contains the texture/image. This file will be read
-      % with imread.
+      % matrix containing pixel RGBA values, or it can be a char with the
+      % name of a file that contains the texture/image. This file will be
+      % read with imread. Alpha values range between 0 (transparent) and 255
+      % (opaque).
       
       % check if ID already exists
       idx = o.getIdx(id);
