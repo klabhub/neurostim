@@ -11,11 +11,15 @@ commandwindow;
 % If you want to make sure that this experiment always uses the most
 % up-to-date version (and a specific branch, here 'master') of the
 % neurostim toolbox,use this:
-neurostim.utils.git.checkout('master',fileparts(which('neurostim.cic'))); 
-% You need to call this at the top of the experiment file before any of the 
+[branch,branchOnDisk] = neurostim.utils.git.checkout('master',fileparts(which('neurostim.cic'))); 
+% branch will contain the name of the branch that is now checked out
+% (should be master) and branchOnDisk is the branch that was checked out
+% before. You can use this to revert back at the end of the experiment (See
+% below).
+%
+% Note that you need to call this at the top of the experiment file before any of the 
 % functions in the toolbox have been called. The Matlab JIT compiler then
 % uses the uptodate versions in the code below. 
-
 % You can also use this for your own experiments repository by passing its
 % folder as the second argument.  But if git checkouts change the current file
 % they will not be used... So ideally , you'd call git.checkout before
@@ -130,4 +134,9 @@ myBlock.nrRepeats=10;
 %% Run the experiment.
 c.subject = 'easyD';
 c.run(myBlock);
+
+if ~strcmpi(branch, branchOnDisk)
+    % Revert
+   neurostim.utils.git.checkout(branchOnDisk,fileparts(which('neurostim.cic'))); 
+end
     

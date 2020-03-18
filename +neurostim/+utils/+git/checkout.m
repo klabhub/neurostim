@@ -1,4 +1,4 @@
-function branch = checkout(branch,repoFolder)
+function [branch,branchOnDisk] = checkout(branch,repoFolder)
 % Checkout a named branch in a repository, and pull from the origin to make
 % sure it is up to date with the origin HEAD
 % INPUT
