@@ -11,11 +11,14 @@ commandwindow;
 % If you want to make sure that this experiment always uses the most
 % up-to-date version (and a specific branch, here 'master') of the
 % neurostim toolbox,use this:
-[branch,branchOnDisk] = neurostim.utils.git.checkout('branch','gui','force',true,'verbose',true); 
+[branch,branchOnDisk] = neurostim.utils.git.checkout('branch','gui','force',false,'verbose',true); 
 % branch will contain the name of the branch that is now checked out
 % (should be master) and branchOnDisk is the branch that was checked out
 % before. You can use this to revert back at the end of the experiment (See
-% below).
+% below). With force=true, the user will not be asked to confirm branch
+% switches.
+% Local changes will always be stashed and only reapplied (popped) if the branch
+% stays the same.
 %
 % Note that you need to call this at the top of the experiment file before any of the 
 % functions in the toolbox have been called. The Matlab JIT compiler then
@@ -33,7 +36,10 @@ c = myRig;
 
 %% Git Version tracker standard
 % These CIC options make sure the code used to run an experiment can be
-% re-created at a later time.
+% re-created at a later time. Note that this code alone does not force a
+% specific branch; it will use whatever is checked out currently. This is
+% necessary because by the time the tracker code runs, the checked out
+% Matlab code will already be compiled, so changing it has no effect. 
 c.gitTracker.on = true; % We will track the Neurostim version used in each experiment.
 c.gitTracker.commit = true; % If there are local changes to the Neurostim toolbox, they will be committed before the experiment starts.
 c.gitTracker.silent = false; % The user will be asked to provide a commit message.
