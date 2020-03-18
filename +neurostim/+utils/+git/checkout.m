@@ -49,7 +49,7 @@ if strncmpi(branchOnDisk,'fatal:',6)
     warning(['The ' p.Results.repoFolder ' does not contain a git repository. git checkout is ignored']);
     branch ='';
     return;
-elseif ~strcmpi(branchOnDisk,p.Results.branch)
+elseif ~strcmpi(branchOnDisk,p.Results.branch) && ~isempty(p.Results.branch)
     % Mismatched branches. Ask the user what to do.
     fButton = ['Keep ' branchOnDisk ' branch'];
     kButton =['Switch to ' p.Results.branch ' branch'];
@@ -77,7 +77,7 @@ cmdout = git('fetch --all'); %#ok<NASGU>
 [hasChanges,changes] = neurostim.utils.git.hasChanges(p.Results.repoFolder);
 if hasChanges
     stash = ['Auto stash : ' datestr(now,'ddmmmyy@HHMMSS')];
-    cmdout = git(['stash save ' stash ]); %#ok<NASGU>
+    cmdout = git(['stash save ' stash ]); 
     if p.Results.verbose
         disp(cmdout);
     end
