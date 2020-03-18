@@ -283,7 +283,7 @@ end
 
 
     function c = createCic(fake,type)
-        c = neurostim.myRig;
+        c = myRig;
         c.screen.colorMode = 'RGB';
         c.screen.type = type;
         c.trialDuration = 250;

@@ -1,9 +1,11 @@
-function branch = checkout(branch,repoFolder)
+function [branch,branchOnDisk] = checkout(varargin)
 % Checkout a named branch in a repository, and pull from the origin to make
 % sure it is up to date with the origin HEAD
-% INPUT
-% branch  - name of the repository branch
-% repoFolder- folder that contains the repository.
+% INPUT (Parm/value pairs)
+% branch  - name of the repository branch   ['']
+% repoFolder- folder that contains the repository.  [folder containing neurostim.cic]
+% verbose - set to true to get more info on the command line [false]
+% force  - set to true to not ask for confirmation for branch switches [false]
 % OUTPUT
 % branch  = the branch after this checkout.
 %
@@ -22,49 +24,89 @@ function branch = checkout(branch,repoFolder)
 % before the experiment starts.
 % 
 %  BK  -Feb 2020
-if ~exist(repoFolder,'dir')
-    error([ repoFolder ' does not exist; cannot checkout a git branch']);
+
+p= inputParser;
+p.addParameter('branch','',@ischar);
+p.addParameter('repoFolder',fileparts(which('neurostim.cic')),@ischar);
+p.addParameter('verbose',false,@islogical);
+p.addParameter('force',false,@islogical);
+p.parse(varargin{:});
+
+if ~exist(p.Results.repoFolder,'dir')
+    error([ p.Results.repoFolder ' does not exist; cannot checkout a git branch']);
+end
+
+if p.Results.verbose
+    disp(['Starting git.checkout for ' p.Results.branch ' in '  p.Results.repoFolder]);
 end
 here =pwd;
-cd (repoFolder);
+cd (p.Results.repoFolder);
 
 
 branchOnDisk =git('symbolic-ref --short HEAD');
 if strncmpi(branchOnDisk,'fatal:',6)
     %Not a git repo.
-    warning(['The ' repoFolder ' does not contain a git repository. git checkout is ignored']);
+    warning(['The ' p.Results.repoFolder ' does not contain a git repository. git checkout is ignored']);
     branch ='';
     return;
-elseif ~strcmpi(branchOnDisk,branch)
+elseif ~strcmpi(branchOnDisk,p.Results.branch) && ~isempty(p.Results.branch)
     % Mismatched branches. Ask the user what to do.
     fButton = ['Keep ' branchOnDisk ' branch'];
-    kButton =['Keep ' branch ' branch'];
-    answer =questdlg(['Files in ' repoFolder '  are on the  ' branchOnDisk ' branch, but you requested the ' branch ' branch.'],'Branch Mismatch',fButton,kButton,kButton);
+    kButton =['Switch to ' p.Results.branch ' branch'];
+    if p.Results.force
+        answer = kButton;
+    else
+        answer =questdlg(['Files in ' p.Results.repoFolder '  are on the  ' branchOnDisk ' branch, but you requested the ' p.Results.branch ' branch.'],'Branch Mismatch',fButton,kButton,kButton);
+    end
     if strcmpi(answer,fButton)
+        % Keeping branchOnDisk
         branch = branchOnDisk;         
         branchSwitched = false;
     else
-        branchSwitched = true;
-        % Switching to the specified branch
+         % Switching to the specified branch
+        branch = p.Results.branch;
+        branchSwitched = true;       
     end
 else
     branchSwitched = false;
+    branch = branchOnDisk;
 end
 
+    
 cmdout = git('fetch --all'); %#ok<NASGU>
-[hasChanges,changes] = neurostim.utils.git.hasChanges(repoFolder);
+[hasChanges,changes] = neurostim.utils.git.hasChanges(p.Results.repoFolder);
 if hasChanges
     stash = ['Auto stash : ' datestr(now,'ddmmmyy@HHMMSS')];
-    cmdout = git(['stash save ' stash ]); %#ok<NASGU>
+    cmdout = git(['stash save ' stash ]); 
+    if p.Results.verbose
+        disp(cmdout);
+    end
 end
 
 cmdout = git(['checkout ' branch]);%#ok<NASGU>
-cmdout = git(['pull origin ' branch]);%#ok<NASGU>
+remoteExists = git(['ls-remote --heads origin ' branch]);
+if ~isempty(remoteExists)
+    cmdout = git(['pull origin ' branch]);
+    if p.Results.verbose
+        disp(cmdout);
+    end
+else
+    if p.Results.verbose
+        disp(['Local branch ' branch]);
+    end
+end
 if hasChanges && ~branchSwitched
-    answer = questdlg(['Reapply ' num2str(numel(changes)) ' local changes to the ' repoFolder '?']);
+    if p.Results.force
+        answer ='Yes';
+    else
+        answer = questdlg(['Reapply ' num2str(numel(changes)) ' local changes to the ' p.Results.repoFolder '?']);
+    end
     if strcmpi(answer,'Yes')
         [msg,sts] = git('stash pop '); %#ok<ASGLU> % Reapply the last one on the stack
-    end
+        if p.Results.verbose
+            disp(msg);
+        end
+    end    
 end
 cd (here);
 rehash; % Make sure that any changes are included in the JIT
