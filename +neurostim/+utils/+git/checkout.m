@@ -56,7 +56,7 @@ elseif ~strcmpi(branchOnDisk,p.Results.branch)
     if p.Results.force
         answer = kButton;
     else
-        answer =questdlg(['Files in ' repoFolder '  are on the  ' branchOnDisk ' branch, but you requested the ' p.Results.branch ' branch.'],'Branch Mismatch',fButton,kButton,kButton);
+        answer =questdlg(['Files in ' p.Results.repoFolder '  are on the  ' branchOnDisk ' branch, but you requested the ' p.Results.branch ' branch.'],'Branch Mismatch',fButton,kButton,kButton);
     end
     if strcmpi(answer,fButton)
         % Keeping branchOnDisk
