@@ -38,7 +38,7 @@ if strncmpi(branchOnDisk,'fatal:',6)
 elseif ~strcmpi(branchOnDisk,branch)
     % Mismatched branches. Ask the user what to do.
     fButton = ['Keep ' branchOnDisk ' branch'];
-    kButton =['Keep ' branch ' branch'];
+    kButton =['Switch to ' branch ' branch'];
     answer =questdlg(['Files in ' repoFolder '  are on the  ' branchOnDisk ' branch, but you requested the ' branch ' branch.'],'Branch Mismatch',fButton,kButton,kButton);
     if strcmpi(answer,fButton)
         branch = branchOnDisk;         

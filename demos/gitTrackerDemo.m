@@ -11,7 +11,7 @@ commandwindow;
 % If you want to make sure that this experiment always uses the most
 % up-to-date version (and a specific branch, here 'master') of the
 % neurostim toolbox,use this:
-[branch,branchOnDisk] = neurostim.utils.git.checkout('master',fileparts(which('neurostim.cic'))); 
+[branch,branchOnDisk] = neurostim.utils.git.checkout('gui',fileparts(which('neurostim.cic'))); 
 % branch will contain the name of the branch that is now checked out
 % (should be master) and branchOnDisk is the branch that was checked out
 % before. You can use this to revert back at the end of the experiment (See
