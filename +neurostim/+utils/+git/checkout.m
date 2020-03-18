@@ -35,6 +35,10 @@ p.parse(varargin{:});
 if ~exist(p.Results.repoFolder,'dir')
     error([ p.Results.repoFolder ' does not exist; cannot checkout a git branch']);
 end
+
+if p.Results.verbose
+    disp(['Starting git.checkout for ' p.Results.branch ' in '  p.Results.repoFolder]);
+end
 here =pwd;
 cd (p.Results.repoFolder);
 
@@ -80,11 +84,17 @@ if hasChanges
 end
 
 cmdout = git(['checkout ' branch]);%#ok<NASGU>
-cmdout = git(['pull origin ' branch]);%#ok<NASGU>
-if p.Results.verbose
+remoteExists = git(['ls-remote --heads origin ' branch]);
+if ~isempty(remoteExists)
+    cmdout = git(['pull origin ' branch]);
+    if p.Results.verbose
         disp(cmdout);
+    end
+else
+    if p.Results.verbose
+        disp(['Local branch ' branch]);
+    end
 end
-
 if hasChanges && ~branchSwitched
     if p.Results.force
         answer ='Yes';
