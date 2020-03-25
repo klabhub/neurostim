@@ -1281,6 +1281,7 @@ classdef cic < neurostim.plugin
             if c.loadedFromFile
                 % When loading fro file, PTB may not be installed and none
                 % of the "online/intractive" funcationality is relevant.
+                oldKey = struct; % empty struct
                 return;
             end
             if ischar(key)
