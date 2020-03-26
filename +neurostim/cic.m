@@ -433,9 +433,9 @@ classdef cic < neurostim.plugin
             c.addProperty('experiment',''); % The experiment file
             c.addProperty('iti',p.iti,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',p.trialDuration,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
-            c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
-            c.addProperty('ptbVersion',Screen('Version')); % Log PTB Version used to run this experiment
-            c.addProperty('repoVersion',[]); % Information on the git version/hash. See cic.versionTracker
+            c.addProperty('matlabVersion', []); %Log MATLAB version used to run this experiment - set at runtime
+            c.addProperty('ptbVersion',[]); % Log PTB Version used to run this experiment - set at runtime
+            c.addProperty('repoVersion',[]); % Information on the git version/hash. - set at runtime
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
             
@@ -886,7 +886,9 @@ classdef cic < neurostim.plugin
             AssertOpenGL;
             sca; % Close any open PTB windows.
             
-            % Git version tracking            
+            % Version tracking  at run time.          
+            c.matlabVersion = version;
+            c.ptbVersion = Screen('Version');
             c.repoVersion = neurostim.utils.git.versionTracker(c.gitTracker);
                                
             % Setup the messenger
