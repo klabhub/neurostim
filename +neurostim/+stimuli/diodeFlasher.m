@@ -80,7 +80,7 @@ classdef diodeFlasher < neurostim.stimulus
                 return
             end
             
-            o.cic.(o.targetStimulus).diode = o; % Place a handle to diodeFlasher in the targetStimulus
+            o.cic.(o.targetStimulus).diodeFlasher = o; % Place a handle to diodeFlasher in the targetStimulus
             % Determine position
             pixelsize=o.size*o.cic.screen.xpixels;
             switch lower(o.location)
