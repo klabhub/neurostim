@@ -25,7 +25,7 @@ classdef stimulus < neurostim.plugin
     end
     
     properties (SetAccess =?neurostim.stimuli.diodeFlasher)
-        diode = []; 
+        diodeFlasher = []; 
     end
     
     properties (Dependent)
@@ -368,8 +368,8 @@ classdef stimulus < neurostim.plugin
             end
             Screen('glLoadIdentity', locWindow);
                         
-            if ~isempty(s.diode)
-                setStimulusState(s.diode,s.flags.on); % Tell the diodeFlasher that the stimulus is on now.                
+            if ~isempty(s.diodeFlasher)
+                setStimulusState(s.diodeFlasher,s.flags.on); % Tell the diodeFlasher that the stimulus is on now.                
             end
             
         end
