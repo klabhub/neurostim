@@ -9,16 +9,16 @@ import neurostim.*
 % eye position signals instead
 
 
-c= myRig('eyelink',false); 
+c= myRig; 
 c.trialDuration = 5000;
 c.screen.colorMode = 'RGB';
-c.eye.continuous = true;
 c.addPropsToInform('eye.x','eye.y');
 
 %Make sure there is an eye tracker (or at least a virtual one)
 if isempty(c.pluginsByClass('eyetracker'))
     e = neurostim.plugins.eyetracker(c);      %Eye tracker plugin not yet added, so use the virtual one. Mouse is used to control gaze position (click)
     e.useMouse = true;
+    e.continuous = true;
 end
 
 

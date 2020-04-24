@@ -150,6 +150,7 @@ myBlock=block('myBlock',d);
 myBlock.nrRepeats = 50; % Because the design has 2 conditions, this results in 2*nrRepeats trials.
 c.run(myBlock);
 
+if c.trial >2
 %% Do some analysis on the data
 import neurostim.utils.*;
 % Retrieve orientation and contrast settings for each trial. Trials in
@@ -176,4 +177,5 @@ xlabel 'Trial'
 ylabel 'Contrast '
 title ([settings.mode ' in action...'])
 legend(num2str(uV(:)))
+end
 end

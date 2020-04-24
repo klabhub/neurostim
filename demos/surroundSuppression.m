@@ -98,7 +98,7 @@ plugins.sound(c);
 %     Add correct/incorrect feedback
 s = plugins.soundFeedback(c,'soundFeedback');
 s.add('waveform','CORRECT.wav','when','afterFrame','criterion','@ choice.isSuccess & choice.correct');
-s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.isSallalllalllaaaalalllallauccess & ~choice.correct');
+s.add('waveform','INCORRECT.wav','when','afterFrame','criterion','@ choice.isSuccess & ~choice.correct');
 
 c.run(myBlock);
  

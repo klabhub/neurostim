@@ -30,7 +30,7 @@ ptch.on           = 0;
 
 stm = stimuli.starstim(c,'starstim');
 stm.host = 'localhost';
-stm.fake = false;   % Set to false if you're connected to a machine with NIC running
+stm.fake = true;   % Set to false if you're connected to a machine with NIC running
 stm.protocol ='AboutNothing';  % This is a protocol that exists on the host (it has a long duration and it generates zero currents.)
 stm.enabled = true;            
 stm.mode = 'TRIAL';

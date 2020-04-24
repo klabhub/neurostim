@@ -57,7 +57,7 @@ import neurostim.*
     end
 
 [run,c,settings] = nsGui.parse(varargin{:},...  % Any parameters that the GUI sends (required)
-    'Panels',{'plugins.eyelink','stimuli.starstim',@myPanel},...  % Add eyelink, starstim, and a handle to the function that creates our gui
+    'Panels',{'plugins.eyelink',@myPanel},...  % Add eyelink and a handle to the function that creates our gui
     'Modes',{'QUEST','STAIRCASE'},...  % List modes of the experiment
     'Disabled',{'Seq','Debug'}); % Disable the seq field in the nsGui
     
@@ -182,6 +182,7 @@ myBlock=block('myBlock',d);
 myBlock.nrRepeats = 50; % Because the design has 2 conditions, this results in 2*nrRepeats trials.
 c.run(myBlock);
 
+if c.trial >2
 %% Do some analysis on the data
 import neurostim.utils.*;
 % Retrieve orientation and contrast settings for each trial. Trials in
@@ -208,4 +209,5 @@ xlabel 'Trial'
 ylabel 'Contrast '
 title ([settings.mode ' in action...'])
 legend(num2str(uV(:)))
+end
 end

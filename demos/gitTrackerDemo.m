@@ -11,7 +11,7 @@ commandwindow;
 % If you want to make sure that this experiment always uses the most
 % up-to-date version (and a specific branch, here 'master') of the
 % neurostim toolbox,use this:
-[branch,branchOnDisk] = neurostim.utils.git.checkout('branch','gui','force',false,'verbose',true); 
+[branch,branchOnDisk] = neurostim.utils.git.checkout('branch','master','force',false,'verbose',true); 
 % branch will contain the name of the branch that is now checked out
 % (should be master) and branchOnDisk is the branch that was checked out
 % before. You can use this to revert back at the end of the experiment (See
@@ -25,7 +25,7 @@ commandwindow;
 % uses the uptodate versions in the code below. 
 % You can also use this for your own experiments repository by passing its
 % folder as the second argument.  But if git checkouts change the current file
-% they will not be used... So ideally , you'd call git.checkout before
+% those changes will not be used... So ideally , you'd call git.checkout before
 % actually starting the experiment. The nsGui does something like that to
 % keep versions up to date and synced with the HEAD in the remote git repo.
 

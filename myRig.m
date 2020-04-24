@@ -58,7 +58,7 @@ if pin.Results.debug
 else
     % Actual Experiment
     Screen('Preference', 'SkipSyncTests', 0); % Make sure PTB runs its tests.    
-    c.cursor = 'none';
+    %c.cursor = 'none';
 end
 
 %% Settings that vary per machine
@@ -76,7 +76,7 @@ switch upper(computerName)
         c.screen.height     = c.screen.width*c.screen.ypixels/c.screen.xpixels;
 
     otherwise
-        warning('This computer (%s) is not recognised. Using default settings.\nHint: Make your own myRig function to prevent this warning. Starting from %s.',computerName,strrep(fullfile(here,myRigFile),'\','/'));
+        fprintf('This computer (%s) is not recognised. Using default settings.\nHint: Make your own myRig function to prevent this warning. Starting from template %s.\n',computerName,strrep(fullfile(here,myRigFile),'\','/'));        
         scrNr = max(Screen('screens'));
         fr = Screen('FrameRate',scrNr);
         rect = Screen('rect',scrNr);
