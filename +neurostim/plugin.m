@@ -20,13 +20,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     properties (SetAccess=private, GetAccess=public)
         rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
-    
+     
     methods (Static, Sealed, Access=protected)
         function o= getDefaultScalarElement
             o = neurostim.plugin([],'defaultScalarElement');
         end
     end
     
+   
     
     methods (Access=public)
         
@@ -771,4 +772,26 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
     end
     
+    
+     %% GUI Functios
+    methods (Access= public)
+        function guiSet(o,parms) %#ok<INUSD>
+            %The nsGui calls this just before the experiment starts; derived plugins
+            % with gui panels shoould use it to transfer values from the
+            % guipanel (using handle h) into property settings. The base plugin class does
+            % nothing (Except a warning).See plugins.eyelink for an
+            % example.
+            writeToFeed(o,['The ' o.name ' plugin has no setFromGui function. GUI settings will be ignored']);
+        end
+    end
+
+    
+    methods (Static, Access=public)
+        function guiLayout(parent) %#ok<INUSD>
+            % nsGui calls this function with parent set to the parent uipanel
+            % Plugins can add graphical (appdesigner) elements to this parent. 
+            % See plugins.eyelink for an example
+                          
+        end        
+    end
 end

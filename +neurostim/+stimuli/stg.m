@@ -219,7 +219,9 @@ classdef stg < neurostim.stimulus
                 % For now just warn - selection could be added.
                 warning(o,'Found more than one STG device; using the first one');
             end
-            
+            if nrDevices ==0
+                error('No STG device connected');
+            end               
             % Initialize the selected device
             % This does not work, probably because the .NET array is not
             % correct.

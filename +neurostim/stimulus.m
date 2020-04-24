@@ -11,14 +11,8 @@ classdef stimulus < neurostim.plugin
     %   rx, ry, rz - rotation of the stimulus
     %   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
     %       details)
-    %   diode.on,diode.color,diode.location,diode.size - a square box of
-    %       specified color in the corner of the screen specified ('nw','sw', etc.),
-    %       for use with a photodiode recording. With diode.on = true, the
-    %       square will be turned on whenever the stimulus is shown on thee
-    %       screen. To show the square when the stimulus is off instead,
-    %       set diode.whenOff = true.
-    %   mccChannel - a linked MCC Channel to output alongside a stimulus.
     %
+    % To monitor onset/offset timing of a stimulus, see stimuli.diodeFlasher
     %
     
     properties
@@ -28,6 +22,10 @@ classdef stimulus < neurostim.plugin
         % input
         onsetFunction = [];
         offsetFunction = [];
+    end
+    
+    properties (SetAccess =?neurostim.stimuli.diodeFlasher)
+        diodeFlasher = []; 
     end
     
     properties (Dependent)
@@ -43,7 +41,7 @@ classdef stimulus < neurostim.plugin
         stimstart = false;
         stimstop = false;
         rsvp;
-        diodePosition;
+        
     end
     % These are local/locked parameters used to speed up access to the
     % values of a neurostim.parameter. Any member variables whose name starts
@@ -95,11 +93,7 @@ classdef stimulus < neurostim.plugin
         loc_ry
         loc_rz
         loc_rsvpIsi
-        loc_disabled
-        loc_diode
-        loc_mccChannel
-        loc_userData
-        
+        loc_disabled                                
     end
     
     properties (Access=private)
@@ -162,10 +156,6 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rz',1,'validate',@isnumeric);
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             s.addProperty('disabled',false);
-            
-            s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05,'whenOff',false));
-            s.addProperty('mccChannel',[],'validate',@isnumeric);
-            s.addProperty('userData',[]);
             
             
             
@@ -255,27 +245,7 @@ classdef stimulus < neurostim.plugin
                     s.rsvpIsi = true;
                 end
             end
-        end
-        
-        function setupDiode(s)
-            pixelsize=s.diode.size*s.cic.screen.xpixels;
-            if isempty(s.diode.color)
-                s.diode.color=WhiteIndex(s.window);
-            end
-            switch lower(s.diode.location)
-                case 'ne'
-                    s.diodePosition=[s.cic.screen.xpixels-pixelsize 0 s.cic.screen.xpixels pixelsize];
-                case 'se'
-                    s.diodePosition=[s.cic.screen.xpixels-pixelsize s.cic.screen.ypixels-pixelsize s.cic.screen.xpixels s.cic.screen.ypixels];
-                case 'sw'
-                    s.diodePosition=[0 s.cic.screen.ypixels-pixelsize pixelsize s.cic.screen.ypixels];
-                case 'nw'
-                    s.diodePosition=[0 0 pixelsize pixelsize];
-                otherwise
-                    error(['Diode Location ' s.diode.location ' not supported.'])
-            end
-        end
-        
+        end                        
     end % private methods
     
     %% Methods that the user cannot change.
@@ -306,12 +276,7 @@ classdef stimulus < neurostim.plugin
                     s.rsvp.duration = dur*1000/s.cic.screen.frameRate;
                     s.rsvp.isi = isi*1000/s.cic.screen.frameRate;
                 end
-            end
-            
-            if s.diode.on
-                setupDiode(s);
-            end
-            
+            end                        
             beforeExperiment(s);
         end
         
@@ -402,14 +367,9 @@ classdef stimulus < neurostim.plugin
                 beforeFrame(s);
             end
             Screen('glLoadIdentity', locWindow);
-            
-            
-            % diode size/position is in pixels and we don't really want it
-            % changing even if we change the physical screen size (e.g.,
-            % when changing viewing distance) or being distorted by the
-            % transforms above...
-            if s.loc_diode.on  && xor(s.flags.on,s.loc_diode.whenOff)
-                Screen('FillRect',locWindow,s.loc_diode.color,s.diodePosition);
+                        
+            if ~isempty(s.diodeFlasher)
+                setStimulusState(s.diodeFlasher,s.flags.on); % Tell the diodeFlasher that the stimulus is on now.                
             end
             
         end

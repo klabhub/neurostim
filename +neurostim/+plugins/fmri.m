@@ -10,6 +10,7 @@ classdef fmri < neurostim.plugin
         operatorMessages = false; % false means command line only, true means show to subject screen
     end
     methods
+             
         function o = fmri(c)
             o = o@neurostim.plugin(c,'fmri');
             o.addProperty('scanNr',[]);
@@ -18,13 +19,12 @@ classdef fmri < neurostim.plugin
             o.addProperty('triggerKey','t');
             o.addProperty('triggersComplete',[],'sticky',true);
             o.addProperty('maxTriggerTime',inf); % If no Triggers for x s, the experiment ends
-            o.addProperty('subjectAnswer',''); %         
+            o.addProperty('fake',false);
+            o.addProperty('fakeTR',2);
+            o.addProperty('subjectAnswer',''); %       
             o.addKey('t');            
         end
-        
-        function beforeExperiment(o)
-            
-        end
+ 
         
         function beforeTrial(o)
             % The goal here is to wait until the pre-triggers have been
@@ -92,6 +92,9 @@ classdef fmri < neurostim.plugin
                     o.scanNr =answer;
                 end
                 
+                if o.fake
+                    startFakeScanner(o);
+                end
                 
                 % Now wait until the requested pre triggers have been recorded
                 if o.operatorMessages
@@ -137,10 +140,103 @@ classdef fmri < neurostim.plugin
             switch upper(key)
                 case 'T'
                     o.trigger = o.trigger+1;
-                    o.lastTrigger = o.cic.clockTime;
+                    o.lastTrigger = o.cic.clockTime;               
                 case upper(o.subjectStartKeys)
                     o.subjectAnswer = key;                   
             end
+        end
+        
+        %% Some debugging functionality to fake a scan trigger with TR
+        function startFakeScanner(o)
+            tmr= timer('Name','FakeScanner','Period',o.fakeTR,'StartDelay',0,'ExecutionMode','fixedRate','TimerFcn',@o.generateTrigger);
+            start(tmr);
+            writeToFeed(o,['Started fake scanner triggers with TR =' num2str(o.fakeTR)]); 
+        end
+        
+        function generateTrigger(o,tmr,evt) %#ok<INUSD>
+            keyboard(o,'T');
+            writeToFeed(o,'Fake scan trigger');
+        end
+        
+        function stopFakeScanner(o)
+            tmr = timerfind('Name','FakeScanner');
+            stop(tmr);
+            delete(tmr);
+            writeToFeed(o,'Stopped fake scanner triggers.');
+        end
+        function afterExperiment(o)
+           stopFakeScanner(o); 
+        end
+                           
+    end
+    
+    %% GUI Functions
+     methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = eyelink plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+            o.scanNr = parms.ScanNr;
+            o.maxTriggerTime = parms.MaxTT;       
+            o.fake = strcmpi(parms.onOffFakeKnob,'fake');
+                
+        end
+     end
+    methods (Static)  
+        function guiLayout(p)
+            % Add plugin specific elements
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 40 22];
+            h.Text = 'Scan';
+            
+            h = uieditfield(p, 'numeric','Tag','ScanNr');
+            h.Position = [110 17 40 22];
+            h.Value=0;
+            h.Tooltip = 'Enter the scan number (as defined by the scanner)';
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [160 39 45 22];
+            h.Text = 'Max TT';
+            
+            h = uieditfield(p, 'numeric','Tag','MaxTT');
+            h.Value = 6;
+            h.Position = [160 17 40 22];   
+            h.Tooltip = 'The experiment will stop if the scanner fails to send a trigger for this many seconds';
+            
+             h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [205 39 45 22];
+            h.Text = 'Pre Triggers';
+            
+            h = uieditfield(p, 'numeric','Tag','PreTriggers');
+            h.Value = 9;
+            h.Position = [205 17 40 22];                   
+            h.Tooltip = 'The experiment starts once this many triggers have been received from the scanner';
+            
+            h = uibutton(p,'Push','Text','Quench');
+            h.Position = [255 17 65 22];
+            h.ButtonPushedFcn = @stopFake;
+            h.Tooltip = 'Push this is the fake scanner keeps running after the experiment ends...';
+            function stopFake(o,e)
+                knob = findobj(o.Parent,'Tag','onOffFakeKnob');
+                if ~isempty(knob)
+                if strcmpi(knob.Value,'Fake') 
+                    tmr = timerfind('Name','FakeScanner');
+                    if isa(tmr,'timer')
+                        stop(tmr);
+                        delete(tmr);                    
+                    end
+                end
+                end
+            end
+            
         end
     end
 end
