@@ -108,8 +108,8 @@ classdef ripple < neurostim.plugin
             o.addProperty('trialBit',[]);
             o.addProperty('trialStart',[]);
             o.addProperty('trialStop',[]);
-            o.addProperty('channel',[]);    % Specify which channel connects to which electrode.
-            o.addProperty('electrode',[]);
+            o.addProperty('channels',[]);    % Specify which channel connects to which electrode.
+            o.addProperty('electrodes',[]);
             o.addProperty('streamSettings',{});
             o.addProperty('startSave',NaN);
             o.addProperty('stopSave',NaN);
