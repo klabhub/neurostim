@@ -1238,6 +1238,11 @@ classdef cic < neurostim.plugin
             %Prune the log of all plugins/stimuli and cic itself
             pruneLog([c.pluginOrder c]);
             
+            if c.keyAfterExperiment
+              % need to do this before we kill CLUT textures etc.
+              c.drawFormattedText('Press any key to close the screen','ShowNow',true);
+            end
+            
             % clean up CLUT textures used by SOFTWARE-OVERLAY
             if isfield(c.screen,'overlayClutTex') && ~isempty(c.screen.overlayClutTex)
                 glDeleteTextures(numel(c.screen.overlayClutTex),c.screen.overlayClutTex(1));
@@ -1249,7 +1254,9 @@ classdef cic < neurostim.plugin
             
             ListenChar(0);
             Priority(0);
-            if c.keyAfterExperiment; c.drawFormattedText('Press any key to close the screen','ShowNow',true); KbWait(c.kbInfo.pressAnyKey);end
+            if c.keyAfterExperiment
+              KbWait(c.kbInfo.pressAnyKey);
+            end
             
             Screen('CloseAll');
             if c.PROFILE; report(c);end
