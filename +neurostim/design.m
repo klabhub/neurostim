@@ -404,6 +404,11 @@ classdef design <handle & matlab.mixin.Copyable
                 if strcmpi(S(1).subs,'WEIGHTS')
                     handled =true;
                     
+                    %Disallow cell
+                    if ~isnumeric(V)
+                        error(['Factorial design weights must be a numeric array, but a ', class(V) ' was encountered. Type help neurostim.design']);
+                    end
+                    
                     %If a vector of weights (i.e. a one-factor design), make a
                     %column vector (to match up with the nLevels x 1 output of o.nrLevels
                     if isvector(V)
