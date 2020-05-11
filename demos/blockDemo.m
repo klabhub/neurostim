@@ -47,9 +47,9 @@ gr =design('greenred');
 % like a patch that is first green and then turns more red over time.
 gr.fac1.patch.color = num2cell([lum' fliplr(lum)' zeros(numel(lum),1)],2) ;
 gr.randomization  ='sequential'; % Sequence through luminance. Press 'n' to go to the next.
-grBlck=block('lmBlock',gr);
+grBlck=block('grBlock',gr);
 grBlck.nrRepeats  = 1;
-grBlck.beforeMessage = '@[''Patch radius is : '' num2str(patch.radius)]'; % This shows how to use a Neurostim function as the message (the function should return a string).
+grBlck.beforeMessage = @(c) (['Patch radius is : ' num2str(c.patch.radius)]); % This shows how to use a function as the message (the function gets cic as its input and should return a string).
 grBlck.beforeKeyPress = true; 
 grBlck.afterFunction = @(c) ( disp(['Subject: ' c.subject '. Done at ' num2str(datestr(now,'HH:MM:SS'))])); % Using a matlab anonymous function works too. c is a pointer to cic.
 grBlck.afterKeyPress = false; % No waiting

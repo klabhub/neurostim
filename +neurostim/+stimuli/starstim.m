@@ -896,7 +896,7 @@ classdef starstim < neurostim.stimulus
                 % Update to current classdef.
                 current = neurostim.stimuli.starstim(neurostim.cic('fromFile',true)); % Create current
                 fromFile = o;
-                 %-- This cannot be moved to a function/script due to class access
+                %-- This cannot be moved to a function/script due to class access
                 %permissions.
                 m= metaclass(current);
                 dependent = [m.PropertyList.Dependent];
@@ -916,7 +916,7 @@ classdef starstim < neurostim.stimulus
                         fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
                     end
                 end
-                % --- 
+                % ---
                 o = current;
             end
             o.mustExit = false;
@@ -937,6 +937,40 @@ classdef starstim < neurostim.stimulus
         end
         
         
+    end
+    
+    
+    %% GUI Functions
+     methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = eyelink plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+            if strcmpi(parms.onOffFakeKnob,'Fake')
+                o.fake=true;
+            else
+                o.fake =false;
+            end
+            o.host = parms.Host;
+        end
+     end
+     
+    methods (Static)       
+
+     function guiLayout(p)
+            % Add plugin specific elements
+
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 30 22];
+            h.Text = 'Host';
+            
+            h = uieditfield(p, 'text','Tag','Host');
+            h.Position = [110 17 200 22];
+        end
     end
     
     

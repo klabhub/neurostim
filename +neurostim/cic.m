@@ -21,7 +21,8 @@ classdef cic < neurostim.plugin
         dirs                    = struct('root','','output','','calibration','')  % Output is the directory where files will be written, root is where neurostim lives, calibration stores calibration files
         subjectNr               = [];
         latinSqRow              = [];
-        runNr                   = []; % Bookkeeping
+        runNr                   = []; % Bookkeeping. runNr is a sequential number indicating the number of times the same subject has run the experiment.
+        seqNr                   = []; %Bookkeeping. seqNr is a sequential number indicating how many subjects have already run this experiment.
         paradigm                = 'test';
         clear                   = 1;   % Clear backbuffer after each swap. double not logical
         itiClear                 = 1;    % Clear backbuffer during the iti. double. Set to 0 to keep the last display visible during the ITI (e.g. a fixation point)
@@ -42,7 +43,7 @@ classdef cic < neurostim.plugin
             'type','GENERIC',...
             'frameRate',60,'number',[],'viewDist',[],...
             'calFile','','colorMatchingFunctions','',...
-            'calibration',struct('gamma',2.2,'bias',nan(1,3),'min',nan(1,3),'max',nan(1,3),'gain',nan(1,3)),...
+            'calibration',struct('ns',struct('gamma',2.2*ones(1,3),'bias',zeros(1,3),'min',zeros(1,3),'max',60*ones(1,3),'gain',ones(1,3))),...
             'overlayClut',[]);    % screen-related parameters.
         
         timing = struct('vsyncMode',0); % 0 = busy wait until vbl, 1 = schedule flip asynchronously then continue
@@ -75,7 +76,16 @@ classdef cic < neurostim.plugin
             'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
             'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
             'activeKb',{[]});  % Indices of keyboard that have keys associated with them. Set and used internally)
-        
+       
+        %% Git version tracking
+        % Set on=true to use version tracking. When false, no tracking is
+        % used.
+        % Set commit=true to always commit local changes (when false, local
+        % commits are ignored).
+        % Set silent = true to generate an automatic commit message (when
+        % false, the user is asked to provide one).
+        % See neurostim.utils.git.versionTracker        
+        gitTracker = struct('on',false,'silent',false,'commit',true);
     end
     
     %% Protected properties.
@@ -423,8 +433,11 @@ classdef cic < neurostim.plugin
             c.addProperty('experiment',''); % The experiment file
             c.addProperty('iti',p.iti,'validate',@(x) isnumeric(x) & ~isnan(x)); %inter-trial interval (ms)
             c.addProperty('trialDuration',p.trialDuration,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
-            c.addProperty('matlabVersion', version); %Log MATLAB version used to run this experiment
+            c.addProperty('matlabVersion', []); %Log MATLAB version used to run this experiment - set at runtime
+            c.addProperty('ptbVersion',[]); % Log PTB Version used to run this experiment - set at runtime
+            c.addProperty('repoVersion',[]); % Information on the git version/hash. - set at runtime
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
+            
             
             % Set up a messenger object that provides online feedback to the experimenter
             % either on the local command prompt or on a remote Matlab instance. A remote messenger client can be added by
@@ -481,65 +494,7 @@ classdef cic < neurostim.plugin
                 c.(label) = value;
             end
         end
-        function versionTracker(c,silent,push) %#ok<INUSD>
-            % Git Tracking Interface
-            %
-            % The idea:
-            % A laboratory forks the GitHub repo to add their own experiments
-            % in the experiments folder.  These additions are only tracked in the
-            % forked repo, so the central code maintainer does not have to be bothered
-            % by it. The new laboratory can still contribute to the core code, by
-            % making changes and then sending pull requests.
-            %
-            % The goal of the gitTracker is to log the state of the entire repo
-            % for a particular laboratory at the time an experiment is run. It checks
-            % whether there are any uncommitted changes, and asks/forces them to be
-            % committed before the experiment runs. The hash corresponding to the final
-            % commit is stored in the data file such that the complete code state can
-            % easily be reproduced later.
-            %
-            % BK  - Apr 2016
-            if nargin<3
-                push =false; %#ok<NASGU>
-                if nargin <2
-                    silent = false;
-                end
-            end
-            
-            if ~exist('git.m','file')
-                error('The gitTracker class depends on a wrapper for git that you can get from github.com/manur/MATLAB-git');
-            end
-            
-            [status] = system('git --version');
-            if status~=0
-                error('versionTracker requires git. Please install it first.');
-            end
-            
-            [txt] = git('status --porcelain');
-            changes = regexp([txt 10],'[ \t]*[\w!?]{1,2}[ \t]+(?<mods>[\w\d /\\\.\+]+)[ \t]*\n','names');
-            nrMods= numel(changes);
-            if nrMods>0
-                disp([num2str(nrMods) ' files have changed (or need to be added). These have to be committed before running this experiment']);
-                changes.mods;
-                if silent
-                    msg = ['Silent commit  (' getenv('USER') ' before experiment ' datestr(now,'yyyy/mm/dd HH:MM:SS')];
-                else
-                    msg = input('Code has changed. Please provide a commit message','s');
-                end
-                [txt,status]=  git(['commit -a -m ''' msg ' ('  getenv('USER') ' ) ''']);
-                if status >0
-                    disp(txt);
-                    error('File commit failed.');
-                end
-            end
-            
-            %% now read the commit id
-            txt = git('show -s');
-            hash = regexp(txt,'commit (?<id>[\w]+)\n','names');
-            c.addProperty('githash',hash.id);
-            [~,ptb] =PsychtoolboxVersion;
-            c.addProperty('PTBVersion',ptb);
-        end
+                              
         function addScript(c,when, fun,keys)
             % It may sometimes be more convenient to specify a function m-file
             % as the basic control script (rather than write a plugin that does
@@ -624,6 +579,7 @@ classdef cic < neurostim.plugin
             if ~isempty(c.stimuli)
                 defaultOrder = cat(2,defaultOrder,{c.stimuli.name});
             end
+            
             if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
                 newOrder = defaultOrder;
             else
@@ -641,6 +597,15 @@ classdef cic < neurostim.plugin
                     newOrder = cat(2,'gui',newOrder(~isGui));
                 end
             end
+            
+            ix =  ismember(newOrder,'diodeFlasher');
+            if any(ix)
+                % Make sure diodeFlasher is last in line so that it can get
+                % updated by all stimuli.                 
+                newOrder(ix)=[];
+                newOrder = cat(2,newOrder,'diodeFlasher');                                
+            end
+
             c.pluginOrder = [];
             for i=1:numel(newOrder)
                 c.pluginOrder =cat(2,c.pluginOrder,c.(newOrder{i}));
@@ -680,7 +645,7 @@ classdef cic < neurostim.plugin
                 end
                 
                 msg = char(msg, ['File: ' c.fullFile '.mat']);
-
+                
                 disp(msg)
             end
         end
@@ -921,6 +886,11 @@ classdef cic < neurostim.plugin
             AssertOpenGL;
             sca; % Close any open PTB windows.
             
+            % Version tracking  at run time.          
+            c.matlabVersion = version;
+            c.ptbVersion = Screen('Version');
+            c.repoVersion = neurostim.utils.git.versionTracker(c.gitTracker);
+                               
             % Setup the messenger
             c.messenger.localCache = c.useFeedCache;
             c.messenger.useColor = c.useConsoleColor;
@@ -954,7 +924,7 @@ classdef cic < neurostim.plugin
             if ~exist(c.fullPath,'dir')
                 success = mkdir(c.fullPath);
                 if ~success
-                    error(horzcat('Save folder ', c.fullPath, ' does not exist and could not be created. Check drive/write access.'));
+                    error(horzcat('Save folder ', strrep(c.fullPath,'\','/'), ' does not exist and could not be created. Check drive/write access.'));
                 end
             end
             
@@ -1045,7 +1015,7 @@ classdef cic < neurostim.plugin
                             %ITI didn't fix the problem. This did.
                             postITIflip = GetSecs;
                             while GetSecs-postITIflip < 0.6*FRAMEDURATION
-                                dummyAssignment=1;
+                                dummyAssignment=1; %#ok<NASGU>
                             end
                         end
                     else
@@ -1096,20 +1066,29 @@ classdef cic < neurostim.plugin
                         % Let the GPU start processing this
                         Screen('DrawingFinished',c.mainWindow,1-clr);
                         
-                        if c.timing.vsyncMode ==1
-                            % In vsyncMode 1 we schedule the flip now (but
-                            % then proceed asynchronously to do some
-                            % non-drawing related tasks).
-                            %Screen('AsyncFlipBegin', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
-                            Screen('AsyncFlipBegin',c.mainWindow,WHEN,1-clr,0,0);
-                        end
+                       
                         
                         KbQueueCheck(c);
                         % After the KB check, a behavioral requirement
                         % can have terminated the trial. Check for that.
                         if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
-                        
-                        
+                         
+                        if c.timing.vsyncMode ==1
+                            % In vsyncMode 1 we schedule the flip now (but
+                            % then proceed asynchronously to do some
+                            % non-drawing related tasks).
+                            %Screen('AsyncFlipBegin', windowPtr , when =0, dontclear = 1-clr , dontsync =0 , multiflip =0);
+                            % Note that this should be after the clr =
+                            % c.itiClear line, otherwise the scheduled clr
+                            % argument could be different from the desired
+                            % clr if itiClear = false). In principle we
+                            % could catch this condition after the
+                            % frameloop and then draw the last frame again,
+                            % but the small performance enhancement
+                            % (checking the keyboard) does not seem worth
+                            % it.
+                            Screen('AsyncFlipBegin',c.mainWindow,WHEN,1-clr,0,0);
+                        end
                         
                         % In VSync mode 0 we start the flip and wait for it
                         % to finish before proceeding.
@@ -1225,9 +1204,10 @@ classdef cic < neurostim.plugin
                     end % Trial running
                     c.stage = neurostim.cic.RUNNING;
                     %Perform one last flip to clear the screen (if requested)
-                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
+                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
+                    
                     
                     c.frame = c.frame+1;
                     
@@ -1258,6 +1238,11 @@ classdef cic < neurostim.plugin
             %Prune the log of all plugins/stimuli and cic itself
             pruneLog([c.pluginOrder c]);
             
+            if c.keyAfterExperiment
+              % need to do this before we kill CLUT textures etc.
+              c.drawFormattedText('Press any key to close the screen','ShowNow',true);
+            end
+            
             % clean up CLUT textures used by SOFTWARE-OVERLAY
             if isfield(c.screen,'overlayClutTex') && ~isempty(c.screen.overlayClutTex)
                 glDeleteTextures(numel(c.screen.overlayClutTex),c.screen.overlayClutTex(1));
@@ -1269,7 +1254,9 @@ classdef cic < neurostim.plugin
             
             ListenChar(0);
             Priority(0);
-            if c.keyAfterExperiment; c.drawFormattedText('Press any key to close the screen','ShowNow',true); KbWait(c.kbInfo.pressAnyKey);end
+            if c.keyAfterExperiment
+              KbWait(c.kbInfo.pressAnyKey);
+            end
             
             Screen('CloseAll');
             if c.PROFILE; report(c);end
@@ -1303,6 +1290,7 @@ classdef cic < neurostim.plugin
             if c.loadedFromFile
                 % When loading fro file, PTB may not be installed and none
                 % of the "online/intractive" funcationality is relevant.
+                oldKey = struct; % empty struct
                 return;
             end
             if ischar(key)
@@ -1393,97 +1381,7 @@ classdef cic < neurostim.plugin
                 c.lastFrameDrop=c.lastFrameDrop+nrFramedrops;
             end
         end
-        
-        
-        function c = rig(c,varargin)
-            % Basic screen etc. setup function, called from myRig for
-            % instnace.
-            pin = inputParser;
-            pin.addParameter('xpixels',[]);
-            pin.addParameter('ypixels',[]);
-            pin.addParameter('xorigin',[]);
-            pin.addParameter('yorigin',[]);
-            pin.addParameter('screenWidth',[]);
-            pin.addParameter('screenHeight',[]);
-            pin.addParameter('screenDist',[]);
-            pin.addParameter('frameRate',[]);
-            pin.addParameter('screenNumber',[]);
-            pin.addParameter('keyboardNumber',[]);
-            pin.addParameter('subjectKeyboard',[]);
-            pin.addParameter('experimenterKeyboard',[]);
-            pin.addParameter('eyelink',false);
-            pin.addParameter('eyelinkCommands',[]);
-            pin.addParameter('viewpoint',false);
-            pin.addParameter('viewpointCommands',[]);
-            pin.addParameter('outputDir',[]);
-            pin.addParameter('mcc',false);
-            pin.addParameter('colorMode','RGB');
-            pin.parse(varargin{:});
-            
-            if ~isempty(pin.Results.xpixels)
-                c.screen.xpixels  = pin.Results.xpixels;
-            end
-            if ~isempty(pin.Results.ypixels)
-                c.screen.ypixels  = pin.Results.ypixels;
-            end
-            if ~isempty(pin.Results.frameRate)
-                c.screen.frameRate  = pin.Results.frameRate;
-            end
-            if ~isempty(pin.Results.screenWidth)
-                c.screen.width  = pin.Results.screenWidth;
-            end
-            if ~isempty(pin.Results.screenHeight)
-                c.screen.height = pin.Results.screenHeight;
-            else
-                c.screen.height = c.screen.width*c.screen.ypixels/c.screen.xpixels;
-            end
-            if ~isempty(pin.Results.screenDist)
-                c.screen.viewDist  = pin.Results.screenDist;
-            end
-            if ~isempty(pin.Results.screenNumber)
-                c.screen.number  = pin.Results.screenNumber;
-            end
-            if ~isempty(pin.Results.keyboardNumber)
-                c.kbInfo.default = pin.Results.keyboardNumber;
-            end
-            if ~isempty(pin.Results.subjectKeyboard)
-                c.kbInfo.subject= pin.Results.subjectKeyboard;
-            end
-            if ~isempty(pin.Results.experimenterKeyboard)
-                c.kbInfo.experimenter = pin.Results.experimenterKeyboard;
-            end
-            
-            if ~isempty(pin.Results.outputDir)
-                c.dirs.output  = pin.Results.outputDir;
-            end
-            if pin.Results.eyelink
-                neurostim.plugins.eyelink(c);
-                if ~isempty(pin.Results.eyelinkCommands)
-                    for i=1:numel(pin.Results.eyelinkCommands)
-                        c.eye.command(pin.Results.eyelinkCommands{i});
-                    end
-                end
-            elseif pin.Results.viewpoint
-                neurostim.plugins.viewpoint(c);
-                if ~isempty(pin.Results.viewpointCommands)
-                    for ii = 1:numel(pin.Results.viewpointCommands)
-                        c.eye.command(pin.Results.viewpointCommands{ii});
-                    end
-                end
-            else
-                e = neurostim.plugins.eyetracker(c); % If no eye tracker, use a virtual one. Mouse is used to control gaze position (click)
-                e.useMouse = true;
-            end
-            if pin.Results.mcc
-                neurostim.plugins.mcc(c);
-            end
-            
-            c.screen.xorigin = pin.Results.xorigin;
-            c.screen.yorigin = pin.Results.yorigin;
 
-            c.screen.colorMode = pin.Results.colorMode;
-        end
-        
         
         function addFunProp(c,plugin,prop)
             %Function properties are constructed at run-time
@@ -1733,6 +1631,7 @@ classdef cic < neurostim.plugin
                 end
             end
         end
+                
     end
     
     methods (Access=private)
@@ -2120,13 +2019,13 @@ classdef cic < neurostim.plugin
         
         function colorOk = loadCalibration(c)
             colorOk = false;
-            if ~isempty(c.screen.calFile)
+            if ~isempty(c.screen.calFile)                                               
                 % Load a calibration from file. The cal struct has been
                 % generated by utils.ptbcal
                 
                 c.screen.calibration = LoadCalFile(c.screen.calFile,Inf,c.dirs.calibration); % Retrieve the latest calibration
                 if isempty(c.screen.calibration)
-                    error(['Could not load a PTB calibration file from: ' fullfile(c.dirs.calibration,c.screen.calibration.file)]);
+                    error(['Could not load a PTB calibration file from: ' fullfile(c.dirs.calibration,c.screen.calFile)]);
                 end
                 
                 if ~isempty(c.screen.colorMatchingFunctions)
@@ -2195,6 +2094,7 @@ classdef cic < neurostim.plugin
             end
             
             %OK, allocate them
+            rng = cell(1,nStreams);
             for i=1:nStreams
                 if ~makeItAGPUrng(i)
                     %Return a CPU rng
@@ -2230,7 +2130,7 @@ classdef cic < neurostim.plugin
                 % Current CIC classdef does not match classdef in force
                 % when this object was saved.
                 current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
-                fromFile = o;               
+                fromFile = o;
                 %-- This cannot be moved to a function due to class access
                 %permissions.
                 m= metaclass(current);

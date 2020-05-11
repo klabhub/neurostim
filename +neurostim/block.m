@@ -158,6 +158,7 @@ classdef block < dynamicprops
         function o = block(name,varargin)
             assert(nargin > 1,'NEUROSTIM:block:notEnoughInputs', ...
                 'Not enough input arguments.');
+            assert(ischar(name),'A block needs a char name as its first input');
             isDesign = cellfun(@(x) isa(x,'neurostim.design'),varargin);
             if ~any(isDesign)
                 error('block construction needs at least one design');
