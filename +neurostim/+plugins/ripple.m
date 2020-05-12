@@ -29,10 +29,11 @@ classdef ripple < neurostim.plugin
     %  t.trialBit = 3; % Signal start/stop on SMA digital output 3 (whcih is looped to input 3)
     %  t.drive = {'z:\','c:\'};  % Whatever Neurostim wants to save to z:\
     %                               we put on c:\ on the Trellis computer
-    %  t.channel = 129:160 ; % For this animal we connect a single 32
-    %  channel front end to Port B - those channels are 129:160.
-    % t.electrode = 1:32; % When analyzing these data we refer to the
-    % first channel as electrode 1 and the last channel (160) as electrode 32.
+    % We indicate that the first connector port B (channels 192+) is connected to the first FMA
+    % in thebrain and teh second connector to the second array in the
+    % brain.
+    %  t.connect('B',1,'arrayNumber',1,'flipped',false,'arrayType','fma')
+    % t.connect('B',2,'arrayNumber',2,'flipped',false,'arrayType','fma')
     %
     % You can also deliver reward through Trellis - see plugins.liquid
     %
@@ -45,9 +46,11 @@ classdef ripple < neurostim.plugin
         availablePorts ='ABCD';
     end
     
+    
     properties (SetAccess=protected,GetAccess=public)
         tmr=timer; % Array of timer objects for digouts 1-5 (to handle duration of pulse)
         currentDigout = false(1,neurostim.plugins.ripple.NRDIGOUT); % Track state of digout
+        connectors = containers.Map;
     end
     
     properties (Dependent)
@@ -102,23 +105,33 @@ classdef ripple < neurostim.plugin
         
     end
     methods
+        function connect(o,port,connector,varargin)
+            % Currently only used for bookkeeping, not to actually start
+            % streaming/saving.(That would require the stream function
+            % below).
+            p =inputParser;
+            p.addRequired('port',@(x) (ischar(x) && ismember(upper(x),'ABCD')));
+            p.addRequired('connector',@(x) (isnumeric(x) && round(x)==x && x<5 &&x >0));
+            p.addParameter('flip',false,@islogical);% Was the connector flipped? 
+            p.addParameter('arrayNr',[],@isnumeric); % Which array did this connector attach to (array is a number in the brain).
+            p.addParameter('arrayType','fma',@ischar); % Used in data analysis
+            p.addParameter('streams',{},@iscell); % Streams to enable (not implemented yet).
+            p.parse(varargin{:});
+            str = struct('flip',p.Results.flipped,'arrayNr',p.Results.arrayNumber,'streams',p.Results.streams,'arrayType',p.Results.arrayType);
+            o.connectors([port num2str(connector)])=str;            
+        end
         function o = ripple(c)
             % Construct a ripple plugin
             o = o@neurostim.plugin(c,'ripple');
             o.addProperty('trialBit',[]);
             o.addProperty('trialStart',[]);
             o.addProperty('trialStop',[]);
-            o.addProperty('channel',[]);    % Specify which channel connects to which electrode.
-            o.addProperty('electrode',[]);
-            o.addProperty('streamSettings',{});
             o.addProperty('startSave',NaN);
             o.addProperty('stopSave',NaN);
             o.addProperty('drive',{}); % Optional - change output drive on the Ripple machine {'Z:\','C:\'} will change the Z:\ in the neurostim file to C:\ for Ripple
             o.addProperty('fake',false);
+           
             
-            % Example (future) streamSettings={{'port','A','channel',1:64,'stream','raw'};
-            %              {'port','A','channel',1:64,'stream','lfp'};
-            %              {'port','SMA','channel',3,'stream','1ksps'}};
             
             pth = which('xippmex');
             if isempty(pth)
