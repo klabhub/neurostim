@@ -110,15 +110,14 @@ classdef ripple < neurostim.plugin
             % streaming/saving.(That would require the stream function
             % below).
             p =inputParser;
-            p.addRequired('port',@(x) (ischar(x) && ismember(upper(x),'ABCD')));
-            p.addRequired('connector',@(x) (isnumeric(x) && round(x)==x && x<5 &&x >0));
+            p.addRequired('port',@ischar);
+            p.addRequired('connector',@isnumeric);
             p.addParameter('flip',false,@islogical);% Was the connector flipped? 
             p.addParameter('arrayNr',[],@isnumeric); % Which array did this connector attach to (array is a number in the brain).
             p.addParameter('arrayType','fma',@ischar); % Used in data analysis
             p.addParameter('streams',{},@iscell); % Streams to enable (not implemented yet).
-            p.parse(varargin{:});
-            str = struct('flip',p.Results.flipped,'arrayNr',p.Results.arrayNumber,'streams',p.Results.streams,'arrayType',p.Results.arrayType);
-            o.connectors([port num2str(connector)])=str;            
+            p.parse(port,connector,varargin{:});            
+            o.connectors([port num2str(connector)])=p.Results;            
         end
         function o = ripple(c)
             % Construct a ripple plugin
