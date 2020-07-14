@@ -351,6 +351,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             % 'struct' - set to true to return all outputs as a data structure
             % 'first' - return the first N (applied after all other
             % selections)
+            % matrixIfPossible if set to true [default] it will try to
+            % convert the data to a [NRTRIALS N] matrix. This is somewhat
+            % time consuming, so use sparingly.
                         
             maxTrial = o.plg.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1
             
@@ -363,15 +366,14 @@ classdef parameter < handle & matlab.mixin.Copyable
             p.addParameter('dataIsNotNan',false,@islogical);%Only when data is not nan.
             p.addParameter('matrixIfPossible',true); % Convert to a [NRTRIALS N] matrix if possible
             p.addParameter('struct',false,@islogical); % Pack the output arguments into a structure.
-            p.addParameter('first',inf); % Return the first N (defaults to all =inf)
-            
+            p.addParameter('first',inf); % Return the first N (defaults to all =inf)            
             p.parse(varargin{:});
+            returnMatrixIfPossible = p.Results.matrixIfPossible;
             
             %% Extract the raw data from the log. All as single column.
             data = o.log(1:o.cntr)';
-            time = o.time(1:o.cntr)'; % Force a column for consistency.
-            trialTime= o.eTime2TrialTime(time);
-            trial = o.eTime2TrialNumber(time);
+            time = o.time(1:o.cntr)'; % Force a column for consistency.           
+            [trialTime, trial] = o.eTime2TrialTime(time);
             
             %% Correct times
             %If the parameter is a stored value from flip(), use the data as the time rather than the time it was logged.
@@ -438,7 +440,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                 % you get the last value in the trial.
                 if ~isempty(p.Results.after)
                     % Find the last time this event occurred in each trial
-                    [~,aTr,aTi,atETime] = get(o.plg.prms.(p.Results.after) ,'atTrialTime',inf); %#ok<ASGLU>
+                    [~,aTr,aTi,atETime] = get(o.plg.prms.(p.Results.after) ,'atTrialTime',inf,'matrixIfPossible',false); %#ok<ASGLU>
                     withinTrialOnly = true;
                     if ~isempty(p.Results.atTrialTime)
                         atETime = atETime+p.Results.atTrialTime; % Interpret atTrialTime as the time after the .after event.
@@ -467,8 +469,12 @@ classdef parameter < handle & matlab.mixin.Copyable
                             ix(tr,tt) = thisIx;
                         end
                     end
-                    if ~isnan(ix(tr,:))
-                        newData{tr} =  neurostim.parameter.matrixIfPossible(data{ix(tr,:)});
+                    if ~isnan(ix(tr,:)) 
+                        if  returnMatrixIfPossible 
+                            newData{tr} =  neurostim.parameter.matrixIfPossible(data{ix(tr,:)});
+                        else
+                            newData(tr) =  data(ix(tr,:));
+                        end
                     end
                 end
                 %
@@ -533,14 +539,14 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             
             
-            if p.Results.matrixIfPossible
+            if returnMatrixIfPossible 
                 data=  neurostim.parameter.matrixIfPossible(data);
             end
             
             if nargout >4 || p.Results.struct
                 % User asked for block information
-                block= get(o.plg.cic.prms.block,'atTrialTime',Inf); % Blck at end of trial
-                block = block(trial); % Match other info that is returned
+                block= get(o.plg.cic.prms.block,'atTrialTime',Inf,'matrixIfPossible',false); % Blck at end of trial
+                block = [block{trial}]; % Match other info that is returned
             end
             
             if (nargout >5 || p.Results.struct) && ~strcmp(o.name,'frameDrop')
@@ -594,7 +600,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             t = o.plg.cic.prms.trial.time;   % Start of the trial
             t(tr==0) = [];
             t(isnan(t))= [];
-            assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match the number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(t));
+            %assert(numel(t)<=o.plg.cic.nrTrialsTotal,'The trial counter %d does not match the number of started trials (%d)',o.plg.cic.nrTrialsTotal,numel(t));
         end
         
         function t = firstFrameTime(o)
@@ -619,10 +625,11 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
         end
         
-        function trTime= eTime2TrialTime(o,eventTime)
-            % trTime= eTime2TrialTime(o,eventTime)
+        function [trTime,tr]= eTime2TrialTime(o,eventTime)
+            % [trTime,tr]= eTime2TrialTime(o,eventTime)
             % Returns a [nrTrials nrTimes] matrix/vector of trial
             % times for a given (vector of) experiment times.
+            % and a [nrTimes] vector with the corresponding trial numbers.
             tr = eTime2TrialNumber(o,eventTime);
             trStartT = firstFrameTime(o);
             if isempty(trStartT) &&  all(tr==1)

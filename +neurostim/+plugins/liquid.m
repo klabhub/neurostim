@@ -1,5 +1,27 @@
 classdef liquid < neurostim.plugins.feedback
-    % Feedback plugin to deliver liquid reward (through MCC).
+    % Feedback plugin to deliver liquid reward through some external hardware device.
+    % 'device'  -the name of a plugin to use to deliver reward ('mcc',
+    %           'ripple')
+    %  'deviceFun' -  A member function of the device plugin that will be
+    %               called to open and close the liquid reward Can be char 
+    %               or a function handle. 
+    %               This function will be called as follows when reward is
+    %               supposed to be delivered. 
+    %                   fun(device,deviceChannel,true,duration)
+    %               This function should open and then close the spout some
+    %               duration ms later. (See plugins.ripple).
+    %               At the start of the experiment and at the end, the same
+    %               funciton is called to make sure everything is in the
+    %               closed state:
+    %                   fun(device,deviceChannel,false);
+    % 'deviceChannel' - The channel to use in the hardware device.
+    % 'jackpotPerc'   - The percentage of rewards in which a jackpot is
+    %                   delivered (i.e a long duration reward)
+    % 'jackpotDur'     - The duration of the jackpot duration.
+    % 
+    % The regular duration (i.e. non-jackpot) of the reward is specified per item
+    % using the add() function of the feedback parent class.
+    %
     
     properties        
         nrDelivered = 0;
@@ -9,6 +31,9 @@ classdef liquid < neurostim.plugins.feedback
     
     methods (Access=public)
         function o=liquid(c,name)
+            if nargin<2
+                name = 'liquid';
+            end
             o=o@neurostim.plugins.feedback(c,name);
             o.addProperty('device','mcc');
             o.addProperty('deviceFun','digitalOut');
@@ -69,16 +94,89 @@ classdef liquid < neurostim.plugins.feedback
         function open(o,duration)
             %Not the most elegant way to do this with feval, a
             %function_handle would be more flexible, but ok for now.
-           feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,true,duration);                                            
+            if ischar(o.deviceFun)
+                feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,true,duration);                                            
+            elseif isa(o.deviceFun,'function_handle')
+                o.deviceFun(o.deviceChannel,true,duration);               
+            else
+                error('Char or function_handle for deviceFun only')
+            end
         end
         
         function close(o)
-           feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,false);                                           
+            if ischar(o.deviceFun)
+                feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,false); 
+             elseif isa(o.deviceFun,'function_handle')
+                o.deviceFun(o.deviceChannel,false);                
+            else
+                error('Char or function_handle for deviceFun only')
+            end
         end
         
         function report(o)
             %Provide an update of performance to the user.
             o.writeToFeed(horzcat('Delivered: ', num2str(o.nrDelivered), ' (', num2str(round(o.nrDelivered./o.cic.trial,1)), ' per trial); Total duration: ',num2str(o.totalDelivered)));
         end
+    end
+    
+    
+     %%  GUI functions
+    methods (Access= public)
+        function guiSet(o,parms)
+            o.jackpotDur = parms.JackpotDur;
+            o.jackpotPerc = parms.JackpotPerc;
+            durations = str2num(parms.Duration); %#ok<ST2NM>
+            for i=1:o.nItems                
+               o.(['item', num2str(i) 'duration']) = durations(min(i,numel(durations)));
+            end
+        end
+    end
+    
+    
+    methods (Static)
+        
+        function guiLayout(p)
+            % Add plugin specific elements
+             
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [100 39 30 22];
+            h.Text = 'Reward';
+            
+            
+            h = uieditfield(p, 'text','Tag','Duration'); % Must be text to allow vectors.
+            h.Position = [100 17 50 22];
+            h.Value= '200';
+            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [160 39 50 22];
+            h.Text = 'Jackpot';
+            
+            h = uieditfield(p, 'numeric','Tag','JackpotDur');
+            h.Value = 1000;
+            h.Position = [160 17 50 22];
+            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [210 39 50 22];
+            h.Text = '% Jackpot';
+            
+            h = uieditfield(p, 'numeric','Tag','JackpotPerc');
+            h.Value = 0.01;
+            h.Position = [210 17 50 22];
+            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
+            
+            
+            
+            
+        end
+        
     end
 end

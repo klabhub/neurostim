@@ -73,7 +73,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         callbackFun = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
         boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]
         targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
-        
+           
 
  
     end
@@ -360,9 +360,10 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('Message','%s',['TR:' num2str(o.cic.trial)]);   %will this be used to align clocks later?
             Eyelink('Message','TRIALID %d-%d',o.cic.condition,o.cic.trial);
             
-            o.eyeClockTime = Eyelink('TrackerTime');
-            %o.writeToFeed(num2str(o.eyeClockTime/100));
-            
+            o.eyeClockTime = Eyelink('TrackerTime'); 
+            % BK Noticed that this does not always get updated values (i.e.
+            % same value throughout the experiment). Not fatal as we use
+            % only the logged time in Neurostim to align, but strange.                        
         end
         
         function afterFrame(o)

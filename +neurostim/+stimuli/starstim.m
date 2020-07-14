@@ -16,13 +16,16 @@ classdef starstim < neurostim.stimulus
     %
     % A protocol (defined in the NIC) specifies which electrodes are
     % connected, which record EEG, and which stimulate. You select a protocol
-    % by providing its name (case-sensitive) to the starstim plugin constructor.
+    % by providing its name (case-sensitive) to the starstim plugin .
     %
     % Note that all stimluation parameters will be set here in
-    % in the starstim matlab stimulus. The (single step) protocol should just set all
-    % **currents to zero**  and chose a very long duration. That way this
-    % plugin can start the protocol (which will record EEG but stimulate
+    % in the starstim matlab stimulus. The (single step) protocol should
+    % set stim **currents to 0 muA**  and chose a very long duration. 
+    % This plugin will load the protocol, (which will record EEG but stimulate
     % at 0 currents) and then change stimulation parameters on the fly.
+    %
+    % For impedance checking a separate protocol has to be used (with
+    % current>100 muA).
     %
     % Filenaming convention for NIC output uses the name of the step in the
     % protocol. Leaving the step name blank creates cleaner file names
@@ -354,6 +357,20 @@ classdef starstim < neurostim.stimulus
                     o.checkRet(ret,['Protocol ' o.protocol ' is not defined in NIC']);
                 else
                     o.activeProtocol = o.protocol;
+                    % Would be nice to set everything to zero in the potocol so that only the
+                    % parameters defined here (in Neurostim) will be
+                    % applied. But, the OnlineChange functions in MatNIC
+                    % only work after the protocol has started so the
+                    % following code will not work (even after modifying the MatNIC code
+                    % to get teh message passed to NIC). (Instead, the user
+                    % should define a zero-current protocol, but this has
+                    % the disadvantage that a separate protocol is needed
+                    % to do Impedance checks.
+                    %[ret] = MatNICOnlineAtacsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
+                     %     o.checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
+                     %    [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
+                      %   o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
+
                 end
             end
         end
