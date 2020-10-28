@@ -67,12 +67,9 @@ classdef estim < neurostim.stimulus
         end
         function beforeTrial(s)
             if s.enabled
-                setActive(s);
+                % This function sets the current estim parameters to active in the Intan plugin
+                s.cic.intan.setActive(s);
             end
-        end
-        function setActive(s)
-            % This function sets the current estim parameters to active in the Intan plugin
-            s.cic.intan.estimulus(numel(s.cic.intan.estimulus)+1) = {s};
         end
     end    
 end %classdef

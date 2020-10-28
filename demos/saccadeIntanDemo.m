@@ -51,7 +51,7 @@ t.on = '@fix.on + fix.duration';  % Use a function to turn on when target turns 
 
 %% ========== Add Intan plugin ================
 % Add the Intan plugin
-i = neurostim.plugins.intan(c,'intan');
+i = neurostim.plugins.intan(c);
 i.testMode = 0; % Disable stimulation and recording while testing
 i.mapPath = 'C:\Users\localadmin\Documents\git\EPhysLabSoftware\Experimental Design\Constants\NN-Mapping-ISeries.mat';
 i.mcs = 1;      % Enable (1) or disable (0) stimulation on multiple channels simultaneously
