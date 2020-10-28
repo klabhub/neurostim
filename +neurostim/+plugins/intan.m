@@ -58,9 +58,7 @@ classdef intan < neurostim.plugins.ePhys
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
             pin.addParameter('mapPath', '', @ischar);
             pin.addParameter('chnMap', [], @isnumeric);
-            pin.addParameter('mcs', 0, @isnumeric); % Controls multi-channel stimulation in Intan's firmware
-            pin.addParameter('startTime',[]); % Will hold the time startRecording was run
-            pin.addParameter('stopTime',[]); % Will hold the time stopRecording was run
+            pin.addParameter('mcs', 0, @isnumeric); % Controls multi-channel stimulation in Intan's firmware            
             pin.parse(varargin{:});
             args = pin.Results;
             % Call parent class constructor
@@ -77,8 +75,7 @@ classdef intan < neurostim.plugins.ePhys
             o.addProperty('mapPath',args.mapPath);
             o.addProperty('chnMap',args.chnMap);
             o.addProperty('mcs',args.mcs);
-            o.addProperty('startTime',args.startTime);
-            o.addProperty('stopTime',args.stopTime);
+            o.addProperty('isRecording',false);
         end
         % Communcation
         function sendMessage(o,msg)
@@ -225,13 +222,13 @@ classdef intan < neurostim.plugins.ePhys
     methods (Access = protected)
         function startRecording(o)
             if ~o.testMode
-                o.startTime = clock;
+                o.isRecording = true;
                 o.sendMessage('RECORD');
             end
         end
         function stopRecording(o)
             if ~o.testMode
-                o.stopTime = clock;
+                o.isRecording = false;
                 o.sendMessage('STOP');
             end
         end        
