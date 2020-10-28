@@ -35,6 +35,7 @@ classdef intan < neurostim.plugins.ePhys
     % 'CHANGEFRAME=1' % Changes the selected frame for OPENSTIM
     % 'SETSAVEPATH' % Sets the filepath used for saving data
     % 'LOADSETTINGS' % Loads an on-disk settings file
+    
     properties
         estimulus = {};     % Contains a pointer to the active estim plugin
         activechns = {};    % Contains a list of active stimulation channels
@@ -45,7 +46,7 @@ classdef intan < neurostim.plugins.ePhys
     
     methods (Access=public)
         % Initialisation
-        function o = intan(c,name,varargin)
+        function o = intan(c,varargin)
             % Intan does not have any dependencies on the host computer
             % Parse arguments
             pin = inputParser;
@@ -57,13 +58,13 @@ classdef intan < neurostim.plugins.ePhys
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
             pin.addParameter('mapPath', '', @ischar);
             pin.addParameter('chnMap', [], @isnumeric);
-            pin.addParameter('mcs', 0, @isnumeric); % Controls multi-channel stimulation in Intan's firmware
+            pin.addParameter('mcs', 0, @isnumeric); % Controls multi-channel stimulation in Intan's firmware            
             pin.parse(varargin{:});
             args = pin.Results;
             % Call parent class constructor
             % Pass HostAddr to the parent constructor via the 'Unmatched'
             % property of the input parser
-            o = o@neurostim.plugins.ePhys(c,name,pin.Unmatched);            
+            o = o@neurostim.plugins.ePhys(c,'intan',pin.Unmatched);            
 
             % Initialise class properties
             o.addProperty('createNewDir',args.CreateNewDir,'validate',@isnumeric);
@@ -74,6 +75,7 @@ classdef intan < neurostim.plugins.ePhys
             o.addProperty('mapPath',args.mapPath);
             o.addProperty('chnMap',args.chnMap);
             o.addProperty('mcs',args.mcs);
+            o.addProperty('isRecording',false);
         end
         % Communcation
         function sendMessage(o,msg)
@@ -121,11 +123,11 @@ classdef intan < neurostim.plugins.ePhys
                     if marker(jj) % Disable all channels not used in the coming trial
                         msg{1} = strcat('channel=',o.activechns{jj});
                         msg{2} = 'enabled=0';
-                        msg{3} = 'SET'; % This will execute a 'SET' command, which necessitates a handshake to maintain synchronisation between Intan and MATLAB
+                        o.sendMessage(msg);
                         if jj == kk
                             o.handshake = 1;
                         end
-                        o.sendMessage(msg);
+                        o.sendSet();
                     end
                 end
                 o.activechns = {};
@@ -172,14 +174,24 @@ classdef intan < neurostim.plugins.ePhys
                 msg{17} = strcat('maintainAmpSettle=',num2str(o.estimulus{ii}.maAS));
                 msg{18} = strcat('enableChargeRecovery=',num2str(o.estimulus{ii}.enCR));
                 msg{19} = strcat('ID=',num2str(o.cic.trial));
-                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));
-                msg{21} = 'SET';
-                if ii == numel(o.estimulus) && o.mcs
-                    o.handshake = 1; % This will execute a 'SET' command, which necessitates a handshake to maintain synchronisation between Intan and MATLAB
-                end
+                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));                
                 o.sendMessage(msg);
+                if ii == numel(o.estimulus) && o.mcs
+                    o.handshake = 1;
+                end
+                o.sendSet();
                 o.activechns(numel(o.activechns)+1) = {thisChn};
             end
+        end
+        function sendSet(o)
+            if o.cic.stage == 1
+                o.sendMessage('SET');
+            elseif o.cic.stage == 2
+                c.error('CONTINUE','SET Command called to Intan during a trial. This is a critical error');
+            end
+        end
+        function setActive(o,e)
+            o.estimulus(numel(o.estimulus)+1) = {e};
         end
         function c = getIntanChannel(o,ii)            
             c = [o.estimulus{ii}.port '-' num2str(o.chnMap(o.estimulus{ii}.chn)-1,'%03d')];
@@ -211,11 +223,13 @@ classdef intan < neurostim.plugins.ePhys
         function startRecording(o)
             if ~o.testMode
                 o.sendMessage('RECORD');
+                o.isRecording = true;
             end
         end
         function stopRecording(o)
-            if ~o.testMode
+            if ~o.testMode                
                 o.sendMessage('STOP');
+                o.isRecording = false;
             end
         end        
     end
