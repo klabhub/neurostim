@@ -187,7 +187,7 @@ classdef intan < neurostim.plugins.ePhys
             if o.cic.stage == 1
                 o.sendMessage('SET');
             elseif o.cic.stage == 2
-                warning('SET Command called to Intan during a trial. This is a critical error');
+                c.error('CONTINUE','SET Command called to Intan during a trial. This is a critical error');
             end
         end
         function setActive(o,e)
@@ -222,14 +222,14 @@ classdef intan < neurostim.plugins.ePhys
     methods (Access = protected)
         function startRecording(o)
             if ~o.testMode
-                o.isRecording = true;
                 o.sendMessage('RECORD');
+                o.isRecording = true;
             end
         end
         function stopRecording(o)
-            if ~o.testMode
-                o.isRecording = false;
+            if ~o.testMode                
                 o.sendMessage('STOP');
+                o.isRecording = false;
             end
         end        
     end
