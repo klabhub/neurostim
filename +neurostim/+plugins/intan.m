@@ -94,7 +94,9 @@ classdef intan < neurostim.plugins.ePhys
         end
         function beforeExperiment(o)     
             % Create a tcp/ip socket           
-            o.tcpSocket = o.local_TCPIP_server;
+            if ~o.testMode
+                o.tcpSocket = o.local_TCPIP_server;
+            end
             o.chnMap = o.loadIntanChannelMap;
             o.sendMessage('RUOK');
             if o.mcs
@@ -122,7 +124,7 @@ classdef intan < neurostim.plugins.ePhys
                         msg{1} = strcat('channel=',o.activechns{jj});
                         msg{2} = 'enabled=0';
                         msg{3} = 'SET'; % This will execute a 'SET' command, which necessitates a handshake to maintain synchronisation between Intan and MATLAB
-                        if jj == kk
+                        if jj == kk && ~o.testMode
                             o.handshake = 1;
                         end
                         o.sendMessage(msg);
@@ -174,7 +176,7 @@ classdef intan < neurostim.plugins.ePhys
                 msg{19} = strcat('ID=',num2str(o.cic.trial));
                 msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));
                 msg{21} = 'SET';
-                if ii == numel(o.estimulus) && o.mcs
+                if ii == numel(o.estimulus) && o.mcs && ~o.testMode
                     o.handshake = 1; % This will execute a 'SET' command, which necessitates a handshake to maintain synchronisation between Intan and MATLAB
                 end
                 o.sendMessage(msg);
