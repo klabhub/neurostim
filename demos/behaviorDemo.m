@@ -19,6 +19,22 @@ function behaviorDemo(varargin)
 %       (2) Respond by pressing "a" for upward motion or "z" for downward motion (once motion disappears).
 %
 %   *********** Press "Esc" twice to exit a running experiment ************
+%
+%   **** How do I analyse the experiment's data? ****
+%   The data generated during the experiment is saved in a mat file, and its
+%   file location is shown in the command window after the stimulus window closes.
+%   It contains all parameter values, every time they change, stimulus
+%   onsets, behavioural events, and much more. 
+%   
+%   See adaptiveDemo for an example of a simple post-run analysis (toward
+%   the end of that script) using Neurostim's get().
+%
+%   For usage details, type:
+%   >> help neurostim.parameter.get
+%
+%   You can load saved neurostim data (a cic object) using Matlab's standard load()
+%   function.
+
 
 import neurostim.*
 commandwindow;

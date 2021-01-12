@@ -46,7 +46,7 @@ classdef noisehexgrid < neurostim.stimuli.noiseclut
             o.addProperty('sz',3,'validate',@(x) validateattributes(x,{'numeric'},{'nonnegative'}));
             o.addProperty('spacing',1,'validate',@(x) validateattributes(x,{'numeric'},{'nonnegative'}));
             if exist('hexGrid.hex','class') ~=8
-                error('Could not find the hexGrid package. Clone it from github (https://github.com/SysNeuroHub/hexGrid.git) and add it to your path before using neurostim.plugins.psyBayes');
+                error('Could not find the hexGrid package. Clone it from github (https://github.com/SysNeuroHub/hexGrid.git) and add it to your path.');
             end
         end
         

@@ -24,9 +24,9 @@ classdef newera <  neurostim.plugins.liquid
   % note: ported from my marmoview class of the same name.
   
   properties (SetAccess = private, GetAccess = public)
-    dev@serial; % the serial port object
+    dev; %@serial; % the serial port object
 
-    keys@cell;
+    keys;% @cell;
   end % properties
 
   methods

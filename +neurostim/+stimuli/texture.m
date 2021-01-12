@@ -1,21 +1,22 @@
 classdef texture < neurostim.stimulus
-  % Stimulus class to manage and present textures.
+  % Stimulus class to manage and present textures and images.
   %
   % Settable properties:
   %   id      - id(s) of the texture(s) to show on
   %             the next frame
   %   width   - width on screen (screen units)
-  %   hight   - height on screen (screen units)
+  %   height  - height on screen (screen units)
   %   xoffset - offset applied to X coordinate (default: 0)
   %   yoffset - offset applied to Y coordinate (default: 0)
   %
   % Public methods:
   %   add(id,img)     - add img to the texture library, with identifier id
   %   mkwin(sz,sigma) - calculate a gaussian transparency mask/window
+  %   replace(id,img) - replace the id with a new image.
   %
   % Multiple textures can be rendered simultaneously by setting
   % any or all of the settable properties to be a 1xN vector.
-
+ 
   % 2016-10-08 - Shaun L. Cloherty <s.cloherty@ieee.org>
   
   properties (Access = private)
@@ -29,8 +30,8 @@ classdef texture < neurostim.stimulus
         
   % dependent properties, calculated on the fly...
   properties (Dependent, SetAccess = private, GetAccess = public)
-    texIds@cell; % list of all texture ids
-    numTex@double; % the number of textures
+    texIds; % list of all texture ids
+    numTex; % the number of textures
   end
   
   methods % set/get dependent properties
@@ -55,25 +56,52 @@ classdef texture < neurostim.stimulus
       
       o.addProperty('xoffset',0.0,'validate',@isnumeric);
       o.addProperty('yoffset',0.0,'validate',@isnumeric);
+      
+      o.addProperty('filterMode',1,'validate',@isnumeric); % 1 -bilinear interpolation
+      o.addProperty('globalAlpha',1,'validate',@isnumeric); % 1 fully opaque
     end
-        
+    
+    
+    function o = replace(o,id,img)
+        % Replace a texture with a new image.
+        idx = o.getIdx(id);
+        if isempty(idx)
+            error('ID %d does not exist in this texture stimulus',id);
+        else
+            if ~isempty(o.tex{idx}.ptr)
+                % Close the texture 
+                Screen('Close',o.tex{idx}.ptr);
+            end
+            o.tex(idx) = [];
+            o = add(o,id,img);
+        end        
+    end
+    
     function o = add(o,id,img)
       % add IMG to the texture library, with texture id ID
       %
       % IMG can be a NxM matrix of pixel luminance values (0..255), an
       % NxMx3 matrix containing pixel RGB values (0..255) or an NxMx4
-      % matrix containing pixel RGBA values. Alpha values range between
-      % 0 (transparent) and 255 (opaque)
+      % matrix containing pixel RGBA values, or it can be a char with the
+      % name of a file that contains the texture/image. This file will be
+      % read with imread. Alpha values range between 0 (transparent) and 255
+      % (opaque).
       
       % check if ID already exists
       idx = o.getIdx(id);
-      if isempty(idx),
+      if isempty(idx)
         % new texture
         idx = length(o.tex)+1;
       end
       
       assert(numel(idx) == 1,'Duplicate texture Id %s found!',id);
 
+      if ischar(img)
+         if ~exist(img,'file')
+            error(['No such image file: ' img]);
+         end
+         img = imread(img);        
+      end
       o.tex{idx} = struct('id',id,'img',img,'ptr',[]);
       
       o.id = id; % last texture added is displayed next...?
@@ -81,7 +109,7 @@ classdef texture < neurostim.stimulus
 
     function beforeExperiment(o)
       % create the ptb textures
-      for ii = 1:o.numTex,
+      for ii = 1:o.numTex
         o.tex{ii}.ptr = Screen('MakeTexture',o.window,o.tex{ii}.img);
       end
     end
@@ -107,25 +135,25 @@ classdef texture < neurostim.stimulus
                length(o.xoffset),length(o.yoffset)]);
  
       width = o.width;
-      if length(width) ~= 1 && length(width) ~= n,
+      if length(width) ~= 1 && length(width) ~= n
         o.cic.error('STOPEXPERIMENT',sprintf('%s.width must be 1x1 or 1x%i',o.name,n));
       end
       width(1:n) = width;
       
       height = o.height;
-      if length(height) ~= 1 && length(height) ~= n,
+      if length(height) ~= 1 && length(height) ~= n
         o.cic.error('STOPEXPERIMENT',sprintf('%s.height must be 1x1 or 1x%i',o.name,n));
       end
       height(1:n) = height;
       
       xoffset = o.xoffset;
-      if length(xoffset) ~= 1 && length(xoffset) ~= n,
+      if length(xoffset) ~= 1 && length(xoffset) ~= n
         o.cic.error('STOPEXPERIMENT',sprintf('%s.xoffset must be 1x1 or 1x%i',o.name,n));
       end
       xoffset(1:n) = xoffset;
       
       yoffset = o.yoffset;
-      if length(yoffset) ~= 1 && length(yoffset) ~= n,
+      if length(yoffset) ~= 1 && length(yoffset) ~= n
         o.cic.qerror('STOPEXPERIMENT',sprintf('%s.yoffset must be 1x1 or 1x%i',o.name,n));
       end
       yoffset(1:n) = yoffset;
@@ -134,20 +162,20 @@ classdef texture < neurostim.stimulus
       rect = rect + kron([-1,1],[width(:),-1*height(:)]/2);    
 
       % draw the texture
-      filterMode = 1; % bilinear interpolation
-      Screen('DrawTextures',o.window,ptr,[],rect',[],filterMode);
+      
+      Screen('DrawTextures',o.window,ptr,[],rect',[],o.filterMode,o.globalAlpha);
     end    
   end % public methods
     
   methods (Access = protected)
     function idx = getIdx(o,id)
       % get index into tex of supplied id(s)
-      if isempty(o.tex),
+      if isempty(o.tex)
         idx = [];
         return;
       end
 
-      if ~iscell(id),
+      if ~iscell(id)
         id = arrayfun(@(x) x,id,'UniformOutput',false);
       end
       
@@ -168,8 +196,8 @@ classdef texture < neurostim.stimulus
       
       sz(1:2) = sz; % force 1x2 vector
 
-      x = [0:sz(2)-1]/sz(2);
-      y = [0:sz(1)-1]/sz(1);
+      x = (0:sz(2)-1)/sz(2);
+      y = (0:sz(1)-1)/sz(1);
       [x,y] = meshgrid(x-0.5,y-0.5);
           
       [~,r] = cart2pol(x,y);

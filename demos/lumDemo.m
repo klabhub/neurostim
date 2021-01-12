@@ -32,8 +32,6 @@ c.screen.colorCheck =true;  % This will invert colors that are impossible given 
 % debugging; not for production use. 
 c.screen.color.text = [30 0 0];  % A red text 
 c.screen.color.background = [30 30 30]; % A high luminance background that looks "white" (same luminance for each gun)
-
-
 c.screen.type = 'GENERIC';
 c.trialDuration = 1000;
 c.iti           = 150;
@@ -47,20 +45,21 @@ c.subjectNr      =  0;
 % gunValue = bias + gain*((luminance-min)./(max-min))^(1/gamma)
 %
 % To determine thee parameters you measure the luminance for a range of
-% gunvalues and then fit the above function (See utils.ptbcal() for an
-% example).
+% gunvalues, then fit the above function (See utils.ptbcal() for an
+% example) and put the parameters into c.screen.calibration.ns as shown
+% below.
 %
 % gamma = the gamma of the monitor. Something near 2 usually.
 % bias = the lowest gun value. 
 % gain = 1 
 % min = the smallest luminance that the gun can generate. 0.
 % max = the largest luminance that the gun can generate. 
-c.screen.calibration.gamma =[2.1 2.0 2.0];     
-c.screen.calibration.bias = [0.0061 0.0094 -0.0096];
-c.screen.calibration.gain= 1;
-c.screen.calibration.max = [30 30 30];
-c.screen.calibration.min = 0;
-% It is not yet possible to extract these numbers from a calibration file. 
+c.screen.calibration.ns.gamma =[2.1 2.0 2.0];     
+c.screen.calibration.ns.bias = [0.0061 0.0094 -0.0096];
+c.screen.calibration.ns.gain= 1;
+c.screen.calibration.ns.max = [30 30 30];
+c.screen.calibration.ns.min = 0;
+% If you have a calibration file you can specify it here:
 %c.screen.calibration.calFile = '';
 %c.dirs.calibration =''; % Current directory has the calibration file.
 
@@ -95,7 +94,7 @@ gr =design('greenred');
 % like a patch that is first green and then turns more red over time.
 gr.fac1.patch.color = num2cell([lum' fliplr(lum)' zeros(numel(lum),1)],2) ;
 gr.randomization  ='sequential'; % Sequence through luminance. Press 'n' to go to the next.
-grBlck=block('lmBlock',gr);
+grBlck=block('grBlock',gr);
 grBlck.nrRepeats  = 1;
 
 

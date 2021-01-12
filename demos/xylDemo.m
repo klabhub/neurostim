@@ -25,14 +25,15 @@ c = myRig;
 c.screen.colorMode = 'XYL'; % Tell PTB that we will use xyL to specify color
 c.screen.color.text = [0.33 0.33 1]; % TODO: Text does not seem to work in xyL
 c.screen.color.background = [0.33 0.33 25]; % Specify the color of the background
-c.screen.calFile = 'PTB3TestCal'; % Tell CIC which calibration file to use (this one is on the search path in PTB): monitor properties
+c.screen.calFile = 'PTB3TestCal.mat'; % Tell CIC which calibration file to use (this one is on the search path in PTB): monitor properties
+c.dirs.calibration= fileparts(which('PTB3TestCal.mat'));
 c.screen.colorMatchingFunctions = 'T_xyzJuddVos.mat'; % Tell CIC which CMF to use : speciifies human observer properties.
 
 % Set up some other properties of this experiment. None are critical for
 % calibrated color
 c.screen.type   = 'GENERIC'; % Using a standard monitor, not a VPIXX or bits++
-c.trialDuration = 10;       % We'll use very short trials
-c.iti           = 0;            
+c.trialDuration = 250;       % We'll use very short trials
+c.iti           = 250;      % Give the user a change to stop the experiment
 c.paradigm      = 'xylDemo';
 c.subjectNr     = 0;
 c.clear         = 0;        % Tell CIC to never clear the screen. Everything that is draw stays on the screen.

@@ -1,7 +1,7 @@
 classdef sound < neurostim.plugin
     % Generic sound plugin for PTB. Add if using sound.
     properties (Access=public)
-        sampleRate@double = NaN;
+        sampleRate= NaN;
     end
     properties (SetAccess=protected,GetAccess=public)
         paHandle
@@ -36,13 +36,18 @@ classdef sound < neurostim.plugin
             % Opening here instead of beforeExperiment so that the actual
             % sampleRate is available for resampling in classes that use
             % this plugin (e.g. soundFeedback)
-            
+            PsychPortAudio('Close'); % Start fresh (without this the next line can fail as Open can only be called once).
             o.paHandle = PsychPortAudio('Open',c.hardware.sound.device, [], latencyClass);
+                
             status = PsychPortAudio('GetStatus', o.paHandle);
             o.sampleRate = status.SampleRate;
             
              %Play a dummy sound (first sound wasn't playing)
-            bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,[0; 0]);
+             try
+                bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,[0; 0]);
+             catch
+                error('Could not create audio output. Is your audio output device on?');
+             end
             PsychPortAudio('FillBuffer', o.paHandle,bufferHandle);
             PsychPortAudio('Start',o.paHandle);
             

@@ -84,9 +84,9 @@ classdef (Abstract) behavior <  neurostim.plugin
         
     end
     properties (Dependent)
-        stateName@char;
-        isOn@logical;
-        stopTime@double; % time when fail or success state was reached.
+        stateName;
+        isOn;
+        stopTime; % time when fail or success state was reached.
         isSuccess;
         duration;
     end
@@ -120,6 +120,76 @@ classdef (Abstract) behavior <  neurostim.plugin
     
     
     methods (Access=public)
+        function [stateName,trial,trialTime] = getStateStarts(o)
+            % Loop over all states in the behavior and return a cell array 
+            % of times when they started and in which trial.
+            % Note that 'all states' currently means all states that did
+            % occur at least once (states that were never visited are not
+            % included).
+            % OUTPUT
+            % stateName = cell array of state names
+            % trial  = cell array of vectors of trials
+            % trialTime = cell array of vectors of time in the trial
+            % (relative to first frame).
+            
+            [data,tr,trTime] = get(o.prms.state);            
+            out  = cellfun(@isempty,data);
+            data(out) = [];
+            tr(out)=[];
+            trTime(out)=[];
+            
+            [stateName,~,ix] = unique(data);            
+            nrStates = numel(stateName);            
+            trialTime = cell(1,nrStates);
+            trial = cell(1,nrStates);
+            for i=1:nrStates
+                stay = ix==i;
+                trialTime{i} = trTime(stay);
+                trial{i} = tr(stay);
+            end                                    
+        end
+        
+        function [trialTime,time,block,frame] =  find(o,state,n,firstLast)
+            % In each trial, find up to n time points when the behavior
+            % reached the specified state.
+            % The function returns a matrix [nrTrials n] with
+            % Nans for trials wher the state was never reached.
+            % INPUT
+            % o = a neurostim.behavior
+            % state = The state as a char (e.g. 'FIXATION')
+            % n =  The maximum number of state starts to look for.
+            %           (Defaults to 1) 
+            % firstLast = Whether to look for the 'first' n or the 'last' n. 
+            %           Defaults to 'first'.
+            %
+            % OUTPUT
+            % trialTime = time relative to firstframe in the trial
+            % time = time relative to start of the experiment
+            % block = block in which the event occurred  (one column only)
+            % frame = frame at which the event occurred                           
+            [data,trial,trTime,expTime,blk,frm] = get(o.prms.state);            
+            if nargin<4
+                firstLast = 'first';
+                if nargin < 3
+                    n =1;
+                end
+            end
+            maxTrial = o.cic.prms.trial.cntr-1; % trial 0 is logged as well, so -1
+            trialTime = nan(maxTrial,n);
+            time = nan(maxTrial,n);   
+            block = nan(maxTrial,1);   
+            frame = nan(maxTrial,n);
+            for tr =1:maxTrial
+                ix = find(strcmpi(data,state) & trial==tr,n,firstLast);
+                nrThis = numel(ix);
+                if nrThis>0
+                    trialTime(tr,1:nrThis) = trTime(ix);
+                    time(tr,1:nrThis) = expTime(ix);
+                    frame(tr,1:nrThis) = frm(ix);
+                    block(tr) = blk(ix(1));
+                end                    
+            end                
+        end
         
         % Users should add functionality by defining new states, or
         % if a different response modailty (touchbar, keypress, eye) is

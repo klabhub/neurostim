@@ -10,9 +10,9 @@ classdef feedback < neurostim.plugin
     % The criterion function is evaluated either after every frame
     % ('afterFrame') or at the end of the trial ('afterTrial'), e.g.,
     %
-    %   r = plugins.liquid('juice');
-    %   r.add('duration',100,'when','afterFrame','criterion','@fixation1.success');
-    %   r.add('duration',500,'when','afterTrial','criterion','@fixation2.success');
+    %   r = plugins.liquid(c,'juice');
+    %   r.add('duration',100,'when','afterFrame','criterion','@fixation1.isSuccess');
+    %   r.add('duration',500,'when','afterTrial','criterion','@fixation2.isSuccess');
     %
     % See add() below for usage details.
     
@@ -160,7 +160,7 @@ classdef feedback < neurostim.plugin
         function deliver(o,item)
             %Function that should be overloaded in derived class to deliver the feedback.
             %e.g. deliver juice, or present a feedback screen to a subject.            
-            o.writeToFeed('Feedback delivered for %d ms', o.(['item' num2str(item) 'duration']));
+            o.writeToFeed(sprintf('Feedback delivered for %d ms', o.(['item' num2str(item) 'duration'])));
         end
         
         function report(o) %#ok<MANU>

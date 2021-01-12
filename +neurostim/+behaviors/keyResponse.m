@@ -31,14 +31,14 @@ classdef keyResponse < neurostim.behavior
     % BK July 2018
     properties (SetAccess =protected)
         simKeySent;
-        acceptKey@logical = true; % Used by entry/exit events to restrict to single key
+        acceptKey = true; % Used by entry/exit events to restrict to single key
     end
     methods (Access = public)
         function o = keyResponse(c,name)
             o = o@neurostim.behavior(c,name);
             o.addProperty('keys',{},'validate',@iscellstr); % User provided list of keys
             o.addProperty('correctFun',[]); %User provided function that evaluates to the correct key index on each trial
-            o.addProperty('correct',[],'validate',@islogical); % Log of the correctness of each keypress
+            o.addProperty('correct',[],'validate',@islogical); % Log of the correctness of each keypress. Starts out [] 
             o.addProperty('keyIx',NaN,'validate',@isnumeric); % Log of the keys that were pressed (as an index into o.keys). Initialize with NaN to always return something (to allow checking its value)
             o.addProperty('maximumRT',1000,'validate',@isnumeric);  % A key must have been received this long after the waiting state starts.
             o.addProperty('simWhen',[]);
@@ -103,7 +103,6 @@ classdef keyResponse < neurostim.behavior
         end
         
         function e= keyToEvent(o,key)
-            
             % Evaluate and log key correctness
             keyIx = find(strcmpi(key,o.keys));
             o.keyIx = keyIx; %Log the index of the pressed key
@@ -112,6 +111,7 @@ classdef keyResponse < neurostim.behavior
             else
                 thisIsCorrect = keyIx ==o.correctFun;
             end
+            
             o.correct = thisIsCorrect; %Log it for easy analysis
             
             % Package as a regular event to pass to the state.

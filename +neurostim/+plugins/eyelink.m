@@ -9,22 +9,16 @@ classdef eyelink < neurostim.plugins.eyetracker
     % than the main cic.screen.color.background during calibration
     % then set c.eye.backgroundColor.
     %
-    % Use with non RGB color modes.
-    % 
-    % Eyelink toolbox can only draw to the main window, this complicates
-    % working with VPIxx and similar devices. 
-    % All drawing of graphics (calibration donut, the camera image) uses
-    % commands that are processed by the PTB pipeline. Therefore, if you
-    % are in LUM mode (i.e. a single number specifies the gray scale
-    % luminance of the pixel), you should specify eye.backroundColor etc in the same 
-    % format. 
-    % Text, however, is problematic as it does not appear to go through the
-    % pipeline (not an Eyelink specific issue), and becuase you cannot tell
-    % Eylink to write text to an overlay, you cannot use an overlay's
-    % indices either. I have not found a solution to this, and have just
-    % accepted for now that the text will appear black/dark grey in VPIXX  M16
-    % mode (BK - Oct 2018). Usually not critical anyway.
-    %
+    % Use with non LUM color modes and VPIXX requires a modified dispatchCallback
+    % that is in the tools directory (neurostimEyelinkDispatchCallback.).
+    % Use o.overlay =  true to draw text (white) and the calibration targets to
+    % the VPIXX overlay (using index colors that you define in
+    % c.screen.overlayClut) and the eye image to the main window (which can
+    % be M16 mode. If the eye image is very dim, use e.boostEyeImage to
+    % boost its luminance  - a factor of 5 works well.
+    % Settting o.overlay to false will draw everything to the VPIXX main
+    % window. The boostEyeImage factor will then scale the luminance of
+    % calibration targets and text as well.
     %
     % Properties
     %   getSamples - if true, stores eye position/sample validity on every frame.
@@ -57,6 +51,10 @@ classdef eyelink < neurostim.plugins.eyetracker
     %       F9: Start a drift correction immediately (assume the subject is
     %       fixating (0,0). Confirm correct fixation by pressing the space
     %       bar, or press Esc to abort drift correction and continue.
+    %       By setting F9PassThrough to true, the confirmation is skipped
+    %       (i.e. it mimics the use of F9 on the Host keyboard - an
+    %       immediate drift correct, as long as the correction is smaller
+    %       than the setting final.ini.
     %
     %       F10: Start drift correction before the next trial. (Eyelink
     %       will draw a target).
@@ -65,27 +63,33 @@ classdef eyelink < neurostim.plugins.eyetracker
     %
     % TK, BK,  2016,2017
     properties
-        el@struct;  % Information structure to communicate with Eyelink host
+        el; %@struct;  % Information structure to communicate with Eyelink host
         commands = {'link_sample_data = GAZE'};
-        edfFile@char = 'test.edf';
-        getSamples@logical=true;
-        getEvents@logical=false;
+        edfFile = 'test.edf';
+        getSamples =true;
+        getEvents =false;
         nTransferAttempts = 5;
+        
+        callbackFun = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
+        boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]
+        targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
+           
+
+ 
     end
-    
-    properties
-        doTrackerSetup@logical  = true;  % Do it before the next trial
-        doDriftCorrect@logical  = false;  % Do it before the next trial
+        
+    properties (SetAccess= {?neurostim.plugin}, GetAccess={?neurostim.plugin}, Hidden)
+        loc_useRawData;
     end
     
     properties (Dependent)
-        isRecording@logical;
-        isConnected@double;
+        isRecording;
+        isConnected; %double
     end
     
     methods
         function v = get.isRecording(~)
-            v =Eyelink('CheckRecording');%returns 0 if connected.
+            v = Eyelink('CheckRecording');%returns 0 if connected.
             v = v==0;
         end
         
@@ -108,38 +112,33 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('clbTargetInnerSize',[]); %Inner circle of annulus
             o.addProperty('clbType','HV9');
             o.addProperty('host','');
+            
+            o.addProperty('useRawData',false);
+
+            o.addProperty('F9PassThrough',true); % simulate F9 press on Eyelink host to do quick drift correct
+            o.addProperty('transferFile',true); % afterExperiment - transfer file from the Host to here. (Only set to false in debugging to speed things  up)
+            o.addProperty('fake',false);            
         end
         
         function beforeExperiment(o)
-            
             %Initalise default Eyelink el structure and set some values.
             % first call it with the mainWindow
-            o.el=EyelinkInitDefaults(o.cic.mainWindow);
-            % Careful, Eyelink toolbox uses British spelling...
-            if isempty(o.backgroundColor)
-                % If the user did not set the background for the eyelink
-                % then use screen background
-                o.backgroundColor = o.cic.screen.color.background;
-            end
-            if isempty(o.clbTargetColor)
-                % If the user did not set the calibration target color 
-                % then make it maximally different from the background (5%)
-                o.clbTargetColor = max(o.backgroundColor)-0.95*o.backgroundColor;
-            end
-            if isempty(o.foregroundColor)
-                o.foregroundColor = o.cic.screen.color.text;
-            end
-            o.el.backgroundcolour  = o.backgroundColor;
-            o.el.foregroundcolour  = o.foregroundColor;
-            o.el.msgfontcolour = o.foregroundColor;
-            o.el.imgtitlecolour = o.foregroundColor;
-            o.el.calibrationtargetcolour = o.clbTargetColor;            
+            if o.fake; o.useMouse= true; beforeExperiment@neurostim.plugins.eyetracker(o);return;end
             
-            o.el.calibrationtargetsize = o.clbTargetSize/o.cic.screen.width*100; %Eyelink sizes are percentages of screen
-            if isempty(o.clbTargetInnerSize)
-                o.el.calibrationtargetwidth = o.clbTargetSize/2/o.cic.screen.width*100; %default to half radius
+            o.el=EyelinkInitDefaults(o.cic.mainWindow);
+            setParms(o);
+            
+            if o.overlay
+                % Draw targets and text on the overlay, but the main window
+                % has to be the mainWindow, because the callback calls flip
+                % on it.   Note that this only works if the callback is sset to
+                % use neurostimEyelinkDispatchCallback, which is located i
+                % neurostim/tools
+                o.targetWindow = o.cic.overlayWindow; % Used by neurostim modified callback function only
+                % Normally cic sets o.window to overlayWindow when o.overlay == true. Reset back
+                o.window        = o.cic.mainWindow; %Used by PTB callback and by neurostim modified
             else
-                o.el.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
+                o.targetWindow = o.window; % Everything goes to the main window
             end
             
             if ~isempty(o.host)  &&  Eyelink('IsConnected')==0
@@ -147,10 +146,9 @@ classdef eyelink < neurostim.plugins.eyetracker
             end
             %Initialise connection to Eyelink.
             if ~o.useMouse
-                result = Eyelink('Initialize', 'PsychEyelinkDispatchCallback');
+                result = Eyelink('Initialize', o.callbackFun);
             else
-                result = Eyelink('InitializeDummy', 'PsychEyelinkDispatchCallback');
-                %result =0;
+                result = Eyelink('InitializeDummy', o.callbackFun);
             end
             
             if result ~=0
@@ -160,12 +158,15 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             o.el.TERMINATE_KEY = o.el.ESC_KEY;  % quit using ESC
             
-            % Tell eyelink about the o.el properties we just set.
-            PsychEyelinkDispatchCallback(o.el);
             
             %Tell Eyelink about the pixel coordinates
-            rect=Screen(o.window,'Rect');
-            Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',rect(1),rect(2),rect(3)-1,rect(4)-1);
+            % Note: with a screen to the left of the main screen, the
+            % xorigin can be negative (in Win10); that can cause weird
+            % problems in Eyelink. The user should set explicitly set the origin to be
+            % zero in that case (instead of setting it to [] which will detect the negativ origin)
+            % Could fix that here, but not sure whether
+            % there are other consequences... BK - Mar 2020          
+            Eyelink('Command', 'screen_pixel_coords = %d %d %d %d',o.cic.screen.xorigin,o.cic.screen.yorigin,o.cic.screen.xorigin + o.cic.screen.xpixels,o.cic.screen.yorigin + o.cic.screen.ypixels);
             Eyelink('Command', 'calibration_type = %s',o.clbType);
             Eyelink('command', 'sample_rate = %d',o.sampleRate);
             
@@ -189,6 +190,11 @@ classdef eyelink < neurostim.plugins.eyetracker
                     Eyelink('Command','active_eye=LEFT,RIGHT');
                     Eyelink('Message','%s', 'EYE_USED 2');
             end
+                
+            if o.useRawData
+              % add raw pupil (x,y) to the link data stream
+              o.command('link_sample_data = PUPIL,AREA');
+            end
             
             %Pass all commands to Eyelink
             for i=1:length(o.commands)
@@ -201,61 +207,141 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('Command','add_file_preamble_text',['RECORDED BY ' o.cic.experiment]);
             Eyelink('Command','add_file_preamble_text',['NEUROSTIM FILE ' o.cic.fullFile]);
             
-            Eyelink('Message','DISPLAY_COORDS %d %d %d %d',0, 0, o.cic.screen.xpixels,o.cic.screen.ypixels);
+            Eyelink('Message','DISPLAY_COORDS %d %d %d %d',o.cic.screen.xorigin, o.cic.screen.yorigin, o.cic.screen.xpixels,o.cic.screen.ypixels);
             Eyelink('Message','%s',['DISPLAY_SIZE ' num2str(o.cic.screen.width) ' ' num2str(o.cic.screen.height)]);
             Eyelink('Message','%s', ['FRAMERATE ' num2str(o.cic.screen.frameRate) ' Hz.']);
             
         end
         
-        function afterExperiment(o)
+        
+        function setParms(o)
+            % Careful, Eyelink toolbox uses British spelling...
             
-            Eyelink('StopRecording');
-            Eyelink('CloseFile'); pause(0.1);
-            try
-                newFileName = [o.cic.fullFile '.edf'];
-                for i=1:o.nTransferAttempts
-                    writeToFeed(o,'Attempting to receive Eyelink edf file');
-                    
-                    status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
-                    if status>0
-                        o.edfFile = newFileName;
-                        writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
-                        break
-                    else
-                        o.nTransferAttempts = o.nTransferAttempts - 1;
-                        writeToFeed(o,['Fail: EDF file (' o.edfFile ')  did not transfer ' num2str(status)]);
-                        writeToFeed(o,['Retrying. ' num2str(o.nTransferAttempts) ' attempts remaining.']);
-                    end
+            if strcmpi(o.clbType,'HV5C')
+                    % Calibrate HV5 but center screen only
+                    left =0.33;mid= 0.5;
+                    x = o.cic.screen.xpixels* [mid mid mid left 1-left];
+                    y = o.cic.screen.ypixels* [mid 1-left left mid  mid];
+                    xy = cat(2,num2str(x'),','*ones(5,1),num2str(y'),','*ones(5,1))';
+                    xy = xy(1:end-1);
+                    o.clbType = 'HV5';
+                    o.command({'calibration_type = HV5',...
+                        'generate_default_targets = NO',...
+                        'enable_automatic_calibration = YES',...
+                        'calibration_samples = 5',...
+                        'calibration_sequence = 0,1,2,3,4',...
+                        ['calibration_targets =' xy ],...
+                        'validation_samples = 5',...
+                        'validation_sequence = 0,1,2,3,4',...
+                        ['validation_targets =' xy],...
+                        'val_repeat_first_target=YES',...
+                        'cal_repeat_first_target=YES'});                    
+            end
+            
+            if isempty(o.backgroundColor)
+                % If the user did not set the background for the eyelink
+                % then use screen background
+                o.backgroundColor = o.cic.screen.color.background;
+                if o.boostEyeImage>1
+                    o.backgroundColor = o.backgroundColor./o.boostEyeImage;
                 end
-            catch
-                error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
+            end
+            if isempty(o.clbTargetColor)
+                % If the user did not set the calibration target color
+                % then set it to red
+                o.clbTargetColor = [1 0 0];
+            end
+            if isempty(o.foregroundColor)
+                o.foregroundColor = [1 1 1];
+            end
+            
+            % Push to el struct
+            o.el.backgroundcolour  = o.backgroundColor;
+            o.el.foregroundcolour  = o.foregroundColor;
+            o.el.msgfontcolour = o.foregroundColor;
+            o.el.imgtitlecolour = o.foregroundColor;
+            o.el.calibrationtargetcolour = o.clbTargetColor;
+            
+            o.el.calibrationtargetsize = o.clbTargetSize/o.cic.screen.width*100; %Eyelink sizes are percentages of screen
+            if isempty(o.clbTargetInnerSize)
+                o.el.calibrationtargetwidth = o.clbTargetSize/2/o.cic.screen.width*100; %default to half radius
+            else
+                o.el.calibrationtargetwidth = o.clbTargetInnerSize/o.cic.screen.width*100;
+            end
+            o.el.callback  = o.callbackFun;
+            o.el.hPlugin   = o; % Store a handle to the Eyelink plugin so that the callback handler functionc can use it
+            o.el.window  = o.cic.mainWindow; % Always main window
+            EyelinkUpdateDefaults(o.el); % Store as persistent variables in callbackFun
+        end
+        
+        function afterExperiment(o)
+            if o.fake; afterExperiment@neurostim.plugins.eyetracker(o);return;end
+            
+            o.cic.drawFormattedText('Transfering data from Eyelink host, please wait.','ShowNow',true);
+            Eyelink('StopRecording');
+            Eyelink('CloseFile');
+            pause(0.1);
+            if o.transferFile
+                try
+                    newFileName = [o.cic.fullFile '.edf'];
+                    for i=1:o.nTransferAttempts
+                        status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
+                        if status>0
+                            o.edfFile = newFileName;
+                            writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
+                            break
+                        else
+                            o.nTransferAttempts = o.nTransferAttempts - 1;
+                            writeToFeed(o,['Fail: EDF file (' o.edfFile ')  did not transfer ' num2str(status)]);
+                            writeToFeed(o,['Retrying. ' num2str(o.nTransferAttempts) ' attempts remaining.']);
+                        end
+                    end
+                catch
+                    error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
+                end
             end
             Eyelink('Shutdown');
         end
         
         function beforeTrial(o)
+            if o.fake; beforeTrial@neurostim.plugins.eyetracker(o);return;end
             
             if ~o.useMouse && (o.doTrackerSetup || o.doDriftCorrect)
                 % Prepare for Eyelink drawing.
-                
                 % The Eyelink toolbox draws its targets in pixels. Undo any
                 % transformations.
-                Screen('glPushMatrix',o.cic.window);
-                Screen('glLoadIdentity',o.cic.window);
+                Screen('glPushMatrix',o.window);
+                Screen('glLoadIdentity',o.window);
                 
                 % Do setup or drift correct
                 if o.doTrackerSetup
+                    if o.boostEyeImage>1 && strcmpi(o.cic.screen.colorMode,'LUM') && ~isnan(o.cic.screen.calibration.ns.bias)
+                        % Because Eyelink does not send calibrated
+                        % luminance values in its eye image, it can look
+                        % very dim on a calibrated display. We hack that
+                        % here by just boosting the gain of the extended gamma temporarily.
+                        
+                        % out = bias + gain * ((lum-minLum)./(maxLum-minLum)) ^1./gamma )
+                        PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max/o.boostEyeImage,o.cic.screen.calibration.ns.gain,o.cic.screen.calibration.ns.bias);
+                    end
                     EyelinkDoTrackerSetup(o.el);
+                    if o.boostEyeImage>1 && strcmpi(o.cic.screen.colorMode,'LUM') && ~isnan(o.cic.screen.calibration.ns.bias)
+                        % Restore originalm, calibrated settings
+                        PsychColorCorrection('SetExtendedGammaParameters', o.window, o.cic.screen.calibration.ns.min, o.cic.screen.calibration.ns.max, o.cic.screen.calibration.ns.gain ,o.cic.screen.calibration.ns.bias);
+                    end
                 elseif o.doDriftCorrect
                     EyelinkDoDriftCorrect(o.el); % Using default center of screen.
                 end
-                Screen('glPopMatrix',o.cic.window); % restore neurostim transformations
+                
                 o.doTrackerSetup = false;
                 o.doDriftCorrect = false; % done for now
-                EyelinkClearCalDisplay(o.el);
-                % Eyelink clears the screen with fillrect which changes the
-                % background color. Change it back.
-                Screen('FillRect', o.cic.window, o.cic.screen.color.background);
+                
+                
+                % Change back to CIC background
+                Screen('FillRect', o.window, o.cic.screen.color.background);
+                Screen('glPopMatrix',o.window); % restore neurostim transformations
+                
+                Screen('Flip',o.cic.mainWindow); % Back to the original window
             end
             
             
@@ -274,29 +360,41 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('Message','%s',['TR:' num2str(o.cic.trial)]);   %will this be used to align clocks later?
             Eyelink('Message','TRIALID %d-%d',o.cic.condition,o.cic.trial);
             
-            o.eyeClockTime = Eyelink('TrackerTime');
-            %o.writeToFeed(num2str(o.eyeClockTime/100));
-            
+            o.eyeClockTime = Eyelink('TrackerTime'); 
+            % BK Noticed that this does not always get updated values (i.e.
+            % same value throughout the experiment). Not fatal as we use
+            % only the logged time in Neurostim to align, but strange.                        
         end
         
         function afterFrame(o)
-            
-            if ~o.isRecording
-                o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
-                return;
-            end
+            if o.fake; afterFrame@neurostim.plugins.eyetracker(o);return;end
+            %             if ~o.isRecording
+            %                 o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
+            %                 return;
+            %             end
             
             if o.getSamples
                 % Continuous samples requested
-                if Eyelink('NewFloatSampleAvailable') > 0
-                    % get the sample in the form of an event structure
-                    sample = Eyelink( 'NewestFloatSample');
+                % get the sample in the form of an event structure
+                sample = Eyelink( 'NewestFloatSample');
+                if ~isstruct(sample)
+                    % No sample or other error, just continue to next
+                    % frame
+                else
                     % convert to physical coordinates
                     eyeNr = str2eye(o,o.eye);
-                    [o.x,o.y] = o.cic.pixel2Physical(sample.gx(eyeNr+1),sample.gy(eyeNr+1));    % +1 as accessing MATLAB array
+
+                    if o.loc_useRawData
+                      % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
+                      [o.x,o.y] = o.raw2ns(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                    else
+                      % get gaze position (in display pixels)
+                      [o.x,o.y] = o.raw2ns(sample.gx(eyeNr+1),sample.gy(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                    end
+                                        
                     o.pupilSize = sample.pa(eyeNr+1);
-                    o.valid = o.x~=o.el.MISSING_DATA && o.y~=o.el.MISSING_DATA && o.pupilSize >0;
-                end %
+                    o.valid  = any(sample.gx(eyeNr+1)~=o.el.MISSING_DATA); % Blink or other missing data.
+                end
             end
             if o.getEvents
                 % Only events requested
@@ -327,35 +425,57 @@ classdef eyelink < neurostim.plugins.eyetracker
         % Add an eyelink command that will be executed before the
         % experiment starts. Passing an empty string resets the command
         % list.
-        function command(o,commandStr)
+        function command(o,newCommands)
             %Currently, only beforeExperiment commands are accepted
             if o.cic.trial>0
                 o.cic.error('STOPEXPERIMENT','Eyelink commands are currently not permitted once the experiment has started.');
             end
             
             %Assign the command
-            if isempty(commandStr)
+            if isempty(newCommands)
                 o.commands= {};
             else
-                o.commands = cat(2,o.commands,{commandStr});
-                if ~isempty(strfind(upper(commandStr),'LINK_SAMPLE_DATA')) %#ok<STREMP>
+                if iscell(newCommands)
+                    o.commands = cat(2,o.commands,newCommands);
+                else % is char
+                o.commands = cat(2,o.commands,{newCommands});
+                if ~isempty(strfind(upper(newCommands),'LINK_SAMPLE_DATA')) %#ok<STREMP>
                     o.getSamples = true;
-                elseif ~isempty(strfind(upper(commandStr),'LINK_EVENT_DATA')) %#ok<STREMP>
+                elseif ~isempty(strfind(upper(newCommands),'LINK_EVENT_DATA')) %#ok<STREMP>
                     o.getEvents = true;
+                end                                    
                 end
             end
         end
         
         function keyboard(o,key,~)
+            if o.fake; keyboard@neurostim.plugins.eyetracker(o,key);return;end
             switch upper(key)
                 case 'F9'
-                    % Do a manual drift correction right now
-                    Eyelink('StopRecording');
-                    [tx,ty ] = o.cic.physical2Pixel(0,0);
-                    draw = 0; % Assume NS has drawn a dot
-                    allowSetup  = 0; % If it fails it fails..(we coudl be in the middle of a trial; dont want to mess up the flow)
-                    EyelinkDoDriftCorrect(o.el,tx,ty,draw, allowSetup);
-                    Eyelink('StartRecording');
+                    % Do a manual drift correction right now, by sending an
+                    % F9 to Eyelink.
+                    if o.F9PassThrough
+                        % If the tracker has been setup to use F9 as the
+                        % online drift correct button (i.e. key_function F9
+                        % online_dcorr_trigger is in the final.ini), then
+                        % just sending an F9 does an immediate drift
+                        % correct without interfering with the operation on
+                        % the stimulus end (i.e. here)
+                        Eyelink('SendKeyButton', o.el.F9_KEY, 0, o.el.KB_PRESS );
+                    else
+                        % Slightly more involved drift correct. This
+                        % happens immediately but because the experimenter
+                        % has to confirm, this takes more time and can
+                        % cause a small timing error in the current trial
+                        % This is the default because it does not require a
+                        % change on the Eyelink host computer.
+                        Eyelink('StopRecording');
+                        [tx,ty ] = o.cic.physical2Pixel(0,0);
+                        draw = 0; % Assume NS has drawn a dot
+                        allowSetup  = 0; % If it fails it fails..(we coudl be in the middle of a trial; dont want to mess up the flow)
+                        EyelinkDoDriftCorrect(o.el,tx,ty,draw, allowSetup);
+                        Eyelink('StartRecording');
+                    end
                 case 'F8'
                     % Do tracker setup before next trial
                     o.doTrackerSetup  = true;
@@ -383,7 +503,85 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         
-            
     end
+    
+    %% GUI function
+    methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = eyelink plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+            o.doTrackerSetup    = ~parms.SkipCal;
+            o.eye               = parms.Eye;
+            o.fake              = strcmpi(parms.onOffFakeKnob,'fake');
+            o.clbType           = parms.Calibration;
+            if isempty(parms.bgColor)
+                o.backgroundColor = [];
+            else
+                o.backgroundColor = str2num(parms.bgColor); %#ok<ST2NM>
+            end
+          
+        end
+    end
+    
+    methods (Static, Access=public)
+        
+        function guiLayout(p)
+            % Add plugin specific elements            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 60 22];
+            h.Text = 'Skip Calib.';
+            
+            h = uicheckbox(p,'Tag','SkipCal');
+            h.Position = [130 17 22 22];
+            h.Text = '';
+            h.Value=  false;
+            h.Tooltip = 'Check to skip calibration at the start of the experiment';
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [175 39 60 22];
+            h.Text = 'Calib.';
+            
+            h =uidropdown(p,'Tag','Calibration');
+            h.Position = [175 17 60 22];
+            h.Items = {'HV9','HV5','HV5C'};
+            h.Tooltip = 'Pick a calibration mode';
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [235 39 60 22];
+            h.Text = 'Eye';
+            
+            h =uidropdown(p,'Tag','Eye');
+            h.Position = [235 17 60 22];
+            h.Items = {'Left','Right','Both'};
+            h.Tooltip = 'Select which eye to track';
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [295 39 60 22];
+            h.Text = 'BG Color';
+            
+            h =uieditfield('text','Tag','bgColor','parent',p);
+            h.Position = [295 17 60 22];
+            h.Value= '';
+            h.Tooltip = 'Specify background color (RGB). Leave empty to use cic.screen.color.background ';
+            
+            
+        end
+    end
+    
+    
     
 end

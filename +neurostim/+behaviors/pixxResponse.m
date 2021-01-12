@@ -31,7 +31,7 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
         keyToButtonMapper = {'r','y','g','b','w'}; % The red key is 1, yellow is 2, etc.
     end
     properties (SetAccess=protected)
-        startedLogger@logical = false;
+        startedLogger = false;
     end
     
     methods (Access = public)

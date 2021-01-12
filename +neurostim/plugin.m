@@ -3,23 +3,32 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     %
     properties (SetAccess=public)
         cic;  % Pointer to CIC
-        overlay@logical=false; % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
+        overlay=false;      % Flag to indicate that this plugin is drawn on the overlay in M16 mode.
         window;
-        feedStyle = '[0 0.5 0]'; % Command line color for writeToFeed messages.
+        feedStyle = '[0 0.5 0]';    % Command line color for writeToFeed messages.
+        
+        
     end
     
     
+    properties (SetAccess=protected, GetAccess=public)
+        name= '';   % Name of the plugin; used to refer to it within cic
+        prms=struct;          % Structure to store all parameters
+        trialDynamicPrms;  %  A list of parameters that (can) change within a trial. See localizeParms for how it is filled and used.
+    end
     
     properties (SetAccess=private, GetAccess=public)
-        name@char= '';   % Name of the plugin; used to refer to it within cic
-        prms=struct;          % Structure to store all parameters
+        rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
-    
+     
     methods (Static, Sealed, Access=protected)
         function o= getDefaultScalarElement
             o = neurostim.plugin([],'defaultScalarElement');
         end
     end
+    
+   
+    
     methods (Access=public)
         
         function o=plugin(c,n)
@@ -32,7 +41,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             if~isempty(c) % Need this to construct cic itself...dcopy
                 c.add(o);
             end
+            
+            
         end
+        
+        
         
         
         function s= duplicate(o,name)
@@ -44,7 +57,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-        function addKey(o,key,keyHelp,isSubject,fun)
+        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force,plg)
             %  addKey(o,key,keyHelp,isSubject,fun)
             % Runs a function in response to a specific key press.
             % key - a single key (string)
@@ -52,20 +65,29 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % isSubject - bool to indicate whether this is a key press the
             % subject should do. (Defaults to true for stimuli, false for
             % plugins)
-            % The user must implement keyboard(o,key) or provide a
+            % fun - The user must implement keyboard(o,key) or provide a
             % handle to function that takes a plugin/stimulus and a key as
             % input.
+            % force - set to true to force adding this key (and thereby
+            % taking it away from anihter plugin). This only makes sense if
+            % you restore it soon after, using the returned keyInfo.
             nin =nargin;
-            if nin<5
-                fun =[];
-                if nin < 4
-                    isSubject = isa(o,'neurostim.stimulus');
-                    if nin <3
-                        keyHelp = '?';
+            if nin <7
+                plg = o;
+                if nin <6
+                    force =false;
+                    if nin<5
+                        fun =[];
+                        if nin < 4
+                            isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
+                            if nin <3
+                                keyHelp = '?';
+                            end
+                        end
                     end
                 end
             end
-            addKeyStroke(o.cic,key,keyHelp,o,isSubject,fun);
+            oldKey = addKeyStroke(o.cic,key,keyHelp,plg,isSubject,fun,force);
         end
         
         % Convenience wrapper; just passed to CIC
@@ -79,19 +101,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         % writeToFeed(o,formatSpec, variables)  (as in sprintf)
         % Note that the style of the feed can be adjusted per plugin by
         % specifying the o.feedStyle: see styles defined in cprintf.
-        function writeToFeed(o,varargin)
+        function writeToFeed(o,msg,varargin)
+            p=inputParser;
+            p.KeepUnmatched = true;
+            p.PartialMatching = false;
+            p.addParameter('style',o.feedStyle,@ischar);
+            p.parse(varargin{:});
             nin =nargin;
             if nin==1
-                formatSpec ='%s';
-                args = {o.name};
-            elseif nin==2
-                formatSpec ='%s: %s';
-                args = {o.name,varargin{1}};
-            elseif nargin>2
-                formatSpec = ['%s: ' varargin{1}];
-                args = cat(2,{o.name},varargin(2:end));
+                msg = '';
             end
-            o.cic.feed(o.feedStyle,formatSpec,o.cic.trial,o.cic.trialTime,args{:});
+            % Send it to the logger in CIC.
+            o.cic.messenger.feed(o.cic.frame>0,p.Results.style,o.cic.trial,o.cic.trialTime,msg,o.name);
         end
         
         % Needed by str2fun
@@ -111,6 +132,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);
             p.addParameter('sticky',false,@islogical);
+            p.addParameter('changesInTrial',false,@islogical); % Indicate that this is a variable that gets new values assiged inthe beforeFrame/afterFrame user code.
             p.parse(varargin{:});
             
             
@@ -186,7 +208,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %               first trial is used. This only needs to be specified once on first construction
             %               of the table, not on subsequent calls that add columns.
             % atTrialTime  - Defaults to Inf. Time at which the properties
-            %                   are evaluated. 
+            %                   are evaluated.
             % trial_type  - Specify which elements are used to determine
             %               trial_type. Defaults to '' (i.e. no trial_type column). This
             %               can be a cell array of strings with one entry per trial which
@@ -194,7 +216,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %                   names of the corresponding cic elements.
             %                   (c.blocks.design, or c.blocks,
             %                   respectively)
-            % 
+            %
             % Example (From experiments/bart/cardgame)
             % tbl = getBIDSTable(c); % Setuo the basic sturcture (trials,
             % blocks etc)
@@ -231,7 +253,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.parse(varargin{:});
             tbl = p.Results.tbl;
             
-            if isempty(tbl.Properties.Description) % Check Description as the table data is still empty on the firs recursive call 
+            if isempty(tbl.Properties.Description) % Check Description as the table data is still empty on the firs recursive call
                 % Setup basic table properties on first construction
                 tbl.Properties.Description = o.cic.file;
                 tbl.Properties.DimensionNames = {'Trial','Variables'};
@@ -245,20 +267,20 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 tbl = addprop(tbl,'AlignTime','Table');
                 tbl.Properties.CustomProperties.AlignTime = alignTime;
                 
-                % Recursive call to this function to setup trial and block 
+                % Recursive call to this function to setup trial and block
                 tbl = getBIDSTable(o,tbl,'atTrialTime',0,'properties',{'trial','block','blockCntr'},...
-                                    'propertyDescription',{'Trial numbers','Block Number','Block Counter'},...
-                                    'eventTimes',{'firstFrame','trialStopTime'},...
-                                    'eventNames',containers.Map({'firstFrame','trialStopTime'},{'onset','offset'}),...
-                                    'eventDescription',{'Trial start time','Trial stop time'});
+                    'propertyDescription',{'Trial numbers','Block Number','Block Counter'},...
+                    'eventTimes',{'firstFrame','trialStopTime'},...
+                    'eventNames',containers.Map({'firstFrame','trialStopTime'},{'onset','offset'}),...
+                    'eventDescription',{'Trial start time','Trial stop time'});
                 tbl = addvars(tbl,tbl.offset-tbl.onset,'NewVariableNames',{'duration'});
                 tbl.Properties.VariableUnits{end} = 's';
                 tbl.Properties.VariableDescriptions{end} = 'Trial Duration';
                 tbl = movevars(tbl,'duration','Before','offset'); %BIDS wants Onset first, then Duration
                 
                 if ~isempty(p.Results.trial_type)
-                    if ischar(p.Results.trial_type) 
-                        switch upper(p.Results.trial_type)                            
+                    if ischar(p.Results.trial_type)
+                        switch upper(p.Results.trial_type)
                             case 'BLOCKS'
                                 % Use the names of the blocks
                                 blockNames ={o.cic.blocks.name}';
@@ -272,7 +294,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         error('This trial_type specification does not parse');
                     end
                     tbl = addvars(tbl,trialTypeNames,'After','duration','NewVariableNames','trial_type');
-                end 
+                end
                 return;
             else
                 alignTime = tbl.Properties.CustomProperties.AlignTime;
@@ -340,9 +362,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
                 if isempty(tbl.Properties.CustomProperties.VariableLevels)
                     tbl.Properties.CustomProperties.VariableLevels = {[]}; % Create the first one -events are times so no levels needed.
-                  % Once one has been creatd the table object adds empties
+                    % Once one has been creatd the table object adds empties
                 end
-               
+                
                 if isempty(tbl.Properties.VariableDescriptions)
                     tbl.Properties.VariableDescriptions= evtDescriptions(i); % Create teh first one
                 else
@@ -350,10 +372,24 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
             end
             
-              %%  Add the properties to the table.
+            %%  Add the properties to the table.
             for i= 1:numel(p.Results.properties)
                 [v] = get(o.prms.(p.Results.properties{i}),'atTrialTime',p.Results.atTrialTime);
                 
+                % If a parm is a vector in some trials but a scalar NaN in
+                % other trials, we make sure to create a matching vector of
+                % NaNs. (Otherwise the table will hae missing values, and
+                % BIDS validation will fail).
+                if iscell(v) && isnumeric(v{1})
+                    nrCols = cellfun(@(x) size(x,2),v);
+                    mismatch = nrCols ~=max(nrCols);
+                    if any(mismatch)
+                        if all(isnan([v{mismatch}]))
+                            [v{mismatch}] = deal(nan(1,max(nrCols)));
+                            v =cat(1,v{:}); % Make it into a matrix; each row will be an entry in the table below.
+                        end
+                    end
+                end
                 
                 if isKey(p.Results.propertyProcessing,p.Results.properties{i})
                     fun = p.Results.propertyProcessing(p.Results.properties{i});
@@ -385,8 +421,26 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 end
             end
             
-          
             
+            
+        end
+        
+        function addRNGstream(o,nStreams,makeItAGPUrng)
+            %Ask CIC to allocate RNG(s) to this plugin.
+            %
+            %nStreams [1]: number of streams to add to this plugin. If greater than 1, o.rng will be a cell array of streams.
+            %makeItAGPUrng [false]: should the RNG be on the CPU or GPU?
+            %
+            %see cic.createRNGstreams() for more info about RNG management.
+            if nargin < 2 || isempty(nStreams)
+                nStreams = 1;
+            end
+            
+            if nargin < 3 || isempty(makeItAGPUrng)
+                makeItAGPUrng = false;
+            end
+            
+            o.rng = requestRNGstream(o.cic,nStreams,makeItAGPUrng);
         end
     end
     
@@ -425,14 +479,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     methods (Access = public)
         
         function baseBeforeExperiment(o)
-            % Check whether this plugin should be displayed on
-            % the color overlay in VPIXX-M16 mode.  Done here to
-            % avoid the overhead of calling this every draw.
-            if any(strcmpi(o.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && o.overlay
-                o.window = o.cic.overlayWindow;
-            else
-                o.window = o.cic.mainWindow;
-            end
             beforeExperiment(o);
         end
         
@@ -494,6 +540,106 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %NOP
         end
         
+        
+        % Add this neurostim.parameter to the set of parameters that need
+        % to be updated each frame (and not each trial). Needs public
+        % access so that derived classes can use it.
+        function setChangesInTrial(o,prm)
+            nrDynamic = size(o.trialDynamicPrms,2);
+            if ischar(prm)
+                prm = o.prms.(prm);
+            end
+            o.trialDynamicPrms{1,nrDynamic+1} = ['loc_' prm.name] ;
+            o.trialDynamicPrms{2,nrDynamic+1} = prm; % Store the handle to the parms
+            prm.changesInTrial = true;
+        end
+    end
+    
+    methods (Access={?neuorstim.plugin,?neurostim.parameter})
+        
+        %Accessing neurostim.parameters is much slower than accessing a raw
+        %member variable. Because we define many such parms (with addProperty) in the base
+        %stimulus /plugin classes, and becuase they need to be read each
+        %frame ( see stimulus.baseBeforeFrame) this adds substantial
+        %overhead (~ 1ms per stimulus) and can quickly lead to framedrops.
+        % In any given experiment most parameters never change during the trial
+        % so checing every frame is a waste. This function makes local
+        % member variable copies to speedup this access.
+        % 1. A plugin derived class defines member variables whose names start with loc_
+        %    that match up with neurostim.parameters. (e.g. loc_X for the X
+        %     property set with addProperty)
+        % 2. In its beforeFrame and afterFrame code (and ONLY there), the
+        %   derived class uses loc_X instead of X (using X does no harm,
+        %   but it would slow down the code again).
+        % That's it.
+        % Currently this is implemented for the neurostim.stimulus class
+        % where it leads to most improvement in perforamace. Users may not
+        % need this, but could add it to their own code if they run into
+        % performance issues. See neurostim.stimulus for more tips.
+        %
+        % The code below (Called after the user beforeTrial code, but before the trial
+        % really starts, and then again with frameUpdate == true before each beforeFrame)
+        % will make sure that the localized variables (loc_ ) have the correct value throughout
+        % the triall
+        function localizeParms(o,frameUpdate)
+            if nargin<2
+                frameUpdate = false;
+            end
+            if frameUpdate
+                % A call just before the beforeFrame code is called; we'll
+                % update only those variables that were previously
+                % identified as being "dynamic" (by the code below in this
+                % function)
+                if size(o.trialDynamicPrms,2)>0
+                    targetMembers = o.trialDynamicPrms(1,:);
+                    srcParameters = o.trialDynamicPrms(2,:);
+                else
+                    % No trial dynamic parms. Done.
+                    return;
+                end
+            else
+                % A call just after beforeTrial user code. Create a list
+                % of loc_ variables
+                classInfo      = metaclass(o);
+                targetMembers = {classInfo.PropertyList.Name};
+                targetMembers = targetMembers(startsWith(targetMembers,'loc_'));
+                for prm = 1:numel(targetMembers)
+                    src = char(extractAfter(targetMembers{prm},'loc_'));
+                    srcParameters{prm} = o.prms.(src); %#ok<AGROW>
+                end
+                % Create space to store the names of the parameters that need to be updated each frame
+                % (row 1) and the associated neurostim.parameter (row 2).
+                % This will be used in the frameUpdate call to this
+                % function.
+                o.trialDynamicPrms = cell(2,0);
+            end
+            
+            for prm = 1:numel(targetMembers)
+                % Walk through the list - updating each value
+                trg =targetMembers{prm};
+                src = srcParameters{prm};
+                value = src.getValue();
+                if isa(value,'neurostim.plugins.adaptive')
+                    value = +value;
+                end
+                o.(trg) = value; % Copy the current value in the loc_ member
+                if ~frameUpdate
+                    % A call just before the trial updates- check which
+                    % ones we will have to update each trial/
+                    if src.changesInTrial
+                        setChangesInTrial(o,src);
+                    end
+                end
+            end
+        end
+        
+        % Return whether this parameter name has a localized version in
+        % this plugin (i.e. loc_X exists for X) - used by parameter class.
+        function yesno = checkLocalized(o,nm)
+            classInfo  = metaclass(o);
+            yesno = ismember(['loc_' nm],{classInfo.PropertyList.Name});
+        end
+        
     end
     
     methods (Sealed)
@@ -509,6 +655,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 case neurostim.stages.BEFOREEXPERIMENT
                     for o=oList
                         if c.PROFILE;ticTime = c.clockTime;end
+                        % Store the list of localized parameters.
                         baseBeforeExperiment(o);
                         if c.PROFILE; addProfile(c,'BEFOREEXPERIMENT',o.name,c.clockTime-ticTime);end
                     end
@@ -525,19 +672,21 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         baseBeforeTrial(o);
+                        localizeParms(o); % Copy neurostim.parms to localized members to speed up.
                         if c.PROFILE; addProfile(c,'BEFORETRIAL',o.name,c.clockTime-ticTime);end
                     end
-                case neurostim.stages.BEFOREFRAME                    
+                case neurostim.stages.BEFOREFRAME
                     Screen('glLoadIdentity', c.window);
                     Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
                     Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         Screen('glPushMatrix',c.window);
+                        localizeParms(o,true); % Copy neurostim.parms to localized members to speed up (True means 'only dynamic parameters').
                         baseBeforeFrame(o); % If appropriate this will call beforeFrame in the derived class
                         Screen('glPopMatrix',c.window);
                         if c.PROFILE; addProfile(c,'BEFOREFRAME',o.name,c.clockTime-ticTime);end
-                    end                    
+                    end
                     Screen('glLoadIdentity', c.window); % Guarantee identity transformation in non plugin code (i.e. in CIC)
                 case neurostim.stages.AFTERFRAME
                     for o= oList
@@ -598,6 +747,51 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             end
             
         end
+        
+        
+        function assignWindow(oo)
+            % Tell this plugin which window it should draw to. Called from
+            % cic.PsychImaging on creation of  the main window
+            
+            %%Recursive call to here to allow calling with a vector of plugins.
+            if numel(oo)>1
+                for i=1:numel(oo)
+                    assignWindow(oo(i));
+                end
+                return;
+            end
+            
+            % Check whether this plugin should be displayed on
+            % the color overlay in VPIXX-M16 mode.  Done here to
+            % avoid the overhead of calling this every draw.
+            if any(strcmpi(oo.cic.screen.type,{'VPIXX-M16','SOFTWARE-OVERLAY'})) && oo.overlay
+                oo.window = oo.cic.overlayWindow;
+            else
+                oo.window = oo.cic.mainWindow;
+            end
+        end
     end
     
+    
+     %% GUI Functios
+    methods (Access= public)
+        function guiSet(o,parms) %#ok<INUSD>
+            %The nsGui calls this just before the experiment starts; derived plugins
+            % with gui panels shoould use it to transfer values from the
+            % guipanel (using handle h) into property settings. The base plugin class does
+            % nothing (Except a warning).See plugins.eyelink for an
+            % example.
+            writeToFeed(o,['The ' o.name ' plugin has no setFromGui function. GUI settings will be ignored']);
+        end
+    end
+
+    
+    methods (Static, Access=public)
+        function guiLayout(parent) %#ok<INUSD>
+            % nsGui calls this function with parent set to the parent uipanel
+            % Plugins can add graphical (appdesigner) elements to this parent. 
+            % See plugins.eyelink for an example
+                          
+        end        
+    end
 end

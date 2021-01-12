@@ -93,15 +93,15 @@ classdef design <handle & matlab.mixin.Copyable
     properties  (SetAccess =public, GetAccess=public)
         randomization='RANDOMWITHOUTREPLACEMENT';
         retry = 'IGNORE'; %IGNORE,IMMEDIATE,RANDOM
-        weights@double=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
+        weights=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
         maxRetry = Inf;
     end
     
     properties         (SetAccess =protected, GetAccess=public)
-        name@char;                      % The name of this design; bookkeeping/logging use only.
-        factorSpecs@cell={};            % A cell array of condition specifications for factorial designs
-        conditionSpecs@cell ={};         % Conditions specifications that deviate from the full factorial
-        list@double;                    % The order in which conditions will be run.
+        name;                      % The name of this design; bookkeeping/logging use only.
+        factorSpecs={};            % A cell array of condition specifications for factorial designs
+        conditionSpecs={};         % Conditions specifications that deviate from the full factorial
+        list;                    % The order in which conditions will be run.
         currentTrialIx =0;                   % The condition that will be run in this trial (index in to .list)
         retryCounter = [];
     end
@@ -403,6 +403,11 @@ classdef design <handle & matlab.mixin.Copyable
             if strcmpi(S(1).type,'.')
                 if strcmpi(S(1).subs,'WEIGHTS')
                     handled =true;
+                    
+                    %Disallow cell
+                    if ~isnumeric(V)
+                        error(['Factorial design weights must be a numeric array, but a ', class(V) ' was encountered. Type help neurostim.design']);
+                    end
                     
                     %If a vector of weights (i.e. a one-factor design), make a
                     %column vector (to match up with the nLevels x 1 output of o.nrLevels

@@ -15,8 +15,8 @@ classdef psyBayes < neurostim.plugins.adaptive
     % BK - Jun 2017
     
     properties (SetAccess=protected, GetAccess=public)
-        psy@struct; % The struct that containst the psy bookkeeping info.
-        method@char ='ent'; % Entropy maximization.
+        psy;% The struct that containst the psy bookkeeping info.
+        method ='ent'; % Entropy maximization.
         vars  = [1 1 1];% Which variables to estimate (mu,sigma, lapse);
     end
     
@@ -97,14 +97,10 @@ classdef psyBayes < neurostim.plugins.adaptive
             
         end
         
-        function update(o,response)
+        function update(o)
             % The abstract adaptive parent class requires that we implement this
-            % This is called after each trial. Update the internal value. The second arg is the success of the current trial, as determined
-            % in the parent class, using the trialResullt function
-            % specified by the user when constructing an object of this
-            % class.
-            parmValue = getValue(o); % This is the value that we used previously
-            [~,o.psy] =  psybayes(o.psy, o.method, o.vars,parmValue,response); % Call to update.
+            % This is called after each trial. Update the internal value.
+            [~,o.psy] =  psybayes(o.psy, o.method, o.vars,o.lastValue,o.lastOutcome); % Call to update.
         end
         
         function v =getAdaptValue(o)
@@ -227,9 +223,8 @@ classdef psyBayes < neurostim.plugins.adaptive
                         end
                     end
                     
-                catch
-                    lasterr
-                    disp (['Failed to compute posterior on ' oo(j).name])
+                catch me                    
+                    disp (['Failed to compute posterior on ' oo(j).name ' (' me.message ')'])
                 end
                 conditionLabel{j} = [oo(j).design ' (' num2str(oo(j).conditions') ')' ];
             end
