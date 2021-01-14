@@ -1793,6 +1793,7 @@ classdef cic < neurostim.plugin
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
                     % After upgrading to Win10 we seem to need this.
                     PsychDataPixx('PsyncTimeoutFrames' , 1);
+                                   
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
@@ -1859,6 +1860,7 @@ classdef cic < neurostim.plugin
                     c.textWindow = c.overlayWindow;
                     Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
                     updateOverlay(c);
+                    
                 case 'SOFTWARE-OVERLAY'
                     % With this display type you draw your stimuli on the
                     % left half of c.mainWindow and it is mirrored on the right
