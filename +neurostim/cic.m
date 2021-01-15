@@ -32,6 +32,7 @@ classdef cic < neurostim.plugin
         saveEveryBlock          = false;
         keyBeforeExperiment     = true;
         keyAfterExperiment      = true;
+        doublePressToQuit       = true; % User must press "escape" twice to exit. If false, once only.
         beforeExperimentText    = 'Press any key to start...'; % Shown at the start of an experiment
         afterExperimentText     = 'This is the end...';
         screen                  = struct('xpixels',[],'ypixels',[],'xorigin',0,'yorigin',0,...
@@ -118,7 +119,7 @@ classdef cic < neurostim.plugin
         %% Profiling information.
         
         
-        EscPressedTime;
+        EscPressedTime=-Inf;
         lastFrameDrop=1;
         propsToInform={'blockName','condition/nrConditions','trial/nrTrialsTotal'};
         
@@ -519,7 +520,7 @@ classdef cic < neurostim.plugin
                 case 'n'
                     c.flags.trial = false;
                 case 'ESCAPE'
-                    if c.EscPressedTime+1>GetSecs
+                    if ((c.EscPressedTime+1)>GetSecs) || ~c.doublePressToQuit
                         c.flags.experiment = false;
                         c.flags.trial = false;
                     else
