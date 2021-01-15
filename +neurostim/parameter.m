@@ -259,9 +259,15 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             
             % validate
-            if ~isempty(o.validate)
-                o.validate(v);
-            end
+            % AM: commented out because no action was being taken on validation fail
+            % anyway. Perhaps it was deemed too costly?
+            %
+            %TODO: restore validation.
+            
+%             if ~isempty(o.validate)
+%                 o.validate(v);
+%             end
+            
             % Log the new value
             storeInLog(o,v,t);
         end
