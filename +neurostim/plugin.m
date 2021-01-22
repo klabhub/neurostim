@@ -781,8 +781,9 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % guipanel (using handle h) into property settings. The base plugin class does
             % nothing (Except a warning).See plugins.eyelink for an
             % example.
-            writeToFeed(o,['The ' o.name ' plugin has no setFromGui function. GUI settings will be ignored']);
+            writeToFeed(o,['The ' o.name ' plugin has no guiSet function. GUI settings will be ignored']);
         end
+        
     end
 
     

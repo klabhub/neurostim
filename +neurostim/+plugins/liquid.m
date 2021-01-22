@@ -148,7 +148,6 @@ classdef liquid < neurostim.plugins.feedback
             h = uieditfield(p, 'text','Tag','Duration'); % Must be text to allow vectors.
             h.Position = [100 17 50 22];
             h.Value= '200';
-            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
             
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
@@ -159,7 +158,7 @@ classdef liquid < neurostim.plugins.feedback
             h = uieditfield(p, 'numeric','Tag','JackpotDur');
             h.Value = 1000;
             h.Position = [160 17 50 22];
-            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
+            
             
             
             h = uilabel(p);
@@ -171,10 +170,6 @@ classdef liquid < neurostim.plugins.feedback
             h = uieditfield(p, 'numeric','Tag','JackpotPerc');
             h.Value = 0.01;
             h.Position = [210 17 50 22];
-            h.ValueChangedFcn = @(txt,evt) nsGui.liveUpdate(p);
-            
-            
-            
             
         end
         

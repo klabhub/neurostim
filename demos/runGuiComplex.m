@@ -27,6 +27,7 @@ import neurostim.*
 % have a Tag that is a legal variable name (no spaces).
 % 3. This function can be defined in the experiment file, but also anywhere on the Matlab path.  
     function myPanel(p)
+        p.Title ='stimuli.grating';
         % Add a checkbox that will allow us to toggle a simulated observer
         h = uilabel(p); % Add a label to the panel parent
         h.HorizontalAlignment = 'left';
