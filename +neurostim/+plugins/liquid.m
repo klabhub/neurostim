@@ -123,12 +123,15 @@ classdef liquid < neurostim.plugins.feedback
      %%  GUI functions
     methods (Access= public)
         function guiSet(o,parms)
+            % This is the function called when the experiment is
+            % initialized and whenever any of the (tagged) values in the 
+            % gui panel (see guiLayout) change.
             o.jackpotDur = parms.JackpotDur;
             o.jackpotPerc = parms.JackpotPerc;
             durations = str2num(parms.Duration); %#ok<ST2NM>
             for i=1:o.nItems                
                o.(['item', num2str(i) 'duration']) = durations(min(i,numel(durations)));
-            end
+            end            
         end
     end
     
@@ -137,7 +140,8 @@ classdef liquid < neurostim.plugins.feedback
         
         function guiLayout(p)
             % Add plugin specific elements
-             
+            % The Tags chosen here must match the field names used in guiSet 
+            
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';

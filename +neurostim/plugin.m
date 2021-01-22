@@ -779,8 +779,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %The nsGui calls this just before the experiment starts; derived plugins
             % with gui panels shoould use it to transfer values from the
             % guipanel (using handle h) into property settings. The base plugin class does
-            % nothing (Except a warning).See plugins.eyelink for an
-            % example.
+            % nothing (Except a warning).
+            % See plugins.eyelink for an example.
             writeToFeed(o,['The ' o.name ' plugin has no guiSet function. GUI settings will be ignored']);
         end
         

@@ -1,5 +1,10 @@
 function [c] = runGuiSimple(varargin)
-% Demo to show the use of the nsGUI 
+% Demo to show the use of the nsGUI, with extended code comments to get started with
+% your own gui enabled experiments.
+% 
+% To start this in the gui, make the demos folder your working directory
+% and then type nsGui.
+% 
 % The actualy experiment is the same as in adaptiveDemo, only the first few
 % lines are changed to allow the nsGui to start this experiment
 %
@@ -8,7 +13,6 @@ function [c] = runGuiSimple(varargin)
 %
 % BK  - Feb 2020.
 
-import neurostim.*
 %% nsGUI setup
 % To use nsGui, the experiment function must have the prototype
 % function c = runExperiment(varargin) 
@@ -21,25 +25,31 @@ import neurostim.*
 %
 % Also, in some runs of this experiment we may want to use eyetracking, but
 % in other runs (e.g. when debugging) we want to fake an eyetracker. To
-% allow the user to select this, we include specifiy:
-% 'Panls',{plugins.eyelink} - this will add the Eyelink gui (Defined by
+% allow the user to select this, specify:
+% 'Panels',{plugins.eyelink} - this will add the Eyelink gui (Defined by
 % plugins.eyelink.guiLayout) to the nsGui at run time. 
 %
+import neurostim.*
+
 [run,c,settings] = nsGui.parse(varargin{:},...  % Any parameters that the GUI sends (required)
                                 'Panels',{'plugins.eyelink'},...  % List any guis that this experiment needs
                                 'Modes',{'QUEST','STAIRCASE'});  % List modes of the experiment
 % nsGui will call this function twice, first to get the list of panels and
-% modes (in that case run=false), then to actually run the experiment (run =true)
+% modes (in that case run=false)
 if ~run    
     % This was a call only to collect information; return without running the
     % experiment.
     return; 
 end
-
-% This is the end of the nsGui dependent code; in the code below we use the
-% variable c (the CIC controller, setup according to the specifications in
-% the nsGui) and the settings (a struct with the .mode field that specifies
-% whether Quest or Staircase was selected).
+% Once the nsGui user clicks the Go button, this function is called again,
+% run will be true, c will be a handle to the CIC controller, which has been 
+% setup according to the specifications in the nsGui) and settings is a struct 
+% with a .mode field that specifies whether Quest or Staircase was selected.
+% The c and settings variables are used below to control experiment
+% execution.
+%
+% To see a more complex example, with more panels,and some instruction on how to 
+% create ad-hoc user interfaces, see runGuiComplex
 
 %% 
 pianola = true; % Set this to true to simulate responses, false to provide your own responses ('a'=left,'l' = right).
