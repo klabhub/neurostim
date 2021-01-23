@@ -360,30 +360,10 @@ classdef ripple < neurostim.plugin
     
     methods (Static)
         
-        function guiLayout(p)
+        function guiLayout(~)
             % Add plugin specific elements
-            
-%             h = uilabel(p);
-%             h.HorizontalAlignment = 'left';
-%             h.VerticalAlignment = 'bottom';
-%             h.Position = [110 39 30 22];
-%             h.Text = 'Host';
-%             
-%             h = uieditfield(p, 'text','Tag','Host');
-%             h.Position = [110 17 200 22];
-%             h.Value= '10.10.10.42';
-%             
-%             
-%             h = uilabel(p);
-%             h.HorizontalAlignment = 'left';
-%             h.VerticalAlignment = 'bottom';
-%             h.Position = [315 39 100 22];
-%             h.Text = 'Clock Offset';
-%             
-%             h = uieditfield(p, 'numeric','Tag','ClockOffset');
-%             h.Value = 0;
-%             h.Position = [315 17 100 22];
-%             
+            % Nothing added as there is nothing that should be set differently 
+            % on a day to day basis.
         end
         
     end

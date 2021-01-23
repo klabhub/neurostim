@@ -92,8 +92,6 @@ classdef liquid < neurostim.plugins.feedback
         end
         
         function open(o,duration)
-            %Not the most elegant way to do this with feval, a
-            %function_handle would be more flexible, but ok for now.
             if ischar(o.deviceFun)
                 feval(o.deviceFun,o.cic.(o.device),o.deviceChannel,true,duration);                                            
             elseif isa(o.deviceFun,'function_handle')
@@ -145,7 +143,7 @@ classdef liquid < neurostim.plugins.feedback
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
-            h.Position = [100 39 30 22];
+            h.Position = [100 39 50 22];
             h.Text = 'Reward';
             
             
@@ -156,12 +154,12 @@ classdef liquid < neurostim.plugins.feedback
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
-            h.Position = [160 39 50 22];
+            h.Position = [155 39 50 22];
             h.Text = 'Jackpot';
             
             h = uieditfield(p, 'numeric','Tag','JackpotDur');
             h.Value = 1000;
-            h.Position = [160 17 50 22];
+            h.Position = [155 17 50 22];
             
             
             
@@ -169,8 +167,7 @@ classdef liquid < neurostim.plugins.feedback
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [210 39 50 22];
-            h.Text = '% Jackpot';
-            
+            h.Text = '%Jackpot';            
             h = uieditfield(p, 'numeric','Tag','JackpotPerc');
             h.Value = 0.01;
             h.Position = [210 17 50 22];
