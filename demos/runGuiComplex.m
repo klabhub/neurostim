@@ -1,6 +1,6 @@
 function [c] = runGuiComplex(varargin)
 % Demo to show advanced use of the nsGUI.
-%
+% This demo builds on  runGuiSimple.m, please look at that first.
 % The actualy experiment is the same as in adaptiveDemo, only the first few
 % lines are changed to allow the nsGui to start this experiment
 %
@@ -9,8 +9,8 @@ function [c] = runGuiComplex(varargin)
 
 import neurostim.*
 %% nsGUI setup
-% This demo builds on  runGuiSimple.m, please look at that first.
-% Also, if you want to make a permanent UI spoecifically for a plugin or a 
+% 
+% If you want to make a permanent UI specifically for a plugin or a 
 % stimulus, you should overload the guiLayout and guiSet functions in the
 % class definition. That is the most flexible (and robust) way to define
 % UIs that can be added to the nsGUI the same way as, for instance, the
@@ -101,7 +101,9 @@ end
 % This is the end of the nsGui dependent code; in the code below we use the
 % variable c (the CIC controller, setup according to the specifications in
 % the nsGui) and the settings (a struct with the .mode field that specifies
-% whether Quest or Staircase was selected).
+% whether Quest or Staircase was selected), the pianola and color fields
+% added in the ad-hoc options UI, and the .grating.frequency added in the
+% stimulus ad-hoc UI.
 
 %%
 
