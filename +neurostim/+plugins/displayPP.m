@@ -46,6 +46,8 @@ classdef displayPP < neurostim.plugins.daq
         
         function beforeFrame(o)
             if o.cic.frame ~= 1 % || o.cic.frame >2
+%             tOn = '@o.cic.sq.on';
+%             if o.cic.frame ~= o.cic.sq.on % start with a known stimulus definition before adding a property to track a defined stimulus
                 return
             end
             
@@ -55,9 +57,13 @@ classdef displayPP < neurostim.plugins.daq
             % CRS timing is in 100 us blocks. We need to define 248 blocks (~3 frames). 
             highTime = 1.0; % time to be high in the beginning of the frame (in 100 us steps = 0.1 ms steps)
             lowTime = 24.8-highTime; % followed by x msec low (enough to fill the rest of the frame high + low = 24.8 ms)
-            dat = [repmat(bin2dec('10000000001'),highTime*10,1);repmat(bin2dec('00000000000'),lowTime*10,1)]';
-            BitsPlusPlus('DIOCommand', o.cic.mainWindow, 2, 2047, dat, 0);
-           % !?! currently need to send message on 2 frames to get anything
+%             dat = [repmat(bin2dec('10000000001'),highTime*10,1);repmat(bin2dec('00000000000'),lowTime*10,1)]';
+%             BitsPlusPlus('DIOCommand', o.cic.mainWindow, 2, 2047, dat, 0);
+            dat = [repmat(32768+255,highTime*10,1); zeros(lowTime*10,1)]';
+            BitsPlusPlus('DIOCommand', o.cic.mainWindow, 2, 65535, dat, 0);
+
+
+% !?! currently need to send message on 2 frames to get anything
            % to work
             
             % BitsPlusPlus('DIOCommand', Scr.w, 1, 255, triggerData, 0);
