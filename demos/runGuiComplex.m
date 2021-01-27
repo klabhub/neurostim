@@ -1,39 +1,49 @@
 function [c] = runGuiComplex(varargin)
-% Demo to show advanced use of the nsGUI
+% Demo to show advanced use of the nsGUI.
+% This demo builds on  runGuiSimple.m, please look at that first.
 % The actualy experiment is the same as in adaptiveDemo, only the first few
 % lines are changed to allow the nsGui to start this experiment
 %
-% This demo builds on  runGuiSimple.m
 %
 % BK  - Feb 2020.
 
 import neurostim.*
 %% nsGUI setup
-% To use nsGui, the experiment function must have the prototype
-% function c = runExperiment(varargin)
-% The run* prefix is a convenient way to show only those files in the nsGui
-% that contain experiments  (and hide those m-files that contain analysis or utility functions).
-% You specify the prefix to include with the wildcard in the nsGui.
-%
-% The experiment file must contain a call to nsGui.parse with output arguments
-% [run,c,settings]
-% In this demo we add panels for a stimulus (stimuli.starstim) that has a
-% gui built-in and we create a gui on the fly to select 
-%
-% Create a function that returns a uipanel on the fly
-% Requirements:
-% 1. The function takes one input argument; a handle to the enclosing uipanel
-% 2. Each ui element whose value you wish to use in the experiment should
-% have a Tag that is a legal variable name (no spaces).
-% 3. This function can be defined in the experiment file, but also anywhere on the Matlab path.  
-    function myPanel(p)
+% 
+% If you want to make a permanent UI specifically for a plugin or a 
+% stimulus, you should overload the guiLayout and guiSet functions in the
+% class definition. That is the most flexible (and robust) way to define
+% UIs that can be added to the nsGUI the same way as, for instance, the
+% eyelink UI panel. (see plugins.eyelink.guiLayout for example code and
+% comments).
+% 
+% Sometimes, you may want to define a simple UI for just one experiment. 
+% Here we add two such ad-hoc user interfaces.
+% The first kind is similar to the 'Experiment Settings'; 
+% (like Mode and Subject) that often change in your experiment, but only at
+% the start of the experiment .
+% In this example, we expose the Pianola option (run without user
+% intervention) and the background color by defining a simple function
+% that 
+% 1. Takes one input argument; nsGui will pass a handle to the enclosing uipanel
+% 2. Adds UI elements with Tags that are legal variable names (e.g. no spaces).
+% 3. Can be defined in the experiment file, but also anywhere on the Matlab path.  
+% Behind the scenes, the nsGui.parse function does the work; it makes sure
+% that when this experiment runs, the variable settings.pianola will have
+% the value assigned in the GUI.
+    function myExperimentPanel(p)
+        p.Tag ='experiment';  % Identify this as an Experiment Ad Hoc UI.
+        p.Title ='Options';   % Free to chose
+        % This panel targets settings in this experiment file only
+        % Variables are read at experiment start, and then applied (in this
+        % file; see the use of settings.pianola below).
         % Add a checkbox that will allow us to toggle a simulated observer
-        h = uilabel(p); % Add a label to the panel parent
+        h = uilabel(p); % Add a label 
         h.HorizontalAlignment = 'left';
         h.VerticalAlignment = 'bottom';
         h.Position = [5 39 60 22];
         h.Text = 'Pianola';
-        h = uicheckbox(p,'Tag','pianola'); % Add a checkbox to the panel parent.
+        h = uicheckbox(p,'Tag','pianola'); % Add a checkbox 
         % The 'pianola' Tag ensures that at run time settings.pianola will have the value set in the gui
         % Note that this is case-sensitive
         h.Position = [5 17 22 22];
@@ -43,7 +53,7 @@ import neurostim.*
         
         % add an uiedit field to set the color (because we want to specify a vector 
         % the uieditfield is 'text' type, and we use str2num below to
-        % convert its value.
+        % convert its value).
         h = uilabel(p);
         h.HorizontalAlignment = 'left';
         h.VerticalAlignment = 'bottom';
@@ -52,12 +62,31 @@ import neurostim.*
         h = uieditfield(p, 'text','Tag','color');
         h.Position = [60 17 100 22];
         h.Value = '[0.5 0.5 0.5]';
-        h.Tooltip ='Background color';
+        h.Tooltip ='Background color';                
+    end
 
+% A different ad-hoc UI targets properties of a specific stimulus. These
+% values are also available on startup in the settings struct. In this
+% example we use it to set the frequency of the grating (See
+% settings.grating.frequency).
+% Unlike the Experiment ADHoc UI (above), these UI elements update values
+% during the experiment. You use the Tag of an UI element to link it to a specific property. 
+    function myGratingPanel(p)
+        % This panel targets a specific stimulus
+        p.Tag ='grating'; % The name of the targeted stimulus . 
+        p.Title = 'grating'; % Your choice
+        h = uilabel(p);
+        h.HorizontalAlignment = 'left';
+        h.VerticalAlignment = 'bottom';
+        h.Position = [5 39 60 22];
+        h.Text = 'Frequency'; 
+        h = uieditfield(p, 'numeric','Tag','frequency'); % The Tag must match a stimulus property 
+        h.Position = [5 17 30 22];
+        h.Value= 5;        
     end
 
 [run,c,settings] = nsGui.parse(varargin{:},...  % Any parameters that the GUI sends (required)
-    'Panels',{'plugins.eyelink',@myPanel},...  % Add eyelink and a handle to the function that creates our gui
+    'Panels',{'plugins.eyelink',@myExperimentPanel,@myGratingPanel},...  % Add eyelink and the handles to the ad-hoc UI functions
     'Modes',{'QUEST','STAIRCASE'},...  % List modes of the experiment
     'Disabled',{'Seq','Debug'}); % Disable the seq field in the nsGui
     
@@ -72,7 +101,9 @@ end
 % This is the end of the nsGui dependent code; in the code below we use the
 % variable c (the CIC controller, setup according to the specifications in
 % the nsGui) and the settings (a struct with the .mode field that specifies
-% whether Quest or Staircase was selected).
+% whether Quest or Staircase was selected), the pianola and color fields
+% added in the ad-hoc options UI, and the .grating.frequency added in the
+% stimulus ad-hoc UI.
 
 %%
 
@@ -111,7 +142,7 @@ g.sigma            = 3;
 g.phaseSpeed       = 0;
 g.orientation      = 0;
 g.mask             = 'CIRCLE';
-g.frequency        = 3;
+g.frequency        = settings.grating.frequency;
 g.on               =  0;
 g.duration         = 500;
 
