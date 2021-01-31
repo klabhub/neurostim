@@ -1798,7 +1798,7 @@ classdef cic < neurostim.plugin
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
                     PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
 %                     setDisplayToMonoPPMode; % FIXME: weird fix for the Windows 10 machine in Yan's lab
-                    Screen('Preference', 'VisualDebuglevel', 3); % 3 show a black screen instead of white flash
+%                    Screen('Preference', 'VisualDebuglevel', 3); % 3 show a black screen instead of white flash
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
