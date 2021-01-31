@@ -1005,7 +1005,6 @@ classdef cic < neurostim.plugin
                             if locHAVEOVERLAY
                                 clearOverlay(c,c.itiClear);
                             end
-                            
                             %Sitting idle in 'flip' during ITI seems to cause
                             %unwanted behaviour when the trials starts, and for several frames into it.
                             %at least on some Windows machines. e.g. the time to complete a call to rand()
@@ -1796,9 +1795,9 @@ classdef cic < neurostim.plugin
                     PsychDataPixx('PsyncTimeoutFrames' , 1);
                 case 'DISPLAY++'
                     % The CRS Display++
-%                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
+                    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
                     PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
-                    setDisplayToMonoPPMode; % FIXME: weird fix for the Windows 10 machine in Yan's lab
+%                     setDisplayToMonoPPMode; % FIXME: weird fix for the Windows 10 machine in Yan's lab
                     Screen('Preference', 'VisualDebuglevel', 3); % 3 show a black screen instead of white flash
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
