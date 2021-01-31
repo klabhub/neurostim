@@ -508,11 +508,14 @@ classdef eyelink < neurostim.plugins.eyetracker
     %% GUI function
     methods (Access= public)
         function guiSet(o,parms)
-            %The nsGui calls this just before the experiment starts;
+            % The nsGui calls this just before the experiment starts and
+            % every time the value changes in one of the ui elements. 
+            % 
             % o = eyelink plugin
-            % p = struct with settings for each of the elements in the
-            % guiLayout, named after the Tag property
-            %
+            % parms = struct with the current/updated values for each of the elements in the
+            % guiLayout, named after the Tag property in the ui.(see
+            % guiLayout)
+            % BK  - 2020
             o.doTrackerSetup    = ~parms.SkipCal;
             o.eye               = parms.Eye;
             o.fake              = strcmpi(parms.onOffFakeKnob,'fake');
@@ -529,32 +532,45 @@ classdef eyelink < neurostim.plugins.eyetracker
     methods (Static, Access=public)
         
         function guiLayout(p)
-            % Add plugin specific elements            
+            % Add plugin specific elements by using appdesigner code. 
+            % The Tag property is used to link the ui elements with the
+            % code to update member variables in the plugin. 
+            % Only ui elements with a non-empty Tag are functional (i.e.
+            % can be linked to member variables/properties)
+            % INPUT 
+            % p =  The uipanel that will contain the elements of this
+            % plugin (i.e. the parent).
+            % 
+            % BK  - 2020
+            
+            %% A label and associated check box to skip calibration.
+            % The SkipCal tag is important; when guiSet is called, its
+            % input parms will have fields corresponding to the tag.
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [110 39 60 22];
             h.Text = 'Skip Calib.';
             
-            h = uicheckbox(p,'Tag','SkipCal');
+            h = uicheckbox(p,'Tag','SkipCal'); 
             h.Position = [130 17 22 22];
             h.Text = '';
             h.Value=  false;
             h.Tooltip = 'Check to skip calibration at the start of the experiment';
             
-            
+            %% A label and drop down to define the calibration mode
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [175 39 60 22];
             h.Text = 'Calib.';
             
-            h =uidropdown(p,'Tag','Calibration');
+            h =uidropdown(p,'Tag','Calibration'); % In guiSet parms.Calibration will have this value
             h.Position = [175 17 60 22];
             h.Items = {'HV9','HV5','HV5C'};
             h.Tooltip = 'Pick a calibration mode';
             
-            
+            %% Label and drop down to select an Eye
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
@@ -566,7 +582,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             h.Items = {'Left','Right','Both'};
             h.Tooltip = 'Select which eye to track';
             
-            
+            %% And a text box for the background color (RGB)
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';

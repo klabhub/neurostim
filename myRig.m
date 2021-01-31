@@ -98,4 +98,7 @@ end
 c.screen.color.background = pin.Results.bgColor;
 
 
+%% Additional sections could follow here, with for instance
+% specific settings for a subject. 
+
     

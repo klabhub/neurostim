@@ -254,7 +254,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % the user did not specify it as such.
             if ~o.changesInTrial && o.hasLocalized &&  o.plg.cic.stage == neurostim.cic.INTRIAL                
                 setChangesInTrial(o.plg,o); % Add it to the list of parms that need to be updated before each frame.
-                writeToFeed(o.plg,[o.name ' is changing within the trial; performance would improve with setChangesInTrial(''' o.plg.name ''',''' o.name ''') in your experiment file.']);
+                writeToFeed(o.plg,[o.name ' is changing within the trial; performance would improve with c.' o.plg.name '.setChangesInTrial(''' o.name ''') in your experiment file. (where ''c'' is your cic object)']);
                 o.changesInTrial  = true;
             end
             
