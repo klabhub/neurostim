@@ -56,7 +56,7 @@ classdef ripple < neurostim.plugin
     properties (Dependent)
         nipTime;             % Time in ms since NIP started
         status;              % Current Trellis status.
-        
+    
         % Get channel numbers for all or a subset of "modalities"
         stimChannels;       % Stimulation channels    [1-512]
         microChannels;      % Electrode channels connected to Micro front end [1-512]
@@ -68,39 +68,44 @@ classdef ripple < neurostim.plugin
     end
     
     methods
-        function v = get.nipTime(~)
-            v = 1000*xippmex('time')/neurostim.plugins.ripple.SAMPLINGFREQ;
+        function v = get.nipTime(o)
+            v = 1000*tryXippmex(o,'time')/neurostim.plugins.ripple.SAMPLINGFREQ;
         end
         
         
-        function v= get.status(~)
-            v = xippmex('trial');
-            v= v.status;
+        function v= get.status(o)
+            v = tryXippmex(o,'trial');
+            if isstruct(v)
+                v = v.status;
+            else
+                % Probably called before any trial
+                v = 'stopped';
+            end
         end
         
-        function v= get.stimChannels(~)
-            v = xippmex('elec','stim');
+        function v= get.stimChannels(o)
+            v = tryXippmex(o,'elec','stim');
         end
         
-        function v= get.nanoChannels(~)
-            v = xippmex('elec','nano');
+        function v= get.nanoChannels(o)
+            v = tryXippmex(o,'elec','nano');
         end
         
         
-        function v= get.microChannels(~)
-            v = xippmex('elec','micro');
+        function v= get.microChannels(o)
+            v = tryXippmex(o,'elec','micro');
         end
         
-        function v= get.surfChannels(~)
-            v = xippmex('elec','surf');
+        function v= get.surfChannels(o)
+            v = tryXippmex(o,'elec','surf');
         end
         
-        function v= get.analogChannels(~)
-            v = xippmex('elec','analog');
+        function v= get.analogChannels(o)
+            v = tryXippmex(o,'elec','analog');
         end
         
-        function v= get.allChannels(~)
-            v = xippmex('elec','all');
+        function v= get.allChannels(o)
+            v = tryXippmex(o,'elec','all');
         end
         
     end
@@ -112,12 +117,17 @@ classdef ripple < neurostim.plugin
             p =inputParser;
             p.addRequired('port',@ischar);
             p.addRequired('connector',@isnumeric);
-            p.addParameter('flip',false,@islogical);% Was the connector flipped? 
+            p.addParameter('flip',false,@islogical);% Was the connector flipped?
             p.addParameter('arrayNr',[],@isnumeric); % Which array did this connector attach to (array is a number in the brain).
             p.addParameter('arrayType','fma',@ischar); % Used in data analysis
             p.addParameter('streams',{},@iscell); % Streams to enable (not implemented yet).
-            p.parse(port,connector,varargin{:});            
-            o.connectors([port num2str(connector)])=p.Results;            
+            p.parse(port,connector,varargin{:});
+            o.connectors([port num2str(connector)])=p.Results;
+            
+            
+            
+            stat = tryXippmex(o);
+            if stat~=1; error('Failed to connect to Trellis');end
         end
         function o = ripple(c)
             % Construct a ripple plugin
@@ -129,22 +139,23 @@ classdef ripple < neurostim.plugin
             o.addProperty('stopSave',NaN);
             o.addProperty('drive',{}); % Optional - change output drive on the Ripple machine {'Z:\','C:\'} will change the Z:\ in the neurostim file to C:\ for Ripple
             o.addProperty('fake',false);
-           
+            
             
             
             pth = which('xippmex');
             if isempty(pth)
                 error('The ripple plugin relies on xippmex, which could not be found. Please obtain it from your Trellis installation folder, and add it to the Matlab path');
             end
-            
+             
             % Create a timer object for each digout channel
             for ch = 1:o.NRDIGOUT
                 o.tmr(ch) = timer('tag',['ripple_digout' num2str(ch)]);
             end
+           
         end
         
         function digout(o,channel,value,duration)
-            if o.fake; return;end
+            if o.fake; return;end            
             % Set the digital output to the specified (TTL; 3.3V or 0V) value.
             % Either specify a boolean for a single SMA port or an uint16
             % for the MicroD port.
@@ -158,7 +169,7 @@ classdef ripple < neurostim.plugin
                 % Single SMA out
                 newDigout = o.currentDigout;
                 newDigout(channel) = value;
-                xippmex('digout',1:o.NRDIGOUT,double(newDigout));
+                tryXippmex(o,'digout',1:o.NRDIGOUT,double(newDigout));
                 o.currentDigout = newDigout;
                 if isfinite(duration)
                     o.tmr(channel).StartDelay = duration/1000;
@@ -167,7 +178,7 @@ classdef ripple < neurostim.plugin
                 end
             elseif channel == 5 && isa(value,'uint16')
                 % MicroD out (16 unsigned bits)
-                xippmex('digout',channel,double(value));
+                tryXippmex(o,'digout',channel,double(value));
             else
                 % Must be an error.
                 error(['Channel ' num2str(channel) ' cannot be set to ' num2str(value)]);
@@ -204,29 +215,19 @@ classdef ripple < neurostim.plugin
                 if isempty(p.Results.stream)
                     % ''  means all streams defined for the first electrode
                     % in the set.
-                    stream  = xippmex('signal',elec(1));
+                    stream  = tryXippmex(o,'signal',elec(1));
                 else
                     stream = {p.Results.stream};
                 end
                 %Activate/inactivate the streams.
                 for i=1:numel(stream)
-                    xippmex('signal',elec,lower(stream{i}),double(p.Results.on));
+                    tryXippmex(o,'signal',elec,lower(stream{i}),double(p.Results.on));
                 end
             end
         end
         
         function beforeExperiment(o)
-            if o.fake; return;end
-            %% Iniitialize
-            try
-                stat = xippmex;
-            catch
-                stat = -1;
-            end
-            if stat ~= 1; error('Xippmex Did Not Initialize');  end
-            
-            
-            
+            if o.fake; return;end                                              
             
             %% Define recording & stim electrodes
             % Disabled for now as this only does the streaming not saving.
@@ -249,7 +250,7 @@ classdef ripple < neurostim.plugin
             
             if ~strcmpi(o.status,'stopped')
                 warning('Trellis was still recording when this experiment started');
-                xippmex('trial','stopped');
+                tryXippmex(o,'trial','stopped');
             end
             
             tic;
@@ -260,7 +261,7 @@ classdef ripple < neurostim.plugin
                 end
             end
             
-            xippmex('digout',1:o.NRDIGOUT,zeros(1,o.NRDIGOUT)); % ReSet digout
+            tryXippmex(o,'digout',1:o.NRDIGOUT,zeros(1,o.NRDIGOUT)); % ReSet digout
             o.currentDigout = false(1,o.NRDIGOUT); % Local storage.
             
             % Now start it with the file name specified by CIC. The
@@ -276,7 +277,7 @@ classdef ripple < neurostim.plugin
             end
             
             try
-                xippmex('trial','recording',filename,0,0);
+                tryXippmex(o,'trial','recording',filename,0,0);
             catch
                 o.cic.error('STOPEXPERIMENT',['Failed to start recording on Trellis. Probably the path to the file does not exist on the Trellis machine: ' o.cic.fullPath]);
                 return; % No stat if error
@@ -300,13 +301,13 @@ classdef ripple < neurostim.plugin
                 o.writeToFeed('All Done.');
             end
             
-            xippmex('trial','stopped');
+            tryXippmex(o,'trial','stopped');
             while(~strcmpi(o.status,'stopped'))
                 pause (1);
                 o.cic.error('STOPEXPERIMENT','Stop recording on Trellis failed...?');
             end
             o.stopSave = o.nipTime;
-            xippmex('close'); % Close the link
+            tryXippmex(o,'close'); % Close the link
             o.writeToFeed('Trellis has stopped recording.');
         end
         
@@ -326,6 +327,36 @@ classdef ripple < neurostim.plugin
             end
             o.trialStop = o.nipTime; % Store niptime
         end
+        
+        function varargout = tryXippmex(o,varargin)
+            % Wrapper around xippmex to retry calls to Trellis
+            nrTries=0;
+            MAXNRTRIES = 10;
+            v  = cell(1,nargout);
+            nargs = numel(varargin);
+            while nrTries <MAXNRTRIES
+                try            
+                    if nargs>0
+                        [v{:}] = xippmex(varargin{:});
+                        command = varargin{1}; %#ok<NASGU>
+                    else
+                        [v{:}] = xippmex;
+                        command = '()'; %#ok<NASGU>
+                    end
+                    break;
+                catch me
+                    o.writeToFeed(['Trellis is not responding to  ' command ' (' me.message ')']) %#ok<NODEF>
+                    nrTries= nrTries+1;
+                    pause(0.5);
+                end
+            end
+            if nrTries == MAXNRTRIES 
+                fprintf(2,'This was sent to xippmex (and failed):')
+                varargin{:} %#ok<NOPRT>
+                rethrow(me)
+            end
+            varargout = v;
+        end
     end
     
     methods (Static)
@@ -342,6 +373,8 @@ classdef ripple < neurostim.plugin
             
             s.cic.ripple.digout(5,uint16(startTime));
         end
+        
+        
     end
     
     %%  GUI functions
@@ -362,7 +395,7 @@ classdef ripple < neurostim.plugin
         
         function guiLayout(~)
             % Add plugin specific elements
-            % Nothing added as there is nothing that should be set differently 
+            % Nothing added as there is nothing that should be set differently
             % on a day to day basis.
         end
         
