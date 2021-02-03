@@ -126,9 +126,12 @@ classdef liquid < neurostim.plugins.feedback
             % gui panel (see guiLayout) change.
             o.jackpotDur = parms.JackpotDur;
             o.jackpotPerc = parms.JackpotPerc;
+            makeSticky(o,'jackpotDur');
+            makeSticky(o,'jackpotPerc');
             durations = str2num(parms.Duration); %#ok<ST2NM>
             for i=1:o.nItems                
                o.(['item', num2str(i) 'duration']) = durations(min(i,numel(durations)));
+               makeSticky(o,['item', num2str(i) 'duration']);
             end            
         end
     end

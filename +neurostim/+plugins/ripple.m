@@ -126,8 +126,7 @@ classdef ripple < neurostim.plugin
             
             
             
-            stat = tryXippmex(o);
-            if stat~=1; error('Failed to connect to Trellis');end
+           
         end
         function o = ripple(c)
             % Construct a ripple plugin
@@ -151,7 +150,9 @@ classdef ripple < neurostim.plugin
             for ch = 1:o.NRDIGOUT
                 o.tmr(ch) = timer('tag',['ripple_digout' num2str(ch)]);
             end
-           
+            % This has to be done before any other commands are sent.
+            stat = tryXippmex(o);
+            if stat~=1; error('Failed to connect to Trellis');end
         end
         
         function digout(o,channel,value,duration)
@@ -337,15 +338,15 @@ classdef ripple < neurostim.plugin
             while nrTries <MAXNRTRIES
                 try            
                     if nargs>0
-                        [v{:}] = xippmex(varargin{:});
-                        command = varargin{1}; %#ok<NASGU>
+                        command = varargin{1}; 
+                        [v{:}] = xippmex(varargin{:});                        
                     else
+                        command = '()'; 
                         [v{:}] = xippmex;
-                        command = '()'; %#ok<NASGU>
                     end
                     break;
                 catch me
-                    o.writeToFeed(['Trellis is not responding to  ' command ' (' me.message ')']) %#ok<NODEF>
+                    o.writeToFeed(['Trellis is not responding to  ' command ' (' me.message ')']) 
                     nrTries= nrTries+1;
                     pause(0.5);
                 end
