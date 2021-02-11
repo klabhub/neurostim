@@ -681,7 +681,7 @@ classdef cic < neurostim.plugin
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
                 if c.PROFILE
-                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'AFTEREXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'cntr',0);
+                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'AFTEREXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'BEFOREITI',[],'cntr',0);
                 end
             end
             
@@ -1196,7 +1196,10 @@ classdef cic < neurostim.plugin
                         
                     end % Trial running
                     c.stage = neurostim.cic.RUNNING;
-                    %Perform one last flip to clear the screen (if requested)
+                    % 
+                    % Call beforeIti (can have some ITI drawing commands),
+                    % then flip and clear (if requested)
+                    base(c.pluginOrder,neurostim.stages.BEFOREITI,c);
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
