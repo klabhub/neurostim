@@ -509,8 +509,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             afterExperiment(o);
         end
         
-       function baseBeforeIti(o)
-            beforeIti(o);
+       function baseBeforeItiFrame(o)
+            beforeItiFrame(o);
         end
         
         function beforeExperiment(~)
@@ -529,7 +529,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %NOP
         end
         
-        function beforeIti(~)
+        function beforeItiFrame(~)
             %NOP
         end
         
@@ -704,16 +704,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         if c.PROFILE; addProfile(c,'AFTERFRAME',o.name,c.clockTime-ticTime);end
                     end
                     
-                case neurostim.stages.BEFOREITI
+                case neurostim.stages.BEFOREITIFRAME
                     Screen('glLoadIdentity', c.window);
                     Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
                     Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
                         Screen('glPushMatrix',c.window);                        
-                        baseBeforeIti(o); % If appropriate this will call beforeIti in the derived class
+                        baseBeforeItiFrame(o); % If appropriate this will call beforeItiFrame in the derived class
                         Screen('glPopMatrix',c.window);
-                        if c.PROFILE; addProfile(c,'BEFOREITI',o.name,c.clockTime-ticTime);end
+                        if c.PROFILE; addProfile(c,'BEFOREITIFRAME',o.name,c.clockTime-ticTime);end
                     end
                     Screen('glLoadIdentity', c.window); % Guarantee identity transformation in non plugin code (i.e. in CIC)                                        
                 case neurostim.stages.AFTERTRIAL

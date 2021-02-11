@@ -451,7 +451,7 @@ classdef stimulus < neurostim.plugin
             afterTrial(s);
         end
         
-        function baseBeforeIti(s)
+        function baseBeforeItiFrame(s)
             if s.loc_disabled
                 if s.loc_diodeFlasher.enabled; diodeFlasherOff(s);end                
                 return;
@@ -471,7 +471,7 @@ classdef stimulus < neurostim.plugin
                     Screen('glRotate',locWindow,s.loc_angle,s.loc_rx,s.loc_ry,s.loc_rz);
                 end
                 %Pass control to the child class
-                beforeIti(s);
+                beforeItiFrame(s);
             end
             
             % diodeFlasher is in pixel coordinates, so after glLoadIdentity
