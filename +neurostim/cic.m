@@ -681,7 +681,7 @@ classdef cic < neurostim.plugin
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
                 if c.PROFILE
-                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'AFTEREXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'BEFOREITI',[],'cntr',0);
+                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'AFTEREXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'BEFOREITIFRAME',[],'cntr',0);
                 end
             end
             
@@ -992,6 +992,7 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
+                            base(c.pluginOrder,neurostim.stages.BEFOREITIFRAME,c);
                             ptbVbl = Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                             
                             if locHAVEOVERLAY
@@ -1197,9 +1198,9 @@ classdef cic < neurostim.plugin
                     end % Trial running
                     c.stage = neurostim.cic.RUNNING;
                     % 
-                    % Call beforeIti (can have some ITI drawing commands),
+                    % Call beforeItiFrame (can have some ITI drawing commands),
                     % then flip and clear (if requested)
-                    base(c.pluginOrder,neurostim.stages.BEFOREITI,c);
+                    base(c.pluginOrder,neurostim.stages.BEFOREITIFRAME,c);
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
