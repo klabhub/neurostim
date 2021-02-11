@@ -12,7 +12,8 @@ classdef stimulus < neurostim.plugin
     %   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
     %       details)
     %
-    % To monitor onset/offset timing of a stimulus, see stimuli.diodeFlasher
+    % Diode
+    %
     %
     
     properties
@@ -23,10 +24,7 @@ classdef stimulus < neurostim.plugin
         onsetFunction = [];
         offsetFunction = [];
     end
-    
-    properties (SetAccess =?neurostim.stimuli.diodeFlasher)
-        diodeFlasher = []; 
-    end
+        
     
     properties (Dependent)
         off;
@@ -41,6 +39,7 @@ classdef stimulus < neurostim.plugin
         stimstart = false;
         stimstop = false;
         rsvp;
+        diodePosition;
         
     end
     % These are local/locked parameters used to speed up access to the
@@ -93,7 +92,8 @@ classdef stimulus < neurostim.plugin
         loc_ry
         loc_rz
         loc_rsvpIsi
-        loc_disabled                                
+        loc_disabled   
+                loc_diode
     end
     
     properties (Access=private)
@@ -156,7 +156,8 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rz',1,'validate',@isnumeric);
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             s.addProperty('disabled',false);
-            
+            s.addProperty('diode',struct('on',false,'color',[],'location','sw','size',0.05,'whenOff',false));
+        
             
             
             %% internally-set properties
@@ -245,7 +246,27 @@ classdef stimulus < neurostim.plugin
                     s.rsvpIsi = true;
                 end
             end
-        end                        
+        end
+        
+        
+       function setupDiode(s)
+            pixelsize=s.diode.size*s.cic.screen.xpixels;
+            if isempty(s.diode.color)
+                s.diode.color=WhiteIndex(s.window);
+            end
+            switch lower(s.diode.location)
+                case 'ne'
+                    s.diodePosition=[s.cic.screen.xpixels-pixelsize 0 s.cic.screen.xpixels pixelsize];
+                case 'se'
+                    s.diodePosition=[s.cic.screen.xpixels-pixelsize s.cic.screen.ypixels-pixelsize s.cic.screen.xpixels s.cic.screen.ypixels];
+                case 'sw'
+                    s.diodePosition=[0 s.cic.screen.ypixels-pixelsize pixelsize s.cic.screen.ypixels];
+                case 'nw'
+                    s.diodePosition=[0 0 pixelsize pixelsize];
+                otherwise
+                    error(['Diode Location ' s.diode.location ' not supported.'])
+            end
+        end
     end % private methods
     
     %% Methods that the user cannot change.
@@ -276,7 +297,11 @@ classdef stimulus < neurostim.plugin
                     s.rsvp.duration = dur*1000/s.cic.screen.frameRate;
                     s.rsvp.isi = isi*1000/s.cic.screen.frameRate;
                 end
-            end                        
+            end                
+            
+            if s.diode.on
+                setupDiode(s);
+            end
             beforeExperiment(s);
         end
         
@@ -368,8 +393,12 @@ classdef stimulus < neurostim.plugin
             end
             Screen('glLoadIdentity', locWindow);
                         
-            if ~isempty(s.diodeFlasher)
-                setStimulusState(s.diodeFlasher,s.flags.on); % Tell the diodeFlasher that the stimulus is on now.                
+            % diode size/position is in pixels and we don't really want it
+            % changing even if we change the physical screen size (e.g.,
+            % when changing viewing distance) or being distorted by the
+            % transforms above...
+            if s.loc_diode.on  && xor(s.flags.on,s.loc_diode.whenOff)
+                Screen('FillRect',locWindow,s.loc_diode.color,s.diodePosition);
             end
             
         end

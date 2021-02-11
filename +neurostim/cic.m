@@ -598,15 +598,7 @@ classdef cic < neurostim.plugin
                     newOrder = cat(2,'gui',newOrder(~isGui));
                 end
             end
-            
-            ix =  ismember(newOrder,'diodeFlasher');
-            if any(ix)
-                % Make sure diodeFlasher is last in line so that it can get
-                % updated by all stimuli.                 
-                newOrder(ix)=[];
-                newOrder = cat(2,newOrder,'diodeFlasher');                                
-            end
-
+               
             c.pluginOrder = [];
             for i=1:numel(newOrder)
                 c.pluginOrder =cat(2,c.pluginOrder,c.(newOrder{i}));
