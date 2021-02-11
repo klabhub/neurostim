@@ -112,11 +112,8 @@ g.phaseSpeed        = 10;
 % of the screen that turns on/off with the target stimulus 
 % On a generic monitor color should be [r g b].
 % Size is specified as a fraction of the horizontal number of pixels in the monitor
-fl = stimuli.diodeFlasher(c,'grating'); % 'grating' specifies that this diodeFlasher will be synced with the grating onset
-fl.location= 'nw';
-fl.highColor = [1 1 1]; % When 'grating' is 'on', the square will have this color
-fl.lowColor = [];  %  When grating is off the square will have this color ([] means same as cic.background).
-fl.size = 0.01;
+addDiodeFlasher(g,'location','nw','onColor',[1 1 1],'offColor',[0 0 0],'size',0.01)
+
 
 %% Setup data acquisition device
 switch upper(device)
