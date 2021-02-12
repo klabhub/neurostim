@@ -41,7 +41,7 @@ classdef stimulus < neurostim.plugin
         stimstart = false;
         stimstop = false;
         rsvp;
-        
+        diodeFlasher = struct('location','nw','size',0.05,'offColor',[0 0 0],'onColor',[1 1 1],'enabled',false,'position',[]);
     end
     % These are local/locked parameters used to speed up access to the
     % values of a neurostim.parameter. Any member variables whose name starts
@@ -94,7 +94,6 @@ classdef stimulus < neurostim.plugin
         loc_rz
         loc_rsvpIsi
         loc_disabled
-        loc_diodeFlasher
     end
     
     properties (Access=private)
@@ -156,8 +155,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('ry',0,'validate',@isnumeric);
             s.addProperty('rz',1,'validate',@isnumeric);
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
-            s.addProperty('disabled',false);
-            s.addProperty('diodeFlasher',struct('enabled',false,'onColor',[],'offColor',[],'location','','size',[],'invert',false,'position',[]));
+            s.addProperty('disabled',false);            
             
             
             %% internally-set properties
@@ -231,7 +229,7 @@ classdef stimulus < neurostim.plugin
             p.addParameter('enabled',true,@islogical);
             p.addParameter('position',[],@isnumeric); % This will be set in baseBeforeExperiment
             p.parse(varargin{:});
-            s.diodeFlasher  = p.Results;
+            s.diodeFlasher  = p.Results;            
          end
         
     end
@@ -275,11 +273,11 @@ classdef stimulus < neurostim.plugin
         end
         
         function diodeFlasherOn(s,locWindow)
-            Screen('FillRect',locWindow,s.loc_diodeFlasher.onColor,s.loc_diodeFlasher.position);
+            Screen('FillRect',locWindow,s.diodeFlasher.onColor,s.diodeFlasher.position);
         end
         
         function diodeFlasherOff(s,locWindow)
-            Screen('FillRect',locWindow,s.loc_diodeFlasher.offColor,s.loc_diodeFlasher.position);
+            Screen('FillRect',locWindow,s.diodeFlasher.offColor,s.diodeFlasher.position);
         end
         
     end % private methods
@@ -356,7 +354,7 @@ classdef stimulus < neurostim.plugin
             if s.loc_disabled
                 % Diode flasher should match the stimulus state always,
                 % eevn if disabled
-                if s.loc_diodeFlasher.enabled ; diodeFlasherOff(s,s.window);end
+                if s.diodeFlasher.enabled ; diodeFlasherOff(s,s.window);end
                 return;
             end
             
@@ -426,7 +424,7 @@ classdef stimulus < neurostim.plugin
                 beforeFrame(s);                                
             end
                         
-            if s.loc_diodeFlasher.enabled
+            if s.diodeFlasher.enabled
                 Screen('glLoadIdentity',locWindow);% Don't rotate or scale with the stimulus
                 if s.flags.on
                    diodeFlasherOn(s,locWindow);
@@ -453,7 +451,7 @@ classdef stimulus < neurostim.plugin
         
         function baseBeforeItiFrame(s)
             if s.loc_disabled
-                if s.loc_diodeFlasher.enabled; diodeFlasherOff(s);end                
+                if s.diodeFlasher.enabled; diodeFlasherOff(s);end                
                 return;
             end
             % The flags.on parameter is used **as is** from the last frame
@@ -475,7 +473,7 @@ classdef stimulus < neurostim.plugin
             end
             
             % diodeFlasher is in pixel coordinates, so after glLoadIdentity
-            if s.loc_diodeFlasher.enabled
+            if s.diodeFlasher.enabled
                 Screen('glLoadIdentity', locWindow);
                 % The diodeFlasher should reflect whether the stimulus is
                 % visible or not.
