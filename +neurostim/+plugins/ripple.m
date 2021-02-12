@@ -10,31 +10,28 @@ classdef ripple < neurostim.plugin
     % Properties
     %   trialBit - which SMA output bit to set to signal the start/stop of a trial
     %               To log this bit, you need to loop it (with a wire) to the
-    %               digital input. (Base-1)
+    %               digital input, or turn on UDP loopback in Trellis. (Base-1)
     %   drive    - Map a drive on the neurostim ccomputer to a different
     %               drive on the computer running Trellis (in case they are not saving
-    %               to the same place on a network)
-    %   channel   - A vector of channel numbers (e.g. 129:192 for the
-    %                   first 64 channels on port B)
-    %  electrode  - For each channel, an electrode that it connects to.
-    %                   e.g. (1:64).
-    %               Channels/electrodes does not change the
-    %               recording/streaming but it allows analysis software
-    %               (e.g. sib) to save the data in a physically meaningful
-    %               sense (i.e. even if you record electrode 2 with Port C
-    %               channel 4, you'd want it to show up as electrode 2 in
-    %               sib).
+    %               to the same place on a network)  
+    %  onsetBit  - Which SMA output bit to set to signal stimulus onset using the logOnset function.
+    %                   
     % %Example:
     %  t = plugins.ripple(c);  %Create the plugin and connect it to CIC
     %  t.trialBit = 3; % Signal start/stop on SMA digital output 3 (whcih is looped to input 3)
     %  t.drive = {'z:\','c:\'};  % Whatever Neurostim wants to save to z:\
     %                               we put on c:\ on the Trellis computer
-    % We indicate that the first connector port B (channels 192+) is connected to the first FMA
-    % in thebrain and teh second connector to the second array in the
+    % Indicate that the first connector port B (channels 192+) is connected to the first FMA
+    % in the brain and teh second connector to the second array in the
     % brain.
     %  t.connect('B',1,'arrayNumber',1,'flipped',false,'arrayType','fma')
     % t.connect('B',2,'arrayNumber',2,'flipped',false,'arrayType','fma')
-    %
+    %  And if g is a handle to the critical stimulus in an experiment you
+    %  can use
+    %  g.onsetFunction= @neurostim.plugins.ripple.logOnset;
+    % To set the t.onsetBit to high for 10 ms each time the g stimulus turns
+    % on.
+    % 
     % You can also deliver reward through Trellis - see plugins.liquid
     %
     % BK - September 2018
@@ -132,6 +129,7 @@ classdef ripple < neurostim.plugin
             % Construct a ripple plugin
             o = o@neurostim.plugin(c,'ripple');
             o.addProperty('trialBit',[]);
+            o.addProperty('onsetBit',[]);
             o.addProperty('trialStart',[]);
             o.addProperty('trialStop',[]);
             o.addProperty('startSave',NaN);
@@ -151,8 +149,13 @@ classdef ripple < neurostim.plugin
                 o.tmr(ch) = timer('tag',['ripple_digout' num2str(ch)]);
             end
             % This has to be done before any other commands are sent.
-            stat = tryXippmex(o);
-            if stat~=1; error('Failed to connect to Trellis');end
+            try
+                xippmex;  %Initialize if possible
+            catch
+            end
+            % But if we later want to continue in fake mode, failure should
+            % not result in an error. So we let it try once only and
+            % continue regardless.
         end
         
         function digout(o,channel,value,duration)
@@ -246,6 +249,10 @@ classdef ripple < neurostim.plugin
             %                 end
             %             end
             
+           % Now the connection has to be active.
+            stat = tryXippmex(o);
+           if stat~=1; error('Failed to connect to Trellis');end
+           
             
             %% First make sure Trellis has stopped
             
@@ -371,8 +378,11 @@ classdef ripple < neurostim.plugin
             % s =  stimulus
             % startTime = flipTime in clocktime (i.e. not relative to the
             % trial)
-            
-            s.cic.ripple.digout(5,uint16(startTime));
+            r = s.cic.ripple;
+            if ~isempty(r.onsetBit)
+                DURATION = 10; % 10 ms is enough
+                r.digout(r.onsetBit,true,DURATION);
+            end
         end
         
         
