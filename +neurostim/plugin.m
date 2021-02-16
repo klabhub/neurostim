@@ -509,6 +509,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             afterExperiment(o);
         end
         
+       function baseBeforeItiFrame(o)
+            beforeItiFrame(o);
+        end
+        
         function beforeExperiment(~)
             %NOP
         end
@@ -524,6 +528,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         function beforeFrame(~)
             %NOP
         end
+        
+        function beforeItiFrame(~)
+            %NOP
+        end
+        
         
         function afterFrame(~)
             %NOP
@@ -694,6 +703,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         baseAfterFrame(o);
                         if c.PROFILE; addProfile(c,'AFTERFRAME',o.name,c.clockTime-ticTime);end
                     end
+                    
+                case neurostim.stages.BEFOREITIFRAME
+                    Screen('glLoadIdentity', c.window);
+                    Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
+                    Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
+                    for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        Screen('glPushMatrix',c.window);                        
+                        baseBeforeItiFrame(o); % If appropriate this will call beforeItiFrame in the derived class
+                        Screen('glPopMatrix',c.window);
+                        if c.PROFILE; addProfile(c,'BEFOREITIFRAME',o.name,c.clockTime-ticTime);end
+                    end
+                    Screen('glLoadIdentity', c.window); % Guarantee identity transformation in non plugin code (i.e. in CIC)                                        
                 case neurostim.stages.AFTERTRIAL
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
