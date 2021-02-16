@@ -20,7 +20,7 @@ classdef starstim < neurostim.stimulus
     %
     % Note that all stimluation parameters will be set here in
     % in the starstim matlab stimulus. The (single step) protocol should
-    % set stim **currents to 0 muA**  and chose a very long duration. 
+    % set stim **currents to 0 muA**  and chose a very long duration.
     % This plugin will load the protocol, (which will record EEG but stimulate
     % at 0 currents) and then change stimulation parameters on the fly.
     %
@@ -229,6 +229,8 @@ classdef starstim < neurostim.stimulus
             o.addProperty('enabled',true);
             o.addProperty('montage',ones(1,o.NRCHANNELS));%
             
+            o.addProperty('tRNSFilter','off'); % Use this to limit tRNS to a specific band. See starstim.trnsFilter()
+            o.addProperty('tRNSFilterParms',[]);
             
             o.addProperty('marker',''); % Used to log markers sent to NIC
             o.addProperty('flipTime',[]); % USed to record fliptimes in logOnset function
@@ -367,10 +369,10 @@ classdef starstim < neurostim.stimulus
                     % the disadvantage that a separate protocol is needed
                     % to do Impedance checks.
                     %[ret] = MatNICOnlineAtacsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
-                     %     o.checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
-                     %    [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
-                      %   o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
-
+                    %     o.checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
+                    %    [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
+                    %   o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
+                    
                 end
             end
         end
@@ -659,8 +661,14 @@ classdef starstim < neurostim.stimulus
                         o.checkRet(ret,msg);
                     end
                 case 'TRNS'
-                    msg{1} = '??? tRNS not implemented yet';
-                    o.checkRet(-1,'tRNS Not implemented yet');
+                    msg{1} = sprintf('Turning on tRNS');
+                    msg{2} = sprintf('\tCh#%d',1:o.NRCHANNELS);
+                    msg{3} = sprintf('\t%d mA',o.amplitude);
+                    setFilterTrns(o,true);
+                    if ~o.fake
+                        [ret] = MatNICOnlineAtrnsChange(perChannel(o,o.amplitude), o.NRCHANNELS, o.sock);
+                        o.checkRet(ret,msg);
+                    end
                 otherwise
                     error(['Unknown stimulation type : ' o.type]);
             end
@@ -716,7 +724,9 @@ classdef starstim < neurostim.stimulus
                         [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
                         o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
                     case 'TRNS'
-                        o.checkRet(-1,'tRNS Not implemented yet');
+                        [ret] = MatNICOnlineAtrnsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.sock);
+                        setFilterTrns(o,false); % Remove filter.
+                        o.checkRet(ret,sprintf('tRNS Set to zero'));
                     otherwise
                         error(['Unknown stimulation type : ' o.type]);
                 end
@@ -905,6 +915,41 @@ classdef starstim < neurostim.stimulus
                 %else probably failed to create a sock...or fake
             end
         end
+        
+        function setFilterTrns(o,enable)
+            if enable
+                switch upper(o.tRNSFilter)
+                    case 'OFF'
+                        setFilterTrns(o,false);
+                        return;
+                    case 'ALPHA'
+                        param1 = o.tRNSFilterParms(1);
+                        param2 = 0; % Not used.
+                    case 'LOW'
+                        param1 = o.tRNSFilterParms(1);
+                        param2 = 0; % Not used.
+                    case 'HIGH'
+                        param1 = o.tRNSFilterParms(1);
+                        param2 = 0; % Not used.
+                    case 'BANDPASS'
+                        param1 = o.tRNSFilterParms(1);
+                        param2 = o.tRNSFilterParms(2);
+                end
+                if o.fake
+                    o.writeToFeed(sprintf('Set tRNS filter to %s with parameters [%3.2f %3.2f]',o.tRNSFilter, o.tRNSFilterParms));
+                else
+                    ret = MatNICEnableTRNSFilter(o.tRNSFilter,param1,param2,o.sock);
+                    o.checkRet(ret,sprintf('Could not set tRNS filter to %s with parameters [%3.2f %3.2f]',o.tRNSFilter,param1,param2));
+                end
+            else
+                if o.fake
+                    o.writeToFeed('Removing tRNS filters');
+                else
+                    [ret] = MatNICDisableTRNSFilter (o.sock);
+                    o.checkRet(ret,'Failed to disable tRNS filter');
+                end
+            end
+        end
     end
     
     methods (Static)
@@ -958,7 +1003,7 @@ classdef starstim < neurostim.stimulus
     
     
     %% GUI Functions
-     methods (Access= public)
+    methods (Access= public)
         function guiSet(o,parms)
             %The nsGui calls this just before the experiment starts;
             % o = eyelink plugin
@@ -972,13 +1017,13 @@ classdef starstim < neurostim.stimulus
             end
             o.host = parms.Host;
         end
-     end
-     
-    methods (Static)       
-
-     function guiLayout(p)
+    end
+    
+    methods (Static)
+        
+        function guiLayout(p)
             % Add plugin specific elements
-
+            
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
