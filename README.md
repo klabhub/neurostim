@@ -3,21 +3,21 @@ This project wraps object oriented Matlab code around the basic graphics functio
 experiments more reusable and reproducable. 
 
 
-There is no user guide, but there are demos that show how to setup experiments
-and how to achieve certain goals:
+There is no user guide, but the demos folder shows how to setup experiments
+and achieve certain common experimental goals:
 
 Simple experimental design :
-behaviorDemo
+```behaviorDemo
 
 Using staircases, quest, or jittered parameters:
-adaptiveDemo
+```adaptiveDemo
 
 Using calibrated CIE color
-xylDemo
+```xylDemo
 
 
 Using calibrated luminance 
-lumDemo
+```lumDemo
 
 Using high resolution devices (Bits++, ViewPixx)
-vpxDemo
+```vpxDemo
