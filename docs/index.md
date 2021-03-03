@@ -9,6 +9,6 @@ Rather than create independent scripts for every new experiment – a time consu
 The docs/ folder contains Matlab mlx files with instructions on how to get started, you can view their content here, or open the file inside Matlab to see "live" results.
 
 * [GettingStarted.mlx](GettingStarted.html)
-* [Using the Graphical User Interface: nsGui.mlx](nsGui.html)
+* [Using the Graphical User Interface: nsGuiTutorial.mlx](nsGuiTutorial.html)
 
 
