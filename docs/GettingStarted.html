@@ -1,28 +1,126 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge,IE=9,chrome=1"><meta name="generator" content="MATLAB R2018b"><title>Getting Started with Neurostim</title><style type="text/css">.rtcContent { padding: 30px; } .S0 { margin: 3px 10px 5px 4px; padding: 0px; line-height: 28.7999992370605px; min-height: 0px; white-space: pre-wrap; color: rgb(213, 80, 0); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 24px; font-weight: normal; text-align: left;  }
-.S1 { margin: 20px 10px 5px 4px; padding: 0px; line-height: 20px; min-height: 0px; white-space: pre-wrap; color: rgb(60, 60, 60); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 20px; font-weight: bold; text-align: left;  }
-.S2 { margin: 2px 10px 9px 4px; padding: 0px; line-height: 21px; min-height: 0px; white-space: pre-wrap; color: rgb(0, 0, 0); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 14px; font-weight: normal; text-align: left;  }
-.S3 { margin: 10px 0px 20px; padding-left: 0px; font-family: Helvetica, Arial, sans-serif; font-size: 14px;  }
-.S4 { margin-left: 56px; line-height: 21px; min-height: 0px; text-align: left; white-space: pre-wrap;  }</style></head><body><div class = rtcContent><h1  class = 'S0'><span>Getting Started with Neurostim</span></h1><h2  class = 'S1'><span>Description</span></h2><div  class = 'S2'><span>Neurostim is a toolbox to run pscyhophysical experiments. It relies on the Psychophysics toolbox for all of its graphics, and sound, while adding scripting, logging, and </span></div><div  class = 'S2'><span>experimental design features. </span></div><div  class = 'S2'><span></span></div><h2  class = 'S1'><span>System Requirements</span></h2><ul  class = 'S3'><li  class = 'S4'><span>Matlab version R2016b or later</span></li><li  class = 'S4'><span>Psychophysics Toolbox  </span><a href = "http://psychtoolbox.org"><span> http://psychtoolbox.org</span></a></li><li  class = 'S4'><span>psybayes  </span><a href = "https://github.com/lacerbi/psybayes.git"><span>https://github.com/lacerbi/psybayes.git</span></a></li></ul><h2  class = 'S1'><span>Features</span></h2><div  class = 'S2'><span>Provide an overview of the features that your toolbox integrates with MATLAB here.</span></div><h2  class = 'S1'><span>Examples</span></h2><div  class = 'S2'><span>The demos folder has a number </span></div></div><br>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge,IE=9,chrome=1"><meta name="generator" content="MATLAB R2020a"><title>Getting Started with Neurostim</title><style type="text/css">.rtcContent { padding: 30px; } .S0 { margin: 3px 10px 5px 4px; padding: 0px; line-height: 28.8px; min-height: 0px; white-space: pre-wrap; color: rgb(213, 80, 0); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 24px; font-weight: 400; text-align: left;  }
+.S1 { margin-bottom: 20px; padding-bottom: 4px;  }
+.S2 { margin: 0px; padding: 10px 0px 10px 5px; line-height: 21px; min-height: 0px; white-space: pre-wrap; color: rgb(0, 0, 0); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 14px; font-weight: 700; text-align: start;  }
+.S3 { margin: -1px 0px 0px; padding: 10px 0px 10px 7px; line-height: 21px; min-height: 0px; white-space: pre-wrap; color: rgb(0, 0, 0); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 14px; font-weight: 400; text-align: start;  }
+.S4 { margin: 20px 10px 5px 4px; padding: 0px; line-height: 20px; min-height: 0px; white-space: pre-wrap; color: rgb(60, 60, 60); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 20px; font-weight: 700; text-align: left;  }
+.S5 { margin: 2px 10px 9px 4px; padding: 0px; line-height: 21px; min-height: 0px; white-space: pre-wrap; color: rgb(0, 0, 0); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 14px; font-weight: 400; text-align: left;  }
+.S6 { margin: 15px 10px 5px 4px; padding: 0px; line-height: 18px; min-height: 0px; white-space: pre-wrap; color: rgb(60, 60, 60); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 17px; font-weight: 700; text-align: left;  }
+.S7 { margin: 10px 0px 20px; padding-left: 0px; font-family: Helvetica, Arial, sans-serif; font-size: 14px;  }
+.S8 { margin-left: 56px; line-height: 21px; min-height: 0px; text-align: left; white-space: pre-wrap;  }
+.CodeBlock { background-color: #F7F7F7; margin: 10px 0 10px 0;}
+.S9 { border-left: 0.994318px solid rgb(233, 233, 233); border-right: 0.994318px solid rgb(233, 233, 233); border-top: 0.994318px solid rgb(233, 233, 233); border-bottom: 0.994318px solid rgb(233, 233, 233); border-radius: 4px; padding: 6px 45px 4px 13px; line-height: 17.234px; min-height: 18px; white-space: nowrap; color: rgb(0, 0, 0); font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 14px;  }
+.S10 { margin: 10px 10px 9px 4px; padding: 0px; line-height: 21px; min-height: 0px; white-space: pre-wrap; color: rgb(0, 0, 0); font-family: Helvetica, Arial, sans-serif; font-style: normal; font-size: 14px; font-weight: 400; text-align: left;  }
+.S11 { border-left: 0.994318px solid rgb(233, 233, 233); border-right: 0.994318px solid rgb(233, 233, 233); border-top: 0.994318px solid rgb(233, 233, 233); border-bottom: 0px none rgb(0, 0, 0); border-radius: 4px 4px 0px 0px; padding: 6px 45px 0px 13px; line-height: 17.234px; min-height: 18px; white-space: nowrap; color: rgb(0, 0, 0); font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 14px;  }
+.S12 { border-left: 0.994318px solid rgb(233, 233, 233); border-right: 0.994318px solid rgb(233, 233, 233); border-top: 0px none rgb(0, 0, 0); border-bottom: 0.994318px solid rgb(233, 233, 233); border-radius: 0px 0px 4px 4px; padding: 0px 45px 4px 13px; line-height: 17.234px; min-height: 18px; white-space: nowrap; color: rgb(0, 0, 0); font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 14px;  }
+.S13 { border-left: 0.994318px solid rgb(233, 233, 233); border-right: 0.994318px solid rgb(233, 233, 233); border-top: 0px none rgb(0, 0, 0); border-bottom: 0px none rgb(0, 0, 0); border-radius: 0px; padding: 0px 45px 0px 13px; line-height: 17.234px; min-height: 18px; white-space: nowrap; color: rgb(0, 0, 0); font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 14px;  }</style></head><body><div class = rtcContent><h1  class = 'S0' id = 'T_882266D1' ><span>Getting Started with Neurostim</span></h1><div  class = 'S1'><div  class = 'S2'><span style=' font-weight: bold;'>Table of Contents</span></div><div  class = 'S3'><a href = "#H_41613432"><span>Description
+</span></a><span>    </span><a href = "#H_3BDE3AC5"><span>Prerequisites
+</span></a><span>    </span><a href = "#H_1B343464"><span>Installation 
+</span></a><a href = "#H_9C1CDDC3"><span>Features
+</span></a><span>    </span><a href = "#H_A1CC87FA"><span>Examples/Demos</span></a></div></div><h2  class = 'S4' id = 'H_41613432' ><span>Description</span></h2><div  class = 'S5'><span>Neurostim is a toolbox to run pscyhophysical experiments. It relies on the Psychophysics toolbox for all of its graphics, and sound, while adding scripting, logging, and experimental design features. </span></div><div  class = 'S5'><span></span></div><h3  class = 'S6' id = 'H_3BDE3AC5' ><span>Prerequisites</span></h3><div  class = 'S5'><span>Neurostim requires </span></div><ul  class = 'S7'><li  class = 'S8'><span>Matlab R2016 or later</span></li><li  class = 'S8'><span>Psychophysics Toolbox 3 </span></li><li  class = 'S8'><span>Some plugins have additional hard and/or software dependencies, but these are checked at run time.</span></li></ul><h3  class = 'S6' id = 'H_1B343464' ><span>Installation </span></h3><ol  class = 'S7'><li  class = 'S8'><span>Install Psychtoolbox. The Psychtoolbox-3 library must be installed prior to the use of Neurostim. For comprehensive instructions on how to install Psychtoolbox, please visit  </span><a href = "http://psychtoolbox.org/download"><span>http://psychtoolbox.org/download</span></a></li><li  class = 'S8'><span>Clone Neurostim. Cloning the repository (https://github.com/klabhub/neurostim) to your machine has the advantage that you can update easily, and that you can contribute bug fixes. It does, however, require familiarity with git. Alternatively, you can download the latest version in ZIP format.</span></li><li  class = 'S8'><span> Add the folder in which you cloned/unpacked neurostim to MATLAB's search path. Only the top folder needs to be added to the path. </span></li><li  class = 'S8'><span>Make a copy of neurostim/myRig.m, and adapt it to your  needs.</span></li></ol><h2  class = 'S4' id = 'H_9C1CDDC3' ><span>Features</span></h2><div  class = 'S5'><span>The Neurostim toolbox has the following features:</span></div><ul  class = 'S7'><li  class = 'S8'><span>A set of built-in visual stimuli (Gabor, Grating, Random Dot Kinematograms, Noise,...</span></li><li  class = 'S8'><span>A set of built-in plugins to communicate with external devices (Eyelink, Blackrock, Ripple, Measurement Computing, Open EPhys, EGI, Starstim, Datapixx)</span></li><li  class = 'S8'><span>Adaptive parameter estimation methods (Quest, Psy, Staircase)</span></li><li  class = 'S8'><span>Color calibration (I1pro) and calibrated color stimulus presentation (ViewPixx)</span></li><li  class = 'S8'><span>Pre-specified behavioral control objects (fixation, saccades, key presses)</span></li><li  class = 'S8'><span>Remote monitoring of an experiment </span></li><li  class = 'S8'><span>Built-in experimental design specification (e.g. factorial variation of parameters, with randomization at trial, block, and experiment elvel)</span></li><li  class = 'S8'><span>Precise and complete logging of all variables set/used in the experiment. </span></li><li  class = 'S8'><span>Functionality can be extended easily with user-defined stimulus classes and plugins.</span></li><li  class = 'S8'><span>A </span><a href = "http://nsGui.html"><span>GUI </span></a><span>to run experiments in production mode.</span></li></ul><h3  class = 'S6' id = 'H_A1CC87FA' ><span>Examples/Demos</span></h3><div  class = 'S5'><span>The demos are the best place to start. Each demo is documented extensively and shows how to setup an  experiment, add stimuli, add behavioral control, and include plugins to interact with external devices. </span></div><div  class = 'S5'><span>Here is a suggested path through the demos:</span></div><ul  class = 'S7'><li  class = 'S8'><span> Basic setup </span></li></ul><div class="CodeBlock"><div class="inlineWrapper"><div  class = 'S9'><span style="white-space: pre;"><span>behaviorDemo</span></span></div></div></div><div  class = 'S10'><span></span></div><ul  class = 'S7'><li  class = 'S8'><span>Eye movement control</span></li></ul><div class="CodeBlock"><div class="inlineWrapper"><div  class = 'S11'><span style="white-space: pre;"><span>behaviorDemo </span><span style="color: rgb(60, 118, 61);">%  (fixation)</span></span></div></div><div class="inlineWrapper"><div  class = 'S12'><span style="white-space: pre;"><span>fixateThenChooseDemo; </span><span style="color: rgb(60, 118, 61);">%  (Fixate, then give an "answer" by looking at one of two dots)</span></span></div></div></div><ul  class = 'S7'><li  class = 'S8'><span>Adaptive parameter estimation</span></li></ul><div class="CodeBlock"><div class="inlineWrapper"><div  class = 'S9'><span style="white-space: pre;"><span>adaptiveDemo </span><span style="color: rgb(60, 118, 61);">%(Quest, Staircase, Psi)</span></span></div></div></div><ul  class = 'S7'><li  class = 'S8'><span> Retrieving and Analyzing Neurostim Output</span></li></ul><div class="CodeBlock"><div class="inlineWrapper"><div  class = 'S9'><span style="white-space: pre;"><span>taeDemo</span></span></div></div></div><ul  class = 'S7'><li  class = 'S8'><span>Calibrated luminance and color</span></li></ul><div class="CodeBlock"><div class="inlineWrapper"><div  class = 'S11'><span style="white-space: pre;"><span>lumDemo</span></span></div></div><div class="inlineWrapper"><div  class = 'S13'><span style="white-space: pre;"><span>xyLDemo</span></span></div></div><div class="inlineWrapper"><div  class = 'S12'><span style="white-space: pre;"><span>xylTextureDemo</span></span></div></div></div><div  class = 'S10'><span></span></div><ul  class = 'S7'><li  class = 'S8'><span>Complex visual stimuli</span></li></ul><div class="CodeBlock"><div class="inlineWrapper"><div  class = 'S11'><span style="white-space: pre;"><span>fastFilteredImageDemo</span></span></div></div><div class="inlineWrapper"><div  class = 'S12'><span style="white-space: pre;"><span>noiseGridDemo</span></span></div></div></div><div  class = 'S10'><span></span></div><ul  class = 'S7'><li  class = 'S8'><span>Interaction with external devices </span></li></ul><div class="CodeBlock"><div class="inlineWrapper"><div  class = 'S11'><span style="white-space: pre;"><span>rippleDemo  </span><span style="color: rgb(60, 118, 61);">% Ripple Neurophysiology Hardware (Trellis)</span></span></div></div><div class="inlineWrapper"><div  class = 'S13'><span style="white-space: pre;"><span>starstimDemo  </span><span style="color: rgb(60, 118, 61);">% Neuroelectrics  StarStim tDCS/tACS/tRNS device</span></span></div></div><div class="inlineWrapper"><div  class = 'S13'><span style="white-space: pre;"><span>egiDemo        </span><span style="color: rgb(60, 118, 61);">% EGI EEG recording hardware</span></span></div></div><div class="inlineWrapper"><div  class = 'S13'><span style="white-space: pre;"><span>stgDemo        </span><span style="color: rgb(60, 118, 61);">% MultiChannel Systems STG stimulation hardware</span></span></div></div><div class="inlineWrapper"><div  class = 'S12'><span style="white-space: pre;"><span>daqDemo         </span><span style="color: rgb(60, 118, 61);">% Data acquisition with AD converter</span></span></div></div></div><div  class = 'S10'><span></span></div><ul  class = 'S7'><li  class = 'S8'><span>High resolution graphics</span></li></ul><div class="CodeBlock"><div class="inlineWrapper"><div  class = 'S11'><span style="white-space: pre;"><span>lumM16Demo </span><span style="color: rgb(60, 118, 61);">% (VPIXX monochrome )</span></span></div></div><div class="inlineWrapper"><div  class = 'S12'><span style="white-space: pre;"><span>responsePixxDemo </span><span style="color: rgb(60, 118, 61);">% (VPIXX using the response box )</span></span></div></div></div><div  class = 'S10'><span></span></div><h2  class = 'S4' id = 'H_E0C068C1' ></h2></div>
+<br>
 <!-- 
 ##### SOURCE BEGIN #####
 %% Getting Started with Neurostim
 %% Description
 % Neurostim is a toolbox to run pscyhophysical experiments. It relies on the 
 % Psychophysics toolbox for all of its graphics, and sound, while adding scripting, 
-% logging, and 
-% 
-% experimental design features. 
+% logging, and experimental design features. 
 % 
 % 
-%% System Requirements
-% * Matlab version R2016b or later
-% * Psychophysics Toolbox  <http://psychtoolbox.org  http://psychtoolbox.org>
-% * psybayes  <https://github.com/lacerbi/psybayes.git https://github.com/lacerbi/psybayes.git>
+% Prerequisites
+% Neurostim requires 
+%% 
+% * Matlab R2016 or later
+% * Psychophysics Toolbox 3 
+% * Some plugins have additional hard and/or software dependencies, but these 
+% are checked at run time.
+% Installation 
+%% 
+% # Install Psychtoolbox. The Psychtoolbox-3 library must be installed prior 
+% to the use of Neurostim. For comprehensive instructions on how to install Psychtoolbox, 
+% please visit  <http://psychtoolbox.org/download http://psychtoolbox.org/download>
+% # Clone Neurostim. Cloning the repository (https://github.com/klabhub/neurostim) 
+% to your machine has the advantage that you can update easily, and that you can 
+% contribute bug fixes. It does, however, require familiarity with git. Alternatively, 
+% you can download the latest version in ZIP format.
+% # Add the folder in which you cloned/unpacked neurostim to MATLAB's search 
+% path. Only the top folder needs to be added to the path. 
+% # Make a copy of neurostim/myRig.m, and adapt it to your  needs.
 %% Features
-% Provide an overview of the features that your toolbox integrates with MATLAB 
-% here.
-%% Examples
-% The demos folder has a number
+% The Neurostim toolbox has the following features:
+%% 
+% * A set of built-in visual stimuli (Gabor, Grating, Random Dot Kinematograms, 
+% Noise,...
+% * A set of built-in plugins to communicate with external devices (Eyelink, 
+% Blackrock, Ripple, Measurement Computing, Open EPhys, EGI, Starstim, Datapixx)
+% * Adaptive parameter estimation methods (Quest, Psy, Staircase)
+% * Color calibration (I1pro) and calibrated color stimulus presentation (ViewPixx)
+% * Pre-specified behavioral control objects (fixation, saccades, key presses)
+% * Remote monitoring of an experiment 
+% * Built-in experimental design specification (e.g. factorial variation of 
+% parameters, with randomization at trial, block, and experiment elvel)
+% * Precise and complete logging of all variables set/used in the experiment. 
+% * Functionality can be extended easily with user-defined stimulus classes 
+% and plugins.
+% * A <http://nsGui.html GUI >to run experiments in production mode.
+% Examples/Demos
+% The demos are the best place to start. Each demo is documented extensively 
+% and shows how to setup an  experiment, add stimuli, add behavioral control, 
+% and include plugins to interact with external devices. 
+% 
+% Here is a suggested path through the demos:
+%% 
+% * Basic setup 
+
+behaviorDemo
+%% 
+% 
+%% 
+% * Eye movement control
+
+behaviorDemo %  (fixation)
+fixateThenChooseDemo; %  (Fixate, then give an "answer" by looking at one of two dots)
+%% 
+% * Adaptive parameter estimation
+
+adaptiveDemo %(Quest, Staircase, Psi)
+%% 
+% * Retrieving and Analyzing Neurostim Output
+
+taeDemo
+%% 
+% * Calibrated luminance and color
+
+lumDemo
+xyLDemo
+xylTextureDemo
+%% 
+% 
+%% 
+% * Complex visual stimuli
+
+fastFilteredImageDemo
+noiseGridDemo
+%% 
+% 
+%% 
+% * Interaction with external devices 
+
+rippleDemo  % Ripple Neurophysiology Hardware (Trellis)
+starstimDemo  % Neuroelectrics  StarStim tDCS/tACS/tRNS device
+egiDemo        % EGI EEG recording hardware
+stgDemo        % MultiChannel Systems STG stimulation hardware
+daqDemo         % Data acquisition with AD converter
+%% 
+% 
+%% 
+% * High resolution graphics
+
+lumM16Demo % (VPIXX monochrome )
+responsePixxDemo % (VPIXX using the response box )
+%% 
+% 
+%%
 ##### SOURCE END #####
 --></body></html>
