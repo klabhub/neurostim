@@ -8,7 +8,13 @@ Neurostim is software to create experiments in (visual) neuroscience. It allows 
 
 Rather than create independent scripts for every new experiment – a time consuming process – Neurostim enables users to build their experiments from pre-existing, re-usable and tested components. This accelerates the software development phase and allows users to focus on what matters most, the actual experimentation.  
 
-## How should I install Neurostim?
+## Prerequisites
+Neurostim requires 
+
+* Matlab R2016 
+* Psychophysics Toolbox 3 
+
+## Installation 
 
 1. Install Psychtoolbox
 The Psychtoolbox-3 library must be installed prior to the use of Neurostim. For 
@@ -23,7 +29,7 @@ has the advantage that you can update easily, and that you can contribute bug fi
 MATLAB's search path. Only the top folder needs to be added to the path. 
 4. Make a copy of myRig.m, and adapt it to your  needs.
 
-## How do I run Neurostim?
+## Getting Started
 
 The demos are the best place to start. Each demo is documented extensively and shows how to setup an  experiment, add stimuli, add behavioral control, and include plugins to interact with external devices. 
 
