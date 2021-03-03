@@ -4,7 +4,6 @@ We love your input! We want to make contributing to this project as easy and tra
 * Reporting a bug
 * Submitting a fix
 * Proposing new features
-* Become part of the development team
 
 ## We Develop with Github
 We use github to host code, to track issues and feature requests, as well as to review and accept pull requests.
@@ -14,7 +13,7 @@ Pull requests are the best way to propose changes to the codebase (we use Github
 
 * Fork the repo and create your branch from master.
 * Add your code, add tests of your code.
-* Document your code
+* Document your code.
 * Add a demo to illustrate the use of your code.
 * Issue that pull request!
 
