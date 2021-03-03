@@ -13,6 +13,7 @@ Neurostim requires
 
 * Matlab R2016 
 * Psychophysics Toolbox 3 
+* Some plugins have additional hard and/or software dependencies, but these are checked at run time.
 
 ## Installation 
 
