@@ -90,6 +90,9 @@ classdef sound < neurostim.plugin
             PsychPortAudio('Start',o.paHandle);
         end
         
+        function deleteBuffer(o,bufferHandle)
+            PsychPortAudio('DeleteBuffer',bufferHandle);
+        end
         
         function delete(o) %#ok<INUSD>
             clear PsychPortAudio;
