@@ -237,17 +237,19 @@ classdef stimulus < neurostim.plugin
     
     methods (Access=private)
         
-        function s = updateRSVP(s)
+        function s = updateRSVP(s,sOnFrame,cFrame)
             % Called from baseBeforeFrame only when the stimulus is on.
-            %How many frames for item + blank (ISI)?
-            nFramesPerItem = s.cic.ms2frames(s.rsvp.duration+s.rsvp.isi);
-            %How many frames since the RSVP stream started?
-            rsvpFrame = s.cic.frame-s.onFrame;
+            % How many frames for item + blank (ISI)?
+            durationInFrames = s.cic.ms2frames(s.rsvp.duration,true);
+            isiInFrames = s.cic.ms2frames(s.rsvp.isi,true);
+            nrFramesPerItem = durationInFrames+isiInFrames;
+            % What is the frame we are preparing (base -0 relative to the first frame of the stimulus)
+            rsvpFrame = cFrame-sOnFrame;
             %Which item frame are we in?
-            itemFrame = mod(rsvpFrame, nFramesPerItem);
+            itemFrame = mod(rsvpFrame, nrFramesPerItem);
             %If at the start of a new element, move the design to the
             % next "trial"
-            if itemFrame==0
+            if itemFrame==0  % First of an item
                 ok = beforeTrial(s.rsvp.design);
                 if ~ok
                     % Ran out of "trials"
@@ -258,11 +260,11 @@ classdef stimulus < neurostim.plugin
                 for sp=1:size(specs,1)
                     s.(specs{sp,2}) = specs{sp,3};
                 end
+                localizeParms(s,true);  % Update those loc parameters that change within a trial
             end
             
             %Blank now if it's time to do so.
-            startIsiFrame = s.cic.ms2frames(s.rsvp.duration);
-            s.flags.on = itemFrame < startIsiFrame;  % Blank during rsvp isi
+            s.flags.on = itemFrame < durationInFrames;  % Blank during rsvp isi  (< because itemFrame is base-0)
             if s.rsvp.log
                 if itemFrame == 0
                     s.rsvpIsi = false;
@@ -373,13 +375,15 @@ classdef stimulus < neurostim.plugin
             if isinf(s.loc_on)
                 s.flags.on =false; %Dont bother checking the rest
             else
-                sOnFrame = round(s.loc_on.*s.cic.screen.frameRate/1000)+1;
-                %sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
+                % Time is base-0 but frames are base-1 (frame 1 is the
+                % first that can be visible on the screen).
+                sOnFrame = round(s.loc_on.*s.cic.screen.frameRate/1000)+1;                
                 if cFrame < sOnFrame % Not on yet.
                     s.flags.on = false;
-                else % Is on already or turning on. Checck that we have not
-                    % reached full duration yet.
-                    sOffFrame = round((s.loc_on+s.loc_duration)*s.cic.screen.frameRate/1000);
+                else % Is on already or turning on. 
+                    % Checck that we have not  reached full duration yet.
+                    % No +1 here.
+                    sOffFrame = sOnFrame + round(s.loc_duration*s.cic.screen.frameRate/1000);                    
                     %sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
                     s.flags.on = cFrame <sOffFrame;
                 end
@@ -388,7 +392,7 @@ classdef stimulus < neurostim.plugin
             %% RSVP mode
             %   Update parameter values if necesssary
             if s.rsvp.active && s.flags.on
-                s=updateRSVP(s);
+                s=updateRSVP(s,sOnFrame,cFrame);
             end
             
             %%
