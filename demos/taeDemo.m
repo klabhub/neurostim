@@ -2,8 +2,9 @@ function tae
 %% 
 % Tilt AfterEffect Example
 % 
-% Data recorded with this experiment can be analyzed with the anaTae
-% script.
+% Data recorded with this experiment are analyzed with some simple analysis
+% code at the end of this script.
+% 
 %  The experiment starts once the subject fixates the red dot (use the
 %  mouse), and the task is to determine whether the second grating
 %  presented in a trial is clockwise (press 'l') or counterclockwise (press

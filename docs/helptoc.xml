@@ -3,7 +3,7 @@
 <toc version="2.0">
 <!-- First tocitem specifies top level in Help browser Contents pane -->
 <!-- This can be a roadmap page, as shown below, or a content page -->
-    <tocitem target="neurostim.html">Neurostim Toolbox
+    <tocitem >Neurostim Toolbox
         <!-- Nest tocitems to create hierarchical entries in  Contents-->
         <!-- To include icons, use the following syntax for tocitems: -->
         <!-- <tocitem target="foo.html" image="HelpIcon.NAME"> -->
@@ -17,18 +17,17 @@
         <tocitem target="GettingStarted.html" image="HelpIcon.GETTING_STARTED">
             Getting Started with the Neurostim Toolbox            
         </tocitem>
-        <!-- User Guide comes next -->
-        <tocitem target="nsGui.html" image="HelpIcon.USER_GUIDE">Using the GUI            
+        
+        
+        <tocitem target="nsGuiTutorial.html" image="HelpIcon.USER_GUIDE">Using the GUI            
         </tocitem>
-        <!-- Function reference next -->
-        <!-- First item is page describing function categories, if any -->
-        <!-- Optional List of Examples, with hyperlinks to examples in other files -->
-        <tocitem target="demos.html" 
-                 image="HelpIcon.HelpIcon.EXAMPLES">Neurostim Demos
-        </tocitem>
-        <!-- Optional link or links to your or other Web sites -->
-        <tocitem target="https://github.com/klabhub/neurostim-ptb">
+        
+        
+        <tocitem target="https://github.com/klabhub/neurostim">
         Neurostim on Github 
+        </tocitem>
+        <tocitem target="http://klabhub.github.io/neurostim/">
+        Github Pages
         </tocitem>
     </tocitem>
 </toc>
