@@ -1,10 +1,33 @@
 classdef sound < neurostim.plugin
     % Generic sound plugin for PTB. Add if using sound.
     properties (Access=public)
-        sampleRate= NaN;
+       
     end
     properties (SetAccess=protected,GetAccess=public)
         paHandle
+    end
+    
+    properties (Dependent)
+        status; 
+        sampleRate;
+        latency;
+    end
+    
+    methods
+        function v = get.status(o)
+            v = PsychPortAudio('GetStatus', o.paHandle);
+        end
+        
+        function v= get.sampleRate(o)
+            st = o.status;
+            v = st.SampleRate;
+        end
+        
+        function v= get.latency(o)
+            st = o.status;
+            v = st.PredictedLatency/1000; % ms
+        end
+                
     end
     
     
@@ -38,9 +61,7 @@ classdef sound < neurostim.plugin
             % this plugin (e.g. soundFeedback)
             PsychPortAudio('Close'); % Start fresh (without this the next line can fail as Open can only be called once).
             o.paHandle = PsychPortAudio('Open',c.hardware.sound.device, [], latencyClass);
-                
-            status = PsychPortAudio('GetStatus', o.paHandle);
-            o.sampleRate = status.SampleRate;
+                            
             
              %Play a dummy sound (first sound wasn't playing)
              try
@@ -54,11 +75,9 @@ classdef sound < neurostim.plugin
         end
         
         
-%         function beforeExperiment(o)
-%                    
-%         end
-%         
+      
         function afterExperiment(o)
+            PsychPortAudio('DeleteBuffer');
             PsychPortAudio('Close', o.paHandle);
         end
         
@@ -83,15 +102,59 @@ classdef sound < neurostim.plugin
             bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,waveform);
         end
         
-        function play(o,bufferHandle)
+        function play(o,bufferHandle,varargin)
+            % Start playing a specific buffer handle. 
+            % Takes the input arguments of PsychPortAudio('Start') to time
+            % stimulus onset.
+            % 
+            p=inputParser;
+            p.addParameter('repetitions',1,@isnumeric);
+            p.addParameter('when',0,@isnumeric);
+            p.addParameter('waitForStart',0,@isnumeric);
+            p.addParameter('stopTime',inf,@isnumeric);
+            p.addParameter('resume',0,@isnumeric);
+            p.parse(varargin{:});
+            % PsychPortAudio('Start', pahandle [, repetitions=1] [, when=0] [, waitForStart=0] [, stopTime=inf] [, resume=0]);
+            
             PsychPortAudio('FillBuffer', o.paHandle,bufferHandle);
             
-            % play sound immediately.
-            PsychPortAudio('Start',o.paHandle);
+            % Play sound, passs options  (default is play immediately)
+            PsychPortAudio('Start',o.paHandle,p.Results.repetitions,p.Results.when,p.Results.waitForStart,p.Results.stopTime,p.Results.resume);
         end
         
+        function stop(o,varargin)
+            p=inputParser;
+            p.addParameter('repetitions',[],@isnumeric);
+            p.addParameter('waitForEndOfPlayback',0,@isnumeric);
+            p.addParameter('stopTime',[],@isnumeric);
+            p.addParameter('blockUntilStopped',0,@isnumeric);
+            p.parse(varargin{:});
+            PsychPortAudio('Stop',o.paHandle,p.Results.waitForEndOfPlayback,p.Results.blockUntilStopped,p.Results.repetitions,p.Results.stopTime); 
+        end
+        
+        function reschedule(o,varargin)
+            p=inputParser;
+            p.addParameter('repetitions',[],@isnumeric);
+            p.addParameter('waitForStart',0,@isnumeric);
+            p.addParameter('stopTime',[],@isnumeric);
+            p.addParameter('when',0,@isnumeric);
+            p.parse(varargin{:});
+            PsychPortAudio('RescheduleStart',o.paHandle,p.Results.when, p.Results.waitForStart,p.Results.repetitions,p.Results.stopTime); 
+        end
+        
+        function refillBuffer(o,targetBufferHandle,sourceBufferDataOrHandle,startIndex)
+            if nargin <4
+                startIndex =0;
+            end
+            PsychPortAudio('RefillBuffer',o.paHandle,targetBufferHandle,sourceBufferDataOrHandle,startIndex);   
+        end
+        
+        
         function deleteBuffer(o,bufferHandle)
-            PsychPortAudio('DeleteBuffer',bufferHandle);
+            % Delete a specified vector of buffers
+            for i=1:numel(bufferHandle)
+                PsychPortAudio('DeleteBuffer',bufferHandle(i));
+            end
         end
         
         function delete(o) %#ok<INUSD>
