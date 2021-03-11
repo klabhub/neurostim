@@ -351,8 +351,13 @@ classdef stimulus < neurostim.plugin
             beforeTrial(s);
         end
         
-        function baseBeforeFrame(s)
-            
+        function baseBeforeFrame(s)         
+            % Because this function is called for every stimulus, every
+            % frame, try to optimize as much as possible by avoiding
+            % duplicate access to member properties and by using the localized
+            % member variables for dynprops (see loc_X definition and the
+            % plugin.localizeParms function).
+             
             if s.loc_disabled
                 % Diode flasher should match the stimulus state always,
                 % eevn if disabled
@@ -360,13 +365,10 @@ classdef stimulus < neurostim.plugin
                 return;
             end
             
-            % Because this function is called for every stimulus, every
-            % frame, try to optimize as much as possible by avoiding
-            % duplicate access to member properties and by using the localized
-            % member variables for dynprops (see loc_X definition and the
-            % plugin.localizeParms function).
-           
-            %Should the stimulus be drawn on this frame?
+            
+          
+            %% Determine the s.flags.on flag
+            % Should the stimulus be drawn on this frame?
             % This partially duplicates get.onFrame get.offFrame
             % code to minimize computations (and especially dynprop
             % evaluations which can be '@' functions and slow)
@@ -377,32 +379,32 @@ classdef stimulus < neurostim.plugin
             else
                 % Time is base-0 but frames are base-1 (frame 1 is the
                 % first that can be visible on the screen).
-                sOnFrame = round(s.loc_on.*s.cic.screen.frameRate/1000)+1;                
+                sOnFrame = round(s.loc_on.*s.cic.screen.frameRate/1000)+1;               
                 if cFrame < sOnFrame % Not on yet.
                     s.flags.on = false;
                 else % Is on already or turning on. 
                     % Checck that we have not  reached full duration yet.
                     % No +1 here.
                     sOffFrame = sOnFrame + round(s.loc_duration*s.cic.screen.frameRate/1000);                    
-                    %sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
                     s.flags.on = cFrame <sOffFrame;
+                    
+                    % This is the only path where s.flags.on can be true
+                    % Update RSVP parameter values if necesssary
+                    if s.rsvp.active && s.flags.on
+                        s=updateRSVP(s,sOnFrame,cFrame);
+                    end            
                 end
             end
             
-            %% RSVP mode
-            %   Update parameter values if necesssary
-            if s.rsvp.active && s.flags.on
-                s=updateRSVP(s,sOnFrame,cFrame);
-            end
-            
-            %%
-            
-            %If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
+                        
+            %% Setup offset logging
+            % If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
             if cFrame==sOffFrame
                 s.cic.addFlipCallback(s);
                 s.logOffset = true;
             end
             
+            %% Draw to the backbuffer
             %If the stimulus should be drawn on this frame:
             locWindow =s.window;      
             if s.flags.on                      
@@ -424,10 +426,11 @@ classdef stimulus < neurostim.plugin
                     s.logOnset = true;
                 end
                 
-                %Pass control to the child class
+                %Pass control to the child class to do its drawing
                 beforeFrame(s);                                
             end
-                        
+
+            %% Flash
             if s.diodeFlasher.enabled
                 Screen('glLoadIdentity',locWindow);% Don't rotate or scale with the stimulus
                 if s.flags.on
