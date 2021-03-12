@@ -614,6 +614,11 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Return the time of the first frame in each trial, as a column
             % vector.
             t = [o.plg.cic.prms.firstFrame.log{:}]'; % By using the log we use the stimOnsetTime returned by Screen('flip') on the first frame.
+            if o.plg.cic.trial >numel(t)
+                % A trial has started but not reached first frame yet. Set
+                % its start time to inf.
+                t = [t;inf];
+            end
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
@@ -641,7 +646,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             if isempty(trStartT) &&  all(tr==1)
                 error('This file contains 1 trial that did not even make it to the first frame. Nothing to analyze');
             end
-            trTime = eventTime - trStartT(tr);
+            trTime = eventTime - trStartT(tr);            
         end
         
         function eTime= trialTime2ETime(o,trTime,tr)
@@ -651,7 +656,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             if iscolumn(trTime)
                 trTime = trTime';
             end
-            trStartT = firstFrameTime(o);
+            trStartT = firstFrameTime(o);                                    
             eTime = repmat(trTime,[numel(trStartT) 1]) + repmat(trStartT(tr),[1 numel(trTime)]);
         end
         
