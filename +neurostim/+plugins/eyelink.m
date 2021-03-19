@@ -125,6 +125,13 @@ classdef eyelink < neurostim.plugins.eyetracker
             % first call it with the mainWindow
             if o.fake; o.useMouse= true; beforeExperiment@neurostim.plugins.eyetracker(o);return;end
             
+            % If the sound plugin is in use (with PsychPortAudio) then we
+            % need to tell Snd (used by Eyelink toolbox) to use the same
+            % device . See help Snd.
+            if hasPlugin(o.cic,'sound')
+                Snd('Open',o.cic.sound.paHandle);
+            end
+            
             o.el=EyelinkInitDefaults(o.cic.mainWindow);
             setParms(o);
             
