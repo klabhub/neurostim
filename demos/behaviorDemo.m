@@ -75,6 +75,13 @@ d.lifetime = Inf;
 d.noiseMode = 0;
 d.coherence = 0.6;
 
+% You can use a photo diode to check stimulus timing. This command will
+% show a small (0.02 of the horizontal screen size) blue square in the northeast corner of the screen
+% whenever the dots stimulus is on and a red square when the dots are
+% off.  (IRL you'd probably use white and black to maximize the diode
+% response. 
+addDiodeFlasher(d,'size',0.02,'location','ne','onColor',[0 0 1],'offColor',[1 0 0]); 
+
 %% ========== Add required behaviours =========
 
 %Subject's 2AFC response

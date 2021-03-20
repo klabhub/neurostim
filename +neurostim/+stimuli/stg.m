@@ -388,6 +388,13 @@ classdef stg < neurostim.stimulus
                     end
                     o.device.SetCapacity(triggercapacity);            % setup the STG
                 end
+                % TODO If an error occurred in the previous run and the device
+                % was not disconnected, this connection will fail. 
+                % Need to find a way to remove the old connection here
+                % first. Currently this leads to a crash later on (when the
+                % device is being accessed). That is because this
+                % error(o.cic) does not return immediately; so could also
+                % set a flag to not call code that requires that.
                 o.device.Connect(o.deviceListEntry);
                 if ~o.isConnected
                     error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' stg device. Make sure MC Stimulus II is installed on your computer (www.multichannelsystems.com/software/mc-stimulus-ii).']);

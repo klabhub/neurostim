@@ -598,15 +598,7 @@ classdef cic < neurostim.plugin
                     newOrder = cat(2,'gui',newOrder(~isGui));
                 end
             end
-            
-            ix =  ismember(newOrder,'diodeFlasher');
-            if any(ix)
-                % Make sure diodeFlasher is last in line so that it can get
-                % updated by all stimuli.                 
-                newOrder(ix)=[];
-                newOrder = cat(2,newOrder,'diodeFlasher');                                
-            end
-
+               
             c.pluginOrder = [];
             for i=1:numel(newOrder)
                 c.pluginOrder =cat(2,c.pluginOrder,c.(newOrder{i}));
@@ -689,7 +681,7 @@ classdef cic < neurostim.plugin
                 % Set a pointer to CIC in the plugin
                 o.cic = c;
                 if c.PROFILE
-                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'AFTEREXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'cntr',0);
+                    c.profile.(o.name)=struct('BEFOREEXPERIMENT',[],'AFTEREXPERIMENT',[],'BEFOREBLOCK',[],'AFTERBLOCK',[],'BEFORETRIAL',[],'AFTERTRIAL',[],'BEFOREFRAME',[],'AFTERFRAME',[],'BEFOREITIFRAME',[],'cntr',0);
                 end
             end
             
@@ -1000,6 +992,7 @@ classdef cic < neurostim.plugin
                     if c.trial>1
                         nFramesToWait = c.ms2frames(c.iti - (c.clockTime-c.trialStopTime));
                         for i=1:nFramesToWait
+                            base(c.pluginOrder,neurostim.stages.BEFOREITIFRAME,c);
                             ptbVbl = Screen('Flip',c.mainWindow,0,1-c.itiClear);     % WaitSecs seems to desync flip intervals; Screen('Flip') keeps frame drawing loop on target.
                             
                             if locHAVEOVERLAY
@@ -1203,7 +1196,10 @@ classdef cic < neurostim.plugin
                         
                     end % Trial running
                     c.stage = neurostim.cic.RUNNING;
-                    %Perform one last flip to clear the screen (if requested)
+                    % 
+                    % Call beforeItiFrame (can have some ITI drawing commands),
+                    % then flip and clear (if requested)
+                    base(c.pluginOrder,neurostim.stages.BEFOREITIFRAME,c);
                     [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;

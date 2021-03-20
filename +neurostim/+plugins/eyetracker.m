@@ -19,6 +19,7 @@ classdef eyetracker < neurostim.plugin
     
     properties (Access=public)
         useMouse =false;
+        mouseButton = 1; % By default check the left click (button =1), but user can set to 2 or 3.
         keepExperimentSetup =true;
         eye='LEFT'; %LEFT,RIGHT, or BOTH
         tmr; %@timer
@@ -70,7 +71,7 @@ classdef eyetracker < neurostim.plugin
         function afterFrame(o)
             if o.useMouse
                 [currentX,currentY,buttons] = o.cic.getMouse;
-                if buttons(1) || o.continuous
+                if buttons(o.mouseButton) || o.continuous
                     o.x=currentX;
                     o.y=currentY;
                 end
