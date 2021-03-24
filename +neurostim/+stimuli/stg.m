@@ -1,6 +1,13 @@
 classdef stg < neurostim.stimulus
     % Plugin used to communicate with the MultiChannel Systems Stimulator
     % (e.g. STG4002).
+    % 
+    % On Windows this uses the .NET libraries provided by MultiChannel Systems.
+    % These are available at https://github.com/multichannelsystems/McsUsbNet.git
+    % Before using this stimulus, you should clone that repository to some
+    % folder on your machine, and then provide the name of that folder to
+    % the stg stimulus.
+    % 
     %
     % Constructing the stimulus object will find currently connected stg
     % devices on the USB ports. The connection/initialization of the device
@@ -74,6 +81,8 @@ classdef stg < neurostim.stimulus
         outputRate = 50000; % 50 Khz is fixed
         streamingBufferThreshold = 50; % Fill the buffer when it is half empty
     end
+    
+    
     properties (SetAccess = protected)
                         
         trigger=1; % The trigger that is used to turn a pattern on per trial. This is stopped at the end of a trial
@@ -181,16 +190,18 @@ classdef stg < neurostim.stimulus
             delete(o.device);
         end
         
-        function o = stg(c,name,downLoadMode)
-            % Constructor. Only a name needs to be provided. This will
-            % link to the first device that is found on the USB port and
-            % retrieve its properties. A connection is not yet established.
+        function o = stg(c,lib,downLoadMode)
+            % Constructor
+            % c = handle to CIC
+            % lib = folder that contains the .NET libraries. 
+            % downloadMode = true (Streaming not implemented yet)
+            % 
+            % The constructor will load the library, and connect to the first 
+            % device that is found on the USB port and
+            % retrieve its properties. 
             %
             if nargin <3
-                downLoadMode = true;
-                if nargin <2
-                    name = 'stg';
-                end
+                downLoadMode = true;                
             end
             
             if ~downLoadMode
@@ -212,26 +223,27 @@ classdef stg < neurostim.stimulus
             o.addProperty('streamingLatency',100); % Allowable latency in streaming mode
             
             %% Load the relevant NET assembly
-            [here,~,~] = fileparts(mfilename('fullpath'));
-            SUBDIR = 'MultiChannelSystems'; % Subdir with .dll for MultiChannel Systems devices.
+            if ~exist(lib,'dir')
+                error('The %s folder with does not exist.',lib);
+            end
             switch computer
                 case 'PCWIN64'
-                    try
-                        planA=fullfile(here,SUBDIR,'McsUsbNet.dll');
-                        o.assembly = NET.addAssembly(planA);
-                    catch me
-                        try
-                            planB=fullfile(here,SUBDIR,'McsUsbNet_v20.dll');
-                            o.assembly = NET.addAssembly(planB);
-                        catch metoo
-                            error('Could load neither MCS .NET library ''%s'' nor the backup plan ''%s'' ...%s',planA,planB,me.message);
-                        end
-                    end
+                     sub = 'x64';                     
                 otherwise
-                    error(['Sorry, the MCS .NET libraries are not available on your platform: ' computer]);
+                    error(['Sorry, the MCS .NET libraries are not available on your platform: ' computer]);                    
             end
+            lib = fullfile(lib,sub);
+            if ~exist(lib,'dir')
+                error('The %s folder with does not exist.',lib);
+            end
+            lib = fullfile(lib,'McsUsbNet.dll');
+            if ~exist(lib,'dir')
+                error('The .NET library file (%s) with does not exist.',lib);
+            end
+            o.assembly = NET.addAssembly(lib);
+                            
             
-            % Search devices.
+            %% Search devices.
             o.deviceList = Mcs.Usb.CMcsUsbListNet();
             nrDevices =  o.deviceList.GetNumberOfDevices();
             if nrDevices >1
