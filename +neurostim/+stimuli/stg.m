@@ -75,13 +75,12 @@ classdef stg < neurostim.stimulus
         streamingBufferThreshold = 50; % Fill the buffer when it is half empty
     end
     properties (SetAccess = protected)
-        channelData;  % Cell array with the data last sent to each channel
-        channelTriggered; % Last trigger time of each channel
-        
-        trigger=1; % The number of the trigger that is used. (Currently only one that triggers all relevant channels)
+                        
+        trigger=1; % The trigger that is used to turn a pattern on per trial. This is stopped at the end of a trial
+        triggerTime = [];
+        triggerSent = false;               
         nrRepeatsPerTrigger=1; % 1 for now
-        
-       
+               
     end
     
     properties (SetAccess = protected, Transient)
@@ -273,12 +272,7 @@ classdef stg < neurostim.stimulus
             o.addProperty('phase',zeros(1,o.nrChannels),'validate',@isnumeric);
             o.addProperty('rampUp',zeros(1,o.nrChannels),'validate',@(x)isa(x,'double') && all(x>=0));
             o.addProperty('rampDown',zeros(1,o.nrChannels),'validate',@(x)isa(x,'double') && all(x>=0));
-            o.addProperty('itiOff',true(1,o.nrChannels),'validate',@islogical);
-            o.addProperty('syncOutChannel',[],'validate',@(x) (isnumeric(x) && all( x>= 1 & x <= o.nrSyncOutChannels)));
-            o.addProperty('triggerSent',true(1,o.nrChannels),'validate',@islogical); % Keeps track of when the triggers to start stim were sent.
-            o.addProperty('persistent',false(1,o.nrChannels),'validate',@islogical); % Persistent means that it can last longer than a trial
-            o.addProperty('enabled',true(1,o.nrChannels),'validate',@islogical); %
-            
+            o.addProperty('syncOutChannel',[],'validate',@(x) (isnumeric(x) && all( x>= 1 & x <= o.nrSyncOutChannels)));                        
             reset(o);
             
         end
@@ -290,9 +284,9 @@ classdef stg < neurostim.stimulus
         end
         
         function beforeTrial(o)
-            setupTriggers(o);
+            setupTriggers(o); % Map triggers to the set of channels for this trial
             if o.downloadMode
-                downloadStimulus(o);
+                downloadStimulus(o); % Send the stimulus
             else
                 o.device.StartLoop;
                 %pause(0.5);
@@ -304,32 +298,30 @@ classdef stg < neurostim.stimulus
             % been triggered yet.
             if ~o.downloadMode
                 streamStimulus(o);
+            end            
+            % If we got here, the stimulus is supposed to turn on. Send the
+            % trigger
+            if ~o.triggerSent 
+                start(o);                
             end
-            thisEnabled =  neurostim.stimuli.stg.expandSingleton(o.enabled,o.channel);
-            start(o,intersect(find(~o.triggerSent),o.channel(thisEnabled)));
         end
         
-        %         function afterFrame(o)
-        %         end
-        %
         function afterTrial(o)
-            % Send a stop signal to the channels that are not
-            % persistent across trials
-            thisPersistent=  neurostim.stimuli.stg.expandSingleton(o.persistent,o.channel);
-            stop(o,o.channel(~thisPersistent));
+            % Send a stop signal 
+            if o.triggerSent 
+                stop(o);                
+            end             
         end
         
         function afterExperiment(o)
             % Discconnect from the device.
-            stop(o,1:o.nrChannels);  
+            stop(o);  
             if ~o.downloadMode
                 o.device.StopLoop;
             end
             reset(o);           
             disconnect(o);
-        end
-        
-        
+        end                
         
     end
     
@@ -346,27 +338,25 @@ classdef stg < neurostim.stimulus
             end
         end
         
-        function start(o,channels)
-            % Trigger the stimulation on the specified list of channels.
-            % The channels shoudl be a vector of (base -1) channel numbers
-            if isempty(channels);return;end
+        function start(o)
+            % Trigger the stimulation. The mapping from trigger to channels
+            % has been setup elsewhere. Currently we're only using 1
+            % trigger (o.trigger)
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not start stg. Device not connected.'); %#ok<*CTPCT>
-            else
-                o.device.SendStart(chan2mask(o,channels))
-                o.triggerSent(channels) = true;
-                o.channelTriggered(channels) = GetSecs;
+            else                
+                o.device.SendStart(o.trigger);
+                o.triggerSent = true;
+                o.triggerTime = o.cic.clockTime;
             end
         end
-        function stop(o,channels)
-            % Stop these channels from continuing.
-            % Channels should be a vector of base-1 channel numbers.
-            if isempty(channels);return;end
+        function stop(o)
+            % Stop the triggered channels from continuing.
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not stop stg. Device not connected.');
             else
-                o.device.SendStop(chan2mask(o,channels))
-                o.triggerSent(channels) = false;
+                o.device.SendStop(o.trigger);
+                o.triggerSent = false;
             end
         end
         
@@ -416,13 +406,6 @@ classdef stg < neurostim.stimulus
         
         function reset(o)
             
-            % Create a local memory of the patterns that have been sent to
-            % the device, this allows us to check whether the current pattern is different (and therefore
-            % needs to be sent to the device), or we can reuse the existing pattern on the device. see downloadStimulus for usage.
-            NRPARMS =6; % Storing 6 parms that uniquely define a stimulus
-            o.channelData = cell(o.nrChannels,NRPARMS);  % This is the bookkeeping cell array
-           
-            
             % Make sure the device memory is cleared, and the device mode
             % is set to the correct value.
             if o.currentMode
@@ -438,9 +421,9 @@ classdef stg < neurostim.stimulus
                 end
             else
                 % Streaming mode                
-            end
-            [o.channelData{:,1}] = deal(NaN); % This will make sure the plugin knows that the device has no data
-            o.channelTriggered = -inf(1,o.nrChannels);
+            end            
+            o.triggerTime = NaN;
+            o.triggerSent = false;
         end
         
         function disconnect(o)
@@ -457,7 +440,9 @@ classdef stg < neurostim.stimulus
             channelsToTrigger = chan2mask(o,o.channel); % These are the channels for the current trial
             syncoutsToTrigger  =  chan2mask(o,o.syncOutChannel); % These are the channels for the current trial
             if o.downloadMode
-                o.device.SetupTrigger(o.trigger,channelsToTrigger,syncoutsToTrigger,o.nrRepeatsPerTrigger);
+                o.device.SetupTrigger(o.yrigger,channelsToTrigger,syncoutsToTrigger,o.nrRepeatsPerTrigger);
+                o.triggerSent= false;
+                o.triggerTime = NaN;
             else
                 nrTriggers = o.device.GetNumberOfTriggerInputs();  % obtain number of triggers in this STG
                 channelMap = NET.createArray('System.UInt32', nrTriggers);
@@ -507,7 +492,7 @@ classdef stg < neurostim.stimulus
                 error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
             end
             
-            step = 1/o.outputRate; %STG resolution (usually 20 mus)
+            step = 1/o.outputRate; %STG resolution (20 mus)
             fractionUsed =0;
             
             
@@ -515,28 +500,8 @@ classdef stg < neurostim.stimulus
             % Send the values and the duration of each sample to the device
             for thisChannel = o.channel
                 
-                [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled,thisChanged] = channelParms(o,thisChannel); %#ok<ASGLU>
-                if thisPersistent
-                    % This is a stimulus that persists across trials
-                    if thisChanged
-                        % Check whether the time for a change is ok, warn
-                        % if not, but execute in either case
-                        plannedDuration = o.channelData{thisChannel,1};
-                        tooEarly = GetSecs - (o.channelTriggered(thisChannel)+plannedDuration/1000);
-                        if isnan(tooEarly) || tooEarly >0
-                            % OK. reached the planned duration
-                        else
-                            writeToFeed(o,['Stimulation was changed before it terminated...' num2str(tooEarly) 's'])
-                        end
-                    else % Nothing changed for this persisting stimulus, nothing to do, let it keep running
-                        continue;
-                    end
-                else
-                    %this is a non-persisting stimulus. Regardless of
-                    %whether it was done, we'll start with a fresh
-                    %sendChannelData.
-                end
-                
+                [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun] = channelParms(o,thisChannel); 
+             
                 time = 0:step:thisDuration/1000;
                 %% Set the basic stimulus shape
                 if ischar(thisFun)
@@ -594,9 +559,6 @@ classdef stg < neurostim.stimulus
                 % duration
                 fractionUsed = fractionUsed + numel(adValues)*(2+8)/o.totalMemory;
                 o.device.SendChannelData(thisChannel-1,adValues,uint64(step*1e6*ones(size(time))));
-                % bookkeeping
-                o.channelData(thisChannel,:) = {thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun};
-                o.triggerSent(thisChannel) = false;
                 if ~isempty(o.syncOutChannel)
                     o.device.ClearSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1);
                     o.device.SendSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1,uint16(1),1e3*thisDuration);
@@ -613,7 +575,7 @@ classdef stg < neurostim.stimulus
             end
         end
         
-        function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisPersistent,thisEnabled,thisChanged] = channelParms(o,channel)
+        function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun] = channelParms(o,channel)
             % Channel is 1:nrChannels
             ix = find(o.channel == channel);
             thisDuration = neurostim.stimuli.stg.expandSingleton(o.duration,ix);
@@ -621,16 +583,7 @@ classdef stg < neurostim.stimulus
             thisFrequency = neurostim.stimuli.stg.expandSingleton(o.frequency,ix);
             thisPhase = neurostim.stimuli.stg.expandSingleton(o.phase,ix);
             thisMean = neurostim.stimuli.stg.expandSingleton(o.mean,ix);
-            thisFun = neurostim.stimuli.stg.expandSingleton(o.fun,ix);
-            thisPersistent = neurostim.stimuli.stg.expandSingleton(o.persistent,ix);
-            thisEnabled = neurostim.stimuli.stg.expandSingleton(o.enabled,ix);
-            if isnan(o.channelData{channel,1})
-                % Channel data is filled with NaN on startup. So this means
-                % no value has been sent yet.
-                thisChanged = true;
-            else
-                thisChanged = ~isequaln(o.channelData(channel,:),{thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun});
-            end
+            thisFun = neurostim.stimuli.stg.expandSingleton(o.fun,ix);                      
         end
         
         %% Streaming mode callback functions. BK could not get these to work,
