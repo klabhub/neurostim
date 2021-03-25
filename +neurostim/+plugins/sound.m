@@ -102,6 +102,17 @@ classdef sound < neurostim.plugin
             bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,waveform);
         end
         
+        function beep(o,frequency,duration)       
+            % Create and immediately play a beep of given sound and
+            % duration.  This is used for feedback by the Eyelink dispatch
+            % callback. Note that this is not meant for low-latency timing.            
+            w = MakeBeep(frequency,duration,o.sampleRate); % Use PTB function
+            hBuffer = o.createBuffer(w);
+            o.play(hBuffer);
+            o.deleteBuffer(hBuffer);
+        end
+            
+        
         function play(o,bufferHandle,varargin)
             % Start playing a specific buffer handle. 
             % Takes the input arguments of PsychPortAudio('Start') to time
