@@ -564,7 +564,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
     end
     
-    methods (Access={?neuorstim.plugin,?neurostim.parameter})
+    methods (Access={?neuorstim.plugin,?neurostim.parameter,?neurostim.stimulus})
         
         %Accessing neurostim.parameters is much slower than accessing a raw
         %member variable. Because we define many such parms (with addProperty) in the base
