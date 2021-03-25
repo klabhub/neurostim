@@ -289,8 +289,8 @@ end
 % need to clear screen?
 if clearScreen==1
     Screen('FillRect', eyewin, el.backgroundcolour);
-    if el.hPlugin.overlay
-        Screen('FillRect', el.hPlugin.cic.overlayWindow, 0); % need to erase overlay
+     if el.hPlugin.overlay
+        Screen('FillRect', el.hPlugin.targetWindow, 0); % need to erase overlay
     end
 else
     clearScreen=0;
@@ -440,7 +440,7 @@ switch(s)
 end
 
 if doBeep==1
-    Beeper(f, v, d);
+    el.hPlugin.cic.sound.beep(f,d); % Volume is ignored
 end
 
 function EyelinkDrawCalibrationTarget(eyewin, el, calxy)

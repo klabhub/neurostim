@@ -9,8 +9,10 @@ classdef eyelink < neurostim.plugins.eyetracker
     % than the main cic.screen.color.background during calibration
     % then set c.eye.backgroundColor.
     %
-    % Use with non LUM color modes and VPIXX requires a modified dispatchCallback
-    % that is in the tools directory (neurostimEyelinkDispatchCallback.).
+    % The dispatch callback function neurostimEyelinkDispatchCallback
+    % is required as it allows calibrated and high-res colormode (e.g. VPIXX) and it
+    % reroutes calibration sounds through PsychPortAudio (instead of Snd)
+    %
     % Use o.overlay =  true to draw text (white) and the calibration targets to
     % the VPIXX overlay (using index colors that you define in
     % c.screen.overlayClut) and the eye image to the main window (which can
@@ -54,7 +56,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     %       By setting F9PassThrough to true, the confirmation is skipped
     %       (i.e. it mimics the use of F9 on the Host keyboard - an
     %       immediate drift correct, as long as the correction is smaller
-    %       than the setting final.ini.
+    %       than the setting in final.ini.
     %
     %       F10: Start drift correction before the next trial. (Eyelink
     %       will draw a target).
@@ -70,12 +72,9 @@ classdef eyelink < neurostim.plugins.eyetracker
         getEvents =false;
         nTransferAttempts = 5;
         
-        callbackFun = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
+        callbackFun = 'neurostimEyelinkDispatchCallback'; % Modified callback for overlay use on VPIXX and PsychPortAudio for sounds
         boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]
-        targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
-           
-
- 
+        targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.            
     end
         
     properties (SetAccess= {?neurostim.plugin}, GetAccess={?neurostim.plugin}, Hidden)
@@ -121,25 +120,28 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function beforeExperiment(o)
-            %Initalise default Eyelink el structure and set some values.
-            % first call it with the mainWindow
             if o.fake; o.useMouse= true; beforeExperiment@neurostim.plugins.eyetracker(o);return;end
-            
-            % If the sound plugin is in use (with PsychPortAudio) then we
-            % need to tell Snd (used by Eyelink toolbox) to use the same
-            % device . See help Snd.
-            if hasPlugin(o.cic,'sound')
-                Snd('Open',o.cic.sound.paHandle);
+            % Initalise default Eyelink el structure and set some values.            
+            if ~hasPlugin(o.cic,'sound')
+                % Eyelink toolbox uses Snd() by default, which will not
+                % play nice with NS use of PsychPortAudio. Mapping Snd to
+                % use PscyhPortAudio as suggested in Eyelink toolbox did
+                % not work when tested (Host errors reported by
+                % PsychPortAudio). Instead, we use a Neurostim specific
+                % callback function
+                % (tools/neurostimEyelinkDispatchCallback) to generate
+                % Eyelink sounds via the NS sound plugin. Make sure the plugin
+                % is loaded.
+                neurostim.plugins.sound(o.cic);
             end
-            
-            o.el=EyelinkInitDefaults(o.cic.mainWindow);
+            o.el=EyelinkInitDefaults(o.cic.mainWindow);% first call it with the mainWindow                     
             setParms(o);
             
-            if o.overlay
+            if o.overlay && ~isempty(o.cic.overlayWindow)
                 % Draw targets and text on the overlay, but the main window
                 % has to be the mainWindow, because the callback calls flip
                 % on it.   Note that this only works if the callback is sset to
-                % use neurostimEyelinkDispatchCallback, which is located i
+                % use neurostimEyelinkDispatchCallback, which is located in
                 % neurostim/tools
                 o.targetWindow = o.cic.overlayWindow; % Used by neurostim modified callback function only
                 % Normally cic sets o.window to overlayWindow when o.overlay == true. Reset back
@@ -166,7 +168,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.el.TERMINATE_KEY = o.el.ESC_KEY;  % quit using ESC
             
             
-            %Tell Eyelink about the pixel coordinates
+            % Tell Eyelink about the pixel coordinates
             % Note: with a screen to the left of the main screen, the
             % xorigin can be negative (in Win10); that can cause weird
             % problems in Eyelink. The user should set explicitly set the origin to be
@@ -369,17 +371,13 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             o.eyeClockTime = Eyelink('TrackerTime'); 
             % BK Noticed that this does not always get updated values (i.e.
-            % same value throughout the experiment). Not fatal as we use
+            % same value throughout the experiment?). Not fatal as we use
             % only the logged time in Neurostim to align, but strange.                        
         end
         
         function afterFrame(o)
             if o.fake; afterFrame@neurostim.plugins.eyetracker(o);return;end
-            %             if ~o.isRecording
-            %                 o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
-            %                 return;
-            %             end
-            
+              
             if o.getSamples
                 % Continuous samples requested
                 % get the sample in the form of an event structure
