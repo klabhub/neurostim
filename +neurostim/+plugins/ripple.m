@@ -116,6 +116,7 @@ classdef ripple < neurostim.plugin
             p.addRequired('connector',@isnumeric);
             p.addParameter('flip',false,@islogical);% Was the connector flipped?
             p.addParameter('arrayNr',[],@isnumeric); % Which array did this connector attach to (array is a number in the brain).
+            p.addParameter('nrElectrodes',32,@isnumeric);
             p.addParameter('arrayType','fma',@ischar); % Used in data analysis
             p.addParameter('streams',{},@iscell); % Streams to enable (not implemented yet).
             p.parse(port,connector,varargin{:});
