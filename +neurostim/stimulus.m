@@ -221,6 +221,13 @@ classdef stimulus < neurostim.plugin
             % stimulus is off. [false]
             % enabled - Set this to false to turn the diodeFlasher off.
             %
+            % Note that for stimuli that are drawn to an overlay
+            % (o.overlay =true), the diodeFlasher is also drawn to the
+            % overlay. As a consequence, for such stimuli the on and off color 
+            % should be defined as an overlay clut index
+            % (o.cic.screen.overlayClut).  This is only relevant for
+            % special color modes (e.g. VPIXX M16)
+            
             p =inputParser;
             p.addParameter('location','nw',@(x) (ischar(x) && ismember(x,{'nw','sw','ne','se'})));
             p.addParameter('size',0.05,@(x) isnumeric(x) && x<1);
