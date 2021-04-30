@@ -555,7 +555,7 @@ classdef stg < neurostim.stimulus
                 
                 %% Convert to DAC values
                 if o.currentMode
-                    maxValue = o.range.current(thisChannel); % The range for this channel in milliamps
+                    maxValue = o.range.current(thisChannel)/2; % The range for this channel in milliamps - divided by 2 to get amplitude
                 else
                     maxValue = o.range.voltage(thisChannel); % The range for this channel millivolts
                 end
