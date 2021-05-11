@@ -1793,8 +1793,6 @@ classdef cic < neurostim.plugin
                     % The CRS Display++
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
                     PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
-%                     setDisplayToMonoPPMode; % FIXME: weird fix for the Windows 10 machine in Yan's lab
-%                    Screen('Preference', 'VisualDebuglevel', 3); % 3 show a black screen instead of white flash
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
@@ -1844,7 +1842,8 @@ classdef cic < neurostim.plugin
             switch upper(c.screen.type)
                 case 'GENERIC'
                     % nothing to do
-                    
+                case 'DISPLAY++'
+                    % nothing to do
                 case 'VPIXX-M16'
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
