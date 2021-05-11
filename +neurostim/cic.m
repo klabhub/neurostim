@@ -1790,6 +1790,11 @@ classdef cic < neurostim.plugin
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
                     % After upgrading to Win10 we seem to need this.
                     PsychDataPixx('PsyncTimeoutFrames' , 1);
+                case 'DISPLAY++'
+                    % The CRS Display++
+                    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
+                    PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
+                    Screen('Preference', 'VisualDebuglevel', 3); % 3 show a black screen instead of white flash
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
