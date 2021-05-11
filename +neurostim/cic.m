@@ -1842,8 +1842,6 @@ classdef cic < neurostim.plugin
             switch upper(c.screen.type)
                 case 'GENERIC'
                     % nothing to do
-                case 'DISPLAY++'
-                    % nothing to do
                 case 'VPIXX-M16'
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
