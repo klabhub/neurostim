@@ -8,7 +8,7 @@ classdef blackrock < neurostim.plugins.ePhys
             %Class constructor
             
             %Object initialisation
-            o=o@neurostim.plugins.ePhys(c);
+            o=o@neurostim.plugins.ePhys(c,'blackrock');
             o.addProperty('eventData',[]);
             o.addProperty('continuousData',[]);
             o.addProperty('bufferResetTime',[]);
@@ -16,7 +16,7 @@ classdef blackrock < neurostim.plugins.ePhys
         end
         
         function delete(o)
-            if o.open
+            if o.connectionStatus
                 closeSession(o);
             end
         end
@@ -48,7 +48,7 @@ classdef blackrock < neurostim.plugins.ePhys
             o.connectionStatus = true;
             
             %Give Central the filename for saving neural data
-            cbmex('fileconfig',o.cic.fullFile,'',0);
+            cbmex('fileconfig',o.cic.file,'',0);
             
             %Check that the mcc plugin is enabled
             if o.useMCC
@@ -62,10 +62,13 @@ classdef blackrock < neurostim.plugins.ePhys
             end
             
             %Start recording.
-            cbmex('fileconfig', o.cic.fullFile, o.startMsg,1);
+            cbmex('fileconfig',o.cic.file,o.cic.file,1);
+            WaitSecs(1);
             
             %Ensure no data is being cached to Neurostim
             cbmex('trialconfig', 0);
+
+            o.sendMessage(o.startMsg);
             
             %Log the clock time for later syncing
             o.clockTime = cbmex('time');
