@@ -480,10 +480,13 @@ classdef cic < neurostim.plugin
             if nargin<2
                 factors = [];
             end
+            blk = get(c.prms.block,'atTrialTime',0);
+            cnd = get(c.prms.condition,'atTrialTime',0);
             for b=1:numel(c.blocks)
-                blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
+                blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ') - ' num2str(sum(blk==b)) ' trials'];
+                condition = cnd(blk==b);                 
                 for d=1:numel(c.blocks(b).designs)
-                    show(c.blocks(b).designs(d),factors,blockStr);
+                    show(c.blocks(b).designs(d),factors,blockStr,condition);
                 end
             end
         end
