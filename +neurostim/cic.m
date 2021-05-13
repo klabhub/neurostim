@@ -653,9 +653,7 @@ classdef cic < neurostim.plugin
             c.flags.experiment =false;
         end
         
-        function o = add(c,o)
-            assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
-            
+        function o = add(c,o)            
             % Add a plugin.
             if ~isa(o,'neurostim.plugin')
                 error('Only plugin derived classes can be added to CIC');
@@ -998,7 +996,6 @@ classdef cic < neurostim.plugin
                             if locHAVEOVERLAY
                                 clearOverlay(c,c.itiClear);
                             end
-                            
                             %Sitting idle in 'flip' during ITI seems to cause
                             %unwanted behaviour when the trials starts, and for several frames into it.
                             %at least on some Windows machines. e.g. the time to complete a call to rand()
@@ -1790,6 +1787,10 @@ classdef cic < neurostim.plugin
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
                     % After upgrading to Win10 we seem to need this.
                     PsychDataPixx('PsyncTimeoutFrames' , 1);
+                case 'DISPLAY++'
+                    % The CRS Display++
+                    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
+                    PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
@@ -1839,7 +1840,6 @@ classdef cic < neurostim.plugin
             switch upper(c.screen.type)
                 case 'GENERIC'
                     % nothing to do
-                    
                 case 'VPIXX-M16'
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
@@ -1856,6 +1856,8 @@ classdef cic < neurostim.plugin
                     c.textWindow = c.overlayWindow;
                     Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
                     updateOverlay(c);
+                case 'DISPLAY++'
+                    % nothing to do
                 case 'SOFTWARE-OVERLAY'
                     % With this display type you draw your stimuli on the
                     % left half of c.mainWindow and it is mirrored on the right
