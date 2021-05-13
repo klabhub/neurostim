@@ -168,14 +168,12 @@ classdef gabor < neurostim.stimulus
         
         function afterFrame(o)
             % Change any or all of the parameters.
-            oPhaseSpeed  = o.phaseSpeed;
-            if oPhaseSpeed ~=0
-%                 o.spatialPhase = o.spatialPhase + o.phase + oPhaseSpeed;
-                o.spatialPhase = o.spatialPhase + oPhaseSpeed; % increment phase
+            if o.PhaseSpeed ~=0
+                o.spatialPhase = o.spatialPhase + o.PhaseSpeed; % increment phase
             end
             oFlickerFrequency = o.flickerFrequency;
             if  oFlickerFrequency~=0
-                   o.flickerPhase = mod(o.flickerPhaseOffset + (o.time -0)*2*pi*oFlickerFrequency/1000,2*pi);
+                o.flickerPhase = mod(o.flickerPhaseOffset + (o.time -0)*2*pi*oFlickerFrequency/1000,2*pi);
             end
         end
     end
