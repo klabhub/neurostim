@@ -653,9 +653,7 @@ classdef cic < neurostim.plugin
             c.flags.experiment =false;
         end
         
-        function o = add(c,o)
-            assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
-            
+        function o = add(c,o)            
             % Add a plugin.
             if ~isa(o,'neurostim.plugin')
                 error('Only plugin derived classes can be added to CIC');
