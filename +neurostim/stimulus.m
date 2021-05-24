@@ -465,7 +465,7 @@ classdef stimulus < neurostim.plugin
         
         function baseBeforeItiFrame(s)
             if s.loc_disabled
-                if s.diodeFlasher.enabled; diodeFlasherOff(s);end                
+                if s.diodeFlasher.enabled; diodeFlasherOff(s,s.window);end                
                 return;
             end
             % The flags.on parameter is used **as is** from the last frame
