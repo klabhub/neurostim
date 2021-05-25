@@ -368,7 +368,9 @@ classdef stimulus < neurostim.plugin
             if s.loc_disabled
                 % Diode flasher should match the stimulus state always,
                 % eevn if disabled
-                if s.diodeFlasher.enabled ; diodeFlasherOff(s,s.window);end
+                locWindow = s.window;
+                Screen('glLoadIdentity',locWindow);
+                if s.diodeFlasher.enabled ; diodeFlasherOff(s,locWindow);end
                 return;
             end
             
@@ -465,10 +467,12 @@ classdef stimulus < neurostim.plugin
         
         function baseBeforeItiFrame(s)
             if s.loc_disabled
+                locWindow = s.window;
+                Screen('glLoadIdentity',locWindow);                
                 if s.diodeFlasher.enabled; diodeFlasherOff(s,s.window);end                
                 return;
             end
-            % The flags.on parameter is used **as is** from the last frame
+            % The flags.on parameter is used **as is** from the l`ast frame
             % (frames are not updated in the ITI)                       
             locWindow = s.window;   
             if s.flags.on
