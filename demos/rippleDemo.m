@@ -1,21 +1,31 @@
-function trellisDemo
-%% Trellis recording Demo
+%% Ripple recording Demo
 %
-% BK - May 2017
+% BK - May 2017, Nov 2019
 
 import neurostim.*;
 %% Setup CIC and the stimuli.
-c = myRig;
+c = neurostim.myRig;
 c.screen.color.text = [1 0 0];  % A red text 
-c.screen.color.background = [0 0 0]; % A high luminance background that looks "white" (same luminance for each gun)
+c.screen.color.background = [0 0 0]; % 
 c.screen.type = 'GENERIC';
 c.trialDuration = 1000;
 c.iti           = 150;
-c.paradigm      = 'trellisDemo';
+c.paradigm      = 'rippleDemo';
 c.subjectNr      =  0;
 c.dirs.output = 'c:\temp\'; %This directory needs to exist on the Trellis computer.
 
-t= plugins.trellis(c);
+
+% To use the cic.messenger to close the loop between Ripple analysis and 
+% the PTB stimuli, uncomment this to instruct CIC to update parameters
+% based on messsages received from a remote computer 
+% c.messenger.host = 'localhost';
+% fun = @(x) (updateLocal(x.messenger));  
+% c.addScript('BeforeFrame',fun);   %beforeTrial, or beforeFrame, depending
+% on need.
+% See tools/rippleClosedLoop for the remote processing part.
+
+
+t= plugins.ripple(c);
 t.trialBit = 3; % At the start of each trial this bit goes high. Use to align times.
 
 

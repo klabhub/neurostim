@@ -34,8 +34,11 @@ classdef gabor < neurostim.stimulus
     % multiGaborsOriRand =  Boolean to use random orientaiton for each of
     % the N. Default is false, which corresponds to linearly spaced oris
     % between 0 and 180.
-    %
-
+    
+    % NP - 2021-01-19 - changed handling of phase (input variable) and
+    % spatialPhase (private variable). `phase` now controls starting phase
+    % of grating 
+    
     properties (Constant)
         maskTypes = {'GAUSS','CIRCLE','ANNULUS','GAUSS3','GAUSS2D'};
         flickerTypes = {'NONE','SINE','SQUARE','SINECONTRAST','SQUARECONTRAST'};
@@ -110,6 +113,9 @@ classdef gabor < neurostim.stimulus
         
         
         function beforeTrial(o)
+            
+            o.spatialPhase = o.phase; % user-defined initial phase
+
             if o.multiGaborsN~=0              
                 if o.multiGaborsN>10
                     error('Max 10 gabors in a multi gabor');
@@ -162,13 +168,11 @@ classdef gabor < neurostim.stimulus
         
         function afterFrame(o)
             % Change any or all of the parameters.
-            oPhaseSpeed  = o.phaseSpeed;
-            if oPhaseSpeed ~=0
-                o.spatialPhase = o.spatialPhase + o.phase + oPhaseSpeed;
-            end
-            oFlickerFrequency = o.flickerFrequency;
-            if  oFlickerFrequency~=0
-                   o.flickerPhase = mod(o.flickerPhaseOffset + (o.time -0)*2*pi*oFlickerFrequency/1000,2*pi);
+            if o.phaseSpeed ~=0
+                o.spatialPhase = o.spatialPhase + o.phaseSpeed; % increment phase
+            end            
+            if  o.flickerFrequency~=0
+                o.flickerPhase = mod(o.flickerPhaseOffset + (o.time -0)*2*pi*o.flickerFrequency/1000,2*pi);
             end
         end
     end

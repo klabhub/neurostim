@@ -1,4 +1,4 @@
-function behaviorDemo
+function behaviorDemo(varargin)
 %Two-alternative forced choice (2AFC) motion task:
 %       
 %       "Is the motion up or down?"
@@ -19,6 +19,22 @@ function behaviorDemo
 %       (2) Respond by pressing "a" for upward motion or "z" for downward motion (once motion disappears).
 %
 %   *********** Press "Esc" twice to exit a running experiment ************
+%
+%   **** How do I analyse the experiment's data? ****
+%   The data generated during the experiment is saved in a mat file, and its
+%   file location is shown in the command window after the stimulus window closes.
+%   It contains all parameter values, every time they change, stimulus
+%   onsets, behavioural events, and much more. 
+%   
+%   See adaptiveDemo for an example of a simple post-run analysis (toward
+%   the end of that script) using Neurostim's get().
+%
+%   For usage details, type:
+%   >> help neurostim.parameter.get
+%
+%   You can load saved neurostim data (a cic object) using Matlab's standard load()
+%   function.
+
 
 import neurostim.*
 commandwindow;
@@ -26,7 +42,7 @@ commandwindow;
 %% ========= Specify rig configuration  =========
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
-c = myRig;
+c = myRig(varargin{:});
 c.addPropsToInform('choice.correct','f1.stateName'); % Show this value on the command prompt after each trial (i.e. whether the answer was correct and whether fixation was successful).
 
 %Make sure there is an eye tracker (or at least a virtual one)
@@ -58,6 +74,13 @@ d.maxRadius = 5;
 d.lifetime = Inf;
 d.noiseMode = 0;
 d.coherence = 0.6;
+
+% You can use a photo diode to check stimulus timing. This command will
+% show a small (0.02 of the horizontal screen size) blue square in the northeast corner of the screen
+% whenever the dots stimulus is on and a red square when the dots are
+% off.  (IRL you'd probably use white and black to maximize the diode
+% response. 
+addDiodeFlasher(d,'size',0.02,'location','ne','onColor',[0 0 1],'offColor',[1 0 0]); 
 
 %% ========== Add required behaviours =========
 

@@ -23,12 +23,15 @@ classdef egi < neurostim.plugin
         host   = '10.10.10.42'; % '10.10.10.42' is NetStation default. (Note that this is NOT the IP of the amp)
         port   = 55513; % Default port for connection to NetStation.
         syncLimit  = 2.5; % Limits for acceptable sync (in ms).       
+        fake  = false; % Fake an EGI connection
     end
     properties (SetAccess= protected)
         eventQ = cell(10,1); % Preallocate cell for 10 events 
         nrInQ = 0;
+        
     end
     methods (Access=public)
+          
         function o = egi(c)            
             if isempty(which('NetStation.m'))
                 error('Cannot find the NetStation.m file. Please add it to your path( from psychtoolbox). ');                
@@ -63,6 +66,7 @@ classdef egi < neurostim.plugin
             % So there is no need to include those in the call to this
             % function.
             %                        
+            if o.fake; return;end
             if isempty(time)
                 time = o.cic.clockTime;                 
             end
@@ -118,6 +122,7 @@ classdef egi < neurostim.plugin
         % Connect to a named host
         function connect(o)
             o.writeToFeed(sprintf('Trying to connect to EGI-host %s:%d',o.host,o.port));
+            if o.fake; return;end
             [status,err] = NetStation('Connect',o.host,o.port);
             if o.checkStatusOk(status,err)
                 o.writeToFeed(sprintf('Connected to EGI-host %s:%d',o.host,o.port));
@@ -128,6 +133,7 @@ classdef egi < neurostim.plugin
         
         % Disconnect
         function disconnect(o)
+            if o.fake; return;end
             [status,err] = NetStation('Disconnect');
             if o.checkStatusOk(status,err)
                 o.writeToFeed(sprintf('Disconnected from EGI-host %s:%d',o.host,o.port));
@@ -137,6 +143,8 @@ classdef egi < neurostim.plugin
         % synchronize the clocks of the computer running PTB and the
         % NetStation.
         function synchronize(o,slimit)
+            if o.fake; return;end
+            
             if exist('slimit','var') && ~isempty(slimit)
                 o.syncLimit = slimit;
             end
@@ -156,6 +164,7 @@ classdef egi < neurostim.plugin
 
        % start recording
         function startRecording(o)
+            if o.fake; return;end
             [status(1),err{1}]=NetStation('StartRecording');
             [status(2),err{2}]=NetStation('FlushReadbuffer'); 
             if o.checkStatusOk(status,err)
@@ -165,6 +174,7 @@ classdef egi < neurostim.plugin
         
         % stop recording
         function stopRecording(o)
+            if o.fake; return;end
             [status(1),err{1}]=NetStation('FlushReadbuffer'); 
             [status(2),err{2}]=NetStation('StopRecording');
             if o.checkStatusOk(status,err)
@@ -244,4 +254,52 @@ classdef egi < neurostim.plugin
             hEgi.addToEventQueue(thisE);
         end
     end
+    
+    %% GUI Functions
+     methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = eyelink plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+             if strcmpi(parms.onOffFakeKnob,'Fake')
+                o.fake=true;
+            else
+                o.fake =false;
+            end
+            o.host = parms.Host;
+            o.clockOffset = parms.ClockOffset;            
+        end
+     end
+    
+    methods (Static)
+  
+        function guiLayout(p)
+            % Add plugin specific elements
+
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [110 39 30 22];
+            h.Text = 'Host';
+            
+            h = uieditfield(p, 'text','Tag','Host');
+            h.Position = [110 17 200 22];
+            h.Value= '10.10.10.42';
+            
+            
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [315 39 100 22];
+            h.Text = 'Clock Offset';
+            
+            h = uieditfield(p, 'numeric','Tag','ClockOffset');
+            h.Value = 0;
+            h.Position = [315 17 100 22];
+                 
+        end
+        
+      end
 end

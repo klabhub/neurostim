@@ -1,10 +1,10 @@
-function scripting
+function c= scripting
 %% This demo shows how to use control scripts.
 import neurostim.*
 %% Setup CIC and the stimuli.
 c = myRig;                            
 
-% We'll use two experiment scripts to control this experiment. One is called before
+% We'll use experiment scripts to control this experiment. One is called before
 % every frame and it is specified in a separate m-file that should be on
 % the path (circlePath.m) . The second is a subfunction defined in this
 % file (Matlab allows this only in function m-files, which is why this demo
@@ -31,7 +31,7 @@ function respondMouse(c)
         end
         c.fix.X = x; % Move the fixation point ('fix') to the click location
         c.fix.Y = y;
-        c.endTrial;
+        %c.endTrial;
     end
 end 
 
@@ -57,12 +57,20 @@ f.X                 = 0;
 f.Y                 = 0;
 f.on                = 0;                % On from the start of the trial
 
-
+% IF we want to keep the new X,Y values once the mouse is clicked (i.e.
+% keep them in the next trial) then we need to make the X and Y parameters 
+% "sticky"
+%makeSticky(f,'X');  % This will maintain a value of X across trials once it is changed. (Otherwise it is reset to the default value set above to 0 on the start of the next trial)
+%makeSticky(f,'Y');  
 %% Define conditions and blocks, then run. 
 % This demonstrates how a condition can keep all 
 % stimulus parameters constant, but change some cic parameters.
+% Because cic parameters cannot be added to the design directly, we need a
+% trick:
+f.addProperty('trialDuration',[]); % Add a place holder
+c.trialDuration = '@fix.trialDuration';  % Link it via  a NS function
 d=neurostim.design('short vs long');
-d.fac1.cic.trialDuration=[2500 5000];
+d.fac1.fix.trialDuration=[2500 5000];  % Vary the placeholder.
 
 myBlock=neurostim.block('MyBlock',d);
 myBlock.nrRepeats=5;

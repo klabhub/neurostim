@@ -41,11 +41,11 @@ c.subjectNr      =  0;
 % gain = 1 
 % min = the smallest luminance that the gun can generate. 0.
 % max = the largest luminance that the gun can generate. 
-c.screen.calibration.gamma = 2.28; % Just one gamma; there is only one "gun"     
-c.screen.calibration.bias = -0.0298;
-c.screen.calibration.gain= 1;
-c.screen.calibration.max = 100;
-c.screen.calibration.min = 0;
+c.screen.calibration.ns.gamma = 2.28; % Just one gamma; there is only one "gun"     
+c.screen.calibration.ns.bias = -0.0298;
+c.screen.calibration.ns.gain= 1;
+c.screen.calibration.ns.max = 100;
+c.screen.calibration.ns.min = 0;
 
 % Convpoly to create the target patch (on the left) that will vary in (calibrated)
 % luminance

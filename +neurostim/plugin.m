@@ -20,7 +20,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     properties (SetAccess=private, GetAccess=public)
         rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
-    
+     
     
     methods (Static, Sealed, Access=protected)
         function o= getDefaultScalarElement
@@ -28,6 +28,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
     end
     
+   
     
     methods (Access=public)
         
@@ -80,7 +81,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-        function addKey(o,key,keyHelp,isSubject,fun)
+        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force,plg)
             %  addKey(o,key,keyHelp,isSubject,fun)
             % Runs a function in response to a specific key press.
             % key - a single key (string)
@@ -88,20 +89,29 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % isSubject - bool to indicate whether this is a key press the
             % subject should do. (Defaults to true for stimuli, false for
             % plugins)
-            % The user must implement keyboard(o,key) or provide a
+            % fun - The user must implement keyboard(o,key) or provide a
             % handle to function that takes a plugin/stimulus and a key as
             % input.
+            % force - set to true to force adding this key (and thereby
+            % taking it away from anihter plugin). This only makes sense if
+            % you restore it soon after, using the returned keyInfo.
             nin =nargin;
-            if nin<5
-                fun =[];
-                if nin < 4
-                    isSubject = isa(o,'neurostim.stimulus');
-                    if nin <3
-                        keyHelp = '?';
+            if nin <7
+                plg = o;
+                if nin <6
+                    force =false;
+                    if nin<5
+                        fun =[];
+                        if nin < 4
+                            isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
+                            if nin <3
+                                keyHelp = '?';
+                            end
+                        end
                     end
                 end
             end
-            addKeyStroke(o.cic,key,keyHelp,o,isSubject,fun);
+            oldKey = addKeyStroke(o.cic,key,keyHelp,plg,isSubject,fun,force);
         end
         
         % Convenience wrapper; just passed to CIC
@@ -523,6 +533,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             afterExperiment(o);
         end
         
+       function baseBeforeItiFrame(o)
+            beforeItiFrame(o);
+        end
+        
         function beforeExperiment(~)
             %NOP
         end
@@ -538,6 +552,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         function beforeFrame(~)
             %NOP
         end
+        
+        function beforeItiFrame(~)
+            %NOP
+        end
+        
         
         function afterFrame(~)
             %NOP
@@ -569,7 +588,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
     end
     
-    methods (Access={?neuorstim.plugin,?neurostim.parameter})
+    methods (Access={?neuorstim.plugin,?neurostim.parameter,?neurostim.stimulus})
         
         %Accessing neurostim.parameters is much slower than accessing a raw
         %member variable. Because we define many such parms (with addProperty) in the base
@@ -708,6 +727,19 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         baseAfterFrame(o);
                         if c.PROFILE; addProfile(c,'AFTERFRAME',o.name,c.clockTime-ticTime);end
                     end
+                    
+                case neurostim.stages.BEFOREITIFRAME
+                    Screen('glLoadIdentity', c.window);
+                    Screen('glTranslate', c.window,c.screen.xpixels/2,c.screen.ypixels/2);
+                    Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
+                    for o= oList
+                        if c.PROFILE;ticTime = c.clockTime;end
+                        Screen('glPushMatrix',c.window);                        
+                        baseBeforeItiFrame(o); % If appropriate this will call beforeItiFrame in the derived class
+                        Screen('glPopMatrix',c.window);
+                        if c.PROFILE; addProfile(c,'BEFOREITIFRAME',o.name,c.clockTime-ticTime);end
+                    end
+                    Screen('glLoadIdentity', c.window); % Guarantee identity transformation in non plugin code (i.e. in CIC)                                        
                 case neurostim.stages.AFTERTRIAL
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
@@ -785,4 +817,27 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             end
         end
     end       
+    
+     %% GUI Functios
+    methods (Access= public)
+        function guiSet(o,parms) %#ok<INUSD>
+            %The nsGui calls this just before the experiment starts; derived plugins
+            % with gui panels shoould use it to transfer values from the
+            % guipanel (using handle h) into property settings. The base plugin class does
+            % nothing (Except a warning).
+            % See plugins.eyelink for an example.
+            writeToFeed(o,['The ' o.name ' plugin has no guiSet function. GUI settings will be ignored']);
+        end
+        
+    end
+
+    
+    methods (Static, Access=public)
+        function guiLayout(parent) %#ok<INUSD>
+            % nsGui calls this function with parent set to the parent uipanel
+            % Plugins can add graphical (appdesigner) elements to this parent. 
+            % See plugins.eyelink for an example
+                          
+        end        
+    end
 end
