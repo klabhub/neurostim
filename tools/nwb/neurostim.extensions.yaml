@@ -1,0 +1,44 @@
+groups:
+- neurodata_type_def: NeurostimMetaData
+  neurodata_type_inc: LabMetaData
+  name: cic
+  doc: Metadata for Neurostim
+  attributes:
+  - name: matlab
+    dtype: text
+    default_value: unknown
+    doc: The Matlab version used to create this data file
+    required: false
+  - name: psychtoolbox
+    dtype: text
+    default_value: unknown
+    doc: The Psychtoolbox version used to create this data file
+    required: false
+  - name: file
+    dtype: text
+    default_value: unknown
+    doc: The original file storing the Neurostim cic object
+    required: false
+  - name: script
+    dtype: text
+    default_value: n
+    doc: The Neurostim script used to run this experiment
+    required: false
+  datasets:
+  - name: version
+    dtype:
+    - name: remote
+      dtype: text
+      doc: git remote repository
+    - name: branch
+      dtype: text
+      doc: git branch
+    - name: changes
+      dtype: text
+      doc: local changes
+    - name: hash
+      dtype: text
+      doc: git hash
+    doc: Git Version
+  - name: plugins
+    doc: Plugin properties

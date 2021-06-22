@@ -1,0 +1,9 @@
+namespaces:
+- doc: Extension for use with Neurostim
+  name: neurostim
+  schema:
+  - namespace: core
+    neurodata_types:
+    - LabMetaData
+  - source: neurostim.extensions.yaml
+  version: 0.1.0

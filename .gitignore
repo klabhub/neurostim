@@ -1,3 +1,4 @@
 *.asv
 *.m~
 *.mat
+.ipynb_checkpoints

@@ -113,6 +113,7 @@ classdef cic < neurostim.plugin
         
         %% Logging and Saving
         startTime    = 0; % The time when the experiment started running
+        startClockTime = NaN; % GetSecs*1000 that equals startTime
         stopTime = [];
         
         
@@ -405,7 +406,8 @@ classdef cic < neurostim.plugin
             
             c.stage  = neurostim.cic.SETUP;
             % Initialize empty
-            c.startTime     = now;
+            c.startTime     = datetime('now','TimeZone','local');
+            c.startClockTime= GetSecs*1000; % Allow aligning of time stamps using GetSecs with true time.
             c.stimuli       = [];
             c.plugins       = [];
             c.cic           = c; % Need a reference to self to match plugins. This makes the use of functions much easier (see plugin.m)
@@ -436,7 +438,7 @@ classdef cic < neurostim.plugin
             c.addProperty('trialDuration',p.trialDuration,'validate',@(x) isnumeric(x) & ~isnan(x)); % duration (ms)
             c.addProperty('matlabVersion', []); %Log MATLAB version used to run this experiment - set at runtime
             c.addProperty('ptbVersion',[]); % Log PTB Version used to run this experiment - set at runtime
-            c.addProperty('repoVersion',[]); % Information on the git version/hash. - set at runtime
+            c.addProperty('repoVersion',struct('remote','','branch','','changes','','hash','')); % Information on the git version/hash. - set at runtime
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
             
             
