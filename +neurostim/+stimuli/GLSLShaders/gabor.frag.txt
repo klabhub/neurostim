@@ -22,6 +22,7 @@ varying float flickerPhase;
 uniform int colorMode;
 uniform int mask;
 uniform int flickerMode;
+uniform bool square;
 
 uniform float multiGaborsPhaseOffset[10];
 uniform float multiGaborsOriOffset[10];
@@ -55,6 +56,11 @@ void main()
         coeff = vec2(cos(orientation+multiGaborsOriOffset[i]), sin(orientation+multiGaborsOriOffset[i])) * freqTwoPi;        
         sv = sv + sin(dot(coeff, pos) + phase + multiGaborsPhaseOffset[i]);
     }
+
+	if(square){
+		sv = sign(sv);
+	}
+
     /* Compute exponential hull for the gabor: */
     if (mask==1){
         /* Gabor mask : Sigma = [stdev */

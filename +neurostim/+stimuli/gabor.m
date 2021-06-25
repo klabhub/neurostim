@@ -80,7 +80,8 @@ classdef gabor < neurostim.stimulus
             o.addProperty('frequency',0.05,'validate',@isnumeric);
             o.addProperty('sigma',1,'validate',@isnumeric); % [Inner Outer] or  [Outer]
             o.addProperty('mask','Gauss','validate',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));
-            
+            o.addProperty('square',false,'validate',@islogical);
+
             %% Motion
             o.addProperty('phaseSpeed',0);
             
@@ -126,10 +127,12 @@ classdef gabor < neurostim.stimulus
                     o.multiGaborsPhaseOffset = zeros(1,o.multiGaborsN);    
                 end
                 if o.multiGaborsOriRand
-                    o.multiGaborsOriOffset= 180*rand(1,o.multiGaborsN); % Random orientations for n<0
+                    o.multiGaborsOriOffset= rand(pi,o.multiGaborsN); %[rad]
+                elseif isempty(o.multiGaborsOriOffset)
+                    o.multiGaborsOriOffset= linspace(pi,0,o.multiGaborsN); %[rad]
                 else
-                    o.multiGaborsOriOffset= linspace(0,180,o.multiGaborsN);
-                end                
+                    %use user defined o.multiGaborOriOffset
+                end
             end
             
             % Pass information that does not change during the trial to the
@@ -201,6 +204,8 @@ classdef gabor < neurostim.stimulus
             glUniform1i(glGetUniformLocation(o.shader , 'colorMode'), colorMode);
             
             glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
+
+            glUniform1i(glGetUniformLocation(o.shader, 'square'), o.square);
             
             % Setup done:
             glUseProgram(0);

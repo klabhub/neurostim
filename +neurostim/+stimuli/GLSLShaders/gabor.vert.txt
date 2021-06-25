@@ -13,6 +13,7 @@ uniform int rgbColor;
 uniform vec2 size;
 uniform int mask;
 uniform int flickerMode;
+uniform bool square;
 
 uniform float multiGaborsPhaseOffset[10];
 uniform float multiGaborsOriOffset[10];
