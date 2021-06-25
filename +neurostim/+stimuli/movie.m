@@ -73,7 +73,15 @@ classdef movie < neurostim.stimulus
                 file = fullfile(o.path,o.filename);
             end
             if strcmpi(o.currentlyLoadedFile,file)
-                % No need to reload
+                % No need to reload images
+                % but need to reload peripheral information
+                obj = VideoReader(file);                    
+                o.xPixels = obj.Width;
+                o.yPixels = obj.Height;
+                o.nrFrames = length(o.tex);
+                if isempty(o.framerate)
+                    o.framerate = obj.FrameRate;
+                end
             else
                 % Cleanup textures from the previous movie
                 Screen('Close',o.tex);
