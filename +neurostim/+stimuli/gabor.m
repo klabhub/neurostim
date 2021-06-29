@@ -127,9 +127,9 @@ classdef gabor < neurostim.stimulus
                     o.multiGaborsPhaseOffset = zeros(1,o.multiGaborsN);    
                 end
                 if o.multiGaborsOriRand
-                    o.multiGaborsOriOffset= rand(pi,o.multiGaborsN); %[rad]
+                    o.multiGaborsOriOffset= 180*rand(1,o.multiGaborsN); %[deg]
                 elseif isempty(o.multiGaborsOriOffset)
-                    o.multiGaborsOriOffset= linspace(pi,0,o.multiGaborsN); %[rad]
+                    o.multiGaborsOriOffset= 180*linspace(1,0,o.multiGaborsN); %[deg]
                 else
                     %use user defined o.multiGaborOriOffset
                 end
@@ -141,8 +141,8 @@ classdef gabor < neurostim.stimulus
             glUniform1i(glGetUniformLocation(o.shader, 'mask'),find(ismember(o.maskTypes,upper(o.mask))));
             glUniform1i(glGetUniformLocation(o.shader, 'flickerMode'),find(ismember(o.flickerTypes,upper(o.flickerMode))));           
             glUniform1i(glGetUniformLocation(o.shader, 'multiGaborsN'),max(1,o.multiGaborsN)); % At least 1 so that a single Gabor is drawn
-            glUniform1fv(glGetUniformLocation(o.shader, 'multiGaborsPhaseOffset'),numel(o.multiGaborsPhaseOffset),o.multiGaborsPhaseOffset);
-            glUniform1fv(glGetUniformLocation(o.shader, 'multiGaborsOriOffset'),numel(o.multiGaborsOriOffset),o.multiGaborsOriOffset);
+            glUniform1fv(glGetUniformLocation(o.shader, 'multiGaborsPhaseOffset'),numel(o.multiGaborsPhaseOffset),pi/180*o.multiGaborsPhaseOffset);
+            glUniform1fv(glGetUniformLocation(o.shader, 'multiGaborsOriOffset'),numel(o.multiGaborsOriOffset), pi/180*o.multiGaborsOriOffset);
             glUseProgram(0);                        
             
         end
