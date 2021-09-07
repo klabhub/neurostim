@@ -2178,7 +2178,11 @@ classdef cic < neurostim.plugin
                 storeInLog(c.prms.firstFrame,fakeFF,NaN)
             end
             
-            
+            % Check c.stage and issue a warning if this seems like a crashed session
+            if c.stage ~= neurostim.cic.POST
+                warning('This experiment ended unexpectedly (c.stage == %i; Should be %i). Some trials may be missing.', ...
+                    c.stage,neurostim.cic.POST);
+            end
             
         end
         
