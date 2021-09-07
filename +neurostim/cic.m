@@ -2153,8 +2153,10 @@ classdef cic < neurostim.plugin
                         fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
                     end
                 end
+                
                 %---
                 c = current;
+                c.cic = c;
             else
                 c = o;
                 c.loadedFromFile = true; % Set to true to avoid PTB dependencies

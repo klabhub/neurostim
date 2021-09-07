@@ -612,9 +612,14 @@ classdef parameter < handle & matlab.mixin.Copyable
         function t = firstFrameTime(o)
             %  t = firstFrameTime(o)
             % Return the time of the first frame in each trial, as a column
-            % vector.
+            % vector.  
             t = [o.plg.cic.prms.firstFrame.log{:}]'; % By using the log we use the stimOnsetTime returned by Screen('flip') on the first frame.
-            if o.plg.cic.trial >numel(t)
+            % BK NOTE: using o.plg.cic.trial (the dynprop) here leads to
+            % load errors (i.e. when reading data from file) with Matlab complaining that .trial is not a property. I dont understand why 
+            % findprop finds the property at load time in cic.loadobj. THis
+            % fix (Reading from .prms instead of the dynprop) seems harmless but maybe the error is a sign of a
+            % bigger/different problem.
+            if o.plg.cic.prms.trial.value >numel(t)  
                 % A trial has started but not reached first frame yet. Set
                 % its start time to inf.
                 t = [t;inf];
