@@ -2142,7 +2142,7 @@ classdef cic < neurostim.plugin
                 missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
                 missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
                 toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
-                fprintf('Fixing backward compatibility of stored Neurostim object')
+                fprintf('Fixing backward compatibility of stored Neurostim object\n')
                 fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
                 fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
                 for i=1:numel(toCopy)

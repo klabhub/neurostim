@@ -956,7 +956,7 @@ classdef starstim < neurostim.stimulus
         function o= loadobj(o)
             if isstruct(o)
                 % Update to current classdef.
-                current = neurostim.stimuli.starstim(neurostim.cic('fromFile',true)); % Create current
+                current = neurostim.stimuli.starstim(o.cic); % Create current
                 fromFile = o;
                 %-- This cannot be moved to a function/script due to class access
                 %permissions.
@@ -968,7 +968,7 @@ classdef starstim < neurostim.stimulus
                 missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
                 missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
                 toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
-                fprintf('Fixing backward compatibility of stored Neurostim object')
+                fprintf('Fixing backward compatibility of stored starstim object\n')
                 fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
                 fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
                 for i=1:numel(toCopy)
