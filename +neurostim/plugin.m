@@ -20,14 +20,14 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     properties (SetAccess=private, GetAccess=public)
         rng                         % This plugin's RNG stream, issued from a set of independent streams by CIC.
     end
-     
+    
     methods (Static, Sealed, Access=protected)
         function o= getDefaultScalarElement
             o = neurostim.plugin([],'defaultScalarElement');
         end
     end
     
-   
+    
     
     methods (Access=public)
         
@@ -44,8 +44,6 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
             
         end
-        
-        
         
         
         function s= duplicate(o,name)
@@ -509,7 +507,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             afterExperiment(o);
         end
         
-       function baseBeforeItiFrame(o)
+        function baseBeforeItiFrame(o)
             beforeItiFrame(o);
         end
         
@@ -710,12 +708,12 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     Screen('glScale', c.window,c.screen.xpixels/c.screen.width, -c.screen.ypixels/c.screen.height);
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
-                        Screen('glPushMatrix',c.window);                        
+                        Screen('glPushMatrix',c.window);
                         baseBeforeItiFrame(o); % If appropriate this will call beforeItiFrame in the derived class
                         Screen('glPopMatrix',c.window);
                         if c.PROFILE; addProfile(c,'BEFOREITIFRAME',o.name,c.clockTime-ticTime);end
                     end
-                    Screen('glLoadIdentity', c.window); % Guarantee identity transformation in non plugin code (i.e. in CIC)                                        
+                    Screen('glLoadIdentity', c.window); % Guarantee identity transformation in non plugin code (i.e. in CIC)
                 case neurostim.stages.AFTERTRIAL
                     for o= oList
                         if c.PROFILE;ticTime = c.clockTime;end
@@ -795,7 +793,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     end
     
     
-     %% GUI Functios
+    %% GUI Functios
     methods (Access= public)
         function guiSet(o,parms) %#ok<INUSD>
             %The nsGui calls this just before the experiment starts; derived plugins
@@ -807,14 +805,87 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
     end
-
+    
     
     methods (Static, Access=public)
         function guiLayout(parent) %#ok<INUSD>
             % nsGui calls this function with parent set to the parent uipanel
-            % Plugins can add graphical (appdesigner) elements to this parent. 
+            % Plugins can add graphical (appdesigner) elements to this parent.
             % See plugins.eyelink for an example
-                          
-        end        
+        end
+    end
+    
+    methods (Static)
+        function   current = updateClassdef(old,current)
+            % This funciton is called from a loadobj function in a plugins
+            % derived class to resolve bakcward compatibility
+            % old   - the struct that was loaded from file (this plugin's properties
+            %       no longer match the current class definition, hence the need
+                    % for updating)
+            % current - An object that mathes the current class definition
+            %           (presumably created in the derived class by calling the
+            %           constructor)
+            % OUTPUT
+            %  current - An object mactching the current class definition,
+            %  with default  values for "new" properties, and the old
+            %  (saved) values for the old properties.
+            %
+            %  Becuase this is a static member of the parent plugin class, it needs
+            % access to all properties of the derived classes. Achieve this
+            % by using public properties in plugins, or if they should be
+            % protected, use SetAccess={!neurostim.plugin}, which gives the
+            % neurostim.plugin class access. Not ideal but afaik Matlab does not
+            % have a way to allow only parent classes tohave SetAccess.
+            % 
+            % Note that this also deals with the problem (first noted in
+            % R2020a) that dynamicproperties saved to disk are not restored
+            % properly. 
+            %
+            % BK - Sept 2021
+            
+            m= metaclass(current);
+            dependent = [m.PropertyList.Dependent];
+            % Find properties that we can set now (based on the stored fromFile object)
+            settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
+            storedFn = fieldnames(old);
+            missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
+            missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
+            toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
+            fprintf('Fixing backward compatibility of stored %s object.\n',m.Name)
+            fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
+            fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
+            for i=1:numel(toCopy)
+                try
+                    current.(toCopy{i}) = old.(toCopy{i});
+                catch me
+                    fprintf('\t Failed to set %s(will get current default value): %s\n', toCopy{i},me.message)
+                end
+            end
+            
+            % Restore dynamic properties which appear to be lost (probably
+            % because a struct (old) cannot have dynprops            
+            prmsNames= fieldnames(current.prms);
+            for p=1:numel(prmsNames)
+                hDynProp = findprop(current,prmsNames{p});
+                if isempty(hDynProp)
+                    % Stored object had a dynprop that is no longer
+                    % constructed now. Recreate it (ignoring anys special
+                    % options)
+                    hDynProp = addprop(current,prmsNames{p});
+                end
+                % Delete the handle to the dynprop that was stored (but not
+                % restored on load)
+                delete(current.prms.(prmsNames{p}).hDynProp)
+                % Then link the neurostim.parameter to the dynprop created
+                % in the default constructor call using hte current
+                % classdef (current)  (By now current.prms has the values
+                % corresponding to the saved object)
+                current.prms.(prmsNames{p}).hDynProp = hDynProp;
+                % And set the dynprop to return only the current (i.e.
+                % last) value in the neurostim.parameter and never update.
+                hDynProp.GetMethod = @(varargin) (current.prms.(prmsNames{p}).value);
+                hDynProp.SetMethod = @(varargin) (NaN);
+            end
+        end
     end
 end
