@@ -91,7 +91,7 @@ classdef cic < neurostim.plugin
     
     %% Protected properties.
     % These are set internally
-    properties (GetAccess=public, SetAccess =protected)
+    properties (GetAccess=public, SetAccess ={?neurostim.plugin})
         %% Program Flow
         mainWindow = []; % The PTB window
         overlayWindow =[]; % The color overlay for special colormodes (VPIXX-M16)
@@ -2131,38 +2131,19 @@ classdef cic < neurostim.plugin
             if isstruct(o)
                 % Current CIC classdef does not match classdef in force
                 % when this object was saved.
-                current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
-                fromFile = o;
-                %-- This cannot be moved to a function due to class access
-                %permissions.
-                m= metaclass(current);
-                dependent = [m.PropertyList.Dependent];
-                % Find properties that we can set now (based on the stored fromFile object)
-                settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
-                storedFn = fieldnames(fromFile);
-                missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
-                missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
-                toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
-                fprintf('Fixing backward compatibility of stored Neurostim object')
-                fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
-                fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
-                for i=1:numel(toCopy)
-                    try
-                        current.(toCopy{i}) = fromFile.(toCopy{i});
-                    catch
-                        fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
-                    end
-                end
+                % Create an object according to the current classdef/
+                current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)                
+                % And upgrade the one that was stored using the plugin
+                % static member.
+                c= neurostim.plugin.updateClassdef(o,current);                
                 
-                %---
-                c = current;
-                c.cic = c;
+
             else
                 c = o;
                 c.loadedFromFile = true; % Set to true to avoid PTB dependencies
             end
             
-            
+            % Some postprocessing. 
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
             % This happens, for instance, when endExperiment is called by a plugin
