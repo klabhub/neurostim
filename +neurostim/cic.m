@@ -2128,11 +2128,11 @@ classdef cic < neurostim.plugin
             if isstruct(o)
                 % Current CIC classdef does not match classdef in force
                 % when this object was saved.
-                % Create an object according to the current classdef/
+                % Create an object according to the current classdef
                 current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)                
                 % And upgrade the one that was stored using the plugin
                 % static member.
-                c= neurostim.plugin.updateClassdef(o,current);                
+                c = neurostim.plugin.updateClassdef(o,current);                
             else
                 c = o;
                 c.loadedFromFile = true; % Set to true to avoid PTB dependencies
