@@ -845,12 +845,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
             m= metaclass(current);
             dependent = [m.PropertyList.Dependent];
-            % Find properties that we can set now (based on the stored fromFile object)
-            settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
+            % Find properties that we can set now (based on the stored fromFile object)            
             storedFn = fieldnames(old);
-            missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
+            missingInSaved  = setdiff({m.PropertyList(~dependent).Name},storedFn);
             missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
-            toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
+            toCopy= intersect(storedFn,{m.PropertyList(~dependent).Name});
             fprintf('Fixing backward compatibility of stored %s object.\n',m.Name)
             fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
             fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})

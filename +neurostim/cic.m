@@ -480,10 +480,13 @@ classdef cic < neurostim.plugin
             if nargin<2
                 factors = [];
             end
+            blk = get(c.prms.block,'atTrialTime',0);
+            cnd = get(c.prms.condition,'atTrialTime',0);
             for b=1:numel(c.blocks)
-                blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ')'];
+                blockStr = ['Block: ' num2str(b) '(' c.blocks(b).name ') - ' num2str(sum(blk==b)) ' trials'];
+                condition = cnd(blk==b);                 
                 for d=1:numel(c.blocks(b).designs)
-                    show(c.blocks(b).designs(d),factors,blockStr);
+                    show(c.blocks(b).designs(d),factors,blockStr,condition);
                 end
             end
         end
@@ -2139,6 +2142,15 @@ classdef cic < neurostim.plugin
             end
             
             % Some postprocessing. 
+            
+            % The saved plugins still refer to the old-style (i.e. saved)
+            % cic. Update the handle
+            c.cic = c; % Self reference needed 
+           for p = c.pluginOrder
+               p.cic = c; % Point each plugin to the updated/new style cic.
+           end
+          
+            
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
             % This happens, for instance, when endExperiment is called by a plugin
@@ -2159,7 +2171,7 @@ classdef cic < neurostim.plugin
             % Check c.stage and issue a warning if this seems like a crashed session
             if c.stage ~= neurostim.cic.POST
                 warning('This experiment ended unexpectedly (c.stage == %i; Should be %i). Some trials may be missing.', ...
-                    c.stage,neurostim.cic.POST);
+                c.stage,neurostim.cic.POST);
             end
             
         end
