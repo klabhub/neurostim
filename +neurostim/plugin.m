@@ -818,11 +818,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     methods (Static)
         function   current = updateClassdef(old,current)
             % This funciton is called from a loadobj function in a plugins
-            % derived class to resolve bakcward compatibility
+            % derived class to resolve backward compatibility
             % old   - the struct that was loaded from file (this plugin's properties
-            %       no longer match the current class definition, hence the need
-                    % for updating)
-            % current - An object that mathes the current class definition
+            %         no longer match the current class definition, hence the need
+            %         for updating)
+            % current - An object that matches the current class definition
             %           (presumably created in the derived class by calling the
             %           constructor)
             % OUTPUT
@@ -830,7 +830,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %  with default  values for "new" properties, and the old
             %  (saved) values for the old properties.
             %
-            %  Becuase this is a static member of the parent plugin class, it needs
+            % Becuase this is a static member of the parent plugin class, it needs
             % access to all properties of the derived classes. Achieve this
             % by using public properties in plugins, or if they should be
             % protected, use SetAccess={!neurostim.plugin}, which gives the
@@ -845,15 +845,22 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
             m= metaclass(current);
             dependent = [m.PropertyList.Dependent];
-            % Find properties that we can set now (based on the stored fromFile object)
-            settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
+            % Find properties that we can set now (based on the stored fromFile object)            
             storedFn = fieldnames(old);
-            missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
-            missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
-            toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
-            fprintf('Fixing backward compatibility of stored %s object.\n',m.Name)
-            fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
-            fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
+            missingInSaved  = strcat(setdiff({m.PropertyList(~dependent).Name},storedFn),' / ');
+            missingInCurrent  = strcat(setdiff(storedFn,{m.PropertyList(~dependent).Name}),' / ');
+            toCopy= intersect(storedFn,{m.PropertyList(~dependent).Name});
+            fprintf('Fixing backward compatibility of stored ***%s***object.\n',m.Name)
+            if ~isempty(missingInSaved)
+                fprintf('Not defined when saved (will get current default values):\n ');
+                fprintf('\t%s',missingInSaved{:})
+                fprintf('\n')
+            end
+            if ~isempty(missingInCurrent)
+                fprintf('Not defined currently (will be removed):\n');
+                fprintf('\t%s' ,missingInCurrent{:})
+                fprintf('\n');
+            end
             for i=1:numel(toCopy)
                 try
                     current.(toCopy{i}) = old.(toCopy{i});
@@ -861,6 +868,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     fprintf('\t Failed to set %s(will get current default value): %s\n', toCopy{i},me.message)
                 end
             end
+            
             
             % Restore dynamic properties which appear to be lost (probably
             % because a struct (old) cannot have dynprops            
@@ -877,14 +885,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 % restored on load)
                 delete(current.prms.(prmsNames{p}).hDynProp)
                 % Then link the neurostim.parameter to the dynprop created
-                % in the default constructor call using hte current
-                % classdef (current)  (By now current.prms has the values
+                % in the default constructor call using the current
+                % classdef (current) (By now current.prms has the values
                 % corresponding to the saved object)
                 current.prms.(prmsNames{p}).hDynProp = hDynProp;
                 % And set the dynprop to return only the current (i.e.
                 % last) value in the neurostim.parameter and never update.
                 hDynProp.GetMethod = @(varargin) (current.prms.(prmsNames{p}).value);
                 hDynProp.SetMethod = @(varargin) (NaN);
+                
+                % Then make sure the .plg member of the parameter links to
+                % the newly updated plg
+                current.prms.(prmsNames{p}).plg = current;
             end
         end
     end

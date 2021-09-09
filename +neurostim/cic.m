@@ -2131,19 +2131,27 @@ classdef cic < neurostim.plugin
             if isstruct(o)
                 % Current CIC classdef does not match classdef in force
                 % when this object was saved.
-                % Create an object according to the current classdef/
+                % Create an object according to the current classdef
                 current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)                
                 % And upgrade the one that was stored using the plugin
                 % static member.
-                c= neurostim.plugin.updateClassdef(o,current);                
-                
-
+                c = neurostim.plugin.updateClassdef(o,current);                
             else
                 c = o;
                 c.loadedFromFile = true; % Set to true to avoid PTB dependencies
             end
             
             % Some postprocessing. 
+            
+            % The saved plugins and parameters of CIC still refer to the old-style (i.e. saved)
+            % cic. Update the handle
+            c.cic = c; % Self reference needed 
+            
+           for plg = c.pluginOrder
+               plg.cic = c; % Point each plugin to the updated/new style cic.
+           end
+          
+            
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
             % This happens, for instance, when endExperiment is called by a plugin
@@ -2164,7 +2172,7 @@ classdef cic < neurostim.plugin
             % Check c.stage and issue a warning if this seems like a crashed session
             if c.stage ~= neurostim.cic.POST
                 warning('This experiment ended unexpectedly (c.stage == %i; Should be %i). Some trials may be missing.', ...
-                    c.stage,neurostim.cic.POST);
+                c.stage,neurostim.cic.POST);
             end
             
         end
