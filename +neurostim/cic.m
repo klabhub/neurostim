@@ -2143,11 +2143,12 @@ classdef cic < neurostim.plugin
             
             % Some postprocessing. 
             
-            % The saved plugins still refer to the old-style (i.e. saved)
+            % The saved plugins and parameters of CIC still refer to the old-style (i.e. saved)
             % cic. Update the handle
             c.cic = c; % Self reference needed 
-           for p = c.pluginOrder
-               p.cic = c; % Point each plugin to the updated/new style cic.
+            
+           for plg = c.pluginOrder
+               plg.cic = c; % Point each plugin to the updated/new style cic.
            end
           
             

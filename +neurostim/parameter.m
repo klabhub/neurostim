@@ -57,6 +57,8 @@ classdef parameter < handle & matlab.mixin.Copyable
          
         
         hDynProp;                   % Handle to the dynamic property. See pulgin.updateClassdef for why this needs plugin write access
+        plg; %@neurostim.plugin;    % Handle to the plugin that this belongs to.     
+
     end
     
     properties (SetAccess= protected, GetAccess=public)
@@ -73,7 +75,6 @@ classdef parameter < handle & matlab.mixin.Copyable
         funPrms;
         funStr = '';                % The neurostim function string
         validate =[];               % Validation function
-        plg; %@neurostim.plugin;    % Handle to the plugin that this belongs to.     
         hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
     end
             
