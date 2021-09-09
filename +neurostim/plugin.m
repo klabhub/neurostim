@@ -818,11 +818,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     methods (Static)
         function   current = updateClassdef(old,current)
             % This funciton is called from a loadobj function in a plugins
-            % derived class to resolve bakcward compatibility
+            % derived class to resolve backward compatibility
             % old   - the struct that was loaded from file (this plugin's properties
-            %       no longer match the current class definition, hence the need
-                    % for updating)
-            % current - An object that mathes the current class definition
+            %         no longer match the current class definition, hence the need
+            %         for updating)
+            % current - An object that matches the current class definition
             %           (presumably created in the derived class by calling the
             %           constructor)
             % OUTPUT
@@ -830,7 +830,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %  with default  values for "new" properties, and the old
             %  (saved) values for the old properties.
             %
-            %  Becuase this is a static member of the parent plugin class, it needs
+            % Becuase this is a static member of the parent plugin class, it needs
             % access to all properties of the derived classes. Achieve this
             % by using public properties in plugins, or if they should be
             % protected, use SetAccess={!neurostim.plugin}, which gives the
@@ -876,8 +876,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 % restored on load)
                 delete(current.prms.(prmsNames{p}).hDynProp)
                 % Then link the neurostim.parameter to the dynprop created
-                % in the default constructor call using hte current
-                % classdef (current)  (By now current.prms has the values
+                % in the default constructor call using the current
+                % classdef (current) (By now current.prms has the values
                 % corresponding to the saved object)
                 current.prms.(prmsNames{p}).hDynProp = hDynProp;
                 % And set the dynprop to return only the current (i.e.
