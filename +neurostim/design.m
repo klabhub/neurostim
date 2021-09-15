@@ -95,13 +95,13 @@ classdef design <handle & matlab.mixin.Copyable
         retry = 'IGNORE'; %IGNORE,IMMEDIATE,RANDOM
         weights=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
         maxRetry = Inf;
+        list;                    % The order in which conditions will be run.
     end
     
     properties         (SetAccess =protected, GetAccess=public)
         name;                      % The name of this design; bookkeeping/logging use only.
         factorSpecs={};            % A cell array of condition specifications for factorial designs
         conditionSpecs={};         % Conditions specifications that deviate from the full factorial
-        list;                    % The order in which conditions will be run.
         currentTrialIx =0;                   % The condition that will be run in this trial (index in to .list)
         retryCounter = [];
     end
