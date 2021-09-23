@@ -194,14 +194,24 @@ classdef stimulus < neurostim.plugin
             p.addParameter('duration',100,@(x) isnumeric(x) & x > 0);
             p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
             p.addParameter('log',false,@islogical);
+            p.addParameter('manualList', [], @(x) isnumeric(x));
             p.parse(design,varargin{:});
             flds = fieldnames(p.Results);
+            manualList = [];
             for i=1:numel(flds)
-                s.rsvp.(flds{i}) = p.Results.(flds{i});
+                if ~strcmp(flds{i}, 'manualList')
+                    s.rsvp.(flds{i}) = p.Results.(flds{i});
+                else
+                    manualList = p.Results.(flds{i});
+                end
             end
             
             %Elaborate the factorial design into (sub)condition lists for RSVP
-            s.rsvp.design.shuffle;
+            if ~isempty(manualList)
+                s.rsvp.design.shuffle(manualList);
+            else
+                s.rsvp.design.shuffle;
+            end
             s.rsvp.log = p.Results.log;
             s.rsvp.active = true;
         end

@@ -95,7 +95,6 @@ classdef design <handle & matlab.mixin.Copyable
         retry = 'IGNORE'; %IGNORE,IMMEDIATE,RANDOM
         weights=1;               % The relative weight of each condition. (Must be scalar or the same size as specs)
         maxRetry = Inf;
-        listManual = [];
     end
     
     properties         (SetAccess =protected, GetAccess=public)
@@ -377,22 +376,28 @@ classdef design <handle & matlab.mixin.Copyable
             end
         end
         
-        function shuffle(o)
+        function shuffle(o, manualList)
             % Shuffle the list of conditions and set the "currentTrialIx" to
             % the first one in the list
-            conds=ones(1,o.nrConditions);
-            conds=cumsum(conds);
-            weighted=repelem(conds(:),o.weights(:));
-            weighted=weighted(:);
-            switch upper(o.randomization)
-                case 'SEQUENTIAL'
-                    o.list=weighted;
-                case 'RANDOMWITHREPLACEMENT'
-                    o.list=datasample(weighted,numel(weighted));
-                case 'RANDOMWITHOUTREPLACEMENT'
-                    o.list=Shuffle(weighted);
-                case 'MANUAL'
-                    o.list = o.listManual;
+            
+            if nargin > 1
+                o.randomization = 'MANUAL';
+                o.list = manualList;
+            else
+                conds=ones(1,o.nrConditions);
+                conds=cumsum(conds);
+                weighted=repelem(conds(:),o.weights(:));
+                weighted=weighted(:);
+                switch upper(o.randomization)
+                    case 'SEQUENTIAL'
+                        o.list=weighted;
+                    case 'RANDOMWITHREPLACEMENT'
+                        o.list=datasample(weighted,numel(weighted));
+                    case 'RANDOMWITHOUTREPLACEMENT'
+                        o.list=Shuffle(weighted);
+                    case 'MANUAL'
+                        %reuse o.list (= manualList)
+                end
             end
             o.retryCounter = zeros(o.nrConditions,1);
             o.currentTrialIx =1; % Reset the index to start at the first entry
