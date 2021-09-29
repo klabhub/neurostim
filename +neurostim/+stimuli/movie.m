@@ -37,10 +37,12 @@ classdef movie < neurostim.stimulus
         % Each frame will be associated with a texture
         tex = [];       % Vector fo texture pointers 
         rect =[];       % Rect to apply the texture
-        fracFrameCntr;      % Current fractional frame cntr.
         currentlyLoadedFile = '';  % Full path to currently loaded file.
     end
     
+     properties (GetAccess = public, SetAccess = private)
+        fracFrameCntr;      % Current fractional frame cntr.
+    end
     
     methods (Access = public)
         function o = movie(c,name)
