@@ -72,6 +72,7 @@ classdef mcc < neurostim.plugins.daq
             %   m = plugins.mcc(c,'serialNumber','01BE9719')
             p = inputParser();
             p.addParameter('serialNumber','');
+            p.addParameter('DDir',[1 0]);%direction of digital outputs (default: portA-input, portB-output)
             p.parse(varargin{:})
             args = p.Results;
  
@@ -105,8 +106,8 @@ classdef mcc < neurostim.plugins.daq
                error('MCC plugin added but no device could be found.'); 
             end
             
-            err = DaqDConfigPort(o.daq,0,1); % configure digital port A for input
-            err = DaqDConfigPort(o.daq,1,0); % configure digital port B for output
+            err = DaqDConfigPort(o.daq,0, args.DDir(1)); % configure digital port A
+            err = DaqDConfigPort(o.daq,1, args.DDir(2)); % configure digital port B
         end
         
         function beforeExperiment(o)
