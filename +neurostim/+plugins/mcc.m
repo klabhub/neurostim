@@ -81,6 +81,7 @@ classdef mcc < neurostim.plugins.daq
             o.addProperty('aInData',[]);
             o.addProperty('aInStartTime',[]);
             o.addProperty('aInTimeOut',1); % Timeout for Analaog In in seconds.
+            o.addProperty('dOutOld',[0 0]); % holds previous digital output to accommodate quick bit-flipping
             
             % check what is there...
             o.devices = PsychHID('Devices');
@@ -126,25 +127,42 @@ classdef mcc < neurostim.plugins.daq
         function digitalOut(o,channel,value,varargin)
             % digitalOut(o,channel,value [,duration])
             % Output the value to the digital channel
-            % o.digitalOut(0,unit8(2)) will write '2' to port A
-            % o.digitalOut(3,false) will set bit #3 to false.
+            % There are two modes here:
+            % 1) if VALUE is uint8, a full byte is written to port CHANNEL
+            % 2) if VALUE is logical, the single bit is set on line CHANNEL
+            % Currently Port0/A is hard-coded as input and Port1/B as
+            % output, so CHANNEL should be 1 (port B) or 9-16 (lines 1-8 in port B)
+            %
+            % o.digitalOut(1,uint8(2)) will write '2' to port B
+            % o.digitalOut(11,false) will set bit #3 on port B to false.
             if isa(value,'uint8') && ismember(channel ,[0 1])
                 % Writing a full byte to port A (channel 0) or  B (1)
                 DaqDOut(o.daq,channel,value);
+                o.dOutOld(channel+1) = value;
             elseif islogical(value)
                 % Set a single bit
                 % First get the current values of both Ports A & B;
-                current = DaqDIn(o.daq);
-                port = (channel>8)+1; %Determine which port the bit number belongs to.
-                current = current(port); %Retrieve current value of the port 
-                newValue = bitset(current,mod(channel,8),value); 
-                DaqDOut(o.daq,port-1,newValue);
+                % current = DaqDIn(o.daq);
+                % port = (channel>8)+1; %Determine which port the bit number belongs to.
+                % current = current(port); %Retrieve current value of the port 
+                % DaqDOut(o.daq,port-1,newValue);
+                
+                % using DaqDIn is sloow (i.e. framedrop slow). Simpler to just save the value
+                % note that this allows setting of multiple lines on a single port simultaneously
+                % channel(a) defines the physical line and value(a) the
+                % logical value it should be set to
+                newValue = o.dOutOld((channel(1)>8)+1); 
+                for a = 1:length(value)
+                    newValue = bitset(newValue,mod(channel(a),8),value(a)); 
+                end
+                DaqDOut(o.daq,channel(1)>8, newValue);
+                o.dOutOld((channel(1)>8)+1) = newValue;
                 
                 if size(varargin) == 1 
                     duration = varargin{1};
                     % timer function may override other functions when time is met
                     % and could cause problems for time-critical tasks
-                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current)); %#ok<CPROPLC>
+                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel(1),newValue)); %#ok<CPROPLC>
                     start(o.timer);
                 end
             else
