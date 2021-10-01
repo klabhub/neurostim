@@ -116,7 +116,7 @@ classdef movie < neurostim.stimulus
                 % Do not scale
                 o.height = o.cic.screen.height*o.yPixels/o.cic.screen.ypixels;
             end
-            o.rect = 0.5*[-o.width -o.height o.width o.height];
+            o.rect = 0.5*[-o.width o.height o.width -o.height];
             o.fracFrameCntr=  1;% Reset the fractional frame cntr
             
         end
