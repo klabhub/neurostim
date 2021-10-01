@@ -185,11 +185,7 @@ classdef block < dynamicprops
         end
         
         function afterTrial(o,c)
-            allBehaviors  = c.behaviors;
-            success = true;
-            for i=1:numel(allBehaviors)
-                success = success && (~allBehaviors(i).required || allBehaviors(i).isSuccess);
-            end
+            success = trialSuccess(c); % Success defined by all required behaviors
             o.nrRetried = o.nrRetried + afterTrial(o.design,success); % Update the design object
         end
         
