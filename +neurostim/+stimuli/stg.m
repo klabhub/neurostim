@@ -576,7 +576,7 @@ classdef stg < neurostim.stimulus
                 o.device.SendChannelData(thisChannel-1,adValues,uint64(step*1e6*ones(size(time))));
                 if ~isempty(o.syncOutChannel)
                     o.device.ClearSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1);
-                    o.device.SendSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1,uint16(1),1e3*thisDuration);
+                    o.device.SendSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1,uint16(1),uint64(1e3*thisDuration));
                 end
                 
             end
