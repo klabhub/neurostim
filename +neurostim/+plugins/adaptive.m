@@ -220,8 +220,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             % for trials in which the behavior is not complete (i.e. success= false) 
            
             if isempty(o.design) || (strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions))% Check that this adaptive belongs to the current condition
-               if o.cic.trial > o.ignoreN  && trialSuccess(o.cic,o.requiredBehaviors)
-                   o.name
+               if o.cic.trial > o.ignoreN  && trialSuccess(o.cic,o.requiredBehaviors)                   
                     % Evaluate the function that the user provided (returning correct/incorrect) and store it.
                     %We'll use it to update the adaptive value in beforeTrial()
                     o.lastOutcome = o.trialOutcome;
