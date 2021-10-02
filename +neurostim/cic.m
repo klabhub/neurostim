@@ -91,7 +91,7 @@ classdef cic < neurostim.plugin
     
     %% Protected properties.
     % These are set internally
-    properties (GetAccess=public, SetAccess =protected)
+    properties (GetAccess=public, SetAccess ={?neurostim.plugin})
         %% Program Flow
         mainWindow = []; % The PTB window
         overlayWindow =[]; % The color overlay for special colormodes (VPIXX-M16)
@@ -2127,39 +2127,31 @@ classdef cic < neurostim.plugin
         end
         
         function c = loadobj(o)
-            
+            % Classdef has changed over time - fix some things here.
             if isstruct(o)
                 % Current CIC classdef does not match classdef in force
                 % when this object was saved.
-                current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
-                fromFile = o;
-                %-- This cannot be moved to a function due to class access
-                %permissions.
-                m= metaclass(current);
-                dependent = [m.PropertyList.Dependent];
-                % Find properties that we can set now (based on the stored fromFile object)
-                settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
-                storedFn = fieldnames(fromFile);
-                missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
-                missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
-                toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
-                fprintf('Fixing backward compatibility of stored Neurostim object')
-                fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
-                fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
-                for i=1:numel(toCopy)
-                    try
-                        current.(toCopy{i}) = fromFile.(toCopy{i});
-                    catch
-                        fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
-                    end
-                end
-                %---
-                c = current;
+                % Create an object according to the current classdef
+                current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)                
+                % And upgrade the one that was stored using the plugin
+                % static member.
+                c = neurostim.plugin.updateClassDef(o,current);                
             else
-                c = o;
-                c.loadedFromFile = true; % Set to true to avoid PTB dependencies
+                % No need to call the plugin.loadobj
+                c = o;              
             end
             
+            c.loadedFromFile = true; % Set to true to avoid PTB dependencies
+            % Some postprocessing. 
+            
+            % The saved plugins and parameters of CIC still refer to the old-style (i.e. saved)
+            % cic. Update the handle
+            c.cic = c; % Self reference needed 
+            
+           for plg = c.pluginOrder
+               plg.cic = c; % Point each plugin to the updated/new style cic.
+           end
+          
             
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
@@ -2178,7 +2170,11 @@ classdef cic < neurostim.plugin
                 storeInLog(c.prms.firstFrame,fakeFF,NaN)
             end
             
-            
+            % Check c.stage and issue a warning if this seems like a crashed session
+            if c.stage ~= neurostim.cic.POST
+                warning('This experiment ended unexpectedly (c.stage == %i; Should be %i). Some trials may be missing.', ...
+                c.stage,neurostim.cic.POST);
+            end
             
         end
         

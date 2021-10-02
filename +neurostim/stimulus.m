@@ -36,7 +36,7 @@ classdef stimulus < neurostim.plugin
         frame; % frame since start of stimulus
     end
     
-    properties (SetAccess = protected, GetAccess = public)
+    properties (SetAccess = {?neurostim.plugin}, GetAccess = public)
         flags = struct('on',true);
         stimstart = false;
         stimstop = false;
@@ -282,10 +282,14 @@ classdef stimulus < neurostim.plugin
         end
         
         function diodeFlasherOn(s,locWindow)
+            % Don't rotate or scale with the stimulus
+            Screen('glLoadIdentity', locWindow);
             Screen('FillRect',locWindow,s.diodeFlasher.onColor,s.diodeFlasher.position);
         end
         
         function diodeFlasherOff(s,locWindow)
+            % Don't rotate or scale with the stimulus
+            Screen('glLoadIdentity', locWindow);
             Screen('FillRect',locWindow,s.diodeFlasher.offColor,s.diodeFlasher.position);
         end
         
@@ -438,15 +442,16 @@ classdef stimulus < neurostim.plugin
             end
 
             %% Flash
-            if s.diodeFlasher.enabled
-                Screen('glLoadIdentity',locWindow);% Don't rotate or scale with the stimulus
+            
+            if s.diodeFlasher.enabled        
                 if s.flags.on
                    diodeFlasherOn(s,locWindow);
                 else                                        
                    diodeFlasherOff(s,locWindow); 
                 end
             end
-            
+            % WARNING: the diode flasher flushes the coord system for this
+            % stim. No further drawing beyond this point.
         end
         
         function baseAfterFrame(s)
@@ -464,11 +469,11 @@ classdef stimulus < neurostim.plugin
         end
         
         function baseBeforeItiFrame(s)
-            if s.loc_disabled
-                if s.diodeFlasher.enabled; diodeFlasherOff(s);end                
+            if s.loc_disabled               
+                if s.diodeFlasher.enabled; diodeFlasherOff(s,s.window);end                
                 return;
             end
-            % The flags.on parameter is used **as is** from the last frame
+            % The flags.on parameter is used **as is** from the l`ast frame
             % (frames are not updated in the ITI)                       
             locWindow = s.window;   
             if s.flags.on
@@ -488,7 +493,7 @@ classdef stimulus < neurostim.plugin
             
             % diodeFlasher is in pixel coordinates, so after glLoadIdentity
             if s.diodeFlasher.enabled
-                Screen('glLoadIdentity', locWindow);
+     
                 % The diodeFlasher should reflect whether the stimulus is
                 % visible or not.
                 if s.flags.on && ~s.cic.itiClear
@@ -497,6 +502,8 @@ classdef stimulus < neurostim.plugin
                     diodeFlasherOff(s,locWindow); 
                 end       
             end
+            % WARNING: the diode flasher flushes the coord system for this
+            % stim. No further drawing beyond this point.
         end
         
         
