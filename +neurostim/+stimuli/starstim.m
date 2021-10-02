@@ -187,7 +187,7 @@ classdef starstim < neurostim.stimulus
             stop(o);
         end
         function disp(o)
-            disp(sprintf('Starstim Host: %s  Status: %s',o.host,o.status));
+            fprintf('Starstim Host: %s  Status: %s',o.host,o.status);
         end
         
         % Destructor
@@ -953,13 +953,16 @@ classdef starstim < neurostim.stimulus
     end
     
     methods (Static)
-        function o= loadobj(o)
+        % Classdef has changed over time; fix backward compatibility here. 
+        % This cannot be replaced with a generic plugin.loadoj as that function
+        % will not know what kind of object Matlab just tried to load.        
+        function o= loadobj(o) 
             if isstruct(o)
                 % This saved object did not match the current classdef.
                 % Create a current class def
                 current = neurostim.stimuli.starstim(neurostim.cic('fromFile',true)); % Create current
                 % And use this to update the old one:
-                o = neurostim.plugin.updateClassdef(o,current);
+                o = neurostim.plugin.updateClassDef(o,current);  % This updating is generic or all plugins
             end
             o.mustExit = false; % No active connection on load, so no need to exit.
         end

@@ -2127,7 +2127,7 @@ classdef cic < neurostim.plugin
         end
         
         function c = loadobj(o)
-            
+            % Classdef has changed over time - fix some things here.
             if isstruct(o)
                 % Current CIC classdef does not match classdef in force
                 % when this object was saved.
@@ -2135,12 +2135,13 @@ classdef cic < neurostim.plugin
                 current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)                
                 % And upgrade the one that was stored using the plugin
                 % static member.
-                c = neurostim.plugin.updateClassdef(o,current);                
+                c = neurostim.plugin.updateClassDef(o,current);                
             else
-                c = o;
-                c.loadedFromFile = true; % Set to true to avoid PTB dependencies
+                % No need to call the plugin.loadobj
+                c = o;              
             end
             
+            c.loadedFromFile = true; % Set to true to avoid PTB dependencies
             % Some postprocessing. 
             
             % The saved plugins and parameters of CIC still refer to the old-style (i.e. saved)

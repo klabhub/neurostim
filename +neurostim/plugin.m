@@ -816,17 +816,18 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     end
     
     methods (Static)
-        function   current = updateClassdef(old,current)
-            % This funciton is called from a loadobj function in a plugins
+                     
+          function fromCurrentClassdef = updateClassDef(fromFile,fromCurrentClassdef)                    
+            % This function is called from a loadobj function in a plugins
             % derived class to resolve backward compatibility
-            % old   - the struct that was loaded from file (this plugin's properties
+            % fromFile    - the struct that was loaded from file (this plugin's properties
             %         no longer match the current class definition, hence the need
             %         for updating)
-            % current - An object that matches the current class definition
+            % fromCurrentClassdef - An object that matches the current class definition
             %           (presumably created in the derived class by calling the
             %           constructor)
             % OUTPUT
-            %  current - An object mactching the current class definition,
+            %  fromCurrentClassdef - An object mactching the current class definition,
             %  with default  values for "new" properties, and the old
             %  (saved) values for the old properties.
             %
@@ -841,16 +842,25 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % R2020a) that dynamicproperties saved to disk are not restored
             % properly. 
             %
+            % Note that for most plugins saved versions still match the
+            % classdef; they won't have a loadobj  function.
+            % Once a plugin needs a loadobj, it should create its own
+            % function (where a new, empty object with the curent
+            % classdef can be constructe, do any derived class specific changes, 
+            % and then call this plugin.loadobj. For examples see cic.m ad
+            % stimuli.starstim.m                        
+            %
             % BK - Sept 2021
             
-            m= metaclass(current);
+                         
+            m= metaclass(fromCurrentClassdef);
             dependent = [m.PropertyList.Dependent];
             % Find properties that we can set now (based on the stored fromFile object)            
-            storedFn = fieldnames(old);
+            storedFn = fieldnames(fromFile);
             missingInSaved  = strcat(setdiff({m.PropertyList(~dependent).Name},storedFn),' / ');
             missingInCurrent  = strcat(setdiff(storedFn,{m.PropertyList(~dependent).Name}),' / ');
             toCopy= intersect(storedFn,{m.PropertyList(~dependent).Name});
-            fprintf('Fixing backward compatibility of stored ***%s***object.\n',m.Name)
+            fprintf('Fixing backward compatibility of stored ***%s*** object.\n',m.Name)
             if ~isempty(missingInSaved)
                 fprintf('Not defined when saved (will get current default values):\n ');
                 fprintf('\t%s',missingInSaved{:})
@@ -863,7 +873,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             end
             for i=1:numel(toCopy)
                 try
-                    current.(toCopy{i}) = old.(toCopy{i});
+                    fromCurrentClassdef.(toCopy{i}) = fromFile.(toCopy{i});
                 catch me
                     fprintf('\t Failed to set %s(will get current default value): %s\n', toCopy{i},me.message)
                 end
@@ -872,26 +882,26 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             
             % Restore dynamic properties which appear to be lost (probably
             % because a struct (old) cannot have dynprops            
-            prmsNames= fieldnames(current.prms);
+            prmsNames= fieldnames(fromCurrentClassdef.prms);
             for p=1:numel(prmsNames)
-                hDynProp = findprop(current,prmsNames{p});
+                hDynProp = findprop(fromCurrentClassdef,prmsNames{p});
                 if isempty(hDynProp)
                     % Stored object had a dynprop that is no longer
                     % constructed now. Recreate it (ignoring anys special
                     % options)
-                    hDynProp = addprop(current,prmsNames{p});
+                    hDynProp = addprop(fromCurrentClassdef,prmsNames{p});
                 end
                 % Delete the handle to the dynprop that was stored (but not
                 % restored on load)
-                delete(current.prms.(prmsNames{p}).hDynProp)
+                delete(fromCurrentClassdef.prms.(prmsNames{p}).hDynProp)
                 % Then link the neurostim.parameter to the dynprop created
                 % in the default constructor call using the current
                 % classdef (current) (By now current.prms has the values
                 % corresponding to the saved object)
-                current.prms.(prmsNames{p}).hDynProp = hDynProp;
+                fromCurrentClassdef.prms.(prmsNames{p}).hDynProp = hDynProp;
                 % And set the dynprop to return only the current (i.e.
                 % last) value in the neurostim.parameter and never update.
-                hDynProp.GetMethod = @(varargin) (current.prms.(prmsNames{p}).value);
+                hDynProp.GetMethod = @(varargin) (fromCurrentClassdef.prms.(prmsNames{p}).value);
                 hDynProp.SetMethod = @(varargin) (NaN);
                 
                 % Then make sure the .plg member of the parameter links to
@@ -903,10 +913,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     % warning. Instead delete it explicitly here, and hide the warning
                     % to avoid confusion
                     warning('off','MATLAB:class:DestructorError')
-                     delete(current.prms.(prmsNames{p}).plg);
+                     delete(fromCurrentClassdef.prms.(prmsNames{p}).plg);
                     warning('on','MATLAB:class:DestructorError')                    
                 end
-                current.prms.(prmsNames{p}).plg = current;                
+                fromCurrentClassdef.prms.(prmsNames{p}).plg = fromCurrentClassdef;                
             end
         end
     end
