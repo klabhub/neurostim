@@ -331,7 +331,7 @@ classdef starstim < neurostim.stimulus
             if isempty(o.inlet)
                 stream = lsl_resolve_byprop(o.lsl,'type','EEG');
                 if isempty(stream)
-                    error('Failed to creat an EEG inlet');
+                    o.cic.error('STOPEXPERIMENT','No EEG stream found');
                 else
                     o.inlet = lsl_inlet(stream{1},o.eegMaxBuffered,o.eegChunkSize,double(o.eegRecover));
                     o.inlet.open_stream;% Start buffering
@@ -477,9 +477,9 @@ classdef starstim < neurostim.stimulus
             end
         end
         
-        function afterFrame(o)
+        %function afterFrame(o)
             %handleEeg(o,o.eegAfterFrame); DISABLED FOR NOW - not likely to be fast enough... need some pacer.
-        end
+        %end
         
         function afterTrial(o)
             switch upper(o.mode)
@@ -519,6 +519,10 @@ classdef starstim < neurostim.stimulus
                 nrChannels = numel(o.eegChannels);
                 tmpEeg = rand([nrSamples nrChannels]);
                 time = (0:(nrSamples-1))';
+            elseif isempty(o.inlet)
+                % Allow graceful exit
+                o.writeToFeed('No EEG inlet...fake EEG'); 
+                tmpEeg = [];
             else
                 [tmpEeg,time] = o.inlet.pull_chunk;
                 tmpEeg = tmpEeg(o.eegChannels,:)';
@@ -670,7 +674,7 @@ classdef starstim < neurostim.stimulus
                         o.checkRet(ret,msg);
                     end
                 otherwise
-                    error(['Unknown stimulation type : ' o.type]);
+                     o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
             end
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
             
@@ -728,7 +732,7 @@ classdef starstim < neurostim.stimulus
                         setFilterTrns(o,false); % Remove filter.
                         o.checkRet(ret,sprintf('tRNS Set to zero'));
                     otherwise
-                        error(['Unknown stimulation type : ' o.type]);
+                         o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
                 end
             end
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
