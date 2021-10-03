@@ -98,7 +98,7 @@ classdef starstim < neurostim.stimulus
     properties (SetAccess={?neurostim.plugin}, GetAccess= public)
         NICVersion;
         matNICVersion;
-        code= containers.Map('KeyType','char','ValueType','double');
+        code= containers.Map('KeyType','char','ValueType','double'); %#ok<MCHDP> 
         mustExit= false;
         
         lsl=[];  % The LsL library
@@ -109,8 +109,7 @@ classdef starstim < neurostim.stimulus
     % Public Get, but set through functions or internally
     properties (Transient, SetAccess=protected, GetAccess= public)
         sock;               % Socket for communication with the host.
-        markerStream;       % LSL stream to write markers in NIC
-        impedanceCheck= false; % Set to false to skip the Z-check at the start of the experiment (debug only)
+        markerStream;       % LSL stream to write markers in NIC        
         
         isTimedStarted= false;
         isShamOn= false;
@@ -291,6 +290,7 @@ classdef starstim < neurostim.stimulus
                 else
                     pth = o.path;
                 end
+
                 ret  = MatNICConfigurePathFile (pth, o.sock); % Specify target directory
                 o.checkRet(ret,'PathFile');
                 % File format : % YYYYMMDD_[subject].edf
@@ -316,8 +316,11 @@ classdef starstim < neurostim.stimulus
             unloadProtocol(o); % Remove whatever is loaded currently (if anything)
             % Prepare for EEG reading
             if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
-                openEegStream(o);
-                
+                openEegStream(o);                
+            end
+            [ret,imp] = MatNICGetImpedance(o.sock);
+            if ret>=0
+                o.z = imp; % Store the latest impeance values
             end
         end
         
@@ -328,10 +331,16 @@ classdef starstim < neurostim.stimulus
                 o.lsl = lsl_loadlib;
             end
             
-            if isempty(o.inlet)
-                stream = lsl_resolve_byprop(o.lsl,'type','EEG');
+            if isempty(o.inlet)                
+                stream = lsl_resolve_byprop(o.lsl,'type','EEG');                
                 if isempty(stream)
-                    o.cic.error('STOPEXPERIMENT','No EEG stream found');
+                    allLsl = lsl_resolve_all(o.lsl);
+                    if ~isempty(allLs)
+                        str = strjoin(cellfun(@(x) (string([x.type ':' x.name ' '])),allLsl));                       
+                    else
+                        str = 'No LSL streams found';
+                    end
+                    o.cic.error('STOPEXPERIMENT',sprintf('No EEG stream found. (%s)',str));                    
                 else
                     o.inlet = lsl_inlet(stream{1},o.eegMaxBuffered,o.eegChunkSize,double(o.eegRecover));
                     o.inlet.open_stream;% Start buffering
@@ -358,28 +367,20 @@ classdef starstim < neurostim.stimulus
                 if ret ~=0
                     o.checkRet(ret,['Protocol ' o.protocol ' is not defined in NIC']);
                 else
-                    o.activeProtocol = o.protocol;
-                    % Would be nice to set everything to zero in the potocol so that only the
-                    % parameters defined here (in Neurostim) will be
-                    % applied. But, the OnlineChange functions in MatNIC
-                    % only work after the protocol has started so the
-                    % following code will not work (even after modifying the MatNIC code
-                    % to get teh message passed to NIC). (Instead, the user
-                    % should define a zero-current protocol, but this has
-                    % the disadvantage that a separate protocol is needed
-                    % to do Impedance checks.
-                    %[ret] = MatNICOnlineAtacsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
-                    %     o.checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
-                    %    [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
-                    %   o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
-                    
+                    o.activeProtocol = o.protocol;                   
                 end
             end
         end
         
         function unloadProtocol(o)
-            if o.fake || ~ischar(o.protocolStatus) || ismember(o.protocolStatus,{'CODE_STATUS_IDLE','CODE_STATUS_STIMULATION_FULL','error/unknown'})
+            if o.fake || ~ischar(o.protocolStatus) || ismember(o.protocolStatus,{'CODE_STATUS_IDLE','error/unknown'})
                 return; % No protocol loaded.
+            end
+            % Z-checks lead to this status. Ignoring DOESN'T REALLY HELP...
+            % LATER LOADPROTOCOL FAILS.
+            if strcmpi(o.protocolStatus,'CODE_STATUS_STIMULATION_FULL')
+                o.writeToFeed('Not unloading...')
+               return;
             end
             ret = MatNICUnloadProtocol(o.sock);
             if ret==-8 % protocol running abort
@@ -405,7 +406,7 @@ classdef starstim < neurostim.stimulus
             if ~strcmpi(o.protocol,o.activeProtocol)
                 stop(o);
                 unloadProtocol(o);
-                loadProtocol(o);
+                loadProtocol(o);                        
                 start(o);  % Start it (protocols should have zero current and a long duration)
             end
             
@@ -564,10 +565,12 @@ classdef starstim < neurostim.stimulus
                 stop(o);
             end
             
-            if o.impedanceCheck
-                impedance(o);
+            [ret,imp] = MatNICGetImpedance(o.sock);
+            if ret>=0
+                o.z = imp; % Store the latest impeance values
             end
-            
+
+
             unloadProtocol(o);
             if o.fake
                 o.writeToFeed('Closing Markerstream');
@@ -587,19 +590,7 @@ classdef starstim < neurostim.stimulus
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
             
         end
-        
-        function troubleShoot(o)
-            %%
-            %             beforeExperiment(o);
-            %             loadProtocol(o);
-            %             start(o);
-            %             %%
-            %             o.mean = [-1000 1000 0 0 0 0 0 0];
-            %             %for i=1:10
-            %                rampUp(o,250);
-            %              %   wait(o.tmr)
-            %             %end
-        end
+                
     end
     
     
@@ -804,16 +795,23 @@ classdef starstim < neurostim.stimulus
         
         function impedance(o)
             % Measure and store impedance.
+            % One problem with this impedance check is that, once it
+            % completes, the status is CODE_STATUS_STIMULATION_FULL ; that
+            % causes real pronlems later on. 
+            %  So it seems better to run the z-check from NIC (using a
+            %  non-zero current protocol) and not use this function.
+            % We do retrieve and store z-values in beforeExperiment an
+            % afterExperiment
             if o.fake
                 impedance = rand;
             else
                 % Do a impedance check and store current values (protocol
                 % must be loaded, but not started).
                 [ret,impedance] = MatNICManualImpedance(o.impedanceType,o.sock);
-                o.checkRet(ret,'Impedance check failed');
+                o.checkRet(ret,'Impedance check failed');                                
             end
-            o.writeToFeed(['Impedance check done:' num2str(impedance)]);
-            o.z = impedance;  % Update the impedance.
+            o.writeToFeed(['Impedance check done:' num2str(impedance(:)'/1000,1) 'kOhm']);
+            o.z = impedance;  % Update the impedance.            
         end
         
         function checkRet(o,ret,msg)
