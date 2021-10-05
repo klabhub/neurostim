@@ -81,12 +81,13 @@ classdef starstim < neurostim.stimulus
     %  number or name of the NIC machine in the constructor)
     %
     % BK - Feb 2016, 2017
-    
+
     properties (SetAccess =public, GetAccess=public)
         stim=false;
         impedanceType= 'DC'; % Set to DC or AC to measure impedance at DC or xx Hz AC.
         NRCHANNELS = 8;  % nrChannels in your device.
         debug = false;
+        verbose = false;
         
         % EEG parms that need fast acces (and therefore not a property)
         eegAfterTrial = []; % Function handle fun(eeg,time,starstimObject)
@@ -98,27 +99,27 @@ classdef starstim < neurostim.stimulus
     properties (SetAccess={?neurostim.plugin}, GetAccess= public)
         NICVersion;
         matNICVersion;
-        code= containers.Map('KeyType','char','ValueType','double'); %#ok<MCHDP> 
+        code= containers.Map('KeyType','char','ValueType','double'); %#ok<MCHDP>
         mustExit= false;
-        
+
         lsl=[];  % The LsL library
         inlet=[];  % An LSL inlet
-        
+
     end
-    
+
     % Public Get, but set through functions or internally
     properties (Transient, SetAccess=protected, GetAccess= public)
         sock;               % Socket for communication with the host.
-        markerStream;       % LSL stream to write markers in NIC        
-        
+        markerStream;       % LSL stream to write markers in NIC
+
         isTimedStarted= false;
         isShamOn= false;
-        
+
         activeProtocol='';
         tmr; % A timer
     end
-    
-    
+
+
     % Dependent properties
     properties (Dependent)
         status;        % Current status (queries the NIC)
@@ -126,7 +127,7 @@ classdef starstim < neurostim.stimulus
         isProtocolOn;
         isProtocolPaused;
     end
-    
+
     methods % get/set dependent functions
         function [v] = get.status(o)
             if o.fake
@@ -138,7 +139,7 @@ classdef starstim < neurostim.stimulus
                 end
             end
         end
-        
+
         function v = get.protocolStatus(o)
             if o.fake
                 v = ' Fake Protocol OK';
@@ -149,7 +150,7 @@ classdef starstim < neurostim.stimulus
                 end
             end
         end
-        
+
         function v= get.isProtocolOn(o)
             if o.fake
                 v =true;
@@ -161,9 +162,9 @@ classdef starstim < neurostim.stimulus
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_EEG_ON'});
                 end
             end
-            
+
         end
-        
+
         function v= get.isProtocolPaused(o)
             if o.fake
                 v =true;
@@ -176,19 +177,23 @@ classdef starstim < neurostim.stimulus
                 end
             end
         end
-        
-        
+
+
     end
-    
+
     methods % Public
-        
+        function verboseOutput(o,fun,inout)
+            if o.verbose
+                o.writeToFeed(sprintf('\t %s:%s \t %s \t %s\n',fun,inout,o.status,o.protocolStatus))
+            end
+        end
         function abort(o)
-            stop(o);
+            stop(o)
         end
         function disp(o)
             fprintf('Starstim Host: %s  Status: %s',o.host,o.status);
         end
-        
+
         % Destructor
         function delete(o)
             if o.fake
@@ -201,13 +206,13 @@ classdef starstim < neurostim.stimulus
         % Constructor. Provide a handle to CIC, the Starstim hostname.
         % You can fake a NIC by specifying 'fake' as the hostname
         function [o] = starstim(c,hst)
-            
-            
+
+
             o=o@neurostim.stimulus(c,'starstim');
             if nargin <2
                 hst = 'localhost';
             end
-            
+
             o.addProperty('host',hst);
             o.addProperty('protocol',''); % Case Sensitive - must exist on host
             o.addProperty('fake',false);
@@ -217,7 +222,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('path',''); % Set to the folder on the starstim computer where data should be stored.
             % If path is empty, the path of the neurostim output file is
             % used (which may not exist on the remote starstim computer).
-            
+
             o.addProperty('amplitude',NaN);
             o.addProperty('mean',NaN);
             o.addProperty('phase',0);
@@ -227,21 +232,21 @@ classdef starstim < neurostim.stimulus
             o.addProperty('shamDuration',0); % 0 ms means rampup, and immediately ramp down.
             o.addProperty('enabled',true);
             o.addProperty('montage',ones(1,o.NRCHANNELS));%
-            
+
             o.addProperty('tRNSFilter','off'); % Use this to limit tRNS to a specific band. See starstim.trnsFilter()
             o.addProperty('tRNSFilterParms',[]);
-            
+
             o.addProperty('marker',''); % Used to log markers sent to NIC
             o.addProperty('flipTime',[]); % USed to record fliptimes in logOnset function
-            
-            
+
+
             o.addProperty('eegChannels',[]); % Default to no EEG.
             o.addProperty('eegMaxBuffered',360);% Samples in seconds in buffer.
             o.addProperty('eegRecover',true);  % Try to recover lost connections
             o.addProperty('eegChunkSize',0); % nr samples per chunk (0 = use senders default)
             o.addProperty('eeg',[]); % Collects eeg data per pull (but only if eegStore ==true)
             o.addProperty('eegTime',[])% Starstim time corresponding to eeg data.
-            
+
             % Define  marker events to store in the NIC data file
             o.code('trialStart') = 1;
             o.code('rampUp') = 2;
@@ -251,16 +256,16 @@ classdef starstim < neurostim.stimulus
             o.code('protocolStarted') = 6;
             o.code('stopProtocol') = 7;
             o.code('stimOnset') = 8;
-            
+
         end
-        
+
         function beforeExperiment(o)
-            
+
             v = which('MatNICVersion');
             if isempty(v) && ~o.fake
                 error('The MatNIC library is not on your Matlab path');
             end
-            
+
             %% Remove straggling timers
             timrs = timerfind('name','starstim.timer');
             if ~isempty(timrs)
@@ -268,7 +273,7 @@ classdef starstim < neurostim.stimulus
                 delete(timrs)
             end
             o.tmr= timer('name','starstim.timer');
-            
+
             %% Connect to host - check some prerequisites/setup
             if o.fake
                 o.writeToFeed(['Starstim connected to ' o.host]);
@@ -278,7 +283,7 @@ classdef starstim < neurostim.stimulus
                     o.cic.error('STOPEXPERIMENT',['Could not connect to ',o.host]);
                 end
                 o.mustExit = true;
-                
+
                 % This only makes sense if both the Neurostim computer and
                 % the NIC computer have access to the same path. Otherwise
                 % NIC will complain...
@@ -303,7 +308,7 @@ classdef starstim < neurostim.stimulus
                 o.checkRet(ret,'FileNameAndTypes');
                 [ret,o.markerStream] = MatNICMarkerConnectLSL('Neurostim');
                 o.checkRet(ret,'Please enable the Neurostim Marker Stream in NIC');
-                
+
                 key = keys(o.code);
                 vals = values(o.code);
                 for i=1:length(o.code)
@@ -316,45 +321,48 @@ classdef starstim < neurostim.stimulus
             unloadProtocol(o); % Remove whatever is loaded currently (if anything)
             % Prepare for EEG reading
             if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
-                openEegStream(o);                
+                openEegStream(o);
             end
             [ret,imp] = MatNICGetImpedance(o.sock);
             if ret>=0
                 o.z = imp; % Store the latest impeance values
             end
         end
-        
+
         function openEegStream(o)
+            o.verboseOutput('openEegStream','entry')
             % This will do nothing if the stream is already open, but
             % create a stream otherwise.
             if isempty(o.lsl)
                 o.lsl = lsl_loadlib;
             end
-            
-            if isempty(o.inlet)                
-                stream = lsl_resolve_byprop(o.lsl,'type','EEG');                
+
+            if isempty(o.inlet)
+                stream = lsl_resolve_byprop(o.lsl,'type','EEG');
                 if isempty(stream)
                     allLsl = lsl_resolve_all(o.lsl);
                     if ~isempty(allLs)
-                        str = strjoin(cellfun(@(x) (string([x.type ':' x.name ' '])),allLsl));                       
+                        str = strjoin(cellfun(@(x) (string([x.type ':' x.name ' '])),allLsl));
                     else
                         str = 'No LSL streams found';
                     end
-                    o.cic.error('STOPEXPERIMENT',sprintf('No EEG stream found. (%s)',str));                    
+                    o.cic.error('STOPEXPERIMENT',sprintf('No EEG stream found. (%s)',str));
                 else
                     o.inlet = lsl_inlet(stream{1},o.eegMaxBuffered,o.eegChunkSize,double(o.eegRecover));
                     o.inlet.open_stream;% Start buffering
                 end
             end
+            o.verboseOutput('openEegStream','exit')
         end
-        
+
         function loadProtocol(o,prtcl)
+            o.verboseOutput('loadProtocol','entry')
             if nargin >1
                 % new protocol defined
                 unloadProtocol(o); % Unload current
                 o.protocol= prtcl;
             end
-            
+
             if o.fake
                 o.writeToFeed([o.protocol ' protocol loaded'])
                 o.activeProtocol = o.protocol;
@@ -367,36 +375,32 @@ classdef starstim < neurostim.stimulus
                 if ret ~=0
                     o.checkRet(ret,['Protocol ' o.protocol ' is not defined in NIC']);
                 else
-                    o.activeProtocol = o.protocol;                   
+                    o.activeProtocol = o.protocol;
                 end
             end
+            o.verboseOutput('loadProtocol','exit')
         end
-        
+
         function unloadProtocol(o)
-            if o.fake || ~ischar(o.protocolStatus) || ismember(o.protocolStatus,{'CODE_STATUS_IDLE','error/unknown'})
-                return; % No protocol loaded.
+            o.verboseOutput('unloadProtocol','entry')
+            if ~o.fake &&  ischar(o.protocolStatus) && ~ismember(o.protocolStatus,{'CODE_STATUS_IDLE','error/unknown'}) 
+                ret = MatNICUnloadProtocol(o.sock);
+                if ret==-8 % protocol running abort
+                    stop(o);
+                    % Then try again
+                    unloadProtocol(o);
+                elseif ret<0
+                    o.checkRet(ret,'Could not unload the current protocol.')
+                else
+                    o.activeProtocol ='';
+                end
             end
-            % Z-checks lead to this status. Ignoring DOESN'T REALLY HELP...
-            % LATER LOADPROTOCOL FAILS.
-            if strcmpi(o.protocolStatus,'CODE_STATUS_STIMULATION_FULL')
-                o.writeToFeed('Not unloading...')
-               return;
-            end
-            ret = MatNICUnloadProtocol(o.sock);
-            if ret==-8 % protocol running abort
-                stop(o);
-                % Then try again
-                unloadProtocol(o);
-            elseif ret<0
-                o.checkRet(ret,'Could not unload the current protocol.')
-            else
-                o.activeProtocol ='';
-            end
+            o.verboseOutput('unloadProtocol','exit')
         end
-        
-        
-        
-        
+
+
+
+
         function beforeTrial(o)
             if isempty(o.protocol)
                 o.cic.error('STOPEXPERIMENT','The Starstim plugin requires a protocol to be specified');
@@ -406,21 +410,21 @@ classdef starstim < neurostim.stimulus
             if ~strcmpi(o.protocol,o.activeProtocol)
                 stop(o);
                 unloadProtocol(o);
-                loadProtocol(o);                        
+                loadProtocol(o);
                 start(o);  % Start it (protocols should have zero current and a long duration)
             end
-            
+
             if ~hasValidParameters(o)
                 return;
             end
-            
+
             %% Open eeg stream if necessary
             if ~isempty(o.eegChannels) && ~o.fake
                 openEegStream(o); % This will do nothing if the stream is already open
             end
             sendMarker(o,'trialStart'); % Mark in Starstim data file
-            
-            
+
+
             %% Depending on the mode, do something
             switch upper(o.mode)
                 case 'BLOCKED'
@@ -433,17 +437,17 @@ classdef starstim < neurostim.stimulus
                         rampUp(o);
                     end
                 case 'TIMED'
-                    
+
                 case 'EEGONLY'
                     % Do nothing
-                    
+
                 otherwise
                     o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
-            
-            
+
+
         end
-        
+
         function beforeFrame(o)
             % ******* DEVELOPER NOTE ****************
             % When adding more complex , timed modes of stimulation, take
@@ -451,7 +455,7 @@ classdef starstim < neurostim.stimulus
             % especially when ussing the MatNICOnlinetACSChange function
             % which applies frequency and phase changes immediately, and
             % then ramps the amplitude (best not to use that one).
-            
+
             switch upper(o.mode)
                 case {'BLOCKED','TRIAL'}
                     % These modes do not change stimulation within a
@@ -477,11 +481,11 @@ classdef starstim < neurostim.stimulus
                     o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
         end
-        
+
         %function afterFrame(o)
-            %handleEeg(o,o.eegAfterFrame); DISABLED FOR NOW - not likely to be fast enough... need some pacer.
+        %handleEeg(o,o.eegAfterFrame); DISABLED FOR NOW - not likely to be fast enough... need some pacer.
         %end
-        
+
         function afterTrial(o)
             switch upper(o.mode)
                 case 'BLOCKED'
@@ -500,13 +504,13 @@ classdef starstim < neurostim.stimulus
                 otherwise
                     o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
-            
+
             % Send a trial start marker to the NIC
             sendMarker(o,'trialStop');
             handleEeg(o,o.eegAfterTrial);
         end
-        
-        
+
+
         function handleEeg(o,fun)
             % fun is a function_handle : either o.eegAfterTrial or
             % o.eegAfterFrame
@@ -514,7 +518,7 @@ classdef starstim < neurostim.stimulus
                 % Nothing to do
                 return;
             end
-            
+
             if o.fake
                 nrSamples= 1000;
                 nrChannels = numel(o.eegChannels);
@@ -522,22 +526,22 @@ classdef starstim < neurostim.stimulus
                 time = (0:(nrSamples-1))';
             elseif isempty(o.inlet)
                 % Allow graceful exit
-                o.writeToFeed('No EEG inlet...fake EEG'); 
+                o.writeToFeed('No EEG inlet...fake EEG');
                 tmpEeg = [];
             else
                 [tmpEeg,time] = o.inlet.pull_chunk;
                 tmpEeg = tmpEeg(o.eegChannels,:)';
                 time = time';
             end
-            
+
             [nrSamples,nrChannels] = size(tmpEeg);
             if nrSamples ==0
                 o.writeToFeed('No EEG Data received....?');
                 tmpEeg = nan(1,nrChannels);
                 time = nan;
             end
-            
-            
+
+
             if ~isempty(fun)
                 try
                     fun(tmpEeg,time,o); % [nrSamples nrChannels]
@@ -551,9 +555,9 @@ classdef starstim < neurostim.stimulus
                 o.eegTime = time;
             end
         end
-        
+
         function afterExperiment(o)
-            
+
             if isvalid(o.tmr)
                 o.tmr.stop; % Stop the timer
             end
@@ -564,7 +568,7 @@ classdef starstim < neurostim.stimulus
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
             end
-            
+
             [ret,imp] = MatNICGetImpedance(o.sock);
             if ret>=0
                 o.z = imp; % Store the latest impeance values
@@ -575,31 +579,31 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 o.writeToFeed('Closing Markerstream');
             else
-                
+
                 if ~isempty(o.inlet)
                     o.inlet.close_stream;
                     o.inlet = []; % Force a delete
                 end
-                
-                
+
+
                 MatNICMarkerCloseLSL(o.markerStream);
                 o.markerStream = [];
-                
+
                 close(o)
             end
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
-            
+
         end
-                
+
     end
-    
-    
-    
+
+
+
     methods (Access=protected)
-        
-        
+
+
         function sendMarker(o,m)
-            
+
             if o.fake
                 writeToFeed(o,[m ' marker delivered']);
                 o.marker = o.code(m); % Log it
@@ -615,22 +619,22 @@ classdef starstim < neurostim.stimulus
                 end
             end
         end
-        
+
         function v = perChannel(o,v)
             if isscalar(v)
                 v = v*o.montage;
             end
         end
-        
+
         %% Stimulation Control
-        
+
         % Based on current parameters; ramp up the current. If this is a
         % sham mode, define a timer that will ramp down again.
         function rampUp(o,peakLevelDuration)
             if nargin<2
                 peakLevelDuration =Inf;
             end
-            
+
             waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
             sendMarker(o,'rampUp');
             switch upper(o.type)
@@ -665,21 +669,21 @@ classdef starstim < neurostim.stimulus
                         o.checkRet(ret,msg);
                     end
                 otherwise
-                     o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
+                    o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
             end
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
-            
+
             waitFor(o,'CODE_STATUS_STIMULATION_FULL');
             tReachedPeak = GetSecs;
-            
+
             if o.fake || o.debug
                 o.writeToFeed(msg);
             end
-            
+
             if o.sham
                 peakLevelDuration =o.shamDuration;
             end
-            
+
             % Schedule the rampDown. Assuming that this line is executed
             % immediately after sending the rampup command to Starstim.
             if isfinite(peakLevelDuration)
@@ -689,12 +693,12 @@ classdef starstim < neurostim.stimulus
                 o.tmr.TimerFcn = {off,o,tReachedPeak};
                 start(o.tmr);
             end
-            
+
         end
-        
-        
+
+
         function rampDown(o,tScheduled)
-            
+
             waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
             if o.fake || o.debug
                 if nargin ==2
@@ -723,21 +727,21 @@ classdef starstim < neurostim.stimulus
                         setFilterTrns(o,false); % Remove filter.
                         o.checkRet(ret,sprintf('tRNS Set to zero'));
                     otherwise
-                         o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
+                        o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
                 end
             end
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
-            
-            
+
+
         end
-        
-        
+
+
         %% Protocol start/pause/stop
         % Note that this stops stim as well as EEG. So in most usage this
         % is started once and stopped at the end fo the experiment.
         function start(o)
+            o.verboseOutput('start','entry')
             % Start the current protocol.
-            
             if o.fake
                 o.writeToFeed(['Started' o.protocol ' protocol' ]);
             elseif ~o.isProtocolOn
@@ -754,13 +758,14 @@ classdef starstim < neurostim.stimulus
                 % else already started
             end
             sendMarker(o,'protocolStarted');
-            
+            o.verboseOutput('start','exit')
         end
-        
-        
-        
+
+
+
         function stop(o)
             % Stop the current protocol
+            o.verboseOutput('stop','entry')
             sendMarker(o,'stopProtocol');
             if o.fake
                 o.writeToFeed(['Stopped ' o.protocol ' protocol']);
@@ -775,11 +780,11 @@ classdef starstim < neurostim.stimulus
                 %else -  already stopped
                 waitFor(o,{'CODE_STATUS_PROTOCOL_ABORTED','CODE_STATUS_IDLE'});% Either of these is fine
             end
-            
-            
+            o.verboseOutput('stop','exit')
         end
-        
+
         function pause(o)
+            o.verboseOutput('pause','entry')
             % Pause the current protocol
             if o.fake
                 o.writeToFeed(['Paused ' o.protocol ' protocol']);
@@ -789,15 +794,16 @@ classdef starstim < neurostim.stimulus
                 waitFor(o,'CODE_STATUS_IDLE');
                 %  else already paused
             end
+            o.verboseOutput('pause','exit')
         end
-        
-        
-        
+
+
+
         function impedance(o)
             % Measure and store impedance.
             % One problem with this impedance check is that, once it
             % completes, the status is CODE_STATUS_STIMULATION_FULL ; that
-            % causes real pronlems later on. 
+            % causes real pronlems later on.
             %  So it seems better to run the z-check from NIC (using a
             %  non-zero current protocol) and not use this function.
             % We do retrieve and store z-values in beforeExperiment an
@@ -808,12 +814,12 @@ classdef starstim < neurostim.stimulus
                 % Do a impedance check and store current values (protocol
                 % must be loaded, but not started).
                 [ret,impedance] = MatNICManualImpedance(o.impedanceType,o.sock);
-                o.checkRet(ret,'Impedance check failed');                                
+                o.checkRet(ret,'Impedance check failed');
             end
             o.writeToFeed(['Impedance check done:' num2str(impedance(:)'/1000,1) 'kOhm']);
-            o.z = impedance;  % Update the impedance.            
+            o.z = impedance;  % Update the impedance.
         end
-        
+
         function checkRet(o,ret,msg)
             % Check a return value and display a message if something is
             % wrong.
@@ -823,7 +829,7 @@ classdef starstim < neurostim.stimulus
                 o.cic.error('STOPEXPERIMENT',['StarStim failed: Status ' o.status ':  ' num2str(ret)]);
             end
         end
-        
+
         function onExit(o)
             stop(o);
             timrs = timerfind('name','starstim.timer');
@@ -834,12 +840,12 @@ classdef starstim < neurostim.stimulus
             close(o)
             o.mustExit = false;
         end
-        
+
         function waitFor(o,varargin)
             % busy-wait for a sequence of status events.
             % waitFor(o,'a','b') first waits for a then for b
             % waitFor(o,{'a','b'}) waits for either a or b to occur
-            
+
             cntr =1;
             nrInSequence = numel(varargin);
             TIMEOUT = 5;
@@ -862,37 +868,37 @@ classdef starstim < neurostim.stimulus
             end
             % disp([varargin{end} ' : ' num2str(toc) 's']);
         end
-        
+
         function  ok = hasValidParameters(o)
             ok = true;
-            
+
             % Floating point values result in zero current being applied by
             % Starstim. Flag an error.
             if any(~isnan(o.amplitude) & (round(o.amplitude) ~=o.amplitude & o.amplitude <=2000 & o.amplitude >=0))
                 o.cic.error('STOPEXPERIMENT',['AC Amplitudes must be integer values (in micro ampere [0 2000]). Please correct:' num2str(o.amplitude)]);
                 ok = false;
             end
-            
+
             if any(~isnan(o.phase) & (round(o.phase) ~=o.phase | o.phase <0 | o.phase >359))
                 o.cic.error('STOPEXPERIMENT',['AC phase must be integer values [0 359]. Please correct:' num2str(o.phase)]);
                 ok = false;
             end
-            
-            
+
+
             if any(~isnan(o.frequency) & (round(o.frequency) ~=o.frequency | o.frequency <0))
                 o.cic.error('STOPEXPERIMENT',['AC frequency must be integer values (in Hz  and >0). Please correct:' num2str(o.frequency)]);
                 ok = false;
             end
-            
-            
+
+
             if any(~isnan(o.mean) & (round(o.mean) ~=o.mean & o.mean <=2000 & o.mean >=-2000))
                 o.cic.error('STOPEXPERIMENT',['DC Mean Current must be integer values (in micro ampere [-2000 2000]). Please correct:' num2str(o.mean)]);
                 ok = false;
             end
-            
-            
+
+
             %% Check current conservation.
-            
+
             minF = max(o.frequency,0.01); % Lowest frequency 0.01Hz.
             t = repmat((0:0.1:(1/minF))',[1 o.NRCHANNELS]); % One cycle for all.
             nrT = size(t,1);
@@ -902,14 +908,14 @@ classdef starstim < neurostim.stimulus
                 o.cic.error('STOPEXPERIMENT','AC Current not conserved. Please check starstim.amplitude , .frequency , and .phase numbers');
                 ok = false;
             end
-            
+
             dcCurrent = sum(perChannel(o,o.mean));
             if dcCurrent> currentThreshold
                 o.cic.error('STOPEXPERIMENT','DC Current not conserved. Please check starstim.mean');
                 ok = false;
             end
         end
-        
+
         function close(o)
             % Close connection with NIC
             if isa(o.sock,'java.net.Socket')
@@ -917,7 +923,7 @@ classdef starstim < neurostim.stimulus
                 %else probably failed to create a sock...or fake
             end
         end
-        
+
         function setFilterTrns(o,enable)
             if enable
                 switch upper(o.tRNSFilter)
@@ -953,12 +959,12 @@ classdef starstim < neurostim.stimulus
             end
         end
     end
-    
+
     methods (Static)
-        % Classdef has changed over time; fix backward compatibility here. 
+        % Classdef has changed over time; fix backward compatibility here.
         % This cannot be replaced with a generic plugin.loadoj as that function
-        % will not know what kind of object Matlab just tried to load.        
-        function o= loadobj(o) 
+        % will not know what kind of object Matlab just tried to load.
+        function o= loadobj(o)
             if isstruct(o)
                 % This saved object did not match the current classdef.
                 % Create a current class def
@@ -968,7 +974,7 @@ classdef starstim < neurostim.stimulus
             end
             o.mustExit = false; % No active connection on load, so no need to exit.
         end
-        
+
         function logOnset(s,flipTime)
             % This function sends a message to NIC to indicate that
             % a stimulus (s) just appeared on the screen (i.e. first frame flip)
@@ -982,11 +988,11 @@ classdef starstim < neurostim.stimulus
             s.cic.starstim.flipTime = flipTime;
             sendMarker(s.cic.starstim,'stimOnset'); % Send a marker to NIC.
         end
-        
-        
+
+
     end
-    
-    
+
+
     %% GUI Functions
     methods (Access= public)
         function guiSet(o,parms)
@@ -1003,22 +1009,22 @@ classdef starstim < neurostim.stimulus
             o.host = parms.Host;
         end
     end
-    
+
     methods (Static)
-        
+
         function guiLayout(p)
             % Add plugin specific elements
-            
+
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [110 39 30 22];
             h.Text = 'Host';
-            
+
             h = uieditfield(p, 'text','Tag','Host');
             h.Position = [110 17 200 22];
         end
     end
-    
-    
+
+
 end

@@ -1245,18 +1245,18 @@ classdef cic < neurostim.plugin
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
             clearOverlay(c,true);
-            
-            c.drawFormattedText(c.afterExperimentText,'ShowNow',true);
+
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
             c.KbQueueStop;
             %Prune the log of all plugins/stimuli and cic itself
             pruneLog([c.pluginOrder c]);
             
-            if c.keyAfterExperiment
-                % need to do this before we kill CLUT textures etc.
-                c.drawFormattedText('Press any key to close the screen','ShowNow',true);
-            end
+            if c.keyAfterExperiment && isempty(c.afterExperimentText)
+                c.afterExperimentText = 'Press any key to close the screen';
+            end                              
+            c.drawFormattedText(c.afterExperimentText ,'ShowNow',true);
+            
             
             % clean up CLUT textures used by SOFTWARE-OVERLAY
             if isfield(c.screen,'overlayClutTex') && ~isempty(c.screen.overlayClutTex)
