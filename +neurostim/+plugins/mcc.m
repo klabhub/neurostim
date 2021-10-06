@@ -125,27 +125,52 @@ classdef mcc < neurostim.plugins.daq
         
         
         function digitalOut(o,channel,value,varargin)
-            % digitalOut(o,channel,value [,duration])
+          % digitalOut(o,channel,value)
             % Output the value to the digital channel
-            % o.digitalOut(0,unit8(2)) will write '2' to port A
-            % o.digitalOut(3,false) will set bit #3 to false.
+            % There are two modes here: 
+            % 1) if VALUE is uint8, a full byte is written to port CHANNEL 
+            % 2) if VALUE is logical, the single bit is set on line CHANNEL 
+            %    (CHANNEL 1-8 <> port A, CHANNEL 9-16 <> port B) 
+            % The mode2 allows setting multiple lines at once (but the lines must belong the same port) 
+            %
+            % e.g.
+            % o.digitalOut(1,uint8(2)) will write '2' to port B 
+            % o.digitalOut(11,false) will set bit #3 on port B to false. 
+            %
+            % digitalOut(o,channel,value,duration)
+            % togges the output back to its previous value after DURATION [ms].
+            % currently only the mode2 accept this usage
+            
             if isa(value,'uint8') && ismember(channel ,[0 1])
                 % Writing a full byte to port A (channel 0) or  B (1)
                 DaqDOut(o.daq,channel,value);
+                o.dOutOld(channel+1) = value;
             elseif islogical(value)
-                % Set a single bit
+                % Set a single or multiple bits
                 % First get the current values of both Ports A & B;
-                current = DaqDIn(o.daq);
-                port = (channel>8)+1; %Determine which port the bit number belongs to.
-                current = current(port); %Retrieve current value of the port 
-                newValue = bitset(current,mod(channel,8),value); 
-                DaqDOut(o.daq,port-1,newValue);
+                %current = DaqDIn(o.daq);
+                port = (channel(1)>8); %Determine which port the bit number belongs to.
+                %cannot manipulate multiple ports at once
+                
+                % using DaqDIn is sloow (i.e. framedrop slow). Simpler to
+                % just save the value. Note that this allows setting of
+                % multiple lines on a single port simultaneously
+                % channel(a) defines the physical line and 
+                % logical value it should be set to
+                oldValue = o.dOutOld(port+1);
+                newValue = oldValue;
+                for a = 1:length(value)
+                    newValue = bitset(newValue, mod(channel(a),8),value(a));
+                end
+                DaqDOut(o.daq, port, newValue);
+                o.dOutOld(port+1) = newValue;
                 
                 if size(varargin) == 1 
                     duration = varargin{1};
                     % timer function may override other functions when time is met
                     % and could cause problems for time-critical tasks
-                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current)); %#ok<CPROPLC>
+                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) DaqDOut(o.daq,port,oldValue));
+
                     start(o.timer);
                 end
             else
@@ -168,7 +193,7 @@ classdef mcc < neurostim.plugins.daq
     end
     
     methods (Access=public)
-        function outputToggle(o,channel,value)
+        function outputToggle(o,channel,value) %no longer used??
             % outputToggle(o,channel,value)
             % togges the output back to its previous value once time has
             % been reached
