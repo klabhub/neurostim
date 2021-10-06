@@ -84,10 +84,11 @@ classdef starstim < neurostim.stimulus
 
     properties (SetAccess =public, GetAccess=public)
         stim=false;
-        impedanceType= 'DC'; % Set to DC or AC to measure impedance at DC or xx Hz AC.
+        impedanceType= 'None'; % Set to DC or AC to measure impedance at DC or xx Hz AC. None to not check
         NRCHANNELS = 8;  % nrChannels in your device.
         debug = false;
         verbose = false;
+        
         
         % EEG parms that need fast acces (and therefore not a property)
         eegAfterTrial = []; % Function handle fun(eeg,time,starstimObject)
@@ -160,6 +161,11 @@ classdef starstim < neurostim.stimulus
                     v =false;
                 else
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_EEG_ON'});
+                    % Hacked soltion to the 'stimulation full' protocol
+                    % status that impedance checks leave behind.
+                    if strcmpi(stts,'CODE_STATUS_STIMULATION_FULL') && strcmpi(o.status,'CODE_STATUS_CHECK_IMPEDANCE_FISNISHED')
+                      v = false; % It is not really 'on'
+                    end
                 end
             end
 
@@ -216,7 +222,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('host',hst);
             o.addProperty('protocol',''); % Case Sensitive - must exist on host
             o.addProperty('fake',false);
-            o.addProperty('z',NaN);
+            o.addProperty('z',NaN,'sticky',true);
             o.addProperty('type','tACS');%tACS, tDCS, tRNS
             o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED','EEGONLY'
             o.addProperty('path',''); % Set to the folder on the starstim computer where data should be stored.
@@ -411,6 +417,9 @@ classdef starstim < neurostim.stimulus
                 stop(o);
                 unloadProtocol(o);
                 loadProtocol(o);
+                if o.cic.trial==1 && ~strcmpi(o.impedanceType,'NONE')                    
+                    impedance(o);
+                end
                 start(o);  % Start it (protocols should have zero current and a long duration)
             end
 
@@ -810,13 +819,16 @@ classdef starstim < neurostim.stimulus
             % afterExperiment
             if o.fake
                 impedance = rand;
+            elseif strcmpi(o.impedanceType,'NONE')
+                o.writeToFeed('Please specify impedance type as AC or DC. Z-check ignore.')
+                impedance = NaN;
             else
                 % Do a impedance check and store current values (protocol
                 % must be loaded, but not started).
                 [ret,impedance] = MatNICManualImpedance(o.impedanceType,o.sock);
                 o.checkRet(ret,'Impedance check failed');
             end
-            o.writeToFeed(['Impedance check done:' num2str(impedance(:)'/1000,1) 'kOhm']);
+            o.writeToFeed(['Impedance check done: [' num2str(impedance(:)'/1000,2) '] kOhm']);
             o.z = impedance;  % Update the impedance.
         end
 
@@ -1007,6 +1019,8 @@ classdef starstim < neurostim.stimulus
                 o.fake =false;
             end
             o.host = parms.Host;
+            o.impedanceType= parms.ImpedanceType;
+            o.verbose = parms.Verbose;
         end
     end
 
@@ -1023,6 +1037,18 @@ classdef starstim < neurostim.stimulus
 
             h = uieditfield(p, 'text','Tag','Host');
             h.Position = [110 17 200 22];
+
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [325 39 90 22];
+            h.Text = 'Z-Check';
+            h = uidropdown(p,'Tag','ImpedanceType','Items',{'None','AC','DC'});
+            h.Position = [325 17 80 20];
+            
+             h = uicheckbox(p,'Tag','Verbose','Text','Verbose');
+             h.Position = [425 17 90 20];
+            
         end
     end
 
