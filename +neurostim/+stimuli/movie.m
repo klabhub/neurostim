@@ -147,7 +147,7 @@ classdef movie < neurostim.stimulus
         end
         
          function [frames_ori, frameIdx_final, timeVec, frames_final] = reconstructStimulus(o, varargin)
-            %Reconstruct the noiseclut stimulus offline of a specified trial.
+            %Reconstruct the movie stimulus offline of a specified trial.
             % INPUTS:
             % trial: trial number
             % moviePath: path to the original movie file. if empty, use the
@@ -163,7 +163,7 @@ classdef movie < neurostim.stimulus
             % OPTIONAL OUTPUTS:
             % frames_final: a 4D stack of images of all the screen
             % refleshes
-            % created from neurostim/stimli/noiseclut.m
+            % created from neurostim/stimli/noiseclut.reconstructStimulus
             
             % TODO: save every N frames of the movie or cic.frame of every
             % trials with addProperty()
@@ -330,11 +330,11 @@ classdef movie < neurostim.stimulus
             %timeVec = linspace(stimStart.trialTime, stimStop.trialTime, stimDur_Fr);
             %timeVec = c.cic.frames2ms(1:size(frames_final,4));
             
-            %disp(['#images in the movie:' num2str(size(frames_ori,4))]);
-            %disp(['#supposed frames wo dropped frames:' num2str(length(frameIdx_ds))]);
-            %disp(['#dropped frames:' num2str(size(thisFrDrData,1))]);
-            %disp(['#reconstructed frames:' num2str(length(frameIdx_final))]); %=stimDur_Fr
-            %disp(['#frames recorded:' num2str(nrFramesRecord)]);
+            disp(['#images in the movie:' num2str(size(frames_ori,4))]);
+            disp(['#supposed frames wo dropped frames:' num2str(length(frameIdx_ds))]);
+            disp(['#dropped frames:' num2str(size(thisFrDrData,1))]);
+            disp(['#reconstructed frames:' num2str(length(frameIdx_final))]); %=stimDur_Fr
+            disp(['#frames recorded:' num2str(nrFramesRecord)]);
             
         end
         
