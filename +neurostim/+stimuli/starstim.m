@@ -24,8 +24,12 @@ classdef starstim < neurostim.stimulus
     % This plugin will load the protocol, (which will record EEG but stimulate
     % at 0 currents) and then change stimulation parameters on the fly.
     %
-    % For impedance checking a separate protocol has to be used (with
-    % current>100 muA).
+    % For manual impedance checking a separate protocol has to be used (with
+    % current>100 muA). By setting the impedanceType to 'None', the Matlab
+    % interface will only read z at the start (Trial ==1)  and end o te
+    % experiment. By setting impedanceType to AC or DC, neurostim will
+    % tigger an impedance measurement before trial 1 and at the en of the
+    % experiment
     %
     % Filenaming convention for NIC output uses the name of the step in the
     % protocol. Leaving the step name blank creates cleaner file names
@@ -101,12 +105,10 @@ classdef starstim < neurostim.stimulus
         NICVersion;
         matNICVersion;
         code= containers.Map('KeyType','char','ValueType','double'); %#ok<MCHDP>
-        mustExit= false;
-
-        lsl=[];  % The LsL library
-        inlet=[];  % An LSL inlet
-
+        mustExit= false;   
     end
+
+    
 
     % Public Get, but set through functions or internally
     properties (Transient, SetAccess=protected, GetAccess= public)
@@ -118,6 +120,9 @@ classdef starstim < neurostim.stimulus
 
         activeProtocol='';
         tmr; % A timer
+
+        lsl=[];  % The LsL library
+        inlet=[];  % An LSL inlet
     end
 
 
@@ -324,15 +329,13 @@ classdef starstim < neurostim.stimulus
                 protocolSet = MatNICProtocolSet();
                 o.matNICVersion = protocolSet('MATNIC_VERSION');
             end
+
             unloadProtocol(o); % Remove whatever is loaded currently (if anything)
             % Prepare for EEG reading
             if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
                 openEegStream(o);
             end
-            [ret,imp] = MatNICGetImpedance(o.sock);
-            if ret>=0
-                o.z = imp; % Store the latest impeance values
-            end
+            
         end
 
         function openEegStream(o)
@@ -389,7 +392,7 @@ classdef starstim < neurostim.stimulus
 
         function unloadProtocol(o)
             o.verboseOutput('unloadProtocol','entry')
-            if ~o.fake &&  ischar(o.protocolStatus) && ~ismember(o.protocolStatus,{'CODE_STATUS_IDLE','error/unknown'}) 
+            if ~o.fake &&  ischar(o.protocolStatus) && ~ismember(o.protocolStatus,{'CODE_STATUS_IDLE','error/unknown'})                            
                 ret = MatNICUnloadProtocol(o.sock);
                 if ret==-8 % protocol running abort
                     stop(o);
@@ -414,10 +417,10 @@ classdef starstim < neurostim.stimulus
             end
             %% Load the protocol if it has changed
             if ~strcmpi(o.protocol,o.activeProtocol)
-                stop(o);
-                unloadProtocol(o);
+                stop(o);                
+                unloadProtocol(o);                    
                 loadProtocol(o);
-                if o.cic.trial==1 && ~strcmpi(o.impedanceType,'NONE')                    
+                if o.cic.trial==1 
                     impedance(o);
                 end
                 start(o);  % Start it (protocols should have zero current and a long duration)
@@ -577,13 +580,10 @@ classdef starstim < neurostim.stimulus
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
             end
-
-            [ret,imp] = MatNICGetImpedance(o.sock);
-            if ret>=0
-                o.z = imp; % Store the latest impeance values
-            end
-
-
+            
+            
+            % Have to wait until teh NIC software hanldes status better impedance(o);  % Read Z ('none') or perform z-check ('ac', or 'dc' type)
+            
             unloadProtocol(o);
             if o.fake
                 o.writeToFeed('Closing Markerstream');
@@ -820,15 +820,15 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 impedance = rand;
             elseif strcmpi(o.impedanceType,'NONE')
-                o.writeToFeed('Please specify impedance type as AC or DC. Z-check ignore.')
-                impedance = NaN;
+                % Only reading impedance that may or may not have been measured manually 
+                [~,impedance] = MatNICGetImpedance(o.sock);                            
             else
                 % Do a impedance check and store current values (protocol
                 % must be loaded, but not started).
                 [ret,impedance] = MatNICManualImpedance(o.impedanceType,o.sock);
                 o.checkRet(ret,'Impedance check failed');
             end
-            o.writeToFeed(['Impedance check done: [' num2str(impedance(:)'/1000,2) '] kOhm']);
+            o.writeToFeed(['Impedance: [' num2str(impedance(:)'/1000,2) '] kOhm']);
             o.z = impedance;  % Update the impedance.
         end
 
