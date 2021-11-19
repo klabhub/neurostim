@@ -1042,12 +1042,15 @@ classdef starstim < neurostim.stimulus
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [325 39 90 22];
+         
             h.Text = 'Z-Check';
             h = uidropdown(p,'Tag','ImpedanceType','Items',{'None','AC','DC'});
             h.Position = [325 17 80 20];
-            
-             h = uicheckbox(p,'Tag','Verbose','Text','Verbose');
-             h.Position = [425 17 90 20];
+            h.Enable ='off';
+            h.Tooltip = 'Z-check does not work yet. Please use manual check in NIC.';
+            h = uicheckbox(p,'Tag','Verbose','Text','Verbose');
+            h.Position = [425 17 90 20];
+
             
         end
     end
