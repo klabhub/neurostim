@@ -168,9 +168,9 @@ classdef starstim < neurostim.stimulus
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_EEG_ON'});
                     % Hacked soltion to the 'stimulation full' protocol
                     % status that impedance checks leave behind.
-                    if strcmpi(stts,'CODE_STATUS_STIMULATION_FULL') && strcmpi(o.status,'CODE_STATUS_CHECK_IMPEDANCE_FISNISHED')
-                      v = false; % It is not really 'on'
-                    end
+%                     if strcmpi(stts,'CODE_STATUS_STIMULATION_FULL') && strcmpi(o.status,'CODE_STATUS_CHECK_IMPEDANCE_FISNISHED')
+%                       v = false; % It is not really 'on'
+%                     end
                 end
             end
 
@@ -273,7 +273,7 @@ classdef starstim < neurostim.stimulus
         function beforeExperiment(o)
 
             v = which('MatNICVersion');
-            if isempty(v) && ~o.fake
+             if isempty(v) && ~o.fake
                 error('The MatNIC library is not on your Matlab path');
             end
 
@@ -330,7 +330,7 @@ classdef starstim < neurostim.stimulus
                 o.matNICVersion = protocolSet('MATNIC_VERSION');
             end
 
-            unloadProtocol(o); % Remove whatever is loaded currently (if anything)
+            %unloadProtocol(o); % Remove whatever is loaded currently (if anything)
             % Prepare for EEG reading
             if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
                 openEegStream(o);
@@ -411,7 +411,7 @@ classdef starstim < neurostim.stimulus
 
 
         function beforeTrial(o)
-            if isempty(o.protocol)
+             if isempty(o.protocol)
                 o.cic.error('STOPEXPERIMENT','The Starstim plugin requires a protocol to be specified');
                 return;
             end
@@ -817,6 +817,7 @@ classdef starstim < neurostim.stimulus
             %  non-zero current protocol) and not use this function.
             % We do retrieve and store z-values in beforeExperiment an
             % afterExperiment
+            
             if o.fake
                 impedance = rand;
             elseif strcmpi(o.impedanceType,'NONE')
