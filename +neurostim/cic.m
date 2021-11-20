@@ -77,7 +77,7 @@ classdef cic < neurostim.plugin
             'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
             'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
             'activeKb',{[]});  % Indices of keyboard that have keys associated with them. Set and used internally)
-       
+        
         %% Git version tracking
         % Set on=true to use version tracking. When false, no tracking is
         % used.
@@ -85,13 +85,13 @@ classdef cic < neurostim.plugin
         % commits are ignored).
         % Set silent = true to generate an automatic commit message (when
         % false, the user is asked to provide one).
-        % See neurostim.utils.git.versionTracker        
+        % See neurostim.utils.git.versionTracker
         gitTracker = struct('on',false,'silent',false,'commit',true);
     end
     
     %% Protected properties.
     % These are set internally
-    properties (GetAccess=public, SetAccess =protected)
+    properties (GetAccess=public, SetAccess ={?neurostim.plugin})
         %% Program Flow
         mainWindow = []; % The PTB window
         overlayWindow =[]; % The color overlay for special colormodes (VPIXX-M16)
@@ -452,6 +452,24 @@ classdef cic < neurostim.plugin
             
         end
         
+        
+        function v = trialSuccess(c,behaviors)
+            % trialSuccess: True/False
+            % Returns whether this a successful trial (as defined by all or a subset of behaviors)
+            v = true;
+            
+            allBehaviors  = c.behaviors;
+            if nargin>1
+                stay = ismember({allBehaviors.name},behaviors);
+                allBehaviors= allBehaviors(stay);
+            end
+            
+            for i=1:numel(allBehaviors)
+                v = v && (~allBehaviors(i).required || allBehaviors(i).isSuccess);
+            end
+        end
+        
+        
         function showCursor(c,name)
             if nargin <2
                 name =c.cursor;
@@ -498,7 +516,7 @@ classdef cic < neurostim.plugin
                 c.(label) = value;
             end
         end
-                              
+        
         function addScript(c,when, fun,keys)
             % It may sometimes be more convenient to specify a function m-file
             % as the basic control script (rather than write a plugin that does
@@ -601,7 +619,7 @@ classdef cic < neurostim.plugin
                     newOrder = cat(2,'gui',newOrder(~isGui));
                 end
             end
-               
+            
             c.pluginOrder = [];
             for i=1:numel(newOrder)
                 c.pluginOrder =cat(2,c.pluginOrder,c.(newOrder{i}));
@@ -614,7 +632,7 @@ classdef cic < neurostim.plugin
         end
         
         function value = hasStimulus(c,stmName)
-            value = ~isempty(c.stimuli) && any(strcmpi(stmName,{c.stimuli.name}));            
+            value = ~isempty(c.stimuli) && any(strcmpi(stmName,{c.stimuli.name}));
         end
         
         function plgs = pluginsByClass(c,classType)
@@ -656,7 +674,7 @@ classdef cic < neurostim.plugin
             c.flags.experiment =false;
         end
         
-        function o = add(c,o)            
+        function o = add(c,o)
             % Add a plugin.
             if ~isa(o,'neurostim.plugin')
                 error('Only plugin derived classes can be added to CIC');
@@ -880,11 +898,11 @@ classdef cic < neurostim.plugin
             AssertOpenGL;
             sca; % Close any open PTB windows.
             
-            % Version tracking  at run time.          
+            % Version tracking  at run time.
             c.matlabVersion = version;
             c.ptbVersion = Screen('Version');
             c.repoVersion = neurostim.utils.git.versionTracker(c.gitTracker);
-                               
+            
             % Setup the messenger
             c.messenger.localCache = c.useFeedCache;
             c.messenger.useColor = c.useConsoleColor;
@@ -1060,13 +1078,13 @@ classdef cic < neurostim.plugin
                         % Let the GPU start processing this
                         Screen('DrawingFinished',c.mainWindow,1-clr);
                         
-                       
+                        
                         
                         KbQueueCheck(c);
                         % After the KB check, a behavioral requirement
                         % can have terminated the trial. Check for that.
                         if ~c.flags.trial ;  clr = c.itiClear; end % Do not clear this last frame if the ITI should not be cleared
-                         
+                        
                         if c.timing.vsyncMode ==1
                             % In vsyncMode 1 we schedule the flip now (but
                             % then proceed asynchronously to do some
@@ -1197,11 +1215,11 @@ classdef cic < neurostim.plugin
                         
                     end % Trial running
                     c.stage = neurostim.cic.RUNNING;
-                    % 
+                    %
                     % Call beforeItiFrame (can have some ITI drawing commands),
                     % then flip and clear (if requested)
                     base(c.pluginOrder,neurostim.stages.BEFOREITIFRAME,c);
-                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);                    
+                    [~,ptbStimOn]=Screen('Flip', c.mainWindow,0,1-c.itiClear);
                     clearOverlay(c,c.itiClear);
                     c.trialStopTime = ptbStimOn*1000;
                     
@@ -1227,18 +1245,18 @@ classdef cic < neurostim.plugin
             c.stopTime = now;
             Screen('Flip', c.mainWindow,0,0);% Always clear, even if clear & itiClear are false
             clearOverlay(c,true);
-            
-            c.drawFormattedText(c.afterExperimentText,'ShowNow',true);
+
             
             base(c.pluginOrder,neurostim.stages.AFTEREXPERIMENT,c);
             c.KbQueueStop;
             %Prune the log of all plugins/stimuli and cic itself
             pruneLog([c.pluginOrder c]);
             
-            if c.keyAfterExperiment
-              % need to do this before we kill CLUT textures etc.
-              c.drawFormattedText('Press any key to close the screen','ShowNow',true);
-            end
+            if c.keyAfterExperiment && isempty(c.afterExperimentText)
+                c.afterExperimentText = 'Press any key to close the screen';
+            end                              
+            c.drawFormattedText(c.afterExperimentText ,'ShowNow',true);
+            
             
             % clean up CLUT textures used by SOFTWARE-OVERLAY
             if isfield(c.screen,'overlayClutTex') && ~isempty(c.screen.overlayClutTex)
@@ -1252,7 +1270,7 @@ classdef cic < neurostim.plugin
             ListenChar(0);
             Priority(0);
             if c.keyAfterExperiment
-              KbWait(c.kbInfo.pressAnyKey);
+                KbWait(c.kbInfo.pressAnyKey);
             end
             
             Screen('CloseAll');
@@ -1307,18 +1325,18 @@ classdef cic < neurostim.plugin
                     oldKey.help = c.kbInfo.help{ix};
                     oldKey.plg = c.kbInfo.plugin{ix};
                     oldKey.isSubject  = c.kbInfo.isSubject(ix);
-                    oldKey.fun  = c.kbInfo.fun{ix};                                          
+                    oldKey.fun  = c.kbInfo.fun{ix};
                 end
             else
                 oldKey = [];
                 ix = numel(c.kbInfo.keys)+1; % Add a new one
-            end            
+            end
             c.kbInfo.keys(ix)  = key;
             c.kbInfo.help{ix} = keyHelp;
             c.kbInfo.plugin{ix} = plg; % Handle to plugin to call keyboard()
             c.kbInfo.isSubject(ix) = isSubject;
-            c.kbInfo.fun{ix} = fun;            
-        end        
+            c.kbInfo.fun{ix} = fun;
+        end
         
         function removeKeyStroke(c,key)
             % removeKeyStrokes(c,key)
@@ -1378,7 +1396,7 @@ classdef cic < neurostim.plugin
                 c.lastFrameDrop=c.lastFrameDrop+nrFramedrops;
             end
         end
-
+        
         
         function addFunProp(c,plugin,prop)
             %Function properties are constructed at run-time
@@ -1628,7 +1646,7 @@ classdef cic < neurostim.plugin
                 end
             end
         end
-                
+        
     end
     
     methods (Access=private)
@@ -2021,7 +2039,7 @@ classdef cic < neurostim.plugin
         
         function colorOk = loadCalibration(c)
             colorOk = false;
-            if ~isempty(c.screen.calFile)                                               
+            if ~isempty(c.screen.calFile)
                 % Load a calibration from file. The cal struct has been
                 % generated by utils.ptbcal
                 
@@ -2127,39 +2145,31 @@ classdef cic < neurostim.plugin
         end
         
         function c = loadobj(o)
-            
+            % Classdef has changed over time - fix some things here.
             if isstruct(o)
                 % Current CIC classdef does not match classdef in force
                 % when this object was saved.
-                current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
-                fromFile = o;
-                %-- This cannot be moved to a function due to class access
-                %permissions.
-                m= metaclass(current);
-                dependent = [m.PropertyList.Dependent];
-                % Find properties that we can set now (based on the stored fromFile object)
-                settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
-                storedFn = fieldnames(fromFile);
-                missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
-                missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
-                toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
-                fprintf('Fixing backward compatibility of stored Neurostim object')
-                fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
-                fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
-                for i=1:numel(toCopy)
-                    try
-                        current.(toCopy{i}) = fromFile.(toCopy{i});
-                    catch
-                        fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
-                    end
-                end
-                %---
-                c = current;
+                % Create an object according to the current classdef
+                current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)                
+                % And upgrade the one that was stored using the plugin
+                % static member.
+                c = neurostim.plugin.updateClassDef(o,current);                
             else
-                c = o;
-                c.loadedFromFile = true; % Set to true to avoid PTB dependencies
+                % No need to call the plugin.loadobj
+                c = o;              
             end
             
+            c.loadedFromFile = true; % Set to true to avoid PTB dependencies
+            % Some postprocessing. 
+            
+            % The saved plugins and parameters of CIC still refer to the old-style (i.e. saved)
+            % cic. Update the handle
+            c.cic = c; % Self reference needed 
+            
+           for plg = c.pluginOrder
+               plg.cic = c; % Point each plugin to the updated/new style cic.
+           end
+          
             
             % If the last trial does not reach firstFrame, then
             % the trialTime (which is relative to firstFrame) cannot be calculated
@@ -2178,7 +2188,11 @@ classdef cic < neurostim.plugin
                 storeInLog(c.prms.firstFrame,fakeFF,NaN)
             end
             
-            
+            % Check c.stage and issue a warning if this seems like a crashed session
+            if c.stage ~= neurostim.cic.POST
+                warning('This experiment ended unexpectedly (c.stage == %i; Should be %i). Some trials may be missing.', ...
+                c.stage,neurostim.cic.POST);
+            end
             
         end
         
@@ -2279,7 +2293,7 @@ classdef cic < neurostim.plugin
             ylabel '#drops'
             
             if c.nrBehaviors>0
-                %% Compare frame drops to state transitions  
+                %% Compare frame drops to state transitions
                 % Currenlty only loking at the first transition iunto a
                 % state...
                 figure('Name',[c.file ' - framedrop report for behavior state changes'])
@@ -2288,7 +2302,7 @@ classdef cic < neurostim.plugin
                 colors = 'rgbcmyk';
                 for i=1:nrB
                     subplot(nrB,1,i)
-                    % Get first state transition in trials with drops, 
+                    % Get first state transition in trials with drops,
                     [state,stateTrial,stateStartT] = get(B(i).prms.state,'atTrialTime',[],'withDataOnly',true,'trial',unique(tr),'first',1);
                     uStates = unique(state);
                     for s=1:numel(uStates)
@@ -2296,7 +2310,7 @@ classdef cic < neurostim.plugin
                         thisTrials = stateTrial(thisState);
                         trialsWithStateAndDrops = tr(ismember(tr,thisTrials));
                         dropTime = ti(ismember(tr,trialsWithStateAndDrops));
-                        relativeTime = dropTime-stateStartT(trialsWithStateAndDrops);                                       
+                        relativeTime = dropTime-stateStartT(trialsWithStateAndDrops);
                         plot(relativeTime,trialsWithStateAndDrops,['o' colors(s)]);
                         hold on
                     end

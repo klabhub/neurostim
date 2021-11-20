@@ -503,7 +503,7 @@ classdef stg < neurostim.stimulus
         end
         
         
-        function streamStimulus(o)
+        function streamStimulus(~)
             %%Not functional
             %              for thisChannel = o.channel
             %                 space = o.device.GetDataQueueSpace(thisChannel-1);
@@ -591,6 +591,7 @@ classdef stg < neurostim.stimulus
                 % times. This is used to repeat sines, or to create a long
                 % duration constant stimulus.
                 
+
                 values =    [scale*rampUpSignal           0,    scale*signal,               thisNrRepeats,   scale*rampDownSignal];
                 duration  = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      0,             ones(1,numel(rampDownSignal))]*(step/1e-6);                        
                 syncValue = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      thisNrRepeats,   ones(1,numel(rampDownSignal))];                        

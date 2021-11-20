@@ -11,6 +11,7 @@ classdef gabor < neurostim.stimulus
     % 	mask - one of 'GAUSS','CIRCLE','ANNULUS', 'GAUSS3' (truncated at 3
     % 	sigma)
     %   phaseSpeed - the drift of the grating in degrees per frame
+    %   color - mean color in space and time (default: cic.screen.color.background)
     %
     % Flicker settings (this moduldates the *amplitude* of the sine wave in
     % the gabor)
@@ -66,6 +67,7 @@ classdef gabor < neurostim.stimulus
         function o =gabor(c,name)
             o = o@neurostim.stimulus(c,name);
             
+            o.color = o.cic.screen.color.background;
             
             %% Base Teture parameters, see CreateProceduralGabor.m for details
             % No need to change unless you want to save texture memory and draw

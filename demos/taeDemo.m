@@ -1,4 +1,4 @@
-function tae
+function taeDemo
 %% 
 % Tilt AfterEffect Example
 % 

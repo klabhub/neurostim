@@ -37,23 +37,25 @@ classdef movie < neurostim.stimulus
         % Each frame will be associated with a texture
         tex = [];       % Vector fo texture pointers 
         rect =[];       % Rect to apply the texture
-        fracFrameCntr;      % Current fractional frame cntr.
         currentlyLoadedFile = '';  % Full path to currently loaded file.
     end
     
+     properties (GetAccess = public, SetAccess = private)
+        fracFrameCntr;      % Current fractional frame cntr.
+    end
     
     methods (Access = public)
         function o = movie(c,name)
             o = o@neurostim.stimulus(c,name);
             o.addProperty('width',[],'validate',@isnumeric);
             o.addProperty('height',[],'validate',@isnumeric);
-            o.addProperty('xPixels',[],'validate',@isnumeric);
-            o.addProperty('yPixels',[],'validate',@isnumeric);
-            o.addProperty('nrFrames',[],'validate',@isnumeric);
+            o.addProperty('xPixels',[],'validate',@isnumeric, 'sticky',true);
+            o.addProperty('yPixels',[],'validate',@isnumeric, 'sticky',true);
+            o.addProperty('nrFrames',[],'validate',@isnumeric, 'sticky',true);
             o.addProperty('filename','','validate',@ischar);
             o.addProperty('path','','validate',@(x) (ischar(x) && exist(x,'dir')));
             o.addProperty('filterMode',1,'validate',@(x) ismember(x,[0:5]));
-            o.addProperty('framerate',[],'validate',@isnumeric);
+            o.addProperty('framerate',[],'validate',@isnumeric, 'sticky',true);
             o.addProperty('orientation',0,'validate',@isnumeric);
             o.addProperty('loop',false,'validate',@islogical);
         end
