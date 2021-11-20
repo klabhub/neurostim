@@ -45,6 +45,11 @@ classdef stg < neurostim.stimulus
     % phase - Phase of sine [degrees]
     % rampUp - Duration of linear ramp-up [ms]
     % rampDown - Duration of linear ramp-down [ms]
+    % nrRepeats - How often the stimulsu should be repeated. For instance
+    % for a periodic stimulus; define duration as one period, and repeat it
+    % as often as you like. This saves memory on the STG. Note that a
+    % constant stimlus is also periodic, so a tDCS stimulus should also use
+    % nrRepeats> 0.
     %
     % Each of these parameters can be specified as a scalar (thus applying
     % to all channels equally) or as a vector with a different entry for
@@ -56,8 +61,23 @@ classdef stg < neurostim.stimulus
     %   stg.channel = [1 2];  % Stimulate both channel 1 and 2
     %   stg.fun  = 'tDCS'
     %   stg.mean = [1 -1]
-    %   This will do anodal stimulation on the first channel (together with its
+    %   stg.duration =1000;
+    %   This will do 1000 ms of anodal stimulation on the first channel (together with its
     %   return) and cathodal on the second.
+    %   To stimulate for longer periods of time, use the nrRepeats
+    %   parameter, otherwise your STG's memory will fill up.
+    %
+    % EXAMPLE
+    %  To define a 10 second long 10 Hz sine, define 1 cycle (i.e. 100 ms) and set
+    %  nrRepeats to 100;
+    % stg.func ='tACS';
+    % stg.frequency =10;
+    % stg.amplitude =0.5; 
+    % stg.duration = 100;
+    % stg.repeats = 100;
+    %
+    % The nrRepeats should also be used for your own function stimuli that
+    % can be repeated (to prevent the STG memory from filling up).
     %
     % BK - June 2018
     %
@@ -69,11 +89,7 @@ classdef stg < neurostim.stimulus
     % stimulus shape. The support on the MCS website stated that output
     % rate cannot be set on (some) STG devices, so this is disabled here.
     %
-    %  Currently a 10 second long 10 Hz sine is downloaded in full to the
-    %  device. This can take time. Using continuous mode or repeats would
-    %  be a better way to do this. Not that hard to implement... just
-    %  change the setup Trigger funcion to include the repeats.
-    %
+    % Note that for a tDCS stimulus, the 
     % An attempt at Streaming Mode did not work. The code is still in here
     % but it does not run. Use Download only.
     
@@ -88,7 +104,7 @@ classdef stg < neurostim.stimulus
         trigger=1; % The trigger that is used to turn a pattern on per trial. This is stopped at the end of a trial
         triggerTime = [];
         triggerSent = false;
-        nrRepeatsPerTrigger=1; % 1 for now
+        
     end
     
     properties (SetAccess = protected, Transient)
@@ -242,7 +258,7 @@ classdef stg < neurostim.stimulus
             o.addProperty('rampUp',0);
             o.addProperty('rampDown',0);
             o.addProperty('syncOutChannel',[]);
-            
+            o.addProperty('nrRepeats',1);            
             
         end
         
@@ -381,7 +397,7 @@ classdef stg < neurostim.stimulus
             % STG Download mode.
             if ~o.isConnected
                 if o.downloadMode
-                    o.device  = Mcs.Usb.CStg200xDownloadNet; % Use download mode
+                    o.device  = Mcs.Usb.CStg200xDownloadNet(); % Use download mode
                 else
                     % Use streaming mode. BK could not get the callback
                     % functions to work. Using polling instead  (see
@@ -429,7 +445,7 @@ classdef stg < neurostim.stimulus
             else
                 o.device.SetVoltageMode();
             end
-            % Clear the currently stored data
+            %Clear the currently stored data
             if o.downloadMode
                 for c=0:o.nrChannels-1
                     o.device.ClearChannelData(c);
@@ -452,7 +468,10 @@ classdef stg < neurostim.stimulus
         
         function setupTriggers(o)
             % Map a single trigger to start all of the channels that are in
-            % use this trial
+            % use this trial. In principle this allows a channel that is
+            % not used this trial to keep its values in memory (it won't be
+            % triggered), but we don't actually use that; stimulation is
+            % defined anew at the start of each trial.
             
             nrTriggers = o.device.GetNumberOfTriggerInputs();  % obtain number of triggers in this STG
             % Initialize everything to zero
@@ -465,7 +484,7 @@ classdef stg < neurostim.stimulus
             syncoutsToTrigger  =  chan2mask(o,o.syncOutChannel); % These are the channels for the current trial
             channelMap(o.trigger) = channelsToTrigger; % assign all channels to the o.trigger
             syncoutMap(o.trigger) = syncoutsToTrigger;   %
-            repeatMap(o.trigger) = o.nrRepeatsPerTrigger;
+            repeatMap(o.trigger) = 1; % The repeats are defined in downloadStimulus. This should be just 1
             if o.downloadMode
                 % In Download mode we set triggers starting at the trigger indicated
                 % by the first argument to SetupTrigger. Note the o.trigger-1 : STG is base-0
@@ -501,30 +520,23 @@ classdef stg < neurostim.stimulus
         
         function downloadStimulus(o)
             % The main function that sends channel and syncout data to the
-            % device. It is called before each trial.
-            
+            % device. It is called before each trial.            
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
             end
             
-            step = 1/o.outputRate; %STG resolution (20 mus)
-            fractionUsed =0;
-            
-            
-            
-            % Send the values and the duration of each sample to the device
-            for thisChannel = o.channel
-                
-                [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun] = channelParms(o,thisChannel);
-                
-                time = 0:step:thisDuration/1000;
+            step = 1/o.outputRate; %STG resolution (20 mus)            
+            % Define the values of the stimulus
+            for thisChannel = o.channel                
+                [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisNrRepeats] = channelParms(o,thisChannel);                
+                time = 0:step:(thisDuration/1000-step);
                 %% Set the basic stimulus shape
                 if ischar(thisFun)
                     switch upper(thisFun)
                         case 'TACS'
-                            values = thisAmplitude*sin(2*pi*thisFrequency*time+thisPhase*pi/180)+thisMean;
+                            signal = thisAmplitude*sin(2*pi*thisFrequency*time+thisPhase*pi/180)+thisMean;
                         case 'TDCS'
-                            values = thisMean*ones(size(time));
+                            signal = thisMean*ones(size(time));
                         case 'TRNS'
                             error('NIY')
                         otherwise
@@ -532,65 +544,71 @@ classdef stg < neurostim.stimulus
                     end
                 elseif isa(thisFun,'function_handle')
                     % User-specified function handle.
-                    values = thisFun(time,o);
-                    if numel(values) ~=numel(time)
+                    signal = thisFun(time,o);
+                    if numel(signal) ~=numel(time)
                         error(o.cic,'STOPEXPERIMENT','The stimulus function returns an incorrect number of time points');
                     end
                 end
                 
-                %% Add ramp if requested
-                if o.rampUp+o.rampDown>o.duration
-                    error(o.cic,'STOPEXPERIMENT','Combined ramp-up and ramp-down durations exceed total stimulus duration');
-                end
-                ramp = ones(size(time));
-                if ~isempty(o.rampUp) && o.rampUp>0
-                    stepsInRamp= round((neurostim.stimuli.stg.expandSingleton(o.rampUp,thisChannel)/1000)/step);
-                    ramp(1:stepsInRamp) = linspace(0,1,stepsInRamp);
-                end
-                if ~isempty(o.rampDown) && o.rampDown>0
-                    stepsInRamp= round((neurostim.stimuli.stg.expandSingleton(o.rampDown,thisChannel)/1000)/step);
-                    ramp(end-stepsInRamp+1:end) = linspace(1,0,stepsInRamp);
-                end
-                values = values.*ramp;
-                
-                %% Convert to DAC values
-                if o.currentMode
-                    maxValue = o.range.current(thisChannel)/2; % The range for this channel in milliamps - divided by 2 to get amplitude
+                %% Add ramp if requested                
+                if o.rampUp>0
+                    nrRepeatsInRamp = ceil(o.rampUp/thisDuration);
+                    if nrRepeatsInRamp ~= o.rampUp/thisDuration
+                        o.writeToFeed('The ramp up period has been changed to the nearest larger integer multiple of the stimulus period');
+                    end                    
+                    fullSignalForRamp =  repmat(signal,[1 nrRepeatsInRamp]);
+                    rampUpSignal = linspace(0,1,numel(fullSignalForRamp)).*fullSignalForRamp;
                 else
-                    maxValue = o.range.voltage(thisChannel); % The range for this channel millivolts
+                    rampUpSignal = [];                    
                 end
                 
-                absValues = abs(values);
-                isNegative = values<0;
-                if any(absValues>maxValue)
-                    error(o.cic,'STOPEXPERIMENT',['The requested stimulation values are out of range (' num2str(maxValue) ')']);
-                end
-                % Convert to 12 bit values scaled to the range (maxValue).
-                adValues = uint16(round((2^12-1)*absValues/maxValue));
-                % Specify the sign wiith bit #12
-                adValues(isNegative) = adValues(isNegative)+8192;
-                
-                % Check how much memory this uses - 2 bytes for value, 8 for
-                % duration
-                fractionUsed = fractionUsed + numel(adValues)*(2+8)/o.totalMemory;
-                o.device.SendChannelData(thisChannel-1,adValues,uint64(step*1e6*ones(size(time))));
-                if ~isempty(o.syncOutChannel)
-                    o.device.ClearSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1);
-                    o.device.SendSyncData(neurostim.stimuli.stg.expandSingleton(o.syncOutChannel,thisChannel)-1,uint16(1),1e3*thisDuration);
+                if o.rampDown>0
+                    nrRepeatsInRamp = ceil(o.rampDown/thisDuration);
+                    if nrRepeatsInRamp ~= o.rampDown/thisDuration
+                        o.writeToFeed('The ramp down period has been changed to the nearest larger integer multiple of the stimulus period');
+                    end                    
+                    fullSignalForRamp =  repmat(signal,[1 nrRepeatsInRamp]);
+                    rampDownSignal = linspace(1,0,numel(fullSignalForRamp)).*fullSignalForRamp;
+                else
+                    rampDownSignal = [];                                    
                 end
                 
-            end
-            
-            %% Checking actual memory would be better but status does not seem to reflect overruns
-            % accurately, so let's just warn for now.
-            if fractionUsed>1
-                error(o.cic,'STOPEXPERIMENT','The MCS/STG does not have enough memory for these stimuli');
-            elseif fractionUsed>0.5
-                writeToFeed(o,['The stimulus uses ' num2str(round(fractionUsed*100)) '% of the total memory. This can work, but it is a lot... and if you have other stimulation channels too, you could run into trouble..']);
-            end
+                                
+                %%  Code the signal                               
+                % Convert to DAC values
+                if o.currentMode
+                    % Need amplitude in nA
+                    scale = 1e5;  % Convert specified mA to nA
+                    valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_current;
+                else
+                    %  Need amplitude in muV
+                    scale = 1e3;  % Convert mV to muV                   
+                    valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_voltage;
+                end
+
+                % A block that starts with 0 amplitude and 0 duration and
+                % ends with n ampltidude and 0 duration is repeated n
+                % times. This is used to repeat sines, or to create a long
+                % duration constant stimulus.
+                
+                values =    [scale*rampUpSignal           0,    scale*signal,               thisNrRepeats,   scale*rampDownSignal];
+                duration  = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      0,             ones(1,numel(rampDownSignal))]*(step/1e-6);                        
+                syncValue = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      thisNrRepeats,   ones(1,numel(rampDownSignal))];                        
+                % Clear channel and send stimulus data to device
+                amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
+                durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
+                o.device.ClearChannel_PrepareAndSendData(thisChannel-1, amplitudeNet, durationNet,valueCode,true);
+
+                % Add the syncout
+                if ~isempty(o.syncOutChannel)                    
+                    amplitudeNet = NET.convertArray(int32(syncValue), 'System.Int32');                                  
+                    o.device.ClearChannel_PrepareAndSendData(thisChannel-1,amplitudeNet,durationNet,Mcs.Usb.STG_DestinationEnumNet.syncoutdata,true); 
+                end
+
+            end                     
         end
         
-        function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun] = channelParms(o,channel)
+        function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisNrRepeats] = channelParms(o,channel)
             % Channel is 1:nrChannels
             ix = find(o.channel == channel);
             thisDuration = neurostim.stimuli.stg.expandSingleton(o.duration,ix);
@@ -599,6 +617,7 @@ classdef stg < neurostim.stimulus
             thisPhase = neurostim.stimuli.stg.expandSingleton(o.phase,ix);
             thisMean = neurostim.stimuli.stg.expandSingleton(o.mean,ix);
             thisFun = neurostim.stimuli.stg.expandSingleton(o.fun,ix);
+            thisNrRepeats = neurostim.stimuli.stg.expandSingleton(o.nrRepeats,ix);
         end
         
         %% Streaming mode callback functions. BK could not get these to work,
