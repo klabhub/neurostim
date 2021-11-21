@@ -246,7 +246,7 @@ classdef stg < neurostim.stimulus
             o.addProperty('downloadMode',downLoadMode);
             o.addProperty('streamingLatency',100); % Allowable latency in streaming mode
             
-            
+            o.addProperty('mode','TRIAL',@(x)ischar(x) && ismember(upper(x),{'TRIAL','BLOCKED','TIMED'}));
             
             % Stimulation properties
             o.addProperty('fun','tDCS','validate',@(x) (isa(x,'function_handle') || (ischar(x) && ismember(x,{'tDCS','tACS','tRNS'}))));
@@ -323,31 +323,62 @@ classdef stg < neurostim.stimulus
                 o.device.StartLoop;
                 %pause(0.5);
             end
+            
+            
+            %% Depending on the mode, do something
+            switch upper(o.mode)
+                case 'BLOCKED'
+                    % Starts before the first trial in a block
+                    if o.cic.blockTrial ==1 && o.enabled
+                        start(o);
+                    end
+                case 'TRIAL'
+                    if o.enabled
+                        start(o);
+                    end
+                case 'TIMED'
+                    % Do nothing here - trigger in beforeFrame
+                otherwise
+                    o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
+            end
+
+            
         end
         
         function beforeFrame(o)
-            % Send a start trigger to the device for channels that have not
-            % been triggered yet.
-            if ~o.downloadMode
-                streamStimulus(o);
-            end
-            % If we got here, the stimulus is supposed to turn on. Send the
-            % trigger
-            if ~o.triggerSent
-                start(o);
-            end
+            % Send a start trigger to the device          
+            switch upper(o.mode)
+                case {'BLOCKED','TRIAL'}
+                    % These modes do not change stimulation within a
+                    % trial/block - nothing to do.
+                case 'TIMED'
+                    % Start the first time beforeFrame is called                   
+                    if ~ o.triggerSent                        
+                        start(o);                        
+                    end              
+                otherwise
+                    o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
+            end            
         end
         
         function afterTrial(o)
-            % Send a stop signal
-            if o.triggerSent
-                stop(o);
-            end
+            switch upper(o.mode)
+                case 'BLOCKED'
+                    if o.cic.blockDone && o.enabled
+                        stop(o); % Brute force stop- better to wait until done to get the rampdown....
+                    end
+                case 'TRIAL'                    
+                    stop(o);         % Brute force stop- better to wait until done to get the rampdown....                               
+                case 'TIMED'
+                    stop(o);  % Brute force stop- better to wait until done to get the rampdown...
+                otherwise
+                    o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
+            end          
         end
         
         function afterExperiment(o)
             % Discconnect from the device.
-            stop(o);
+            stop(o);  % Brute force stop- better to wait until done to get the rampdown...
             if ~o.downloadMode
                 o.device.StopLoop;
             end
