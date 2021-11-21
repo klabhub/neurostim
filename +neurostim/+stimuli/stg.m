@@ -102,6 +102,7 @@ classdef stg < neurostim.stimulus
         chunkDuration = 5000; % [ms]
         chunkStartTime= 0; % [ms]
         
+        
     end
     properties (SetAccess = protected)
         
@@ -491,7 +492,7 @@ classdef stg < neurostim.stimulus
                     % Set some streaming options
                     o.device.EnableContinousMode; % keep running when running out of data (but at 0 v/a output; no need to retrigger)
                     nrTriggers = o.device.GetNumberOfTriggerInputs;  % obtain number of triggers in this STG
-                    triggerCapacity=uint32(o.outputRate*ones(1,nrTriggers));
+                    triggerCapacity=uint32(2*o.chunkDuration/1000*o.outputRate*ones(1,nrTriggers)); % 2 chunks in the ring buffer.
                     o.device.SetCapacity(NET.convertArray(triggerCapacity,'System.UInt32'));
                 end
                 
