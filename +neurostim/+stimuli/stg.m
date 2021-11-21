@@ -233,9 +233,9 @@ classdef stg < neurostim.stimulus
                 downLoadMode = true;
             end
             
-            if ~downLoadMode
-                error('Sorry Streaming Mode is not functional yet');
-            end
+%             if ~downLoadMode
+%                 error('Sorry Streaming Mode is not functional yet');
+%             end
             
             o = o@neurostim.stimulus(c,'stg');
             
@@ -253,8 +253,8 @@ classdef stg < neurostim.stimulus
             o.addProperty('currentMode',true);
             o.addProperty('downloadMode',downLoadMode);
             o.addProperty('streamingLatency',100); % Allowable latency in streaming mode
-            
-            o.addProperty('mode','TRIAL',@(x)ischar(x) && ismember(upper(x),{'TRIAL','BLOCKED','TIMED'}));
+            o.addProperty('enabled',true);
+            o.addProperty('mode','TRIAL');%,@(x) (ischar(x) && ismember(upper(x),{'TRIAL','BLOCKED','TIMED'})));
             
             % Stimulation properties
             o.addProperty('fun','tDCS','validate',@(x) (isa(x,'function_handle') || (ischar(x) && ismember(x,{'tDCS','tACS','tRNS'}))));
@@ -329,6 +329,10 @@ classdef stg < neurostim.stimulus
            
         end
         
+        %TODO not sure TRIAL mode makes much sense, using .on= 0 in TIMED
+        %mode give almost the same? (Only advantage is that with TRIAL, the
+        %rampu can be before the trial, but this is somewhat uncontrolled).
+        
         function beforeTrial(o)
            
             %% Depending on the mode, do something
@@ -357,12 +361,14 @@ classdef stg < neurostim.stimulus
                             end
                         end
                     case 'TIMED'
+                        if o.enabled
                         setupTriggers(o); % Map triggers to the set of channels for this trial
                         if o.downloadMode 
                             downloadStimulus(o); % Send the stimulus
                             % trigger in beforeFrame
                         else                            
                             streamRamp(o,true);
+                        end
                         end
                     otherwise
                         o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
@@ -378,7 +384,7 @@ classdef stg < neurostim.stimulus
                         % trial/block - nothing to do.
                     case 'TIMED'
                         % Start the first time beforeFrame is called
-                        if ~ o.triggerSent
+                        if ~o.triggerSent && o.enabled
                             start(o);
                         end
                     otherwise
@@ -683,7 +689,7 @@ classdef stg < neurostim.stimulus
                 % times. This is used to repeat sines, or to create a long
                 % duration constant stimulus.
                 
-                
+                step= 1./o.outputRate;
                 values =    [scale*rampUpSignal           0,    scale*signal,               thisNrRepeats,   scale*rampDownSignal];
                 duration  = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      0,             ones(1,numel(rampDownSignal))]*(step/1e-6);
                 syncValue = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      thisNrRepeats,   ones(1,numel(rampDownSignal))];
