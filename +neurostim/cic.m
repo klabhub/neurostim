@@ -834,12 +834,22 @@ classdef cic < neurostim.plugin
             % Restore default values
             setDefaultParmsToCurrent(c.pluginOrder);
             
+            % Call before trial on all adaptive plugins, in pluginOrder.
+            %
+            % The adaptive plugin calls it's update() method in before
+            % trial... this needs to happen before we call before trial on
+            % the current block/design so that any adaptive parameters in
+            % the design are assigned their new/updated values.
+            ix = arrayfun(@(x) isa(x,'neurostim.plugins.adaptive'),c.pluginOrder);
+            base(c.pluginOrder(ix),neurostim.stages.BEFORETRIAL,c);
+
             % Call before trial on the current block.
             % This sets up all condition dependent stimulus properties (i.e. those in the design object that is currently active in the block)
             beforeTrial(c.blocks(c.block),c);
             c.blockTrial = c.blockTrial+1;  % For logging and user output only
+
             % Calls before trial on all plugins, in pluginOrder.
-            base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
+            base(c.pluginOrder(~ix),neurostim.stages.BEFORETRIAL,c);
         end
         
         
