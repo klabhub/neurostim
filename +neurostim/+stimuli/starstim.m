@@ -168,9 +168,18 @@ classdef starstim < neurostim.stimulus
                     v = ismember(stts,{'CODE_STATUS_PROTOCOL_RUNNING','CODE_STATUS_STIMULATION_FULL','CODE_STATUS_STIMULATION_RAMPUP','CODE_STATUS_EEG_ON'});
                     % Hacked soltion to the 'stimulation full' protocol
                     % status that impedance checks leave behind.
-%                     if strcmpi(stts,'CODE_STATUS_STIMULATION_FULL') && strcmpi(o.status,'CODE_STATUS_CHECK_IMPEDANCE_FISNISHED')
-%                       v = false; % It is not really 'on'
-%                     end
+                    if strcmpi(stts,'CODE_STATUS_STIMULATION_FULL') && ...
+                            (strcmpi(o.status,'CODE_STATUS_CHECK_IMPEDANCE_FISNISHED') || strcmpi(o.status,'CODE_STATUS_REMOTE_CONTROL_ALLOWED'))                      
+                        % It is not really 'on'
+                        % The firsr happens after a MatNIC triggered
+                        % impedance check, the second after running a
+                        % manual impedance chcek in NIC, and then unloading
+                        % the protocol manually by clicking the edit
+                        % button (which is a workaround to mix manual NIC
+                        % control for pre-experiment checks, followed by
+                        % neurostim control of the actual experiment).
+                       v = false; 
+                    end
                 end
             end
 
@@ -377,7 +386,7 @@ classdef starstim < neurostim.stimulus
                 o.activeProtocol = o.protocol;
             else
                 % Load the protocol
-                if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
+                if o.isProtocolOn 
                     o.checkRet(-1,'A protocol is currently running on the NIC. Please stop it first')
                 end
                 ret = MatNICLoadProtocol(o.protocol,o.sock);
@@ -644,7 +653,7 @@ classdef starstim < neurostim.stimulus
                 peakLevelDuration =Inf;
             end
 
-            waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
+            waitFor(o,'PROTOCOL',{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
             sendMarker(o,'rampUp');
             switch upper(o.type)
                 case 'TACS'
@@ -682,7 +691,7 @@ classdef starstim < neurostim.stimulus
             end
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
 
-            waitFor(o,'CODE_STATUS_STIMULATION_FULL');
+            waitFor(o,'PROTOCOL','CODE_STATUS_STIMULATION_FULL');
             tReachedPeak = GetSecs;
 
             if o.fake || o.debug
@@ -708,7 +717,7 @@ classdef starstim < neurostim.stimulus
 
         function rampDown(o,tScheduled)
 
-            waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
+            waitFor(o,'PROTOCOL',{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
             if o.fake || o.debug
                 if nargin ==2
                     o.writeToFeed(sprintf('Ramping %s down to zero in %d ms after %.0f ms at peak level )',o.type, o.transition,1000*(GetSecs-tScheduled)));
@@ -760,7 +769,7 @@ classdef starstim < neurostim.stimulus
                 else
                     o.checkRet(ret,['Protocol ' o.protocol ' could not be started']);
                 end
-                waitFor(o,{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_EEG_ON'});
+                waitFor(o,'PROTOCOL',{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_EEG_ON'});
                 % This waitFor is slow, and adds at least 1s to
                 % the startup, but at least we're in a defined
                 % state after the wait.
@@ -787,7 +796,7 @@ classdef starstim < neurostim.stimulus
                     o.checkRet(ret,['Protocol ' o.protocol ' could not be stopped']);
                 end
                 %else -  already stopped
-                waitFor(o,{'CODE_STATUS_PROTOCOL_ABORTED','CODE_STATUS_IDLE'});% Either of these is fine
+                waitFor(o,'PROTOCOL',{'CODE_STATUS_PROTOCOL_ABORTED','CODE_STATUS_IDLE'});% Either of these is fine
             end
             o.verboseOutput('stop','exit')
         end
@@ -800,7 +809,7 @@ classdef starstim < neurostim.stimulus
             elseif ~o.isProtocolPaused
                 ret = MatNICPauseProtocol(o.sock);
                 o.checkRet(ret,['Protocol ' o.protocol ' could not be paused']);
-                waitFor(o,'CODE_STATUS_IDLE');
+                waitFor(o,'PROTOCOL','CODE_STATUS_IDLE');
                 %  else already paused
             end
             o.verboseOutput('pause','exit')
@@ -854,7 +863,8 @@ classdef starstim < neurostim.stimulus
             o.mustExit = false;
         end
 
-        function waitFor(o,varargin)
+       
+        function waitFor(o,protocolOrStatus,varargin)
             % busy-wait for a sequence of status events.
             % waitFor(o,'a','b') first waits for a then for b
             % waitFor(o,{'a','b'}) waits for either a or b to occur
@@ -864,7 +874,16 @@ classdef starstim < neurostim.stimulus
             TIMEOUT = 5;
             tic;
             while (cntr<=nrInSequence && ~o.fake)
-                if any(strcmpi(o.protocolStatus,varargin{cntr}))
+                switch upper(protocolOrStatus)
+                    case 'PROTOCOL'
+                        nowStatus= o.protocolStatus;
+                    case 'STATUS'
+                        nowStatus = o.status;
+                    otherwise 
+                        error('Unknonw mode')
+                end
+
+                if any(strcmpi(nowStatus,varargin{cntr}))
                     cntr= cntr+1;
                 end
                 pause(0.025); % Check status every 25 ms.
@@ -875,7 +894,7 @@ classdef starstim < neurostim.stimulus
                         stts = varargin{cntr};
                     end
                     warning(['Waiting for ' stts ' timed out']);
-                    warning(['Last status was ' o.protocolStatus ]);
+                    warning(['Last protocol status was ' o.protocolStatus ]);
                     break;
                 end
             end
@@ -1047,8 +1066,8 @@ classdef starstim < neurostim.stimulus
             h.Text = 'Z-Check';
             h = uidropdown(p,'Tag','ImpedanceType','Items',{'None','AC','DC'});
             h.Position = [325 17 80 20];
-            h.Enable ='off';
-            h.Tooltip = 'Z-check does not work yet. Please use manual check in NIC.';
+            %h.Enable ='off';
+            h.Tooltip = 'Select to perform a z-check before the first trial';
             h = uicheckbox(p,'Tag','Verbose','Text','Verbose');
             h.Position = [425 17 90 20];
 
