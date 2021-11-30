@@ -835,9 +835,11 @@ classdef cic < neurostim.plugin
             setDefaultParmsToCurrent(c.pluginOrder);
             
             % Call before trial on the current block.
-            % This sets up all condition dependent stimulus properties (i.e. those in the design object that is currently active in the block)
+            % This sets up all condition dependent stimulus properties (i.e.,
+            % those in the design object that is currently active in the block)
             beforeTrial(c.blocks(c.block),c);
             c.blockTrial = c.blockTrial+1;  % For logging and user output only
+
             % Calls before trial on all plugins, in pluginOrder.
             base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
         end
