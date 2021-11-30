@@ -166,7 +166,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             
         end
         
-        function o= duplicate(o1,nm)
+        function o = duplicate(o1,nm)
             % Duplicate an adaptive parm ; requires setting a new unique
             % id. Note that if you ask for more than one duplicate, the
             % first element in the array of duplicates will be the
@@ -235,7 +235,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             end
         end 
         
-        function beforeTrial(o)
+        function v = updateValue(o)
 
             if ~isempty(o.lastOutcome)
                 % Allow the derived class to update (based on lastValue and lastOutcome)
@@ -244,8 +244,10 @@ classdef (Abstract) adaptive < neurostim.plugin
                 o.lastValue = []; 
             end
             
-            %Reset the overruled value.
+            % Reset the overruled value.
             o.overruleValue = [];
+
+            v = getValue(o);
         end
     end
 end % classdef

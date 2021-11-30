@@ -835,9 +835,11 @@ classdef cic < neurostim.plugin
             setDefaultParmsToCurrent(c.pluginOrder);
             
             % Call before trial on the current block.
-            % This sets up all condition dependent stimulus properties (i.e. those in the design object that is currently active in the block)
+            % This sets up all condition dependent stimulus properties (i.e.,
+            % those in the design object that is currently active in the block)
             beforeTrial(c.blocks(c.block),c);
             c.blockTrial = c.blockTrial+1;  % For logging and user output only
+
             % Calls before trial on all plugins, in pluginOrder.
             base(c.pluginOrder,neurostim.stages.BEFORETRIAL,c);
         end
@@ -1812,6 +1814,9 @@ classdef cic < neurostim.plugin
                     % The CRS Display++
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
                     PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
+                 case 'DISPLAY++COLOR'
+                    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
+                    PsychImaging('AddTask', 'General', 'EnableBits++Color++Output',2);
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
@@ -1877,7 +1882,7 @@ classdef cic < neurostim.plugin
                     c.textWindow = c.overlayWindow;
                     Screen('Preference', 'TextAntiAliasing',0); %Antialiasing on the overlay will result in weird colors
                     updateOverlay(c);
-                case 'DISPLAY++'
+                case {'DISPLAY++', 'DISPLAY++COLOR'}
                     % nothing to do
                 case 'SOFTWARE-OVERLAY'
                     % With this display type you draw your stimuli on the

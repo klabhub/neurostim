@@ -212,9 +212,9 @@ classdef block < dynamicprops
                 plgName =spcs{p,1};
                 varName = spcs{p,2};
                 if isa( spcs{p,3},'neurostim.plugins.adaptive')
-                    value = getValue(spcs{p,3});
+                    value = updateValue(spcs{p,3});
                 else
-                    value =  spcs{p,3};
+                    value = spcs{p,3};
                 end
                 c.(plgName).(varName) = value;
             end

@@ -394,6 +394,11 @@ classdef design <handle & matlab.mixin.Copyable
             end
         end
         
+        function setConditionOrder(o, condOrder)
+            o.randomization = 'MANUAL';
+            o.list = condOrder;
+        end
+        
         function shuffle(o)
             % Shuffle the list of conditions and set the "currentTrialIx" to
             % the first one in the list
@@ -408,6 +413,8 @@ classdef design <handle & matlab.mixin.Copyable
                     o.list=datasample(weighted,numel(weighted));
                 case 'RANDOMWITHOUTREPLACEMENT'
                     o.list=Shuffle(weighted);
+                case 'MANUAL'
+                    %do nothing
             end
             o.retryCounter = zeros(o.nrConditions,1);
             o.currentTrialIx =1; % Reset the index to start at the first entry
