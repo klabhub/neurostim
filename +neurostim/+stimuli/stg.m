@@ -233,9 +233,9 @@ classdef stg < neurostim.stimulus
                 downLoadMode = true;
             end
             
-            if ~downLoadMode
-                error('Sorry Streaming Mode is not functional yet');
-            end
+            %             if ~downLoadMode
+            %                 error('Sorry Streaming Mode is not functional yet');
+            %             end
             
             o = o@neurostim.stimulus(c,'stg');
             
@@ -253,8 +253,8 @@ classdef stg < neurostim.stimulus
             o.addProperty('currentMode',true);
             o.addProperty('downloadMode',downLoadMode);
             o.addProperty('streamingLatency',100); % Allowable latency in streaming mode
-            
-            o.addProperty('mode','TRIAL',@(x)ischar(x) && ismember(upper(x),{'TRIAL','BLOCKED','TIMED'}));
+            o.addProperty('enabled',true);
+            o.addProperty('mode','TRIAL');%,@(x) (ischar(x) && ismember(upper(x),{'TRIAL','BLOCKED','TIMED'})));
             
             % Stimulation properties
             o.addProperty('fun','tDCS','validate',@(x) (isa(x,'function_handle') || (ischar(x) && ismember(x,{'tDCS','tACS','tRNS'}))));
@@ -322,92 +322,98 @@ classdef stg < neurostim.stimulus
             % Connect to the device, and clear its memory to get a clean start..
             connect(o);
             reset(o);
-            if  ~o.downloadMode 
+            if  ~o.downloadMode
                 % Streaming mode
-                o.device.StartLoop;               
+                o.device.StartLoop;
             end
-           
+            
         end
         
+        %TODO not sure TRIAL mode makes much sense, using .on= 0 in TIMED
+        %mode give almost the same? (Only advantage is that with TRIAL, the
+        %rampu can be before the trial, but this is somewhat uncontrolled).
+        
         function beforeTrial(o)
-           
+            
             %% Depending on the mode, do something
-                switch upper(o.mode)
-                    case 'BLOCKED'
-                        % Starts before the first trial in a block
-                        if o.cic.blockTrial ==1 && o.enabled
-                            setupTriggers(o); % Map triggers to the set of channels for this trial
-                            if o.downloadMode
-                                downloadStimulus(o); % Send the stimulus
-                                start(o);
-                            else         
-                                start(o);
-                                streamRamp(o,true);
-                            end                            
-                        end
-                    case 'TRIAL'
-                        if o.enabled
-                            setupTriggers(o); % Map triggers to the set of channels for this trial
-                            if o.downloadMode
-                                downloadStimulus(o); % Send the stimulus
-                                start(o);
-                            else
-                                start(o); % Trigger it now
-                                streamRamp(o,true);
-                            end
-                        end
-                    case 'TIMED'
+            switch upper(o.mode)
+                case 'BLOCKED'
+                    % Starts before the first trial in a block
+                    if o.cic.blockTrial ==1 && o.enabled
                         setupTriggers(o); % Map triggers to the set of channels for this trial
-                        if o.downloadMode 
+                        if o.downloadMode
                             downloadStimulus(o); % Send the stimulus
-                            % trigger in beforeFrame
-                        else                            
+                            start(o);
+                        else
+                            start(o);
                             streamRamp(o,true);
                         end
-                    otherwise
-                        o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
-                end
+                    end
+                case 'TRIAL'
+                    if o.enabled
+                        setupTriggers(o); % Map triggers to the set of channels for this trial
+                        if o.downloadMode
+                            downloadStimulus(o); % Send the stimulus
+                            start(o);
+                        else
+                            start(o); % Trigger it now
+                            streamRamp(o,true);
+                        end
+                    end
+                case 'TIMED'
+                    if o.enabled
+                        setupTriggers(o); % Map triggers to the set of channels for this trial
+                        if o.downloadMode
+                            downloadStimulus(o); % Send the stimulus
+                            % trigger in beforeFrame
+                        else
+                            streamRamp(o,true);
+                        end
+                    end
+                otherwise
+                    o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
+            end
             
         end
         
         function beforeFrame(o)
-                % Send a start trigger to the device
-                switch upper(o.mode)
-                    case {'BLOCKED','TRIAL'}
-                        % These modes do not change stimulation within a
-                        % trial/block - nothing to do.
-                    case 'TIMED'
-                        % Start the first time beforeFrame is called
-                        if ~ o.triggerSent
-                            start(o);
-                        end
-                    otherwise
-                        o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
-                end
-                
-                if ~o.downloadMode
-                    streamStimlus(o);
-                end
+            % Send a start trigger to the device
+            switch upper(o.mode)
+                case {'BLOCKED','TRIAL'}
+                    % These modes do not change stimulation within a
+                    % trial/block - nothing to do.
+                case 'TIMED'
+                    % Start the first time beforeFrame is called
+                    if ~o.triggerSent && o.enabled
+                        start(o);
+                    end
+                otherwise
+                    o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
+            end
+            
+            if ~o.downloadMode
+                streamStimulus(o);
+            end
         end
         
         function afterTrial(o)
-                switch upper(o.mode)
-                    case 'BLOCKED'
-                        if o.cic.blockDone && o.enabled
-                            stop(o); 
-                        end
-                    case 'TRIAL'
-                        stop(o);     
-                    case 'TIMED'
-                        stop(o);  
-                    otherwise
-                        o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
-                end
+            switch upper(o.mode)
+                case 'BLOCKED'
+                    if o.cic.blockDone && o.enabled
+                        stop(o);
+                    end
+                case 'TRIAL'
+                    stop(o);
+                case 'TIMED'
+                    stop(o);
+                otherwise
+                    o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
+            end
         end
         
         function afterExperiment(o)
             % Discconnect from the device.
-            stop(o);  
+            stop(o);
             if ~o.downloadMode
                 o.device.StopLoop;
             end
@@ -437,13 +443,13 @@ classdef stg < neurostim.stimulus
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not start stg. Device not connected.'); %#ok<*CTPCT>
             else
-                if o.downloadMode
-                    o.device.SendStart(o.trigger);
-                    o.triggerSent = true;
-                    o.triggerTime = o.cic.clockTime;
-                else
-                    o.isRampUp = true;
+                if ~o.downloadMode
+                    streamRamp(o,true);
                 end
+                o.device.SendStart(o.trigger);
+                o.triggerSent = true;
+                o.triggerTime = o.cic.clockTime;
+                
             end
         end
         function stop(o)
@@ -455,7 +461,7 @@ classdef stg < neurostim.stimulus
                     o.device.SendStop(o.trigger);
                     o.triggerSent = false;
                 else
-                    streamRamp(o,false);
+                    streamRamp(o,false);                    
                 end
             end
         end
@@ -470,7 +476,8 @@ classdef stg < neurostim.stimulus
                     % Use streaming mode. BK could not get the callback
                     % functions to work. Using polling instead  (see
                     % streamStimulus)
-                    o.device  = Mcs.Usb.CStg200xStreamingNet(o.outputRate);%,@o.streamingDataHandler,@o.streamingErrorHandler); % Use streaming mode
+                    capacity = 2*o.chunkDuration/1000*o.outputRate;
+                    o.device  = Mcs.Usb.CStg200xStreamingNet(capacity);%,@o.streamingDataHandler,@o.streamingErrorHandler); % Use streaming mode
                 end
                 % With the lockMask set to 0, crashes in NS allow
                 % reconnection later. (Couldn't find documentation to
@@ -513,8 +520,7 @@ classdef stg < neurostim.stimulus
             o.triggerTime = NaN;
             o.triggerSent = false;
             
-            % Streaming mode
-            o.loopStarted = false;
+            
             
         end
         
@@ -556,7 +562,7 @@ classdef stg < neurostim.stimulus
                 digoutMap = NET.createArray('System.UInt32', nrTriggers);
                 autostart = NET.createArray('System.UInt32', nrTriggers);
                 callbackThreshold = NET.createArray('System.UInt32', nrTriggers);
-                callbackThreshold(o.trigger) = 50; % 50% of buffer size
+                callbackThreshold(o.trigger) = 40; % 50% of buffer size
                 o.device.SetupTrigger(channelMap, syncoutMap, digoutMap, autostart, callbackThreshold);
             end
             
@@ -564,16 +570,17 @@ classdef stg < neurostim.stimulus
         
         function signal = nextChunk(o,channel)
             signal = stimulus(o,channel,o.chunkStartTime(channel),o.chunkDuration);
-          
+            
             % Check that ramp is not longer  than chunk
-            ramp = ones(size(signals));
+            ramp = ones(size(signal));
             if o.isRampUp && o.rampUp>0
                 ramp = linspace(0,1,o.rampUp/1000*o.outputRate);
-            end            
+            end
             if o.isRampDown && o.rampDown>0
                 ramp = linspace(1,0,o.rampUp/1000*o.outputRate);
             end
-            signal =signal.*ramp;
+            pad = ones(1,numel(signal)-numel(ramp));
+            signal =signal.*[ramp pad];
             o.chunkStartTime = o.chunkStartTime+o.chunkDuration;
         end
         
@@ -583,19 +590,20 @@ classdef stg < neurostim.stimulus
             else
                 o.isRampDown = true;
             end
-                
-            nrQueued = streamStimulus(o);    
+            
+            nrQueued = streamStimulus(o);
             % Should check whether they were actually queued...
             o.isRampUp = false;
             o.isRampDown =false;
         end
         
         function nrQueued = streamStimulus(o)
-            nrQueued = zeros(1,o.NRCHANNELS);
+            nrQueued = zeros(1,o.nrChannels);
             for thisChannel = o.channel
                 space = o.device.GetDataQueueSpace(thisChannel-1);
                 if space >= o.chunkDuration/1000*o.outputRate
-                    data = NET.convertArray(nextChunk(o,channel), 'System.Int16');
+                    fprintf('space %d', space);
+                    data = NET.convertArray(nextChunk(o,thisChannel), 'System.Int16');
                     nrQueued(thisChannel) = o.device.EnqueueData(thisChannel-1, data);
                 end
             end
@@ -683,7 +691,7 @@ classdef stg < neurostim.stimulus
                 % times. This is used to repeat sines, or to create a long
                 % duration constant stimulus.
                 
-                
+                step= 1./o.outputRate;
                 values =    [scale*rampUpSignal           0,    scale*signal,               thisNrRepeats,   scale*rampDownSignal];
                 duration  = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      0,             ones(1,numel(rampDownSignal))]*(step/1e-6);
                 syncValue = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      thisNrRepeats,   ones(1,numel(rampDownSignal))];
@@ -731,5 +739,32 @@ classdef stg < neurostim.stimulus
                 end
             end
         end
+        
+        function guiLayout(p)
+            % Add plugin specific elements
+            
+            h = uicheckbox(p,'Tag','Streaming','Text','Streaming');
+            h.Position = [110 17 80 22];
+            h.Enable = 'off';
+        end
     end
+    
+    %% GUI Functions
+    methods (Access= public)
+        function guiSet(o,parms)
+            %The nsGui calls this just before the experiment starts;
+            % o = plugin
+            % p = struct with settings for each of the elements in the
+            % guiLayout, named after the Tag property
+            %
+            %             if strcmpi(parms.onOffFakeKnob,'Fake')
+            %                 o.fake=true;
+            %             else
+            %                 o.fake =false;
+            %             end
+            o.downloadMode = ~parms.Streaming;
+        end
+    end
+    
+    
 end
