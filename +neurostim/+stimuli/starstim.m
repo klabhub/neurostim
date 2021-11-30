@@ -117,7 +117,7 @@ classdef starstim < neurostim.stimulus
 
         isTimedStarted= false;
         isShamOn= false;
-
+        
         activeProtocol='';
         tmr; % A timer
 
@@ -132,9 +132,18 @@ classdef starstim < neurostim.stimulus
         protocolStatus;    % Current protocol status (queries the NIC)
         isProtocolOn;
         isProtocolPaused;
+        isConnected; 
     end
 
     methods % get/set dependent functions
+        function v = get.isConnected(o)
+            if isempty(o.sock)
+                v = false;
+            else
+                ret = MatNICVersion(o.sock);
+                v = ret==0;
+            end
+        end
         function [v] = get.status(o)
             if o.fake
                 v = ' Fake OK';
@@ -298,9 +307,13 @@ classdef starstim < neurostim.stimulus
             if o.fake
                 o.writeToFeed(['Starstim connected to ' o.host]);
             else
-                [ret, ~, o.sock] = MatNICConnect(o.host);
-                if ret<0
-                    o.cic.error('STOPEXPERIMENT',['Could not connect to ',o.host]);
+                if ~o.isConnected
+                    % The object may already have a connection (from the
+                    % z-Now button in the gui), if not; try to connect now.
+                    [ret, ~, o.sock] = MatNICConnect(o.host);
+                    if ret<0
+                        o.cic.error('STOPEXPERIMENT',['Could not connect to ',o.host]);
+                    end
                 end
                 o.mustExit = true;
 
@@ -1041,6 +1054,23 @@ classdef starstim < neurostim.stimulus
             o.host = parms.Host;
             o.impedanceType= parms.ImpedanceType;
             o.verbose = parms.Verbose;
+            
+            if ~isempty(parms.ZNow.UserData)
+                % The user has already connected to starstim with the ZNow
+                % button. Re-use the socket
+                o.sock =  parms.ZNow.UserData;
+                % And store the last measurements 
+                if  o.fake
+                    o.z = NaN;
+                    ret = 0;
+                else
+                    [ret, o.z]= MatNICGetImpedance(o.sock);
+                end
+                if ret<0
+                    o.writeToFeed('Could not read Z-values. Device disconnected? ')
+                    o.sock = []; % Force a reconnection
+                end
+            end
         end
     end
 
@@ -1071,7 +1101,62 @@ classdef starstim < neurostim.stimulus
             h = uicheckbox(p,'Tag','Verbose','Text','Verbose');
             h.Position = [425 17 90 20];
 
+
+            h =uibutton(p,'push','Text','Z Now','Tag','ZNow','ButtonPushedFcn',@(btn,evt) neurostim.stimuli.starstim.measureImpedance(btn,p));
+            h.Position  = [500 17 90 20];
+
             
+        end
+
+        function measureImpedance(btn,pnl)
+            % Make a direct connection (i.e. without using the starstim
+            % object code) to start an impedance check.
+            % This is meant for initial cap setup, as a replacement for the
+            % button in the NIC gui, which is incompatible with the way we
+            % interact with the device (protocol is loaded and the status is STIMULATION_FULL after the z-check in NIC). 
+            % 
+            % If this function has been used, then opon starting an actual experiment, 
+            %  the last z-values are stored in the starstim object(see
+            %  guiSet) and the connection with the device is re-used.
+            % 
+            % BK -  November 2021
+
+            debug= true; %#ok<*UNRCH> 
+            parms = nsGui.getParms(pnl);
+            if isempty(btn.UserData) ||     MatNICQueryStatus (btn.UserData) ~=0
+                % Try to connect
+                if debug
+                    fprintf('Connecting to %s\n',parms.Host);
+                    ret = 0; socket= 0;
+                else
+                    [ret, status, socket] = MatNICConnect (parms.Host);
+                end
+                if ret==0
+                    btn.UserData = socket;
+                else
+                    errordlg(sprintf('Could not connect to %s (Status: %s)\n',parms.host,status),'Z Now','modal');
+                end
+            else
+                socket= btn.UserData;
+            end
+            
+            % For now, measure the impedance using the protocol that is
+            % loaded in the NIC.                        
+            if ~strcmpi(parms.ImpedanceType,'NONE')
+                if debug
+                    fprintf('Measuring z now....\n');
+                    ret=0;z=rand(1,8)*10000;
+                else
+                    [ret, z] = MatNICManualImpedance(parms.ImpedanceType, socket); 
+                end
+                if ret==0
+                    msgbox(char([parms.Host ' - Z (' parms.ImpedanceType '):'], [ '[' num2str(z(:)'/1e3,2) '] kOhm']),'Z Now');
+                else
+                    errordlg(sprintf('Z Measurement failed (Status: %s)',status),'Z Now','modal');
+                end
+            else
+                msgbox('Pick an impedance type from the drop-down.','Z Now');
+            end
         end
     end
 
