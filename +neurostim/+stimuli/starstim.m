@@ -104,7 +104,7 @@ classdef starstim < neurostim.stimulus
     properties (SetAccess={?neurostim.plugin}, GetAccess= public)
         NICVersion;
         matNICVersion;
-        code= containers.Map('KeyType','char','ValueType','double'); %#ok<MCHDP>
+        code= containers.Map('KeyType','char','ValueType','double'); 
         mustExit= false;   
     end
 
