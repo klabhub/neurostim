@@ -92,8 +92,8 @@ classdef starstim < neurostim.stimulus
         NRCHANNELS = 8;  % nrChannels in your device.
         debug = false;
         verbose = false;
-        
-        
+
+
         % EEG parms that need fast acces (and therefore not a property)
         eegAfterTrial = []; % Function handle fun(eeg,time,starstimObject)
         eegAfterFrame = []; % Functiona handle fun(eeg,time,starstimObject)
@@ -104,11 +104,11 @@ classdef starstim < neurostim.stimulus
     properties (SetAccess={?neurostim.plugin}, GetAccess= public)
         NICVersion;
         matNICVersion;
-        code= containers.Map('KeyType','char','ValueType','double'); 
-        mustExit= false;   
+        code= containers.Map('KeyType','char','ValueType','double');
+        mustExit= false;
     end
 
-    
+
 
     % Public Get, but set through functions or internally
     properties (Transient, SetAccess=protected, GetAccess= public)
@@ -117,7 +117,7 @@ classdef starstim < neurostim.stimulus
 
         isTimedStarted= false;
         isShamOn= false;
-        
+
         activeProtocol='';
         tmr; % A timer
 
@@ -132,7 +132,7 @@ classdef starstim < neurostim.stimulus
         protocolStatus;    % Current protocol status (queries the NIC)
         isProtocolOn;
         isProtocolPaused;
-        isConnected; 
+        isConnected;
     end
 
     methods % get/set dependent functions
@@ -140,7 +140,7 @@ classdef starstim < neurostim.stimulus
             if isempty(o.sock)
                 v = false;
             else
-                ret = MatNICVersion(o.sock);
+                [ret] = MatNICQueryStatus(o.sock);
                 v = ret==0;
             end
         end
@@ -178,7 +178,7 @@ classdef starstim < neurostim.stimulus
                     % Hacked soltion to the 'stimulation full' protocol
                     % status that impedance checks leave behind.
                     if strcmpi(stts,'CODE_STATUS_STIMULATION_FULL') && ...
-                            (strcmpi(o.status,'CODE_STATUS_CHECK_IMPEDANCE_FISNISHED') || strcmpi(o.status,'CODE_STATUS_REMOTE_CONTROL_ALLOWED'))                      
+                            (strcmpi(o.status,'CODE_STATUS_CHECK_IMPEDANCE_FISNISHED') || strcmpi(o.status,'CODE_STATUS_REMOTE_CONTROL_ALLOWED'))
                         % It is not really 'on'
                         % The firsr happens after a MatNIC triggered
                         % impedance check, the second after running a
@@ -187,7 +187,7 @@ classdef starstim < neurostim.stimulus
                         % button (which is a workaround to mix manual NIC
                         % control for pre-experiment checks, followed by
                         % neurostim control of the actual experiment).
-                       v = false; 
+                        v = false;
                     end
                 end
             end
@@ -291,7 +291,7 @@ classdef starstim < neurostim.stimulus
         function beforeExperiment(o)
 
             v = which('MatNICVersion');
-             if isempty(v) && ~o.fake
+            if isempty(v) && ~o.fake
                 error('The MatNIC library is not on your Matlab path');
             end
 
@@ -311,9 +311,7 @@ classdef starstim < neurostim.stimulus
                     % The object may already have a connection (from the
                     % z-Now button in the gui), if not; try to connect now.
                     [ret, ~, o.sock] = MatNICConnect(o.host);
-                    if ret<0
-                        o.cic.error('STOPEXPERIMENT',['Could not connect to ',o.host]);
-                    end
+                    checkFatalError(o,ret,['Connect to ',o.host]);
                 end
                 o.mustExit = true;
 
@@ -330,7 +328,7 @@ classdef starstim < neurostim.stimulus
                 end
 
                 ret  = MatNICConfigurePathFile (pth, o.sock); % Specify target directory
-                o.checkRet(ret,'PathFile');
+                checkFatalError(o,ret,['Set PathFile to ' pth]);
                 % File format : % YYYYMMDD_[subject].edf
                 % Always generate .easy file, and edf file (NIC requires
                 % it), and generate .stim when stimulating.
@@ -338,26 +336,26 @@ classdef starstim < neurostim.stimulus
                 % patientName, recordEasy, recordNedf, recordSD, recordEDF,
                 % socket  (no more STIM file)
                 ret = MatNICConfigureFileNameAndTypes(o.cic.subject,true,true,false,true,o.sock);
-                o.checkRet(ret,'FileNameAndTypes');
+                checkFatalError(o,ret,'Set FileNameAndTypes');
                 [ret,o.markerStream] = MatNICMarkerConnectLSL('Neurostim');
-                o.checkRet(ret,'Please enable the Neurostim Marker Stream in NIC');
+                checkFatalError(o,ret,'Enable the Neurostim Marker Stream in NIC');
 
                 key = keys(o.code);
                 vals = values(o.code);
                 for i=1:length(o.code)
                     [ret] = MatNICConfigureMarkers (key{i}, vals{i}, o.sock);
-                    o.checkRet(ret,['Define marker: ' key{i}]);
+                    checkFatalError(o,ret,['Define marker: ' key{i}]);
                 end
                 protocolSet = MatNICProtocolSet();
                 o.matNICVersion = protocolSet('MATNIC_VERSION');
             end
 
-            %unloadProtocol(o); % Remove whatever is loaded currently (if anything)
+            unloadProtocol(o); % Remove whatever is loaded currently (if anything)
             % Prepare for EEG reading
             if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
                 openEegStream(o);
             end
-            
+
         end
 
         function openEegStream(o)
@@ -386,45 +384,45 @@ classdef starstim < neurostim.stimulus
             o.verboseOutput('openEegStream','exit')
         end
 
-        function loadProtocol(o,prtcl)
+        function loadProtocol(o)
             o.verboseOutput('loadProtocol','entry')
-            if nargin >1
-                % new protocol defined
-                unloadProtocol(o); % Unload current
-                o.protocol= prtcl;
-            end
-
             if o.fake
-                o.writeToFeed([o.protocol ' protocol loaded'])
                 o.activeProtocol = o.protocol;
             else
                 % Load the protocol
-                if o.isProtocolOn 
-                    o.checkRet(-1,'A protocol is currently running on the NIC. Please stop it first')
-                end
                 ret = MatNICLoadProtocol(o.protocol,o.sock);
-                if ret ~=0
-                    o.checkRet(ret,['Protocol ' o.protocol ' is not defined in NIC']);
-                else
-                    o.activeProtocol = o.protocol;
-                end
+                checkFatalError(o,ret,['Load protocol ' o.protocol ]);
+                o.activeProtocol = o.protocol;
             end
             o.verboseOutput('loadProtocol','exit')
         end
 
         function unloadProtocol(o)
             o.verboseOutput('unloadProtocol','entry')
-            if ~o.fake &&  ischar(o.protocolStatus) && ~ismember(o.protocolStatus,{'CODE_STATUS_IDLE','error/unknown'})                            
+            if o.fake;return;end
+            if ~ismember(o.protocolStatus,{'CODE_STATUS_IDLE','error/unknown'})
                 ret = MatNICUnloadProtocol(o.sock);
-                if ret==-8 % protocol running abort
-                    stop(o);
-                    % Then try again
-                    unloadProtocol(o);
-                elseif ret<0
-                    o.checkRet(ret,'Could not unload the current protocol.')
-                else
+                switch (ret)
+                    case -6
+                        % Already unloaded
+                        ret =0; 
+                    case -8
+                        % protocol running.  abort then try again
+                        MatNICAbortProtocol(o.sock);
+                        ret = MatNICUnloadProtocol(o.sock);
+                    case -7
+                        % Impedance check running. Abort, then try again
+                        MatNICAbortManualCheckImpedances(o.sock);
+                        ret = MatNICUnloadProtocol(o.sock);
+                    case  0
+                        % All good
+                    otherwise
+
+                end
+                if ret==0
                     o.activeProtocol ='';
                 end
+                checkFatalError(o,ret,'Unload protocol');                
             end
             o.verboseOutput('unloadProtocol','exit')
         end
@@ -433,16 +431,16 @@ classdef starstim < neurostim.stimulus
 
 
         function beforeTrial(o)
-             if isempty(o.protocol)
+            if isempty(o.protocol)
                 o.cic.error('STOPEXPERIMENT','The Starstim plugin requires a protocol to be specified');
                 return;
             end
             %% Load the protocol if it has changed
             if ~strcmpi(o.protocol,o.activeProtocol)
-                stop(o);                
-                unloadProtocol(o);                    
+                stop(o);
+                unloadProtocol(o);
                 loadProtocol(o);
-                if o.cic.trial==1 
+                if o.cic.trial==1
                     impedance(o);
                 end
                 start(o);  % Start it (protocols should have zero current and a long duration)
@@ -602,10 +600,11 @@ classdef starstim < neurostim.stimulus
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
             end
-            
-            
-            % Have to wait until teh NIC software hanldes status better impedance(o);  % Read Z ('none') or perform z-check ('ac', or 'dc' type)
-            
+
+
+            % Read Z ('none') or perform z-check ('ac', or 'dc' type)
+            % impedance(o);
+
             unloadProtocol(o);
             if o.fake
                 o.writeToFeed('Closing Markerstream');
@@ -642,9 +641,7 @@ classdef starstim < neurostim.stimulus
                 if ~isempty(o.markerStream)
                     ret = MatNICMarkerSendLSL(o.code(m),o.markerStream);
                     o.marker = o.code(m); % Log it
-                    if ret<0
-                        o.checkRet(ret,[m ' marker not delivered']);
-                    end
+                    checkFatalError(o,ret,['Deliver marker' m]);
                 else
                     %o.writeToFeed('No marker stream to send markers');
                 end
@@ -679,8 +676,8 @@ classdef starstim < neurostim.stimulus
                         % Note that this command sets freq and phase
                         % immediately and then ramps the amplitude. This
                         % only makes sense for ramping up from zero amplitude,
+                        % hence it use here in the rampUp
                         [ret] = MatNICOnlinetACSChange(perChannel(o,o.amplitude), perChannel(o,o.frequency), perChannel(o,o.phase), o.NRCHANNELS, o.transition, o.sock);
-                        o.checkRet(ret,msg);
                     end
                 case 'TDCS'
                     msg{1} = sprintf('Ramping tDCS up in %d ms to:',o.transition);
@@ -688,7 +685,6 @@ classdef starstim < neurostim.stimulus
                     msg{3} = sprintf('\t%d mA',o.mean);
                     if ~o.fake
                         [ret] = MatNICOnlineAtdcsChange(perChannel(o,o.mean), o.NRCHANNELS, o.transition, o.sock);
-                        o.checkRet(ret,msg);
                     end
                 case 'TRNS'
                     msg{1} = sprintf('Turning on tRNS');
@@ -697,11 +693,13 @@ classdef starstim < neurostim.stimulus
                     setFilterTrns(o,true);
                     if ~o.fake
                         [ret] = MatNICOnlineAtrnsChange(perChannel(o,o.amplitude), o.NRCHANNELS, o.sock);
-                        o.checkRet(ret,msg);
                     end
                 otherwise
-                    o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
+                    ret= -100;
+                    msg = ['Unknown stimulation type : ' o.type];
             end
+            checkFatalError(o,ret,msg);
+
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
 
             waitFor(o,'PROTOCOL','CODE_STATUS_STIMULATION_FULL');
@@ -742,21 +740,19 @@ classdef starstim < neurostim.stimulus
             if ~o.fake
                 switch upper(o.type)
                     case 'TACS'
-                        %Do NOT use the MatNICOnlinetACSChange function: it will chnage
-                        %frequency and phase immediately, but ramp down the
-                        %amplitude... that can never be current-conserved
+                        % USe this instaed of the MatNICOnlinetACSChange function: the latter changes e
+                        %frequency and phase immediately, but ramps down the amplitude... that can never be current-conserved
                         %and Starstim will dump exccess current through the
-                        %DRL (or CMS), which can cause a slap to the
-                        %face...
+                        % DRL (or CMS), which can cause a slap to the face...
                         [ret] = MatNICOnlineAtacsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
-                        o.checkRet(ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
+                        checkFatalError(o,ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
                     case 'TDCS'
                         [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
-                        o.checkRet(ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
+                        checkFatalError(o,ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
                     case 'TRNS'
                         [ret] = MatNICOnlineAtrnsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.sock);
                         setFilterTrns(o,false); % Remove filter.
-                        o.checkRet(ret,sprintf('tRNS Set to zero'));
+                        checkFatalError(o,ret,'tRNS Set to zero');
                     otherwise
                         o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
                 end
@@ -774,13 +770,16 @@ classdef starstim < neurostim.stimulus
             o.verboseOutput('start','entry')
             % Start the current protocol.
             if o.fake
-                o.writeToFeed(['Started' o.protocol ' protocol' ]);
-            elseif ~o.isProtocolOn
+                o.writeToFeed(['Start' o.protocol ' protocol' ]);
+            else
                 ret = MatNICStartProtocol(o.sock);
-                if ret==0
-                    o.writeToFeed(['Started ' o.protocol ' protocol']);
-                else
-                    o.checkRet(ret,['Protocol ' o.protocol ' could not be started']);
+                switch (ret)
+                    case 0
+                        o.writeToFeed(['Started ' o.protocol ' protocol']);
+                    case -10
+                        % Already runnning
+                    otherwise
+                        checkFatalError(o,ret,['Start protocol ' o.protocol ]);
                 end
                 waitFor(o,'PROTOCOL',{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_EEG_ON'});
                 % This waitFor is slow, and adds at least 1s to
@@ -802,13 +801,11 @@ classdef starstim < neurostim.stimulus
                 o.writeToFeed(['Stopped ' o.protocol ' protocol']);
             elseif o.isProtocolOn
                 ret = MatNICAbortProtocol(o.sock);
-                if ret==-2
-                    return
-                    % already stopped
+                if ret==-2 || ret==9
+                    % stopped
                 else
-                    o.checkRet(ret,['Protocol ' o.protocol ' could not be stopped']);
+                    checkFatalError(o,ret,['Stop protocol ' o.protocol ]);
                 end
-                %else -  already stopped
                 waitFor(o,'PROTOCOL',{'CODE_STATUS_PROTOCOL_ABORTED','CODE_STATUS_IDLE'});% Either of these is fine
             end
             o.verboseOutput('stop','exit')
@@ -819,11 +816,14 @@ classdef starstim < neurostim.stimulus
             % Pause the current protocol
             if o.fake
                 o.writeToFeed(['Paused ' o.protocol ' protocol']);
-            elseif ~o.isProtocolPaused
+            else
                 ret = MatNICPauseProtocol(o.sock);
-                o.checkRet(ret,['Protocol ' o.protocol ' could not be paused']);
+                if ret == -6
+                    % Already paused
+                else
+                    checkFatalError(o,ret,['Pause protocol ' o.protocol s]);
+                end
                 waitFor(o,'PROTOCOL','CODE_STATUS_IDLE');
-                %  else already paused
             end
             o.verboseOutput('pause','exit')
         end
@@ -833,50 +833,57 @@ classdef starstim < neurostim.stimulus
         function impedance(o)
             % Measure and store impedance.
             % One problem with this impedance check is that, once it
-            % completes, the status is CODE_STATUS_STIMULATION_FULL ; that
-            % causes real pronlems later on.
-            %  So it seems better to run the z-check from NIC (using a
-            %  non-zero current protocol) and not use this function.
-            % We do retrieve and store z-values in beforeExperiment an
-            % afterExperiment
-            
+            % completes, the status is CODE_STATUS_STIMULATION_FULL ;  the code
+            % now tries to capture this situation.
+
             if o.fake
                 impedance = rand;
+                ret = 0;
             elseif strcmpi(o.impedanceType,'NONE')
-                % Only reading impedance that may or may not have been measured manually 
-                [~,impedance] = MatNICGetImpedance(o.sock);                            
+                % Only reading impedance that may or may not have been measured manually
+                [ret,impedance] = MatNICGetImpedance(o.sock);
             else
                 % Do a impedance check and store current values (protocol
                 % must be loaded, but not started).
                 [ret,impedance] = MatNICManualImpedance(o.impedanceType,o.sock);
-                o.checkRet(ret,'Impedance check failed');
+
             end
-            o.writeToFeed(['Impedance: [' num2str(impedance(:)'/1000,2) '] kOhm']);
+            checkNonFatalError(o,ret,[ o.impedanceType  ' impedance check : [' num2str(impedance(:)'/1000,2) '] kOhm']);
             o.z = impedance;  % Update the impedance.
         end
 
-        function checkRet(o,ret,msg)
-            % Check a return value and display a message if something is
-            % wrong.
+        function checkFatalError(o,ret,msg)
             if ret<0
-                onExit(o)
-                o.writeToFeed(msg);
-                o.cic.error('STOPEXPERIMENT',['StarStim failed: Status ' o.status ':  ' num2str(ret)]);
+                onExit(o);
+                o.writeToFeed(['FATAL ERROR:' msg ' Status:' o.status ' ProtocolStatus: ' o.protocolStatus]);
+                o.cic.error('STOPEXPERIMENT','StarStim generated a fatal error');
+            elseif o.verbose
+                o.writeToFeed(['SUCCESS: ' msg ' Status:' o.status ' ProtocolStatus: ' o.protocolStatus]);
+            end
+        end
+
+        function checkNonFatalError(o,ret,msg)
+            if ret<0
+                o.writeToFeed(['NONFATAL ERROR:' msg ' Status:' o.status ' ProtocolStatus: ' o.protocolStatus]);
+            elseif o.verbose
+                o.writeToFeed(['SUCCESS: ' msg ' Status:' o.status ' ProtocolStatus: ' o.protocolStatus]);
             end
         end
 
         function onExit(o)
-            stop(o);
-            timrs = timerfind('name','starstim.timer');
-            if ~isempty(timrs)
-                delete(timrs)
+            if o.mustExit
+                MatNICAbortProtocol(o.sock);
+                timrs = timerfind('name','starstim.timer');
+                if ~isempty(timrs)
+                    delete(timrs)
+                end
+                MatNICUnloadProtocol(o.sock)
+                close(o)
             end
-            unloadProtocol(o);
-            close(o)
             o.mustExit = false;
         end
 
-       
+
         function waitFor(o,protocolOrStatus,varargin)
             % busy-wait for a sequence of status events.
             % waitFor(o,'a','b') first waits for a then for b
@@ -892,7 +899,7 @@ classdef starstim < neurostim.stimulus
                         nowStatus= o.protocolStatus;
                     case 'STATUS'
                         nowStatus = o.status;
-                    otherwise 
+                    otherwise
                         error('Unknonw mode')
                 end
 
@@ -906,8 +913,8 @@ classdef starstim < neurostim.stimulus
                     else
                         stts = varargin{cntr};
                     end
-                    warning(['Waiting for ' stts ' timed out']);
-                    warning(['Last protocol status was ' o.protocolStatus ]);
+                    o.writeToFeed(['Waiting for ' stts ' timed out']);
+                    o.writeToFeed(['Last protocol status was ' o.protocolStatus ]);
                     break;
                 end
             end
@@ -992,14 +999,14 @@ classdef starstim < neurostim.stimulus
                     o.writeToFeed(sprintf('Set tRNS filter to %s with parameters [%3.2f %3.2f]',o.tRNSFilter, o.tRNSFilterParms));
                 else
                     ret = MatNICEnableTRNSFilter(o.tRNSFilter,param1,param2,o.sock);
-                    o.checkRet(ret,sprintf('Could not set tRNS filter to %s with parameters [%3.2f %3.2f]',o.tRNSFilter,param1,param2));
+                    checkFatalError(o,ret,sprintf('Could not set tRNS filter to %s with parameters [%3.2f %3.2f]',o.tRNSFilter,param1,param2));
                 end
             else
                 if o.fake
                     o.writeToFeed('Removing tRNS filters');
                 else
                     [ret] = MatNICDisableTRNSFilter (o.sock);
-                    o.checkRet(ret,'Failed to disable tRNS filter');
+                    checkFatalError(o,ret,'Failed to disable tRNS filter');
                 end
             end
         end
@@ -1054,12 +1061,12 @@ classdef starstim < neurostim.stimulus
             o.host = parms.Host;
             o.impedanceType= parms.ImpedanceType;
             o.verbose = parms.Verbose;
-            
+
             if ~isempty(parms.ZNow.UserData)
                 % The user has already connected to starstim with the ZNow
                 % button. Re-use the socket
                 o.sock =  parms.ZNow.UserData;
-                % And store the last measurements 
+                % And store the last measurements
                 if  o.fake
                     o.z = NaN;
                     ret = 0;
@@ -1092,7 +1099,7 @@ classdef starstim < neurostim.stimulus
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [325 39 90 22];
-         
+
             h.Text = 'Z-Check';
             h = uidropdown(p,'Tag','ImpedanceType','Items',{'None','AC','DC'});
             h.Position = [325 17 80 20];
@@ -1105,7 +1112,7 @@ classdef starstim < neurostim.stimulus
             h =uibutton(p,'push','Text','Z Now','Tag','ZNow','ButtonPushedFcn',@(btn,evt) neurostim.stimuli.starstim.measureImpedance(btn,p));
             h.Position  = [500 17 90 20];
 
-            
+
         end
 
         function measureImpedance(btn,pnl)
@@ -1113,15 +1120,15 @@ classdef starstim < neurostim.stimulus
             % object code) to start an impedance check.
             % This is meant for initial cap setup, as a replacement for the
             % button in the NIC gui, which is incompatible with the way we
-            % interact with the device (protocol is loaded and the status is STIMULATION_FULL after the z-check in NIC). 
-            % 
-            % If this function has been used, then opon starting an actual experiment, 
+            % interact with the device (protocol is loaded and the status is STIMULATION_FULL after the z-check in NIC).
+            %
+            % If this function has been used, then opon starting an actual experiment,
             %  the last z-values are stored in the starstim object(see
             %  guiSet) and the connection with the device is re-used.
-            % 
+            %
             % BK -  November 2021
 
-            debug= true; %#ok<*UNRCH> 
+            debug= false; %#ok<*UNRCH>
             parms = nsGui.getParms(pnl);
             if isempty(btn.UserData) ||     MatNICQueryStatus (btn.UserData) ~=0
                 % Try to connect
@@ -1139,15 +1146,21 @@ classdef starstim < neurostim.stimulus
             else
                 socket= btn.UserData;
             end
-            
+
             % For now, measure the impedance using the protocol that is
-            % loaded in the NIC.                        
+            % loaded in the NIC.
             if ~strcmpi(parms.ImpedanceType,'NONE')
                 if debug
                     fprintf('Measuring z now....\n');
                     ret=0;z=rand(1,8)*10000;
                 else
-                    [ret, z] = MatNICManualImpedance(parms.ImpedanceType, socket); 
+                    fprintf('*** Starting Impedance Check. Please wait. *** \n')
+                    parms.zProtocol  = 'leftHD';
+                    MatNICUnloadProtocol(socket);
+                    [ret] = MatNICLoadProtocol(parms.zProtocol, socket);
+                    [ret, z] = MatNICManualImpedance(parms.ImpedanceType, socket);
+                    [ret] = MatNICLoadProtocol(parms.zProtocol, socket);
+                    fprintf('*** Completed Impedance Check.             *** \n')
                 end
                 if ret==0
                     msgbox(char([parms.Host ' - Z (' parms.ImpedanceType '):'], [ '[' num2str(z(:)'/1e3,2) '] kOhm']),'Z Now');
