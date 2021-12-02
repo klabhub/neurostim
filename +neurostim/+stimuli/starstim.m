@@ -1060,7 +1060,7 @@ classdef starstim < neurostim.stimulus
             end
             o.host = parms.Host;
             o.impedanceType= parms.ImpedanceType;
-            o.verbose = parms.Verbose;
+
 
             if ~isempty(parms.ZNow.UserData)
                 % The user has already connected to starstim with the ZNow
@@ -1093,25 +1093,34 @@ classdef starstim < neurostim.stimulus
             h.Text = 'Host';
 
             h = uieditfield(p, 'text','Tag','Host');
-            h.Position = [110 17 200 22];
+            h.Position = [110 17 150 22];
 
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
-            h.Position = [325 39 90 22];
-
+            h.Position = [270 39 90 22];
             h.Text = 'Z-Check';
-            h = uidropdown(p,'Tag','ImpedanceType','Items',{'None','AC','DC'});
-            h.Position = [325 17 80 20];
-            %h.Enable ='off';
-            h.Tooltip = 'Select to perform a z-check before the first trial';
-            h = uicheckbox(p,'Tag','Verbose','Text','Verbose');
-            h.Position = [425 17 90 20];
 
+
+
+            h = uidropdown(p,'Tag','ImpedanceType','Items',{'None','AC','DC'});
+            h.Position = [270 17 40 20];
+            h.Tooltip = 'Select to perform a z-check before the first trial';
+            
+            
+             h = uilabel(p);
+             h.HorizontalAlignment = 'left';
+             h.VerticalAlignment = 'bottom';
+             h.Position = [320 39 150 22];
+             h.Text = 'Z-Protocol';
+ 
+             h = uieditfield(p, 'text','Tag','zProtocol');
+             h.Position = [320 17 150 22];
+            h.Tooltip = 'Protocol to use for Z-Now';
 
             h =uibutton(p,'push','Text','Z Now','Tag','ZNow','ButtonPushedFcn',@(btn,evt) neurostim.stimuli.starstim.measureImpedance(btn,p));
-            h.Position  = [500 17 90 20];
-
+            h.Position  = [510 17 80 20];
+            h.Tooltip = 'Press to perform a manual Z-check now';
 
         end
 
@@ -1154,8 +1163,7 @@ classdef starstim < neurostim.stimulus
                     fprintf('Measuring z now....\n');
                     ret=0;z=rand(1,8)*10000;
                 else
-                    fprintf('*** Starting Impedance Check. Please wait. *** \n')
-                    parms.zProtocol  = 'leftHD';
+                    fprintf('*** Starting Impedance Check. Please wait. *** \n')                    
                     MatNICUnloadProtocol(socket);
                     [ret] = MatNICLoadProtocol(parms.zProtocol, socket);
                     [ret, z] = MatNICManualImpedance(parms.ImpedanceType, socket);
@@ -1165,7 +1173,7 @@ classdef starstim < neurostim.stimulus
                 if ret==0
                     msgbox(char([parms.Host ' - Z (' parms.ImpedanceType '):'], [ '[' num2str(z(:)'/1e3,2) '] kOhm']),'Z Now');
                 else
-                    errordlg(sprintf('Z Measurement failed (Status: %s)',status),'Z Now','modal');
+                    errordlg(sprintf('Z Measurement failed (Protocol: %s)',parms.zProtocol),'Z Now','modal');
                 end
             else
                 msgbox('Pick an impedance type from the drop-down.','Z Now');
