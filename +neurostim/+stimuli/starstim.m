@@ -538,13 +538,21 @@ classdef starstim < neurostim.stimulus
         %function afterFrame(o)
         %handleEeg(o,o.eegAfterFrame); DISABLED FOR NOW - not likely to be fast enough... need some pacer.
         %end
-
+        function afterBlock(o)
+            switch upper(o.mode)
+                case 'BLOCKED'
+                    if o.enabled
+                        rampDown(o);
+                    end
+                otherwise
+                    %Nothing to do
+            end
+        end
+        
         function afterTrial(o)
             switch upper(o.mode)
                 case 'BLOCKED'
-                    if o.cic.blockDone && o.enabled
-                        rampDown(o);
-                    end
+                    %Nothing to do
                 case 'TRIAL'
                     if ~o.sham
                         % Rampdown unless this is a sham trial (which has a rampdown scheduled)
@@ -661,7 +669,7 @@ classdef starstim < neurostim.stimulus
                 ret = MatNICMarkerSendLSL(o.code(m),o.markerStream);                                
             end
             o.marker = o.code(m); % Log it
-            checkFatalError(o,ret,['Deliver marker' m]);
+            checkFatalError(o,ret,['Deliver marker ' m]);
         end
 
         function v = perChannel(o,v)
@@ -1081,7 +1089,9 @@ classdef starstim < neurostim.stimulus
             o.host = parms.Host;
             o.impedanceType= parms.zType;
             o.verbose = parms.Verbose;
-
+            if ~isempty(parms.zProtocol)
+                o.zProtocol = parms.zProtocol;
+            end
             if ~isempty(parms.ZNow.UserData)
                 % The user has already connected to starstim with the ZNow
                 % button. Re-use the socket and store the last measurement.
