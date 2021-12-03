@@ -24,12 +24,26 @@ classdef starstim < neurostim.stimulus
     % This plugin will load the protocol, (which will record EEG but stimulate
     % at 0 currents) and then change stimulation parameters on the fly.
     %
-    % For manual impedance checking a separate protocol has to be used (with
-    % current>100 muA). By setting the impedanceType to 'None', the Matlab
-    % interface will only read z at the start (Trial ==1)  and end o te
-    % experiment. By setting impedanceType to AC or DC, neurostim will
-    % tigger an impedance measurement before trial 1 and at the en of the
-    % experiment
+    % Impedance checking in the NIC Gui interferes with the subsequent running
+    % of a protocol from MatNIC  (Nov 2021). If you need to use the NIC GUI, be sure
+    % % to restart it after performing manual impedance checks.  Also, NIC
+    % will not measure impedances for channels with 0 current so a separate
+    % protocol is needed to do z-checks. 
+    % The recommended approach is to do z-check from nsGui, using the z Now
+    % button. For this, specify the protocol to use (e.g. a protocol in
+    % which all electrodes used in the experiment are marked as stimulation
+    % electrodes; the current levels can be zero) , then select AC or DC
+    % and press Z-Now. The z values will be stored in the data file for the
+    % next experiment. 
+    % 
+    % If Z-Check is set to AC or DC , an impedance check is performed both
+    % before the experiment starts and after it ends. Note that this would
+    % be in addition to the Z Now button presses. 
+    % 
+    % So, the quickest way to start an experiment is to use the Z-now
+    % button during electrode setup (for repeated measurements), then set
+    % Z-type to None, and press the Go button. The only loss is the z
+    % measurement at the end of the experiment.
     %
     % Filenaming convention for NIC output uses the name of the step in the
     % protocol. Leaving the step name blank creates cleaner file names
@@ -66,7 +80,10 @@ classdef starstim < neurostim.stimulus
     %   .mean                           - tDCS only : one integer value per
     %   channel. Must add up to zero.
     %
-    %
+    %   .zProtocol - Name of the protocol to use before (and after) the
+    %   experiment to measure impedance.
+    %    .impedanceType - AC, or DC, or NONE to skip z measurements
+    %    before/after experiment.
     %
     %
     % In each mode , you can use sham stimulation (.sham =
@@ -85,6 +102,13 @@ classdef starstim < neurostim.stimulus
     %  number or name of the NIC machine in the constructor)
     %
     % BK - Feb 2016, 2017
+    % Nov - 2021 - Revisions to allow z-checks, and to avoid execution loops.
+
+    properties (Constant)
+        % Define  marker events to store in the NIC data file
+        code   = containers.Map({'trialStart','rampUp','rampDown','trialStop','returnFromNIC','protocolStarted','stopProtocol','stimOnset'},{1,2,3,4,5,6,7,8})
+    end
+
 
     properties (SetAccess =public, GetAccess=public)
         stim=false;
@@ -100,11 +124,14 @@ classdef starstim < neurostim.stimulus
         eegStore= false; % Store the eeg data in the starstim object.
         eegInit= false; % Set to true to initialize eeg stream before experiment (and do not wait until the first trial with non empty o.eegChannels)
     end
+
+    properties (SetAccess=protected,GetAccess=public)
+        NICVersion;
+        matNICVersion;               
+    end
+    
     % Public Get, but set through functions or internally
     properties (SetAccess={?neurostim.plugin}, GetAccess= public)
-        NICVersion;
-        matNICVersion;
-        code= containers.Map('KeyType','char','ValueType','double');
         mustExit= false;
     end
 
@@ -246,6 +273,7 @@ classdef starstim < neurostim.stimulus
             o.addProperty('protocol',''); % Case Sensitive - must exist on host
             o.addProperty('fake',false);
             o.addProperty('z',NaN,'sticky',true);
+            o.addProperty('zProtocol','','sticky',true); %THe protocol to be used for impedance checks.
             o.addProperty('type','tACS');%tACS, tDCS, tRNS
             o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED','EEGONLY'
             o.addProperty('path',''); % Set to the folder on the starstim computer where data should be stored.
@@ -276,17 +304,9 @@ classdef starstim < neurostim.stimulus
             o.addProperty('eeg',[]); % Collects eeg data per pull (but only if eegStore ==true)
             o.addProperty('eegTime',[])% Starstim time corresponding to eeg data.
 
-            % Define  marker events to store in the NIC data file
-            o.code('trialStart') = 1;
-            o.code('rampUp') = 2;
-            o.code('rampDown') = 3;
-            o.code('trialStop') = 4;
-            o.code('returnFromNIC') = 5; % confirming online change return from function call.
-            o.code('protocolStarted') = 6;
-            o.code('stopProtocol') = 7;
-            o.code('stimOnset') = 8;
+            
+        end            
 
-        end
 
         function beforeExperiment(o)
 
@@ -351,6 +371,10 @@ classdef starstim < neurostim.stimulus
             end
 
             unloadProtocol(o); % Remove whatever is loaded currently (if anything)
+            if ~strcmpi(o.impedanceType,'NONE')
+                impedance(o); % Measure and store the impedance.
+            end
+
             % Prepare for EEG reading
             if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
                 openEegStream(o);
@@ -405,7 +429,7 @@ classdef starstim < neurostim.stimulus
                 switch (ret)
                     case -6
                         % Already unloaded
-                        ret =0; 
+                        ret =0;
                     case -8
                         % protocol running.  abort then try again
                         MatNICAbortProtocol(o.sock);
@@ -422,7 +446,7 @@ classdef starstim < neurostim.stimulus
                 if ret==0
                     o.activeProtocol ='';
                 end
-                checkFatalError(o,ret,'Unload protocol');                
+                checkFatalError(o,ret,'Unload protocol');
             end
             o.verboseOutput('unloadProtocol','exit')
         end
@@ -439,10 +463,7 @@ classdef starstim < neurostim.stimulus
             if ~strcmpi(o.protocol,o.activeProtocol)
                 stop(o);
                 unloadProtocol(o);
-                loadProtocol(o);
-                if o.cic.trial==1
-                    impedance(o);
-                end
+                loadProtocol(o);              
                 start(o);  % Start it (protocols should have zero current and a long duration)
             end
 
@@ -602,19 +623,19 @@ classdef starstim < neurostim.stimulus
             end
 
 
-            % Read Z ('none') or perform z-check ('ac', or 'dc' type)
-            % impedance(o);
-
+            % Perform z-check ('ac', or 'dc' type)            
+            if ~strcmpi(o.impedanceType,'NONE')
+                impedance(o); % Measure and store the impedance.
+            end
             unloadProtocol(o);
+
             if o.fake
                 o.writeToFeed('Closing Markerstream');
             else
-
                 if ~isempty(o.inlet)
                     o.inlet.close_stream;
                     o.inlet = []; % Force a delete
                 end
-
 
                 MatNICMarkerCloseLSL(o.markerStream);
                 o.markerStream = [];
@@ -635,17 +656,12 @@ classdef starstim < neurostim.stimulus
         function sendMarker(o,m)
 
             if o.fake
-                writeToFeed(o,[m ' marker delivered']);
-                o.marker = o.code(m); % Log it
+                ret =0;                
             else
-                if ~isempty(o.markerStream)
-                    ret = MatNICMarkerSendLSL(o.code(m),o.markerStream);
-                    o.marker = o.code(m); % Log it
-                    checkFatalError(o,ret,['Deliver marker' m]);
-                else
-                    %o.writeToFeed('No marker stream to send markers');
-                end
+                ret = MatNICMarkerSendLSL(o.code(m),o.markerStream);                                
             end
+            o.marker = o.code(m); % Log it
+            checkFatalError(o,ret,['Deliver marker' m]);
         end
 
         function v = perChannel(o,v)
@@ -672,7 +688,9 @@ classdef starstim < neurostim.stimulus
                     msg{3} = sprintf('\t%d mA',perChannel(o,o.amplitude));
                     msg{4} = sprintf('\t%d Hz',perChannel(o,o.frequency));
                     msg{5} = sprintf('\t%d o ',perChannel(o,o.phase));
-                    if ~o.fake
+                    if o.fake
+                        ret = 0;
+                    else
                         % Note that this command sets freq and phase
                         % immediately and then ramps the amplitude. This
                         % only makes sense for ramping up from zero amplitude,
@@ -683,7 +701,9 @@ classdef starstim < neurostim.stimulus
                     msg{1} = sprintf('Ramping tDCS up in %d ms to:',o.transition);
                     msg{2} = sprintf('\tCh#%d',1:o.NRCHANNELS);
                     msg{3} = sprintf('\t%d mA',o.mean);
-                    if ~o.fake
+                    if o.fake
+                        ret =0;
+                    else
                         [ret] = MatNICOnlineAtdcsChange(perChannel(o,o.mean), o.NRCHANNELS, o.transition, o.sock);
                     end
                 case 'TRNS'
@@ -691,7 +711,9 @@ classdef starstim < neurostim.stimulus
                     msg{2} = sprintf('\tCh#%d',1:o.NRCHANNELS);
                     msg{3} = sprintf('\t%d mA',o.amplitude);
                     setFilterTrns(o,true);
-                    if ~o.fake
+                    if o.fake
+                        ret = 0;
+                    else
                         [ret] = MatNICOnlineAtrnsChange(perChannel(o,o.amplitude), o.NRCHANNELS, o.sock);
                     end
                 otherwise
@@ -699,16 +721,9 @@ classdef starstim < neurostim.stimulus
                     msg = ['Unknown stimulation type : ' o.type];
             end
             checkFatalError(o,ret,msg);
-
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
-
             waitFor(o,'PROTOCOL','CODE_STATUS_STIMULATION_FULL');
-            tReachedPeak = GetSecs;
-
-            if o.fake || o.debug
-                o.writeToFeed(msg);
-            end
-
+            tReachedPeak = GetSecs;          
             if o.sham
                 peakLevelDuration =o.shamDuration;
             end
@@ -727,17 +742,16 @@ classdef starstim < neurostim.stimulus
 
 
         function rampDown(o,tScheduled)
-
             waitFor(o,'PROTOCOL',{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
-            if o.fake || o.debug
-                if nargin ==2
-                    o.writeToFeed(sprintf('Ramping %s down to zero in %d ms after %.0f ms at peak level )',o.type, o.transition,1000*(GetSecs-tScheduled)));
-                else
-                    o.writeToFeed(sprintf('Ramping %s down to zero in %d ms',o.type, o.transition));
-                end
-            end
+            if nargin ==2
+                timeAtPeak = 1000*(GetSecs-tScheduled);
+            else
+                timeAtPeak = 0;
+            end               
             sendMarker(o,'rampDown');
-            if ~o.fake
+            if o.fake
+                ret=0;
+            else
                 switch upper(o.type)
                     case 'TACS'
                         % USe this instaed of the MatNICOnlinetACSChange function: the latter changes e
@@ -745,21 +759,18 @@ classdef starstim < neurostim.stimulus
                         %and Starstim will dump exccess current through the
                         % DRL (or CMS), which can cause a slap to the face...
                         [ret] = MatNICOnlineAtacsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
-                        checkFatalError(o,ret,sprintf('tACS DownRamp (Transition: %d)',o.transition));
                     case 'TDCS'
                         [ret] = MatNICOnlineAtdcsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.transition, o.sock);
-                        checkFatalError(o,ret,sprintf('tDCS DownRamp (Transition: %d)',o.transition));
                     case 'TRNS'
                         [ret] = MatNICOnlineAtrnsChange(zeros(1,o.NRCHANNELS), o.NRCHANNELS, o.sock);
                         setFilterTrns(o,false); % Remove filter.
-                        checkFatalError(o,ret,'tRNS Set to zero');
                     otherwise
                         o.cic.error('STOPEXPERIMENT',['Unknown stimulation type : ' o.type]);
+                        ret= -1;
                 end
             end
+            checkFatalError(o,ret,sprintf('%s DownRamp (Transition: %d, peakTime %f)',o.type,o.transition,timeAtPeak));
             sendMarker(o,'returnFromNIC'); % Confirm MatNICOnline completed (debuggin timing issues).
-
-
         end
 
 
@@ -770,16 +781,17 @@ classdef starstim < neurostim.stimulus
             o.verboseOutput('start','entry')
             % Start the current protocol.
             if o.fake
-                o.writeToFeed(['Start' o.protocol ' protocol' ]);
+                ret = 0;
             else
                 ret = MatNICStartProtocol(o.sock);
                 switch (ret)
                     case 0
-                        o.writeToFeed(['Started ' o.protocol ' protocol']);
+                        % All good.
                     case -10
                         % Already runnning
+                        ret =0;
                     otherwise
-                        checkFatalError(o,ret,['Start protocol ' o.protocol ]);
+                        %Nothind to do (fails below)
                 end
                 waitFor(o,'PROTOCOL',{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_EEG_ON'});
                 % This waitFor is slow, and adds at least 1s to
@@ -787,6 +799,7 @@ classdef starstim < neurostim.stimulus
                 % state after the wait.
                 % else already started
             end
+            checkFatalError(o,ret,['Start protocol ' o.protocol ]);
             sendMarker(o,'protocolStarted');
             o.verboseOutput('start','exit')
         end
@@ -798,16 +811,21 @@ classdef starstim < neurostim.stimulus
             o.verboseOutput('stop','entry')
             sendMarker(o,'stopProtocol');
             if o.fake
-                o.writeToFeed(['Stopped ' o.protocol ' protocol']);
+                ret  = 0;
             elseif o.isProtocolOn
                 ret = MatNICAbortProtocol(o.sock);
-                if ret==-2 || ret==9
+                if ret==-2 
                     % stopped
+                    ret =0;
                 else
-                    checkFatalError(o,ret,['Stop protocol ' o.protocol ]);
+                   % Some error
                 end
                 waitFor(o,'PROTOCOL',{'CODE_STATUS_PROTOCOL_ABORTED','CODE_STATUS_IDLE'});% Either of these is fine
+            else
+                % Nothing to do
+                ret = 0;
             end
+            checkFatalError(o,ret,['Stop protocol ' o.protocol ]);
             o.verboseOutput('stop','exit')
         end
 
@@ -815,16 +833,18 @@ classdef starstim < neurostim.stimulus
             o.verboseOutput('pause','entry')
             % Pause the current protocol
             if o.fake
-                o.writeToFeed(['Paused ' o.protocol ' protocol']);
+                ret = 0;                
             else
                 ret = MatNICPauseProtocol(o.sock);
                 if ret == -6
                     % Already paused
+                    ret = 0;
                 else
-                    checkFatalError(o,ret,['Pause protocol ' o.protocol s]);
+                    %Some error 
                 end
                 waitFor(o,'PROTOCOL','CODE_STATUS_IDLE');
             end
+            checkFatalError(o,ret,['Pause protocol ' o.protocol s]);
             o.verboseOutput('pause','exit')
         end
 
@@ -833,8 +853,10 @@ classdef starstim < neurostim.stimulus
         function impedance(o)
             % Measure and store impedance.
             % One problem with this impedance check is that, once it
-            % completes, the status is CODE_STATUS_STIMULATION_FULL ;  the code
-            % now tries to capture this situation.
+            % completes, the status is CODE_STATUS_STIMULATION_FULL ; that caused
+            % problems for some of the sanity checks in th code, but we try
+            % to detect this now and proceed as if no stimuation is being
+            % applied.
 
             if o.fake
                 impedance = rand;
@@ -843,12 +865,10 @@ classdef starstim < neurostim.stimulus
                 % Only reading impedance that may or may not have been measured manually
                 [ret,impedance] = MatNICGetImpedance(o.sock);
             else
-                % Do a impedance check and store current values (protocol
-                % must be loaded, but not started).
-                [ret,impedance] = MatNICManualImpedance(o.impedanceType,o.sock);
-
+                % Use the static function that is also used by zNow button in nsGui
+                [ret,impedance] = neurostim.stimuli.starstim.manualImpedanceCheck(o.zProtocol,o.impedanceType,o.sock);
             end
-            checkNonFatalError(o,ret,[ o.impedanceType  ' impedance check : [' num2str(impedance(:)'/1000,2) '] kOhm']);
+            checkNonFatalError(o,ret,['zProtocol: ' o.zProtocol ' - '  o.impedanceType  ' z check : [' num2str(impedance(:)'/1000,2) '] kOhm']);
             o.z = impedance;  % Update the impedance.
         end
 
@@ -996,18 +1016,18 @@ classdef starstim < neurostim.stimulus
                         param2 = o.tRNSFilterParms(2);
                 end
                 if o.fake
-                    o.writeToFeed(sprintf('Set tRNS filter to %s with parameters [%3.2f %3.2f]',o.tRNSFilter, o.tRNSFilterParms));
+                    ret= 0; 
                 else
-                    ret = MatNICEnableTRNSFilter(o.tRNSFilter,param1,param2,o.sock);
-                    checkFatalError(o,ret,sprintf('Could not set tRNS filter to %s with parameters [%3.2f %3.2f]',o.tRNSFilter,param1,param2));
+                    ret = MatNICEnableTRNSFilter(o.tRNSFilter,param1,param2,o.sock);                    
                 end
+                checkFatalError(o,ret,sprintf('Set tRNS filter to %s with parameters [%3.2f %3.2f]',o.tRNSFilter,param1,param2));
             else
                 if o.fake
-                    o.writeToFeed('Removing tRNS filters');
+                    ret= 0;
                 else
-                    [ret] = MatNICDisableTRNSFilter (o.sock);
-                    checkFatalError(o,ret,'Failed to disable tRNS filter');
+                    [ret] = MatNICDisableTRNSFilter (o.sock);                    
                 end
+                checkFatalError(o,ret,'Disable tRNS filter');
             end
         end
     end
@@ -1059,23 +1079,21 @@ classdef starstim < neurostim.stimulus
                 o.fake =false;
             end
             o.host = parms.Host;
-            o.impedanceType= parms.ImpedanceType;
-
+            o.impedanceType= parms.zType;
+            o.verbose = parms.Verbose;
 
             if ~isempty(parms.ZNow.UserData)
                 % The user has already connected to starstim with the ZNow
-                % button. Re-use the socket
-                o.sock =  parms.ZNow.UserData;
-                % And store the last measurements
+                % button. Re-use the socket and store the last measurement.
                 if  o.fake
                     o.z = NaN;
-                    ret = 0;
                 else
-                    [ret, o.z]= MatNICGetImpedance(o.sock);
-                end
-                if ret<0
-                    o.writeToFeed('Could not read Z-values. Device disconnected? ')
-                    o.sock = []; % Force a reconnection
+                    o.sock =  parms.ZNow.UserData.socket;
+                    o.z = parms.ZNow.UserData.z;
+                    if MatNICQueryStatus(o.sock)<0
+                        o.writeToFeed('Could not connect to Starstim. Device disconnected?  Trying to reconnect.')
+                        o.sock = []; % Force a reconnection
+                    end
                 end
             end
         end
@@ -1086,15 +1104,16 @@ classdef starstim < neurostim.stimulus
         function guiLayout(p)
             % Add plugin specific elements
 
+            % HOST
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [110 39 30 22];
             h.Text = 'Host';
-
             h = uieditfield(p, 'text','Tag','Host');
             h.Position = [110 17 150 22];
 
+            % Perform Z-Check beforeExperiment
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
@@ -1102,29 +1121,34 @@ classdef starstim < neurostim.stimulus
             h.Text = 'Z-Check';
 
 
-
-            h = uidropdown(p,'Tag','ImpedanceType','Items',{'None','AC','DC'});
+            % Pick Z-type
+            h = uidropdown(p,'Tag','zType','Items',{'None','AC','DC'});
             h.Position = [270 17 40 20];
             h.Tooltip = 'Select to perform a z-check before the first trial';
-            
-            
-             h = uilabel(p);
-             h.HorizontalAlignment = 'left';
-             h.VerticalAlignment = 'bottom';
-             h.Position = [320 39 150 22];
-             h.Text = 'Z-Protocol';
- 
-             h = uieditfield(p, 'text','Tag','zProtocol');
-             h.Position = [320 17 150 22];
-            h.Tooltip = 'Protocol to use for Z-Now';
 
-            h =uibutton(p,'push','Text','Z Now','Tag','ZNow','ButtonPushedFcn',@(btn,evt) neurostim.stimuli.starstim.measureImpedance(btn,p));
-            h.Position  = [510 17 80 20];
+            % Specify zProtocol
+            h = uilabel(p);
+            h.HorizontalAlignment = 'left';
+            h.VerticalAlignment = 'bottom';
+            h.Position = [320 39 150 22];
+            h.Text = 'Z-Protocol';
+            h = uieditfield(p, 'text','Tag','zProtocol');
+            h.Position = [320 17 150 22];
+            h.Tooltip = 'Protocol to use for Z-checks with Z Now and before experiment starts.';
+
+            % Button to do manual z-check
+            h =uibutton(p,'push','Text','Z Now','Tag','ZNow','ButtonPushedFcn',@(btn,evt) neurostim.stimuli.starstim.zNowButtonClick(btn,p));
+            h.Position  = [475 17 50 20];
             h.Tooltip = 'Press to perform a manual Z-check now';
+
+            % Button to do manual z-check
+            h =uicheckbox(p,'Text','Verbose','Tag','Verbose');
+            h.Position  = [530 17 50 20];
+            h.Tooltip = 'Check to show debugging output on the command line';
 
         end
 
-        function measureImpedance(btn,pnl)
+        function zNowButtonClick(btn,pnl)
             % Make a direct connection (i.e. without using the starstim
             % object code) to start an impedance check.
             % This is meant for initial cap setup, as a replacement for the
@@ -1139,7 +1163,7 @@ classdef starstim < neurostim.stimulus
 
             debug= false; %#ok<*UNRCH>
             parms = nsGui.getParms(pnl);
-            if isempty(btn.UserData) ||     MatNICQueryStatus (btn.UserData) ~=0
+            if isempty(btn.UserData) ||     MatNICQueryStatus (btn.UserData.socket) ~=0
                 % Try to connect
                 if debug
                     fprintf('Connecting to %s\n',parms.Host);
@@ -1148,36 +1172,51 @@ classdef starstim < neurostim.stimulus
                     [ret, status, socket] = MatNICConnect (parms.Host);
                 end
                 if ret==0
-                    btn.UserData = socket;
+                    btn.UserData = struct('socket',socket,'z',nan);
                 else
                     errordlg(sprintf('Could not connect to %s (Status: %s)\n',parms.host,status),'Z Now','modal');
                 end
             else
-                socket= btn.UserData;
+                socket= btn.UserData.socket;
             end
 
-            % For now, measure the impedance using the protocol that is
-            % loaded in the NIC.
-            if ~strcmpi(parms.ImpedanceType,'NONE')
+            if ~strcmpi(parms.zType,'NONE') || isempty(parms.zProtocol)
                 if debug
                     fprintf('Measuring z now....\n');
                     ret=0;z=rand(1,8)*10000;
                 else
-                    fprintf('*** Starting Impedance Check. Please wait. *** \n')                    
-                    MatNICUnloadProtocol(socket);
-                    [ret] = MatNICLoadProtocol(parms.zProtocol, socket);
-                    [ret, z] = MatNICManualImpedance(parms.ImpedanceType, socket);
-                    [ret] = MatNICLoadProtocol(parms.zProtocol, socket);
-                    fprintf('*** Completed Impedance Check.             *** \n')
+                    % Call the static function.
+                    [ret,btn.UserData.z] = neurostim.stimuli.starstim.manualImpedanceCheck(parms.zProtocol,parms.zType,socket);
                 end
                 if ret==0
-                    msgbox(char([parms.Host ' - Z (' parms.ImpedanceType '):'], [ '[' num2str(z(:)'/1e3,2) '] kOhm']),'Z Now');
+                    msgbox(char([parms.Host ' - Z (' parms.zType '):'], [ '[' num2str(btn.UserData.z(:)'/1e3,2) '] kOhm']),'Z Now');
                 else
                     errordlg(sprintf('Z Measurement failed (Protocol: %s)',parms.zProtocol),'Z Now','modal');
                 end
             else
-                msgbox('Pick an impedance type from the drop-down.','Z Now');
+                msgbox('Pick an impedance type (AC/DC) from the drop-down and specify a zProtocol.','Z Now');
             end
+        end
+
+        %  A function to perform zCheck with a specified protocol and
+        %  type. Static function so that it can be used by the gui and by
+        %  the object in beforeExperiment. Note that this unloads the
+        %  current protocol and replaces with zProt.
+        %  So use beforeExperiment or afterExperiment
+        %  only.
+        function [ret,z] = manualImpedanceCheck(zProt,zType,sock)
+            if  isempty(zProt)
+                warning('No z-Protocol specified');
+                ret=-1;z=NaN;
+                return
+            end
+
+            fprintf('*** Starting Impedance Check. Please wait. *** \n')
+            MatNICUnloadProtocol(sock);
+            MatNICLoadProtocol(zProt, sock);
+            [~, z] = MatNICManualImpedance(zType, sock);
+            [ret] = MatNICLoadProtocol(zProt, sock);
+            fprintf('*** Completed Impedance Check.             *** \n')
         end
     end
 
