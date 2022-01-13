@@ -135,8 +135,6 @@ classdef starstim < neurostim.stimulus
         mustExit= false;
     end
 
-
-
     % Public Get, but set through functions or internally
     properties (Transient, SetAccess=protected, GetAccess= public)
         sock;               % Socket for communication with the host.
@@ -160,9 +158,13 @@ classdef starstim < neurostim.stimulus
         isProtocolOn;
         isProtocolPaused;
         isConnected;
+        eegStream;   %True if processing eeg here (afterTrial or afterFrame), or storing in cic).
     end
 
     methods % get/set dependent functions
+        function v = get.eegStream(o)
+            v =(~isempty(o.eegAfterTrial) || ~isempty(o.eegAfterFrame)  || o.eegStore)  && ~o.fake;
+        end
         function v = get.isConnected(o)
             if isempty(o.sock)
                 v = false;
@@ -376,7 +378,7 @@ classdef starstim < neurostim.stimulus
             end
 
             % Prepare for EEG reading
-            if (~isempty(o.eegChannels) || o.eegInit) && ~o.fake
+            if (~isempty(o.eegChannels) || o.eegInit) && o.eegStream
                 openEegStream(o);
             end
 
@@ -394,7 +396,7 @@ classdef starstim < neurostim.stimulus
                 stream = lsl_resolve_byprop(o.lsl,'type','EEG');
                 if isempty(stream)
                     allLsl = lsl_resolve_all(o.lsl);
-                    if ~isempty(allLs)
+                    if ~isempty(allLsl)
                         str = strjoin(cellfun(@(x) (string([x.type ':' x.name ' '])),allLsl));
                     else
                         str = 'No LSL streams found';
@@ -472,7 +474,7 @@ classdef starstim < neurostim.stimulus
             end
 
             %% Open eeg stream if necessary
-            if ~isempty(o.eegChannels) && ~o.fake
+            if ~isempty(o.eegChannels) && o.eegStream
                 openEegStream(o); % This will do nothing if the stream is already open
             end
             sendMarker(o,'trialStart'); % Mark in Starstim data file
@@ -575,7 +577,7 @@ classdef starstim < neurostim.stimulus
         function handleEeg(o,fun)
             % fun is a function_handle : either o.eegAfterTrial or
             % o.eegAfterFrame
-            if isempty(o.eegChannels) || (isempty(fun) && ~o.eegStore)
+            if isempty(o.eegChannels) || isempty(fun) 
                 % Nothing to do
                 return;
             end
