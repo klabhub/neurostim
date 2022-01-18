@@ -100,9 +100,7 @@ classdef stg < neurostim.stimulus
     
     properties (SetAccess = public)
         chunkDuration = 5000; % [ms]
-        chunkStartTime= 0; % [ms]
-        
-        
+        chunkStartTime= 0; % [ms]        
     end
     properties (SetAccess = protected)
         
@@ -196,7 +194,7 @@ classdef stg < neurostim.stimulus
         
         function v = get.isConnected(o)
             % Boolean to check whether the device is connected.
-            v = ~isempty(o.device) && o.device.IsConnected();
+            v = ~o.fake && ~isempty(o.device) && o.device.IsConnected();
         end
         
         function v =get.streamingBufferSize(o)
@@ -217,7 +215,9 @@ classdef stg < neurostim.stimulus
             % This is called when the object is cleared from memory
             % (cleanupObj was setup with oncleanup) to make sure we
             % discconnect.Not sure this really works though...
-            o.device.Disconnect;
+            if ~isempty(o.device)
+                o.device.Disconnect;
+            end
         end
         
         function o = stg(c,downLoadMode)
@@ -239,6 +239,8 @@ classdef stg < neurostim.stimulus
             
             o = o@neurostim.stimulus(c,'stg');
             
+            o.addProperty('fake',false);
+
             % Location of Net libraries
             o.addProperty('libRoot','');
             
@@ -272,12 +274,12 @@ classdef stg < neurostim.stimulus
         end
         
         function beforeExperiment(o)
-            
+            if o.fake;return;end
             %% Load the relevant NET assembly if necessary
             asm = System.AppDomain.CurrentDomain.GetAssemblies;
             assemblyIsLoaded = any(arrayfun(@(n) strncmpi(char(asm.Get(n-1).FullName), 'McsUsbNet', length('McsUsbNet')), 1:asm.Length));
             if ~assemblyIsLoaded
-                if isempty(o.libRoot) || ~exist(o.libRoot,'dir')
+                if isempty(o.libRoot) || ~exist(o.libRoot,'dir') 
                     error('The STG stimulus relies on the .NET libraries that are available on GitHub (https://github.com/multichannelsystems/McsUsbNet.git). \n Clone those first and point stg.libRoot to the local folder');
                 end
                 switch computer
@@ -332,13 +334,14 @@ classdef stg < neurostim.stimulus
         %TODO not sure TRIAL mode makes much sense, using .on= 0 in TIMED
         %mode give almost the same? (Only advantage is that with TRIAL, the
         %rampu can be before the trial, but this is somewhat uncontrolled).
-        
         function beforeTrial(o)
             
             %% Depending on the mode, do something
             switch upper(o.mode)
                 case 'BLOCKED'
-                    % Starts before the first trial in a block
+                    % Starts before the first trial in a block 
+                    % (cannot be done in beforeBlock as the parms for the
+                    % condition in the block will not have been set yet).
                     if o.cic.blockTrial ==1 && o.enabled
                         setupTriggers(o); % Map triggers to the set of channels for this trial
                         if o.downloadMode
@@ -399,9 +402,7 @@ classdef stg < neurostim.stimulus
         function afterTrial(o)
             switch upper(o.mode)
                 case 'BLOCKED'
-                    if o.cic.blockDone && o.enabled
-                        stop(o);
-                    end
+                    % Nothing to do
                 case 'TRIAL'
                     stop(o);
                 case 'TIMED'
@@ -411,6 +412,18 @@ classdef stg < neurostim.stimulus
             end
         end
         
+
+        function afterBlock(o)
+            switch upper(o.mode)
+                case 'BLOCKED'
+                    if o.enabled
+                        stop(o);
+                    end
+                otherwise
+                    % Nothing  to do
+            end
+         end
+
         function afterExperiment(o)
             % Discconnect from the device.
             stop(o);
@@ -440,6 +453,10 @@ classdef stg < neurostim.stimulus
             % Trigger the stimulation. The mapping from trigger to channels
             % has been setup elsewhere. Currently we're only using 1
             % trigger (o.trigger)
+            if o.fake
+                o.writeToFeed('Start Stimulation');
+                return
+            end
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not start stg. Device not connected.'); %#ok<*CTPCT>
             else
@@ -454,6 +471,10 @@ classdef stg < neurostim.stimulus
         end
         function stop(o)
             % Stop the triggered channels from continuing.
+            if o.fake
+                o.writeToFeed('Stop Stimulation');
+                return
+            end
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not stop stg. Device not connected.');
             else
@@ -469,6 +490,10 @@ classdef stg < neurostim.stimulus
         function connect(o)
             % Connect to the device and setup the device object to wwork in
             % STG Download mode.
+            if o.fake
+                o.writeToFeed('Connect to STG');
+                return
+            end
             if ~o.isConnected
                 if o.downloadMode
                     o.device  = Mcs.Usb.CStg200xDownloadNet; % Use download mode
@@ -509,7 +534,10 @@ classdef stg < neurostim.stimulus
         
         
         function reset(o)
-            
+            if o.fake
+                o.writeToFeed('Reset STG');
+                return
+            end
             % Make sure the device memory is cleared, and the device mode
             % is set to the correct value.
             if o.currentMode
@@ -518,14 +546,15 @@ classdef stg < neurostim.stimulus
                 o.device.SetVoltageMode();
             end
             o.triggerTime = NaN;
-            o.triggerSent = false;
-            
-            
-            
+            o.triggerSent = false;            
         end
         
         function disconnect(o)
             % Disconnect
+            if o.fake
+                o.writeToFeed('Reset STG');
+                return
+            end
             if o.isConnected
                 o.device.Disconnect();
             end
@@ -538,7 +567,11 @@ classdef stg < neurostim.stimulus
             % not used this trial to keep its values in memory (it won't be
             % triggered), but we don't actually use that; stimulation is
             % defined anew at the start of each trial.
-            
+            if o.fake
+                o.writeToFeed('SetupTriggers STG');
+                return
+            end
+
             nrTriggers = o.device.GetNumberOfTriggerInputs();  % obtain number of triggers in this STG
             % Initialize everything to zero
             channelMap = NET.createArray('System.UInt32', nrTriggers);
@@ -644,6 +677,11 @@ classdef stg < neurostim.stimulus
         function downloadStimulus(o)
             % The main function that sends channel and syncout data to the
             % device. It is called before each trial.
+            if o.fake
+                o.writeToFeed('Download Stimulus to STG');
+                return
+            end
+            
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
             end
@@ -757,11 +795,11 @@ classdef stg < neurostim.stimulus
             % p = struct with settings for each of the elements in the
             % guiLayout, named after the Tag property
             %
-            %             if strcmpi(parms.onOffFakeKnob,'Fake')
-            %                 o.fake=true;
-            %             else
-            %                 o.fake =false;
-            %             end
+            if strcmpi(parms.onOffFakeKnob,'Fake')
+                o.fake=true;
+            else
+                o.fake =false;
+            end
             o.downloadMode = ~parms.Streaming;
         end
     end
