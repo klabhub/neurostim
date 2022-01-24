@@ -39,7 +39,7 @@ classdef video < neurostim.plugin
     %                       double click it to finish the preview. Only pixels within the ROI
     %                       will be saved to disk (and shown in the preview).
     % duringExperimentPreview - Keep the preview running during the
-    %                       experiment. This could result in framedrops...
+    %                       experiment. This will slow everything down and likely cause framedrops...
     %
     %  EXAMPLE
     %   In an experiment with fixed duration trials (2000 ms), collecting
@@ -206,12 +206,18 @@ classdef video < neurostim.plugin
                 else
                     roi = o.ROI;
                 end
-                hRoi = drawrectangle(ax,'Position',roi,);
+                hRoi = drawrectangle(ax,'Position',roi);
                 roi = neurostim.plugins.video.waitForRoi(hRoi);
-                % Use even number of pixels (necessary for MPEG-4)
-                isOdd = ~iseven(roi(3:4));
-                roi([false false isOdd]) = roi([false false isOdd])+1;
-                o.ROI = roi;
+                % Use even number of pixels (necessary for MPEG-4) and make
+                % sure that the ROI is inside the bounds of the camera
+                % image.
+                wh = roi(3:4);
+                wh = ceil(wh/2)*2;
+                xy = floor(roi(1:2));
+                roi = [xy wh];
+                outOfBounds = (xy+wh)>p.DefaultValue;
+                roi(outOfBounds) = roi(outOfBounds)-1;  %Shift (up/left) by one pixel.
+                o.ROI = roi; % Store for analysis.
                 o.hVid.ROIPosition = o.ROI;                
                 closepreview(o.hVid); % Always close to reshape ROI.                
             end
@@ -360,7 +366,7 @@ classdef video < neurostim.plugin
                             writeVideo(o.hWriter,frameData);
                         case 'PERTRIAL'
                             if o.nrWorkers>0
-                                f= parfeval(@neurostim.plugins.video.write,0,o.outputFile,frameData,o.outputFormat);
+                                parfeval(@neurostim.plugins.video.write,0,o.outputFile,frameData,o.outputFormat);
                             else
                                 neurostim.plugins.video.write(o.outputFile,frameData,o.outputFormat);
                             end
@@ -447,13 +453,12 @@ classdef video < neurostim.plugin
             o.beforeExperimentPreview = true;
             o.duringExperimentPreview = true;
             o.sourceSettings = {'Brightness',100,'BacklightCompensation','off'};
-            o.ROI = [500 250 250 250];
+            o.ROI = [500 250 251 251];
             o.beforeExperiment;
 
             for i=1:3
                 o.cic.trial = i;
-                i
-
+                i %#ok<NOPRT> 
 
                 o.beforeTrial;
 
@@ -461,7 +466,7 @@ classdef video < neurostim.plugin
 
                 tic
                 o.afterTrial;
-                toc
+                toc  % Time file saving.
             end
             o.afterExperiment;
         end
