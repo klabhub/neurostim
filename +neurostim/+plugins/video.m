@@ -193,7 +193,8 @@ classdef video < neurostim.plugin
                     propinfo(o.hSource,o.sourceSettings{i})
                 end
             end
-           %
+
+            %% Show a preview window and allow setting an ROI.
             if o.beforeExperimentPreview
                 p = propinfo(o.hVid,'VideoResolution');
                 o.hVid.ROIPosition = [0 0 p.DefaultValue];
@@ -206,7 +207,7 @@ classdef video < neurostim.plugin
                 else
                     roi = o.ROI;
                 end
-                hRoi = drawrectangle(ax,'Position',roi);
+                hRoi = drawrectangle(ax,'Position',roi,'Deletable',false);
                 roi = neurostim.plugins.video.waitForRoi(hRoi);
                 % Use even number of pixels (necessary for MPEG-4) and make
                 % sure that the ROI is inside the bounds of the camera
@@ -419,8 +420,9 @@ classdef video < neurostim.plugin
             writeVideo(v,data);
             close(v);
         end
+
         function pos = waitForRoi(hROI)
-            
+            % Used to adjust the ROI interactively on the preview window.
             l = addlistener(hROI,'ROIClicked',@neurostim.plugins.video.clickCallback);
             % Block program execution
             uiwait;
@@ -431,6 +433,7 @@ classdef video < neurostim.plugin
         end
 
         function clickCallback(~,evt)
+            % Exits the preview ROI selection ondouble click
             if strcmp(evt.SelectionType,'double')   
                 uiresume;
             end
