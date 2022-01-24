@@ -34,6 +34,13 @@ classdef video < neurostim.plugin
     %                   once for your adaptor/device, then look at
     %                   o.sourceParms
     % 
+    % beforeExperimentPreview - Toggle to show a (live) preview of the
+    %                       camera image with an adjustable ROI. Drag/reshape the rectangle then
+    %                       double click it to finish the preview. Only pixels within the ROI
+    %                       will be saved to disk (and shown in the preview).
+    % duringExperimentPreview - Keep the preview running during the
+    %                       experiment. This could result in framedrops...
+    %
     %  EXAMPLE
     %   In an experiment with fixed duration trials (2000 ms), collecting
     %   data during the trial and saving them  to file continuously could
@@ -126,6 +133,7 @@ classdef video < neurostim.plugin
             o.addProperty('format','MJPG_1280x720'); % Specify a format to use for this device.
             o.addProperty('videoFramerate',30); % Frames per second
             o.addProperty('trialDuration',3000); % Expected, fixed duration of each trial (duringTrial outputMode only)
+            o.addProperty('ROI',[]);
             o.addProperty('outputFolder',o.cic.dirs.output); % Folder where video will be stored
             o.addProperty('outputFormat','MPEG-4'); % File format
             o.addProperty('outputMode','perTrial'); %duringTrial, afterTrial
@@ -138,7 +146,8 @@ classdef video < neurostim.plugin
             o.addProperty('firstVideoFrame',[]); % Stored at the time of the first video frame of a trial. Data are the relative times of all frames.
 
             % Preview
-            o.addProperty('preview',0); % 0 Means no preview. n means update preview every n-th frame.
+            o.addProperty('beforeExperimentPreview',true); % Show a preview before the experiment. 
+            o.addProperty('duringExperimentPreview',true); % Show preview during the experiment. 
 
             o.hwInfo = imaqhwinfo;
 
@@ -161,6 +170,9 @@ classdef video < neurostim.plugin
             end
             % Configure
             triggerconfig(o.hVid,'manual'); % We'll start in beforeTrial.
+            if ~isempty(o.ROI)
+                o.hVid.ROIPosition = o.ROI;
+            end
             o.hSource= getselectedsource(o.hVid);
             frameRatesSet =set(o.hSource,'FrameRate');
             availableFramerates = cellfun(@str2num,frameRatesSet);
@@ -173,9 +185,42 @@ classdef video < neurostim.plugin
             end
 
             for i=1:2:numel(o.sourceSettings)
-                set(o.hSource,o.sourceSettings{i},o.sourceSettings{i+1});
+                try
+                    set(o.hSource,o.sourceSettings{i},o.sourceSettings{i+1});
+                catch
+                    o.cic.error('STOPEXPERIMENT',sprintf('Could not set %s',o.sourceSettings{i}))
+                    fprintf(2,'Constraints:')
+                    propinfo(o.hSource,o.sourceSettings{i})
+                end
             end
-           
+           %
+            if o.beforeExperimentPreview
+                p = propinfo(o.hVid,'VideoResolution');
+                o.hVid.ROIPosition = [0 0 p.DefaultValue];
+                h = preview(o.hVid);
+
+                % Show a rectangle on the preview to select an ROI.
+                ax = ancestor(h,'Axes');
+                if isempty(o.ROI)
+                    roi = round([10 10 0.9*p.DefaultValue]);
+                else
+                    roi = o.ROI;
+                end
+                hRoi = drawrectangle(ax,'Position',roi,);
+                roi = neurostim.plugins.video.waitForRoi(hRoi);
+                % Use even number of pixels (necessary for MPEG-4)
+                isOdd = ~iseven(roi(3:4));
+                roi([false false isOdd]) = roi([false false isOdd])+1;
+                o.ROI = roi;
+                o.hVid.ROIPosition = o.ROI;                
+                closepreview(o.hVid); % Always close to reshape ROI.                
+            end
+            
+            if o.duringExperimentPreview
+                % Reopen preview with correct size.
+               preview(o.hVid);
+            end
+            
             % Prepare the video input device
             switch upper(o.outputMode)
                 case 'DURINGTRIAL'
@@ -331,6 +376,7 @@ classdef video < neurostim.plugin
             % Cleanup
             stop(o.hVid);
             close(o.hWriter);
+            close(o)
         end
         function  close(o)
             delete(o.hVid);o.hVid= [];
@@ -367,19 +413,41 @@ classdef video < neurostim.plugin
             writeVideo(v,data);
             close(v);
         end
+        function pos = waitForRoi(hROI)
+            
+            l = addlistener(hROI,'ROIClicked',@neurostim.plugins.video.clickCallback);
+            % Block program execution
+            uiwait;
+            % Remove listener
+            delete(l);
+            % Return the current position
+            pos = hROI.Position;
+        end
 
+        function clickCallback(~,evt)
+            if strcmp(evt.SelectionType,'double')   
+                uiresume;
+            end
+        end
 
         function o= debug
             % Test and debug
             o = neurostim.plugins.video(neurostim.cic);
-            o.format='MJPG_640x480';
+            o.deviceID =2;
+            o.format='YUY2_1280x720';
+
+%             o.deviceID =1;
+%             o.format='MJPG_1280x720';
+
             o.outputFormat='MPEG-4';
             o.outputFolder = 'c:/temp/';
             o.fileMode = 'perExperiment';
             o.outputMode ='afterTrial';
             o.nrWorkers = 0;
-            o.preview = 0;
-            o.sourceSettings = {'Brightness',0,'BacklightCompensation','off'};
+            o.beforeExperimentPreview = true;
+            o.duringExperimentPreview = true;
+            o.sourceSettings = {'Brightness',100,'BacklightCompensation','off'};
+            o.ROI = [500 250 250 250];
             o.beforeExperiment;
 
             for i=1:3
