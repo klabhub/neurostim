@@ -445,8 +445,8 @@ classdef video < neurostim.plugin
             o.deviceID =2;
             o.format='YUY2_1280x720';
 
-%             o.deviceID =1;
-%             o.format='MJPG_1280x720';
+             o.deviceID =1;
+             o.format='MJPG_1280x720';
 
             o.outputFormat='MPEG-4';
             o.outputFolder = 'c:/temp/';
