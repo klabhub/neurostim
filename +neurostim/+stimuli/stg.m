@@ -92,24 +92,24 @@ classdef stg < neurostim.stimulus
     % Note that for a tDCS stimulus, the
     % An attempt at Streaming Mode did not work. The code is still in here
     % but it does not run. Use Download only.
-    
+
     properties (Constant)
         outputRate = 50000; % 50 Khz is fixed
         streamingBufferThreshold = 50; % Fill the buffer when it is half empty
     end
-    
+
     properties (SetAccess = public)
         chunkDuration = 5000; % [ms]
-        chunkStartTime= 0; % [ms]        
+        chunkStartTime= 0; % [ms]
     end
     properties (SetAccess = protected)
-        
+
         trigger=1; % The trigger that is used to turn a pattern on per trial. This is stopped at the end of a trial
         triggerTime = [];
         triggerSent = false;
-        
+
     end
-    
+
     properties (SetAccess = protected, Transient)
         device =[]; % handle to the device, once connected.
         assembly=[]; % The .Net assembly
@@ -119,9 +119,9 @@ classdef stg < neurostim.stimulus
         loopStarted = false;
         isRampUp = false;
         isRampDown = false;
-        
+
     end
-    
+
     properties (Dependent =true)
         nrChannels;
         nrSyncOutChannels;
@@ -131,7 +131,7 @@ classdef stg < neurostim.stimulus
         isConnected; % Boolean
         streamingBufferSize; % Nr samples in the buffer; calculated from latency
     end
-    
+
     %get/set
     methods
         function v = get.resolution(o)
@@ -147,8 +147,8 @@ classdef stg < neurostim.stimulus
             v.voltage = double(voltage);      % mV
             v.current = double(current)/1000; % convert to mA.
         end
-        
-        
+
+
         function v = get.range(o)
             % Returns a struct with the range (maximum absolute value)
             % per channel in mV and mA.
@@ -163,7 +163,7 @@ classdef stg < neurostim.stimulus
             v.voltage = double(voltage);        % mV
             v.current = double(current)/1000;   % Convert to mA
         end
-        
+
         function v = get.nrChannels(o)
             % Returns the number of analog output channels on the current device.
             if o.isConnected
@@ -172,7 +172,7 @@ classdef stg < neurostim.stimulus
                 v = 0;
             end
         end
-        
+
         function v = get.nrSyncOutChannels(o)
             % Returns the number of sync output channels on the current device.
             if o.isConnected
@@ -181,8 +181,8 @@ classdef stg < neurostim.stimulus
                 v = 0;
             end
         end
-        
-        
+
+
         function v = get.totalMemory(o)
             %Returns the total number of bytes in memory.
             if o.isConnected
@@ -191,26 +191,26 @@ classdef stg < neurostim.stimulus
                 v = 0;
             end
         end
-        
+
         function v = get.isConnected(o)
             % Boolean to check whether the device is connected.
             v = ~o.fake && ~isempty(o.device) && o.device.IsConnected();
         end
-        
+
         function v =get.streamingBufferSize(o)
             v = round((100/o.streamingBufferThreshold)*(o.streamingLatency*o.outputRate/1000));
         end
     end
-    
+
     methods
-        
+
         function delete(o)
             % Destructor; disconnect and cleanup the .NET objects
             disconnect(o);
             delete(o.deviceList);
             delete(o.device);
         end
-        
+
         function cleanup(o)
             % This is called when the object is cleared from memory
             % (cleanupObj was setup with oncleanup) to make sure we
@@ -219,7 +219,7 @@ classdef stg < neurostim.stimulus
                 o.device.Disconnect;
             end
         end
-        
+
         function o = stg(c,downLoadMode)
             % Constructor
             % c = handle to CIC
@@ -228,36 +228,36 @@ classdef stg < neurostim.stimulus
             %
             % The constructor only initializes the Matlab object with properties.
             % Connection to the device happens in beforeExperiment.
-            
+
             if nargin <2
                 downLoadMode = true;
             end
-            
+
             %             if ~downLoadMode
             %                 error('Sorry Streaming Mode is not functional yet');
             %             end
-            
+
             o = o@neurostim.stimulus(c,'stg');
-            
+
             o.addProperty('fake',false);
 
             % Location of Net libraries
             o.addProperty('libRoot','');
-            
+
             % Read-only properties
             o.addProperty('deviceName','');
             o.addProperty('hwVersion','');
             o.addProperty('manufacturer','');
             o.addProperty('product','');
             o.addProperty('serialNumber','');
-            
+
             % Read/write properties.
             o.addProperty('currentMode',true);
             o.addProperty('downloadMode',downLoadMode);
             o.addProperty('streamingLatency',100); % Allowable latency in streaming mode
             o.addProperty('enabled',true);
             o.addProperty('mode','TRIAL');%,@(x) (ischar(x) && ismember(upper(x),{'TRIAL','BLOCKED','TIMED'})));
-            
+
             % Stimulation properties
             o.addProperty('fun','tDCS','validate',@(x) (isa(x,'function_handle') || (ischar(x) && ismember(x,{'tDCS','tACS','tRNS'}))));
             o.addProperty('channel',[]);
@@ -269,17 +269,17 @@ classdef stg < neurostim.stimulus
             o.addProperty('rampDown',0);
             o.addProperty('syncOutChannel',[]);
             o.addProperty('nrRepeats',1);
-            
-            
+
+
         end
-        
+
         function beforeExperiment(o)
             if o.fake;return;end
             %% Load the relevant NET assembly if necessary
             asm = System.AppDomain.CurrentDomain.GetAssemblies;
             assemblyIsLoaded = any(arrayfun(@(n) strncmpi(char(asm.Get(n-1).FullName), 'McsUsbNet', length('McsUsbNet')), 1:asm.Length));
             if ~assemblyIsLoaded
-                if isempty(o.libRoot) || ~exist(o.libRoot,'dir') 
+                if isempty(o.libRoot) || ~exist(o.libRoot,'dir')
                     error('The STG stimulus relies on the .NET libraries that are available on GitHub (https://github.com/multichannelsystems/McsUsbNet.git). \n Clone those first and point stg.libRoot to the local folder');
                 end
                 switch computer
@@ -299,7 +299,7 @@ classdef stg < neurostim.stimulus
                 o.assembly = NET.addAssembly(lib);
             end
             import Mcs.Usb.*
-            
+
             %% Search devices.
             o.deviceList = CMcsUsbListNet(DeviceEnumNet.MCS_STG_DEVICE);
             nrDevices =  o.deviceList.GetNumberOfDevices();
@@ -310,7 +310,7 @@ classdef stg < neurostim.stimulus
             if nrDevices ==0
                 error('No STG device connected');
             end
-            
+
             % Get a handle to the first in the list
             o.deviceListEntry    = o.deviceList.GetUsbListEntry(0);
             % Get some of its properties to store
@@ -319,7 +319,7 @@ classdef stg < neurostim.stimulus
             o.manufacturer = char(  o.deviceListEntry.Manufacturer);
             o.product = char(  o.deviceListEntry.Product);
             o.serialNumber  = char(  o.deviceListEntry.SerialNumber);
-            
+
             %%
             % Connect to the device, and clear its memory to get a clean start..
             connect(o);
@@ -328,18 +328,18 @@ classdef stg < neurostim.stimulus
                 % Streaming mode
                 o.device.StartLoop;
             end
-            
+
         end
-        
+
         %TODO not sure TRIAL mode makes much sense, using .on= 0 in TIMED
         %mode give almost the same? (Only advantage is that with TRIAL, the
         %rampu can be before the trial, but this is somewhat uncontrolled).
         function beforeTrial(o)
-            
+
             %% Depending on the mode, do something
             switch upper(o.mode)
                 case 'BLOCKED'
-                    % Starts before the first trial in a block 
+                    % Starts before the first trial in a block
                     % (cannot be done in beforeBlock as the parms for the
                     % condition in the block will not have been set yet).
                     if o.cic.blockTrial ==1 && o.enabled
@@ -375,10 +375,10 @@ classdef stg < neurostim.stimulus
                     end
                 otherwise
                     o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
-            end
-            
+            end            
+
         end
-        
+
         function beforeFrame(o)
             % Send a start trigger to the device
             switch upper(o.mode)
@@ -393,12 +393,12 @@ classdef stg < neurostim.stimulus
                 otherwise
                     o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
             end
-            
+
             if ~o.downloadMode
                 streamStimulus(o);
             end
         end
-        
+
         function afterTrial(o)
             switch upper(o.mode)
                 case 'BLOCKED'
@@ -411,7 +411,7 @@ classdef stg < neurostim.stimulus
                     o.cic.error('STOPEXPERIMENT',['Unknown STG mode :' o.mode]);
             end
         end
-        
+
 
         function afterBlock(o)
             switch upper(o.mode)
@@ -422,7 +422,7 @@ classdef stg < neurostim.stimulus
                 otherwise
                     % Nothing  to do
             end
-         end
+        end
 
         function afterExperiment(o)
             % Discconnect from the device.
@@ -433,10 +433,10 @@ classdef stg < neurostim.stimulus
             reset(o);
             disconnect(o);
         end
-        
+
     end
-    
-    
+
+
     methods (Access=public)
         function mask = chan2mask(o,channels)
             % Convert an array of  base-1 channel number to a channel bit mask
@@ -448,7 +448,7 @@ classdef stg < neurostim.stimulus
                 mask = bitor(mask,bitset(mask,c));
             end
         end
-        
+
         function start(o)
             % Trigger the stimulation. The mapping from trigger to channels
             % has been setup elsewhere. Currently we're only using 1
@@ -466,7 +466,7 @@ classdef stg < neurostim.stimulus
                 o.device.SendStart(o.trigger);
                 o.triggerSent = true;
                 o.triggerTime = o.cic.clockTime;
-                
+
             end
         end
         function stop(o)
@@ -482,11 +482,11 @@ classdef stg < neurostim.stimulus
                     o.device.SendStop(o.trigger);
                     o.triggerSent = false;
                 else
-                    streamRamp(o,false);                    
+                    streamRamp(o,false);
                 end
             end
         end
-        
+
         function connect(o)
             % Connect to the device and setup the device object to wwork in
             % STG Download mode.
@@ -516,7 +516,7 @@ classdef stg < neurostim.stimulus
                     error(o.cic,'STOPEXPERIMENT',['Could not connect to the ' o.product ' stg device (' char(Mcs.Usb.CMcsUsbNet.GetErrorText(status)) ' ). ']);
                     return;
                 end
-                
+
                 if o.downloadMode
                     % Triggers are assigned to channels, not segments. On its own this does not do anything- still need to call setupTrigger code.
                     o.device.DisableMultiFileMode();
@@ -527,12 +527,12 @@ classdef stg < neurostim.stimulus
                     triggerCapacity=uint32(2*o.chunkDuration/1000*o.outputRate*ones(1,nrTriggers)); % 2 chunks in the ring buffer.
                     o.device.SetCapacity(NET.convertArray(triggerCapacity,'System.UInt32'));
                 end
-                
+
             end
-            
+
         end
-        
-        
+
+
         function reset(o)
             if o.fake
                 o.writeToFeed('Reset STG');
@@ -546,21 +546,17 @@ classdef stg < neurostim.stimulus
                 o.device.SetVoltageMode();
             end
             o.triggerTime = NaN;
-            o.triggerSent = false;            
+            o.triggerSent = false;
         end
-        
+
         function disconnect(o)
             % Disconnect
-            if o.fake
-                o.writeToFeed('Reset STG');
-                return
-            end
             if o.isConnected
                 o.device.Disconnect();
             end
         end
-        
-        
+
+
         function setupTriggers(o)
             % Map a single trigger to start all of the channels that are in
             % use this trial. In principle this allows a channel that is
@@ -577,7 +573,7 @@ classdef stg < neurostim.stimulus
             channelMap = NET.createArray('System.UInt32', nrTriggers);
             syncoutMap= NET.createArray('System.UInt32', nrTriggers);
             repeatMap  = NET.createArray('System.UInt32', nrTriggers);
-            
+
             % Now set the one trigger we use
             channelsToTrigger = chan2mask(o,o.channel); % These are the channels for the current trial
             syncoutsToTrigger  =  chan2mask(o,o.syncOutChannel); % These are the channels for the current trial
@@ -598,12 +594,12 @@ classdef stg < neurostim.stimulus
                 callbackThreshold(o.trigger) = 40; % 50% of buffer size
                 o.device.SetupTrigger(channelMap, syncoutMap, digoutMap, autostart, callbackThreshold);
             end
-            
+
         end
-        
+
         function signal = nextChunk(o,channel)
             signal = stimulus(o,channel,o.chunkStartTime(channel),o.chunkDuration);
-            
+
             % Check that ramp is not longer  than chunk
             ramp = ones(size(signal));
             if o.isRampUp && o.rampUp>0
@@ -616,20 +612,20 @@ classdef stg < neurostim.stimulus
             signal =signal.*[ramp pad];
             o.chunkStartTime = o.chunkStartTime+o.chunkDuration;
         end
-        
+
         function streamRamp(o,isUp)
             if isUp
                 o.isRampUp =true;
             else
                 o.isRampDown = true;
             end
-            
+
             nrQueued = streamStimulus(o);
             % Should check whether they were actually queued...
             o.isRampUp = false;
             o.isRampDown =false;
         end
-        
+
         function nrQueued = streamStimulus(o)
             nrQueued = zeros(1,o.nrChannels);
             for thisChannel = o.channel
@@ -641,7 +637,7 @@ classdef stg < neurostim.stimulus
                 end
             end
         end
-        
+
         function [signal,duration,nrRepeats] = stimulus(o,channel,start,duration)
             [totalDuration,amp,freq,pha,mea,thisFun,nrRepeats] = channelParms(o,channel);
             if nargin<4
@@ -672,17 +668,14 @@ classdef stg < neurostim.stimulus
                 end
             end
         end
-        
-        
+
+
         function downloadStimulus(o)
             % The main function that sends channel and syncout data to the
             % device. It is called before each trial.
             if o.fake
-                o.writeToFeed('Download Stimulus to STG');
-                return
-            end
-            
-            if ~o.isConnected
+                o.writeToFeed('Download Stimulus to STG');                
+            elseif ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
             end
             % Define the values of the stimulus
@@ -699,7 +692,7 @@ classdef stg < neurostim.stimulus
                 else
                     rampUpSignal = [];
                 end
-                
+
                 if o.rampDown>0
                     nrRepeatsInRamp = ceil(o.rampDown/thisDuration);
                     if nrRepeatsInRamp ~= o.rampDown/thisDuration
@@ -710,43 +703,53 @@ classdef stg < neurostim.stimulus
                 else
                     rampDownSignal = [];
                 end
-                
-                
+
+
                 %%  Code the signal
                 % Convert to DAC values
                 if o.currentMode
                     % Need amplitude in nA
                     scale = 1e5;  % Convert specified mA to nA
-                    valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_current;
+                    if o.fake
+                        valueCode = 1;
+                    else
+                        valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_current;
+                    end
                 else
                     %  Need amplitude in muV
                     scale = 1e3;  % Convert mV to muV
-                    valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_voltage;
+                    if o.fake
+                        valueCode =1;
+                    else
+                        valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_voltage;
+                    end
                 end
-                
+
                 % A block that starts with 0 amplitude and 0 duration and
                 % ends with n ampltidude and 0 duration is repeated n
                 % times. This is used to repeat sines, or to create a long
                 % duration constant stimulus.
-                
+
                 step= 1./o.outputRate;
                 values =    [scale*rampUpSignal           0,    scale*signal,               thisNrRepeats,   scale*rampDownSignal];
                 duration  = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      0,             ones(1,numel(rampDownSignal))]*(step/1e-6);
                 syncValue = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      thisNrRepeats,   ones(1,numel(rampDownSignal))];
-                % Clear channel and send stimulus data to device
-                amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
-                durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
-                o.device.ClearChannel_PrepareAndSendData(thisChannel-1, amplitudeNet, durationNet,valueCode,true);
-                
-                % Add the syncout
-                if ~isempty(o.syncOutChannel)
-                    amplitudeNet = NET.convertArray(int32(syncValue), 'System.Int32');
-                    o.device.ClearChannel_PrepareAndSendData(thisChannel-1,amplitudeNet,durationNet,Mcs.Usb.STG_DestinationEnumNet.syncoutdata,true);
+                if ~o.fake
+                    % Clear channel and send stimulus data to device
+                    amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
+                    durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
+                    o.device.ClearChannel_PrepareAndSendData(thisChannel-1, amplitudeNet, durationNet,valueCode,true);
+
+                    % Add the syncout
+                    if ~isempty(o.syncOutChannel)
+                        amplitudeNet = NET.convertArray(int32(syncValue), 'System.Int32');
+                        o.device.ClearChannel_PrepareAndSendData(thisChannel-1,amplitudeNet,durationNet,Mcs.Usb.STG_DestinationEnumNet.syncoutdata,true);
+                    end
                 end
-                
+
             end
         end
-        
+
         function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisNrRepeats] = channelParms(o,channel)
             % Channel is 1:nrChannels
             ix = find(o.channel == channel);
@@ -758,7 +761,7 @@ classdef stg < neurostim.stimulus
             thisFun = neurostim.stimuli.stg.expandSingleton(o.fun,ix);
             thisNrRepeats = neurostim.stimuli.stg.expandSingleton(o.nrRepeats,ix);
         end
-        
+
     end
     methods (Static)
         function v = expandSingleton(vals,ix)
@@ -777,16 +780,16 @@ classdef stg < neurostim.stimulus
                 end
             end
         end
-        
+
         function guiLayout(p)
             % Add plugin specific elements
-            
+
             h = uicheckbox(p,'Tag','Streaming','Text','Streaming');
             h.Position = [110 17 80 22];
             h.Enable = 'off';
         end
     end
-    
+
     %% GUI Functions
     methods (Access= public)
         function guiSet(o,parms)
@@ -803,6 +806,6 @@ classdef stg < neurostim.stimulus
             o.downloadMode = ~parms.Streaming;
         end
     end
-    
-    
+
+
 end
