@@ -11,7 +11,7 @@ classdef webcam < neurostim.plugin
     % updcam_remote_control (around which this plugin is merely a wrapper)
     % can be found at https://github.com/duijnhouwer/udpcam
     properties (Access=public)
-        RC@udpcam_remote_control;
+        RC %udpcam_remote_control;
     end
     methods (Access=public)
         function o=webcam(c,name)
