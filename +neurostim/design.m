@@ -402,6 +402,34 @@ classdef design <handle & matlab.mixin.Copyable
             o.currentTrialIx =1; % Reset the index to start at the first entry
         end
         
+        function addAdaptive(o,plg,prm,obj)
+          % If plg.prm is NOT part of the design, plg.prm = obj is added to each condition
+          % 
+          % Usage:
+          %
+          %   addAdaptive(o,plg,prm,obj)
+          %
+          % where
+          %
+          %   plg - the name of a plugin
+          %   prm - the name of a parameter of plg
+          %   obj - an adaptive plugin object
+          assert(isa(obj,'neurostim.plugins.adaptive'),'obj must be an adaptive plugin');
+
+          % if the specified plg.prm is not already part of the design,
+          % then we add plg.prm = obj to all conditions 
+          specs = cat(1,o.factorSpecs{:},o.conditionSpecs{:});
+
+          if any(strcmpi(specs(:,1),plg) & strcmpi(specs(:,2),prm))
+            % plg.prm is already part of the design... DO NOT overwrite it
+            return
+          end
+
+          % call subsasgn to add plg.prm = obj to all conditions... as if
+          % the user specified o.conditions(:).plg.prm = obj
+          o = subsasgn(o,struct('type',{'.','()','.','.'},'subs',{'conditions',{':'},plg,prm}),obj); %#ok<NASGU> 
+        end
+
         function o = subsasgn(o,S,V)
             % subsasgn to create special handling of .weights .conditions, and
             % .facN design specifications.
