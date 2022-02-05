@@ -426,7 +426,13 @@ classdef design <handle & matlab.mixin.Copyable
           end
 
           % call subsasgn to add plg.prm = obj to all conditions... as if
-          % the user specified o.conditions(:).plg.prm = obj
+          % the user specified o.conditions(:).(plg).(prm) = obj
+          %
+          % note: we can't just invoke o.conditions(:).(plg).(prm) = obj
+          %       here because MATLAB does not call the overloaded subsasgn
+          %       method within class methods.
+          %
+          % https://au.mathworks.com/help/releases/R2021a/matlab/matlab_oop/indexed-reference-and-assignment.html#br09nsm
           o = subsasgn(o,struct('type',{'.','()','.','.'},'subs',{'conditions',{':'},plg,prm}),obj); %#ok<NASGU> 
         end
 
