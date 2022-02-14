@@ -108,8 +108,8 @@ classdef gabor < neurostim.stimulus
             % Create the procedural texture
             try
                 createProcGabor(o);
-            catch
-                error('Create Procedural Gabor Failed');
+            catch me
+                error('Create Procedural Gabor Failed (%s)',me.message);
             end
         end
         
