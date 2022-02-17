@@ -44,7 +44,7 @@ classdef cic < neurostim.plugin
             'type','GENERIC',...
             'frameRate',60,'number',[],'viewDist',[],...
             'calFile','','colorMatchingFunctions','',...
-            'calibration',struct('ns',struct('gamma',2.2*ones(1,3),'bias',zeros(1,3),'min',zeros(1,3),'max',60*ones(1,3),'gain',ones(1,3))),...
+            'calibration',struct('gammaTable',[],'ns',struct('gamma',2.2*ones(1,3),'bias',zeros(1,3),'min',zeros(1,3),'max',60*ones(1,3),'gain',ones(1,3))),...
             'overlayClut',[]);    % screen-related parameters.
 
         timing = struct('vsyncMode',0); % 0 = busy wait until vbl, 1 = schedule flip asynchronously then continue
@@ -2054,7 +2054,7 @@ classdef cic < neurostim.plugin
                         % values.
                         dac =8;% 8 bits
                         c.screen.calibration.gammaTable =repmat(linspace(0,1,2^dac)',[1 3]);
-                    elseif ~isempty(c.screen.calFile)
+                    elseif ~isempty(c.screen.calFile) && isempty(c.screen.calibration.gammaTable)
                         % Load a variable called gammaTable* from a named
                         % file. If the file as multiple variables that
                         % match this, pick the first. If there are none,
@@ -2072,9 +2072,16 @@ classdef cic < neurostim.plugin
                         elseif isempty(ix)
                             error('No gammaTable in %s', ff);
                         end
-                        c.screen.calibration.gammaTable = tmp.(fn{ix});
-                    else
+                        tbl = tmp.(fn{ix});
+                        if size(tbl,2)==1
+                            tbl = repmat(tbl,[1 3]);
+                        end
+                        c.screen.calibration.gammaTable = tbl;
+                    elseif ~isempty(c.screen.calFile) && ~isempty(c.screen.calibration.gammaTable)
                         error('Both a gamma table and a gamma table file (%s) were specified. Please pick one.',c.screen.calFile);
+                    else 
+                        % c.screen.calibration.gammatable specified
+                        % somehow- nothing to do, it will be used.
                     end
                 otherwise
                     if ~isempty(c.screen.calFile)
