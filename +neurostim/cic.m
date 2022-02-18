@@ -959,8 +959,9 @@ classdef cic < neurostim.plugin
             %% Start preparation in all plugins.
             c.window = c.mainWindow; % Allows plugins to use .window
             locHAVEOVERLAY = ~isempty(c.overlayWindow);
-            showCursor(c);
+
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
+            showCursor(c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
             c.drawFormattedText(c.beforeExperimentText,'ShowNow',true);
 
