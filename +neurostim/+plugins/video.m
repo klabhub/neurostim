@@ -14,7 +14,8 @@ classdef video < neurostim.plugin
     % trialDuration - Used only in DURINGTRIAL mode; this determines the
     %               number of frames that will be collected each trial (must be constant
     %               throughout the experiment).
-    % outputFolder - Where the video output file will be stored. [o.cic.dirs.output]
+    % outputFolder - Where the video output file will be stored. When epty,
+    %                  the video file is stored with the neurostim  output file
     % outputFormat - Format of the video file. For allowable modes, call VideoWriter.getProfiles
     %               Defaults to ['MPEG-4']
     % outputMode - 'SAVEDURINGTRIAL' (video data are saved to file as they are
@@ -122,7 +123,7 @@ classdef video < neurostim.plugin
         function v = get.outputFile(o)
             %Determine the output file for the curren trial/experiment
             if isempty(o.outputFolder)
-                fld = o.cic.dirs.output;
+                fld = fileparts(o.cic.fullFile);
             else
                 fld = o.outputFolder;
             end
@@ -159,7 +160,7 @@ classdef video < neurostim.plugin
             o.addProperty('videoFramerate',30); % Frames per second
             o.addProperty('trialDuration',3000); % Expected, fixed duration of each trial (duringTrial outputMode only)
             o.addProperty('ROI',[]);
-            o.addProperty('outputFolder',o.cic.dirs.output); % Folder where video will be stored
+            o.addProperty('outputFolder',''); % Folder where video will be stored. Defaults to cic.dirs.output
             o.addProperty('outputFormat','MPEG-4'); % File format
             o.addProperty('outputMode','saveDuringTrial'); %saveDuringTrial, saveAfterTrial
             o.addProperty('fileMode','perExperiment'); % 'perExperiment' , 'perTrial'
@@ -460,11 +461,13 @@ classdef video < neurostim.plugin
             % Used to adjust the ROI interactively on the preview window.
             l = addlistener(hROI,'ROIClicked',@neurostim.plugins.video.clickCallback);
             % Block program execution
+            %TODO find the figure panel
             uiwait;
             % Remove listener
             delete(l);
             % Return the current position
-            pos = hROI.Position;
+            pos = hROI.Position;nsGui
+
         end
 
         function clickCallback(~,evt)
@@ -482,8 +485,7 @@ classdef video < neurostim.plugin
             o.deviceID =1;
             o.format='MJPG_1280x720';
             o.diary = true;
-            o.outputFormat='MPEG-4';
-            o.outputFolder = 'c:/temp/';
+            o.outputFormat='MPEG-4';            
             o.fileMode = 'perExperiment';
             o.outputMode ='saveafterTrial';
             o.nrWorkers = 1;
@@ -520,7 +522,7 @@ classdef video < neurostim.plugin
             o.format='MJPG_1280x720';
 
             o.outputFormat='MPEG-4';
-            o.outputFolder = 'c:/temp/';
+            
             o.fileMode = 'perTrial';
             o.outputMode ='saveAfterTrial';
             o.nrWorkers = 1;
@@ -640,15 +642,15 @@ classdef video < neurostim.plugin
                 hVid.ROIPosition = o.ROI;
             end
             o.hSource= getselectedsource(hVid);
-            frameRatesSet =set(o.hSource,'FrameRate');
-            availableFramerates = cellfun(@str2num,frameRatesSet);
-            [ok,ix]= ismember(o.videoFramerate,availableFramerates);
-            if ok
-                set(o.hSource,'FrameRate',frameRatesSet{ix});
-            else
-                availableFramerates %#ok<NOPRT>
-                error('This device cannot generate a %.2f framerate.',o.videoFramerate);
-            end
+%             frameRatesSet =set(o.hSource,'FrameRate');
+%             availableFramerates = cellfun(@str2num,frameRatesSet);
+%             [ok,ix]= ismember(o.videoFramerate,availableFramerates);
+%             if ok
+%                 set(o.hSource,'FrameRate',frameRatesSet{ix});
+%             else
+%                 availableFramerates %#ok<NOPRT>
+%                 error('This device cannot generate a %.2f framerate.',o.videoFramerate);
+%             end
 
             for i=1:2:numel(o.sourceSettings)
                 try
