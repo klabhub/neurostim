@@ -51,12 +51,17 @@ stm.mode= 'BLOCKED';  % In this mode stimulator starts beforeBlock and ends in a
 stm.downloadMode = true;
 
 %% Streaming mode
-if true
+useStreaming = true;
+if useStreaming 
+    % This mode can change stimulation on the fly, but it is a bit trickier
+    % in that the PC has to ensure a steady flow of new stimulation values.
+    % If the (desired) streamingLlatency is long enough (seconds) this works fine,
+    % but for shorter latencies, the buffer cannot keep up and there will
+    % be periods without stimulation. The plugin warns about this with an
+    % underflow message. 
     stm.downloadMode = false;
     stm.outputRate   = 50000; %Hz 
-    stm.streamingLatency = 500;
-    stm.nrRepeats = 10000;
-    
+    stm.streamingLatency = 2000;    
 end
 
 

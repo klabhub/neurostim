@@ -99,6 +99,7 @@ classdef stg < neurostim.stimulus
 
     properties (SetAccess = protected)
         chunkStartTime; % [ms]
+        nrRefills;
 
         trigger=uint32(1); % The trigger that is used to turn a pattern on per trial. This is stopped at the end of a trial
         triggerTime = [];
@@ -130,11 +131,17 @@ classdef stg < neurostim.stimulus
         isConnected; % Boolean
         chunkBytes; % number bytes  per chunk (PC buffer is updated in "chunks" and STG memory is 1 chunk (for each trigger))
         chunkDuration; % Duration in ms.
+        pcBufferBytes; % Bytes allocated to the ring bugger on the PC.
     end
 
     %get/set
     methods
 
+        function v = get.pcBufferBytes(o)
+            % When the streamDataHandler is called, we want to have 1 chunk
+            % available (so that it can be filled)
+            v = (o.streamingBufferThreshold/100+1)*o.chunkBytes;
+        end
         function v = get.nrChannels(o)
             % Returns the number of analog output channels on the current device.
             if o.isConnected
@@ -169,11 +176,13 @@ classdef stg < neurostim.stimulus
         end
 
         function v =get.chunkBytes(o)
+            % #Samples per chunk *2 bytes/sample
             v = 2*ceil(o.chunkDuration/1000*o.outputRate);
         end
 
         function v =get.chunkDuration(o)
-            v = round(o.streamingBufferThreshold/100*o.streamingLatency);
+            % Worst case is a full buffer (1+x)*chunkDuration=latency.
+            v = ceil(o.streamingLatency*(1+o.streamingBufferThreshold/100));
         end
     end
 
@@ -181,9 +190,9 @@ classdef stg < neurostim.stimulus
 
         function delete(o)
             % Destructor; disconnect and cleanup the .NET objects
-            disconnect(o);
-            delete(o.deviceList);
-            delete(o.device);
+            % disconnect(o);
+            delete(o.deviceList);o.deviceList = [];
+            delete(o.device);o.device = [];
         end
 
         function cleanup(o)
@@ -421,10 +430,11 @@ classdef stg < neurostim.stimulus
             if ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not start stg. Device not connected.'); %#ok<*CTPCT>
             else
+                o.nrRefills = zeros(1,o.nrChannels);
                 o.device.SendStart(o.trigger);
                 o.triggerSent = true;
                 o.triggerTime = o.cic.clockTime;
-
+                
             end
         end
         function stop(o)
@@ -445,21 +455,25 @@ classdef stg < neurostim.stimulus
         end
         function streamingDataHandler(o,trigger)
              if ~o.isConnected
-                 fprintf(2,'Streaming data handler called when STG was not connected (ignored)\n');    
+                 o.writeToFeed(sprintf('Streaming data handler called when STG was not connected (ignored)'));    
                  return;
              end
             % trigger is a uint32 from STG, which is base-0. Compare to o.trigger 
             % To avoid calls from unused triggers, set their
             % callbackthrshold to 0 (see setupTriggers).
             if trigger+1~=o.trigger                
-                fprintf(2,'Ignored streamingDataHandler trigger (%d, base-1) from STG (plugin only uses (%d)). Set callbackTreshold? \n',trigger+1, o.trigger);
+                 o.writeToFeed(sprintf('Ignored streamingDataHandler trigger (%d, base-1) from STG (plugin only uses (%d)). Set callbackTreshold?',trigger+1, o.trigger));
                 return;
             end
             
             nrQueued = zeros(1,o.nrChannels);
             for thisChannel = o.channel
                 spaceInBytes = o.device.GetDataQueueSpace(thisChannel-1);
+                if spaceInBytes==o.pcBufferBytes && ~(o.nrRefills(thisChannel)==0)
+                    o.writeToFeed(sprintf('Data streaming underflow. Increase your latency (%.0f)? ',o.streamingLatency))
+                end
                 if spaceInBytes >= o.chunkBytes                    
+                    o.nrRefills(thisChannel)  = o.nrRefills(thisChannel)+1;
                     thisChunk = o.stimulusForStream(thisChannel);
                     if o.currentMode
                         thisChunk = (2^15-1)*thisChunk/o.iRange(thisChannel);
@@ -469,7 +483,7 @@ classdef stg < neurostim.stimulus
                     data = NET.convertArray(thisChunk, 'System.Int16');
                     nrQueued(thisChannel) = o.device.EnqueueData(thisChannel-1, data);
                     
-                    fprintf('Buffer space %d bytes (Filling with chunk = %d)  time %.2f and queed %d bytes\n  ', spaceInBytes,o.chunkBytes,toc,nrQueued(thisChannel));              
+                    o.writeToFeed(sprintf('Buffer space %d bytes (Filling with chunk = %d)  time %.2f and queed %d bytes.', spaceInBytes,o.chunkBytes,toc,nrQueued(thisChannel)));              
 
                     tic
                 end
@@ -493,8 +507,10 @@ classdef stg < neurostim.stimulus
                     o.device  = Mcs.Usb.CStg200xDownloadNet;
                 else
                     % Use streaming mode.
-                    % Reserve room for for 2 chunks;
-                    o.device  = Mcs.Usb.CStg200xStreamingNet(5*o.chunkBytes,@o.streamingDataHandler,@o.streamingErrorHandler); % Use streaming mode
+                    % Reserve room on the PC ring buffer  (1 more than
+                    % calculated - for some reason the .Net routines
+                    % allocate 1 less than what is specified here).
+                    o.device  = Mcs.Usb.CStg200xStreamingNet(o.pcBufferBytes+1,@o.streamingDataHandler,@o.streamingErrorHandler); % Use streaming mode                   
                 end
                 % With the lockMask set to 0, crashes in NS allow
                 % reconnection later. (Couldn't find documentation to
@@ -528,6 +544,7 @@ classdef stg < neurostim.stimulus
                 % Conver A to mA. voltage is already in mV.
                 o.iResolution = o.iResolution/1000;
                 o.iRange = o.iRange/1000;
+                 o.nrRefills  = zeros(1,o.nrChannels);
             end
         end
 
@@ -547,6 +564,7 @@ classdef stg < neurostim.stimulus
             o.triggerTime = NaN;
             o.triggerSent = false;
             o.chunkStartTime = zeros(1,o.nrChannels);
+            o.nrRefills = zeros(1,o.nrChannels);
         end
 
         function disconnect(o)
