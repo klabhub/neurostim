@@ -35,12 +35,12 @@ stm.libRoot ='c:\github\McsUsbNet';
 % they are specified as scalars), but by specifing the .channel we limit
 % stimulation to that channel alone. Setting .channel = [1 2] would apply
 % the same stimulation to both channels. 
-stm.channel = 1; 
+stm.channel = [1]; 
 stm.currentMode = false; % If you're hooked up to an oscilloscope you want voltage mode. 
-stm.rampUp = 500; % Ramp up/down in 500 ms
-stm.rampDown = 500;
+stm.rampUp = 1000; % Ramp up/down in 500 ms
+stm.rampDown = 1000;
 stm.duration =  100; %ms If the trial is shorter than this, the stimulation will be cutoff.
-stm.nrRepeats = 100;
+stm.nrRepeats = 50*10;
 stm.syncOutChannel = []; % SyncOut Channel 1 will have a TTL out.
 stm.phase = 0;   % This will only be used for tACS mode
 stm.amplitude = 1000; % mV if currentMode = false
@@ -61,12 +61,14 @@ if useStreaming
     % underflow message. 
     stm.downloadMode = false;    
     stm.streamingLatency = 2000;    
-    stm.streamingChannels = [1];
+    stm.streamingChannels = [1 ];
+    stm.debugStream = false;
 end
 
 
 %% Design
 d =design('DUMMY'); 
+d.fac1.stg.frequency = [10 20];
 blck=block('dummyBlock',d); 
 blck.nrRepeats  = 20;
 c.trialDuration = 2000; 
