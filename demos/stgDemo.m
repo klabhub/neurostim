@@ -40,14 +40,14 @@ stm.currentMode = false; % If you're hooked up to an oscilloscope you want volta
 stm.rampUp = 500; % Ramp up/down in 500 ms
 stm.rampDown = 500;
 stm.duration =  100; %ms If the trial is shorter than this, the stimulation will be cutoff.
-stm.nrRepeats = 1000;
+stm.nrRepeats = 100;
 stm.syncOutChannel = []; % SyncOut Channel 1 will have a TTL out.
 stm.phase = 0;   % This will only be used for tACS mode
 stm.amplitude = 1000; % mV if currentMode = false
 stm.frequency = 10;
 stm.fun= 'tACS';
 stm.mean = 0;
-stm.mode= 'BLOCKED';  % In this mode stimulator starts beforeBlock and ends in afterBlock
+stm.mode= 'BLOCK';  % In this mode stimulator starts beforeBlock and ends in afterBlock
 stm.downloadMode = true;
 
 %% Streaming mode
@@ -59,9 +59,9 @@ if useStreaming
     % but for shorter latencies, the buffer cannot keep up and there will
     % be periods without stimulation. The plugin warns about this with an
     % underflow message. 
-    stm.downloadMode = false;
-    stm.outputRate   = 50000; %Hz 
+    stm.downloadMode = false;    
     stm.streamingLatency = 2000;    
+    stm.streamingChannels = [1];
 end
 
 
