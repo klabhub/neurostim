@@ -7,15 +7,15 @@ classdef video < neurostim.plugin
     % deviceID  - ID Number of the device on the adaptor [1]
     % format   - Which format to use on the device. This is
     %           device-specific, get a list of allowable modes by calling
-    %           imaqhwinfo(adaptorName,deviceID); ['MJPG_1280x720']
-    % videoFramerate - Framerate of the video device. Usually only a subset
-    %               of rates is allowed. [30]
+    %           imaqhwinfo(adaptorName,deviceID); ['MJPG_1280x720']   
     %
     % trialDuration - Used only in DURINGTRIAL mode; this determines the
     %               number of frames that will be collected each trial (must be constant
     %               throughout the experiment).
     % outputFolder - Where the video output file will be stored. When epty,
     %                  the video file is stored with the neurostim  output file
+    % filename    - Name of the video output file. When empty, the filename
+    %               is the same as the Neurostim output file.
     % outputFormat - Format of the video file. For allowable modes, call VideoWriter.getProfiles
     %               Defaults to ['MPEG-4']
     % outputMode - 'SAVEDURINGTRIAL' (video data are saved to file as they are
@@ -29,11 +29,11 @@ classdef video < neurostim.plugin
     %               outputFormat).
     %           PerTrial - Create a new file for each trial. The file name gives the trial number
     %                       with the _00x suffix for trial x.
-    % sourceSettings - A cell array containing Parm/Value pairs with settings to apply to
-    %                 the video source. (e.g. Saturation, WhiteBalance)
-    %                 To find the set of parameters for your device, run the plugin
-    %                   once for your adaptor/device, then look at
-    %                   o.sourceParms
+    % properties  - A cell array containing Parm/Value pairs with settings to apply to
+    %                 the video source. (e.g. Saturation, WhiteBalance,Framerate)
+    %                 To find the set of parameters for your device, run
+    %                 neurostim.plugins.video.info it will (interactively)
+    %                 show you the properties and their constraints.
     %
     % beforeExperimentPreview - Toggle to show a (live) preview of the
     %                       camera image with an adjustable ROI. Drag/reshape the rectangle then
@@ -41,6 +41,10 @@ classdef video < neurostim.plugin
     %                       will be saved to disk (and shown in the preview).
     % duringExperimentPreview - Keep the preview running during the
     %                       experiment. This will slow everything down and likely cause framedrops...
+    %
+    % ROI       = Bounding box [left bottom width height] in pixels of the
+    %                   video to acquire. You can set this manually, or interactively using
+    %                   the .beforeExperimentPreview option.
     %
     %  EXAMPLE
     %   In an experiment with fixed duration trials (2000 ms), collecting
@@ -50,13 +54,13 @@ classdef video < neurostim.plugin
     %       o.adaptorName= 'winvideo'; % Using buikt-in windows adapotr
     %       o.deviceID = 'Integrated Webcam' % Assuming this exists;
     %       o.trialDuration = 2000;
-    %       o.videoFramerate =30;
+    %       o.videoProperties ={'framerate',30};
     %       o.outputFormat = 'MPEG-4';
     %       o.outputMode = 'SAVEDURINGTRIAL';
     %       o.fileMode = 'PEREXPERIMENT';
     % The camera starts before each trial, collects ceil(2000/30) images at
-    % a rate of 30 fps, and saves those on the fly. If saving lags behind
-    % some of the ITI is used to catch up.
+    % a rate of 30 fps (assuming your camera has the property 'framerate'), and saves those on the fly. 
+    %  If saving lags behind some of the ITI is used to catch up.
     % The downside is that even in short trials, ceil(2000/30) frames will
     % be collected. Or, if for some reason one trial is longer than 2000ms, there
     % may not be video frames for the later part of the trial.
@@ -66,7 +70,7 @@ classdef video < neurostim.plugin
     % In this case, the .trialDuration is ignored, and images are collected
     % during the entire trial. After each trial, these images are saved to
     % disk. That is (the only?) downside; saving takes some time, hence
-    % ITIs could get a bit long. (For a 3s trial with 1280x720
+    % ITIs could get long. (For a 3s trial with 1280x720
     % images at 30 fps, saving takes ~ 1.2s on BK's laptop). Some time can
     % be regained by using parfeval (i.e. saving in a separate
     % thread/worker so that execution can continue). To do this, set
@@ -84,10 +88,10 @@ classdef video < neurostim.plugin
     %   o.fileMode = 'PEREXPERIMENT';
     %   o.outputMode = 'SAVEAFTERTRIAL';
     % As the acquisition takes place on a parallel worker you cannot see a
-    % preview during the experiment (but you can use
-    % .beforeExperimentPreview) and errors are a bit harder to debug. By
-    % setting o.diary =true, a log file of what happens on the worker will
-    % be saved to the output folder.
+    % preview during the experiment (but you can still  use
+    % .beforeExperimentPreview to adjust the region of interest) 
+    % and errors are a bit harder to debug. By setting o.diary =true, a 
+    % log file of what happens on the worker will be saved to the output folder.
     %
     % ANALYSIS
     % When using the video for analysis, make sure to use the actual times
@@ -98,6 +102,13 @@ classdef video < neurostim.plugin
     % betwen the first frame and each of the subsequent frames in the
     % trial.
     %
+    % GETING STARTED
+    % With a new camera it may help to first run 
+    % 
+    % neurostim.plugins.video.info
+    % this will show properties of your hardware, including the names of
+    % parameters that control framerate,etc.
+    % 
     % BK - Jan 2022
     properties (GetAccess=public,SetAccess= protected)
         hwInfo;
@@ -113,8 +124,7 @@ classdef video < neurostim.plugin
         future; % The future for the process acquiring and saving data on the worker.
     end
     properties (Dependent)
-        outputFile; % Name of the output file
-        sourceParms; % Parameters that can be set for this videoinput device
+        outputFile; % Name of the output file       
         allOnWorker; % Evaluate to true if PEREXPERIMENT/SAVEAFTERTRIAL/nrWorkers>1
         saveOnWorker;% Evaluate to true if PERTRIAL/SAVEAFTERTRIAL/nrWorkers>1
     end
@@ -127,15 +137,20 @@ classdef video < neurostim.plugin
             else
                 fld = o.outputFolder;
             end
-            if strcmpi(o.fileMode,'PERTRIAL')
-                v =    sprintf('%s_%03d',fullfile(fld,o.cic.file),o.cic.trial);
+
+            if isempty(o.filename)
+                fl = o.cic.file;
             else
-                v = fullfile(fld,o.cic.file);
+                fl = o.filename ;
+            end
+
+            if strcmpi(o.fileMode,'PERTRIAL')
+                v =    sprintf('%s_%03d',fullfile(fld,fl),o.cic.trial);
+            else
+                v = fullfile(fld,fl);
             end
         end
-        function v=get.sourceParms(o)
-            v = propinfo(o.hSource);
-        end
+       
         function v = get.allOnWorker(o)
             v = strcmpi(o.fileMode,'PEREXPERIMENT') && strcmpi(o.outputMode,'SAVEAFTERTRIAL') && o.nrWorkers>0;
         end
@@ -156,19 +171,20 @@ classdef video < neurostim.plugin
             o=o@neurostim.plugin(c,name);
             o.addProperty('adaptorName','winvideo'); % Name of the adaptor used to access this video source
             o.addProperty('deviceID',1); % Device ID on the adaptor (defaults to 1)
-            o.addProperty('format','MJPG_1280x720'); % Specify a format to use for this device.
-            o.addProperty('videoFramerate',30); % Frames per second
+            o.addProperty('format','MJPG_1280x720'); % Specify a format to use for this device.            
             o.addProperty('trialDuration',3000); % Expected, fixed duration of each trial (duringTrial outputMode only)
             o.addProperty('ROI',[]);
-            o.addProperty('outputFolder',''); % Folder where video will be stored. Defaults to cic.dirs.output
+            o.addProperty('outputFolder',''); % Folder where video will be stored. Defaults to folder of the neurostim output 
+            o.addProperty('filename',''); % File where video will be stored. Defaults to the same filename of the neurostim output.            
             o.addProperty('outputFormat','MPEG-4'); % File format
             o.addProperty('outputMode','saveDuringTrial'); %saveDuringTrial, saveAfterTrial
             o.addProperty('fileMode','perExperiment'); % 'perExperiment' , 'perTrial'
             o.addProperty('nrWorkers',0); % Set to 1 to use parfeval to save in the background (perTrial/afterTrial modes only).
-            o.addProperty('sourceSettings',{});  % Parm/value pairs applied to the source input object
+            o.addProperty('videoProperties',{});  % Parm/value pairs applied to the source input object. e,g, {'framerate',30} .
+           
+            %%
             o.addProperty('fake',false);  % Fake video for debugging
             o.addProperty('diary',false); % Set to true to create a diary output on the worker
-
 
             % Logging
             o.addProperty('nrFrames',[]); % Nr Frames recorded in a trial
@@ -211,7 +227,8 @@ classdef video < neurostim.plugin
                     roi = o.ROI;
                 end
                 hRoi = drawrectangle(ax,'Position',roi,'Deletable',false);
-                roi = neurostim.plugins.video.waitForRoi(hRoi);
+                hFig = ancestor(h,'Figure');
+                roi = neurostim.plugins.video.waitForRoi(hRoi,hFig);
                 % Use even number of pixels (necessary for MPEG-4) and make
                 % sure that the ROI is inside the bounds of the camera
                 % image.
@@ -248,7 +265,6 @@ classdef video < neurostim.plugin
                         % Use built-in logging - save throughout the trial
                         o.hVid.LoggingMode='disk';
                         o.hVid.FramesPerTrigger = ceil(o.trialDuration/1000*o.videoFramerate);
-
                         o.hVid.TriggerRepeat = Inf;
                         o.hVid.FramesAcquiredFcn = @(h,e) o.frameAcquired(h,e);
                         o.hVid.FramesAcquiredFcnCount = 1;
@@ -385,6 +401,10 @@ classdef video < neurostim.plugin
                         o.nrFramesTotal = o.nrFramesTotal+o.nrFrames;
                         % For reconstruction of the snapshots, determine the
                         % time of the first frame,
+                        if o.nrFrames==0
+                            o.cic.error('STOPEXPERIMENT',sprintf('No frames acquired in trial %d',o.cic.trial));
+                            return; % Skip the storeInLog below
+                        else
                         [frameData,relativeFrameTime,metaData] = getdata(o.hVid,o.nrFrames);
                         firstFrameTime = datetime(metaData(1).AbsTime);
                         switch upper(o.fileMode)
@@ -392,10 +412,13 @@ classdef video < neurostim.plugin
                                 writeVideo(o.hWriter,frameData);
                             case 'PERTRIAL'
                                 if o.nrWorkers>0
+                                    % Send to worker to save
                                     parfeval(@neurostim.plugins.video.write,0,o.outputFile,frameData,o.outputFormat);
                                 else
+                                    % Save here.
                                     neurostim.plugins.video.write(o.outputFile,frameData,o.outputFormat);
                                 end
+                        end
                         end
 
                 end
@@ -457,23 +480,22 @@ classdef video < neurostim.plugin
             close(v);
         end
 
-        function pos = waitForRoi(hROI)
+        function pos = waitForRoi(hROI,hFig)
             % Used to adjust the ROI interactively on the preview window.
-            l = addlistener(hROI,'ROIClicked',@neurostim.plugins.video.clickCallback);
-            % Block program execution
-            %TODO find the figure panel
-            uiwait;
+            l = addlistener(hROI,'ROIClicked',@(x,e)neurostim.plugins.video.clickCallback(hFig,e));
+            % Block program execution            
+            uiwait(hFig);
             % Remove listener
             delete(l);
             % Return the current position
-            pos = hROI.Position;nsGui
+            pos = hROI.Position;
 
         end
 
-        function clickCallback(~,evt)
+        function clickCallback(hFig,evt)
             % Exits the preview ROI selection ondouble click
             if strcmp(evt.SelectionType,'double')
-                uiresume;
+                uiresume(hFig);
             end
         end
 
@@ -482,6 +504,8 @@ classdef video < neurostim.plugin
         function o= debugbg
             % Test and debug
             o = neurostim.plugins.video(neurostim.cic);
+              o.outputFolder = 'c:/temp/';
+        
             o.deviceID =1;
             o.format='MJPG_1280x720';
             o.diary = true;
@@ -491,7 +515,7 @@ classdef video < neurostim.plugin
             o.nrWorkers = 1;
             o.beforeExperimentPreview = true;
             o.duringExperimentPreview = false;
-            o.sourceSettings = {'Brightness',100,'BacklightCompensation','off'};
+            o.videoProperties = {'Brightness',100,'BacklightCompensation','off'};
             o.ROI = [500 250 251 251];
 
             o.beforeExperiment;
@@ -515,20 +539,20 @@ classdef video < neurostim.plugin
         function o= debug
             % Test and debug
             o = neurostim.plugins.video(neurostim.cic);
-            %             o.deviceID =2;
-            %             o.format='YUY2_1280x720';
-
+            o.outputFolder = 'c:/temp/';
+        
+      
             o.deviceID =1;
             o.format='MJPG_1280x720';
 
             o.outputFormat='MPEG-4';
             
-            o.fileMode = 'perTrial';
+            o.fileMode = 'perExperiment';
             o.outputMode ='saveAfterTrial';
-            o.nrWorkers = 1;
+            o.nrWorkers = 0;
             o.beforeExperimentPreview = true;
             o.duringExperimentPreview = true;
-            o.sourceSettings = {'Brightness',100,'BacklightCompensation','off'};
+            o.videoProperties = {'Brightness',100,'BacklightCompensation','off'};
             o.ROI = [500 250 251 251];
             o.beforeExperiment;
 
@@ -560,9 +584,7 @@ classdef video < neurostim.plugin
             if o.diary
                 diary([o.outputFile '_diary.txt'])
             end
-            % Need this undocumented feature (maybe something to do with
-            % workers only having limited physical memory?)
-            imaqmex('feature','-limitPhysicalMemoryUsage',false)
+           
             hVid = configure(o);
             hVid.FramesPerTrigger = Inf;
             hWriter= VideoWriter(o.outputFile,o.outputFormat);
@@ -613,6 +635,61 @@ classdef video < neurostim.plugin
             delete(poolobj);
             imaqreset;
         end
+
+        function info
+            hwInfo= imaqhwinfo;
+            if isempty(hwInfo)
+                fprintf('No video adaptors found')
+            end
+            adaptors = hwInfo.InstalledAdaptors;
+            tmp =strcat(adaptors,'\n'); 
+            tmp = [tmp{:}];
+            n = input(['Pick a vendor (1,2,..)\n' tmp]);
+            
+            adaptorInfo = imaqhwinfo(adaptors{n});
+            if isempty(adaptorInfo.DeviceIDs)
+                fprintf('No devices are connected to the %s adaptor\n',adaptors{n});
+                return
+            end
+            
+            for d=1:numel(adaptorInfo.DeviceIDs)
+                devInfo = adaptorInfo.DeviceInfo(d);
+                fprintf('*************************************\n')
+                fprintf('Found ''%s'' as DeviceID %d on adaptor ''%s''\n',devInfo.DeviceName,devInfo.DeviceID,adaptors{n})
+                fprintf('This camera supports the following formats:\n')
+                fprintf('%s\n',devInfo.SupportedFormats{:})
+                fprintf('*************************************\n')
+                fprintf('Connecting now..\n')
+                hVid = videoinput(adaptors{n},devInfo.DeviceID); %#ok<TNMLP> 
+                hSource= getselectedsource(hVid);
+                pInfo = propinfo(hSource);
+                props = fieldnames(pInfo);
+                nr = (1:numel(props))';
+                tmp = strcat(cellstr(num2str(nr)),') ', props,'\n');                
+                pNr =1;
+                while true
+                    answer = input(sprintf(['These are the video properties. Show details for [%d], select one, or 0 to quit.\n' [tmp{:}]],pNr));
+                    if ~isempty(answer)                        
+                        pNr = answer; 
+                    end
+                    if pNr==0
+                        break;
+                    elseif pNr >numel(props)
+                        fprintf('Invalid property number (%d)\n',pNr)
+                    else
+                        fprintf('***%s*** has the following properties: \n',props{pNr})
+                        propinfo(hSource,props{pNr})
+                        fprintf('Press any key to continue\n');
+                        pause
+                        pNr = pNr+1;
+                    end
+                end
+
+            end
+
+
+
+        end
     end
 
     methods (Access=protected)
@@ -624,6 +701,8 @@ classdef video < neurostim.plugin
             end
         end
         function hVid = configure(o)
+            % Need this undocumented feature 
+            imaqmex('feature','-limitPhysicalMemoryUsage',false)
             % Configure the videoinput object
             try
                 if isempty(o.format)
@@ -642,23 +721,13 @@ classdef video < neurostim.plugin
                 hVid.ROIPosition = o.ROI;
             end
             o.hSource= getselectedsource(hVid);
-%             frameRatesSet =set(o.hSource,'FrameRate');
-%             availableFramerates = cellfun(@str2num,frameRatesSet);
-%             [ok,ix]= ismember(o.videoFramerate,availableFramerates);
-%             if ok
-%                 set(o.hSource,'FrameRate',frameRatesSet{ix});
-%             else
-%                 availableFramerates %#ok<NOPRT>
-%                 error('This device cannot generate a %.2f framerate.',o.videoFramerate);
-%             end
-
-            for i=1:2:numel(o.sourceSettings)
+            for i=1:2:numel(o.videoProperties)
                 try
-                    set(o.hSource,o.sourceSettings{i},o.sourceSettings{i+1});
+                    set(o.hSource,o.videoProperties{i},o.videoProperties{i+1});
                 catch
-                    fprintf(2,'Constraints:\n')
-                    propinfo(o.hSource,o.sourceSettings{i})
-                    error('Could not set %s',o.sourceSettings{i})
+                    fprintf(2,'The ***%s*** property has the following constraints:\n',o.videoProperties{i})
+                    propinfo(o.hSource,o.videoProperties{i})
+                    error('Could not set %s',o.videoProperties{i})
                 end
             end
         end
