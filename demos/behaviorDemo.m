@@ -62,7 +62,7 @@ f.on=0;                         %What time should the stimulus come on? (all tim
 f.duration = Inf;               %How long should it be displayed?
 
 %Random dot pattern
-d = stimuli.rdp(c,'dots');      %Add a random dot pattern.
+d = stimuli.rdots(c,'dots');    %Add a random dot pattern.
 d.X = '@fix.X';                 %Parameters can be set to arbitrary, dynamic functions using this string format. To refer to other stimuli/plugins, use their name (here "fix" is the fixation point).
 d.Y = '@fix.Y';                 %Here, wherever the fixation point goes, so too will the dots, even if it changes in real-time.       
 d.on = '@f1.startTime.fixating+500';     %Motion appears 500ms after the subject begins fixating (see behavior section below). 
@@ -70,10 +70,17 @@ d.duration = 1000;
 d.color = [1 1 1];
 d.size = 2;
 d.nrDots = 200;
-d.maxRadius = 5;
 d.lifetime = Inf;
-d.noiseMode = 0;
-d.coherence = 0.6;
+
+% d.aperture = 'CIRC';
+% d.apertureParms = 5; % radius
+d.aperture = 'RECT';
+d.apertureParms = [10,10]; % [width,height]
+
+d.speed = 5;
+d.sampleFun = 'normal';
+d.sampleParms = {'mu',0,'sigma',30}; % deg.
+d.sampleBounds = [-1,1]*180;
 
 % You can use a photo diode to check stimulus timing. This command will
 % show a small (0.02 of the horizontal screen size) blue square in the northeast corner of the screen
