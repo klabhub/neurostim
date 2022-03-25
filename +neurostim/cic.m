@@ -980,6 +980,7 @@ classdef cic < neurostim.plugin
                 beforeBlock(c);
                 
                 %% Start the trials in the block
+                Priority(MaxPriority(c.mainWindow));
                 c.blockTrial =0;
                 while ~c.blocks(c.block).done
                     c.trial = c.trial+1;
@@ -1019,7 +1020,7 @@ classdef cic < neurostim.plugin
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush',kbDeviceIndices);
-                    Priority(MaxPriority(c.mainWindow));
+%                     Priority(MaxPriority(c.mainWindow));
                     
                     % Timing the draw : commented out. See drawingFinished code below
                     % draw = nan(1,1000);
@@ -1205,7 +1206,7 @@ classdef cic < neurostim.plugin
                     
                     c.frame = c.frame+1;
                     
-                    Priority(0);
+%                     Priority(0);
                     
                     afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
                     
