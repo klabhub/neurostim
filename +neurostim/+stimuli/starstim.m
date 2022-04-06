@@ -95,7 +95,7 @@ classdef starstim < neurostim.stimulus
         eegInit= false; % Set to true to initialize eeg stream before experiment (and do not wait until the first trial with non empty o.eegChannels)
     end
     % Public Get, but set through functions or internally
-    properties (SetAccess=protected, GetAccess= public)
+    properties (SetAccess={?neurostim.plugin}, GetAccess= public)
         NICVersion;
         matNICVersion;
         code= containers.Map('KeyType','char','ValueType','double');
@@ -187,7 +187,7 @@ classdef starstim < neurostim.stimulus
             stop(o);
         end
         function disp(o)
-            disp(['Starstim Host: ' o.host  ' Status: ' o.status]);
+            fprintf('Starstim Host: %s  Status: %s',o.host,o.status);
         end
         
         % Destructor
@@ -953,35 +953,18 @@ classdef starstim < neurostim.stimulus
     end
     
     methods (Static)
-        function o= loadobj(o)
+        % Classdef has changed over time; fix backward compatibility here. 
+        % This cannot be replaced with a generic plugin.loadoj as that function
+        % will not know what kind of object Matlab just tried to load.        
+        function o= loadobj(o) 
             if isstruct(o)
-                % Update to current classdef.
-                current = neurostim.stimuli.starstim(o.cic); % Create current
-                fromFile = o;
-                %-- This cannot be moved to a function/script due to class access
-                %permissions.
-                m= metaclass(current);
-                dependent = [m.PropertyList.Dependent];
-                % Find properties that we can set now (based on the stored fromFile object)
-                settable = ~dependent & (strcmpi({m.PropertyList.SetAccess},'public') | strcmpi({m.PropertyList.SetAccess},'protected'));  %~strcmpi({m.PropertyList.SetAccess},'private') & ~[m.PropertyList.Constant];
-                storedFn = fieldnames(fromFile);
-                missingInSaved  = setdiff({m.PropertyList(settable).Name},storedFn);
-                missingInCurrent  = setdiff(storedFn,{m.PropertyList(~dependent).Name});
-                toCopy= intersect(storedFn,{m.PropertyList(settable).Name});
-                fprintf('Fixing backward compatibility of stored starstim object\n')
-                fprintf('\t Not defined when saved (will get current default values) : %s \n', missingInSaved{:})
-                fprintf('\t Not defined currently (will be removed) : %s \n' , missingInCurrent{:})
-                for i=1:numel(toCopy)
-                    try
-                        current.(toCopy{i}) = fromFile.(toCopy{i});
-                    catch
-                        fprintf('\t Failed to set %s(will get current default value)\n', toCopy{i})
-                    end
-                end
-                % ---
-                o = current;
+                % This saved object did not match the current classdef.
+                % Create a current class def
+                current = neurostim.stimuli.starstim(neurostim.cic('fromFile',true)); % Create current
+                % And use this to update the old one:
+                o = neurostim.plugin.updateClassDef(o,current);  % This updating is generic or all plugins
             end
-            o.mustExit = false;
+            o.mustExit = false; % No active connection on load, so no need to exit.
         end
         
         function logOnset(s,flipTime)
