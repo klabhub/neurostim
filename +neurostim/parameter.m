@@ -688,7 +688,20 @@ classdef parameter < handle & matlab.mixin.Copyable
     
     methods (Static)
         function data = matrixIfPossible(data)
-            if iscell(data) && ~isempty(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
+            % Try to convert to a matrix 
+            % cellstr conversion to a char array can lead to weird
+            % reshaping;  excluded
+            % Some properties are initial as an empty struct with not
+            % fields, but get fields at some point in the trial. Cannot
+            % concatenate those; so exclude.
+            isStructNoFields =  @(x) (isstruct(x) && numel(fieldnames(x))==0);
+            if iscell(data) && any(diff(cellfun(isStructNoFields,data))~=0); return;end
+            
+            % First check whether this conversion could work (same size ,
+            % same type)            
+            if iscell(data) && ~isempty(data) && ~iscellstr(data) && ~isa(data{1},'function_handle') ...               
+                && all(cellfun(@(x) (strcmpi(class(data{1}),class(x))),data)) ...
+                && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
                 %Look for a singleton dimension
                 sz = size(data{1});
                 catDim = find(sz==1,1,'first');
@@ -698,12 +711,15 @@ classdef parameter < handle & matlab.mixin.Copyable
                 end
                 
                 %Convert to matrix
-                data = cat(catDim,data{:});
-                
+                if all(cellfun(isStructNoFields,data))
+                    % Replace a struct with no fields with a logical
+                    data  = true(size(data));
+                else
+                    data = cat(catDim,data{:});                     
+                end
                 %Put trials in the first dimension
                 data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);
-            end
-            
+            end            
         end
         
         function o = loadobj(o)
