@@ -59,7 +59,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
   % 2018-04-09 - Shaun L. Cloherty <s.cloherty@ieee.org>
     
   properties
-    vp@struct;
+    vp;
         
     % custom viewpoint config commands...
     %
@@ -82,7 +82,7 @@ classdef viewpoint < neurostim.plugins.eyetracker
     port = 5000;
     
     % ssh settings
-    ssh@struct = struct('username',[],'privateKey',[]);
+    ssh = struct('username',[],'privateKey',[]);
   end
     
   properties (Dependent)

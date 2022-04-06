@@ -480,7 +480,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                     end
                     if ~isnan(ix(tr,:)) 
                         if  returnMatrixIfPossible 
-                            newData{tr} =  neurostim.parameter.matrixIfPossible(data{ix(tr,:)});
+                            newData{tr} =  neurostim.parameter.matrixIfPossible([data{ix(tr,:)}]);
                         else
                             newData(tr) =  data(ix(tr,:));
                         end
@@ -615,9 +615,14 @@ classdef parameter < handle & matlab.mixin.Copyable
         function t = firstFrameTime(o)
             %  t = firstFrameTime(o)
             % Return the time of the first frame in each trial, as a column
-            % vector.
+            % vector.  
             t = [o.plg.cic.prms.firstFrame.log{:}]'; % By using the log we use the stimOnsetTime returned by Screen('flip') on the first frame.
-            if o.plg.cic.trial >numel(t)
+            % BK NOTE: using o.plg.cic.trial (the dynprop) here leads to
+            % load errors (i.e. when reading data from file) with Matlab complaining that .trial is not a property. I dont understand why 
+            % findprop finds the property at load time in cic.loadobj. THis
+            % fix (Reading from .prms instead of the dynprop) seems harmless but maybe the error is a sign of a
+            % bigger/different problem.
+            if o.plg.cic.prms.trial.value >numel(t)  
                 % A trial has started but not reached first frame yet. Set
                 % its start time to inf.
                 t = [t;inf];
@@ -683,7 +688,20 @@ classdef parameter < handle & matlab.mixin.Copyable
     
     methods (Static)
         function data = matrixIfPossible(data)
-            if iscell(data) && ~isempty(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
+            % Try to convert to a matrix 
+            % cellstr conversion to a char array can lead to weird
+            % reshaping;  excluded
+            % Some properties are initial as an empty struct with not
+            % fields, but get fields at some point in the trial. Cannot
+            % concatenate those; so exclude.
+            isStructNoFields =  @(x) (isstruct(x) && numel(fieldnames(x))==0);
+            if iscell(data) && any(diff(cellfun(isStructNoFields,data))~=0); return;end
+            
+            % First check whether this conversion could work (same size ,
+            % same type)            
+            if iscell(data) && ~isempty(data) && ~iscellstr(data) && ~isa(data{1},'function_handle') ...               
+                && all(cellfun(@(x) (strcmpi(class(data{1}),class(x))),data)) ...
+                && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
                 %Look for a singleton dimension
                 sz = size(data{1});
                 catDim = find(sz==1,1,'first');
@@ -693,12 +711,15 @@ classdef parameter < handle & matlab.mixin.Copyable
                 end
                 
                 %Convert to matrix
-                data = cat(catDim,data{:});
-                
+                if all(cellfun(isStructNoFields,data))
+                    % Replace a struct with no fields with a logical
+                    data  = true(size(data));
+                else
+                    data = cat(catDim,data{:});                     
+                end
                 %Put trials in the first dimension
                 data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);
-            end
-            
+            end            
         end
         
         function o = loadobj(o)

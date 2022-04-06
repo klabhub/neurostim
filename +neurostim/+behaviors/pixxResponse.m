@@ -83,6 +83,9 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
             % button events will be the time that the button press
             % occurred as measured by datapixx, but in terms of the PTB
             % clock.
+            if isempty(firstFrameTime(o.prms.button))
+                % First trial tid not reach first frame - failed experiment.
+            else
             [v] = get(o.prms.button,'withDataOnly',true,'matrixIfPossible',true,'dataIsNotNan',true);
             [vKey] = get(o.prms.keyIx,'withDataOnly',true,'matrixIfPossible',true,'dataIsNotNan',true);
             if ~isempty(v)
@@ -91,6 +94,7 @@ classdef pixxResponse < neurostim.behaviors.keyResponse
                 o.timeCalibration = struct('sd',sd,'ratio',ratio); % Store just in case.
                 replaceLog(o.prms.button,num2cell(v,2)',1000*ptbT'); % ms
                 replaceLog(o.prms.keyIx,num2cell(vKey,2)',1000*ptbT'); % ms
+            end
             end
             ResponsePixx('Close');
         end
