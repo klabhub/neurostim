@@ -5,6 +5,7 @@ property_name : varchar(25)     # The name of the neurostim.parameter
 ---
 property_value = NULL : longblob    # The value(s) of the constant/trial parameter/event 
 property_time = NULL : longblob     # Time at which the event occured
+property_trial = NULL : longblob     # Trial in which the event occured
 property_type : enum('Global','Parameter','Event','ByteStream') # Type of parameter
 %}
 % Global type have a single value in an experiment
@@ -28,6 +29,7 @@ classdef PluginParameter < dj.Part
             assert(isa(prm,'neurostim.parameter'),'PluginParameter needs a neurostim.parameter object as its input.');
 
             time =[];
+            trial =[];
             if prm.cntr==1
                 % Single value: global property
                 % Easy: store only this value
@@ -38,14 +40,17 @@ classdef PluginParameter < dj.Part
                 % Store all values, plus the time at which the event
                 % occurred.
                 type = 'Event';
-                [value,~,~,time] =get(prm,'matrixIfPossible',true);
+                [value,trial,time] =get(prm,'matrixIfPossible',true);
             else
                 % One value per trial : parameter
-                % Retreive the value at the end of the trial (as that
-                % should be the one used throughout).
+                % Some could be single key presses. So filling in across trials is not always right. 
+                % So pull all values,just like events.
                 type = 'Parameter';
-                [value,~,~,time] = get(prm,'atTrialTime',Inf,'matrixIfPossible',true,'withDataOnly',false);
-                % Some cleanup to store the values in the database
+                [value,trial,time] = get(prm,'matrixIfPossible',true);                
+            end
+
+
+            % Some cleanup to store the values in the database
                 if iscell(value)
                     %Replace function handles with strings
                     isFun = cellfun(@(x) (isa(x,'function_handle')),value);
@@ -77,7 +82,7 @@ classdef PluginParameter < dj.Part
                         time = [];
                     end
                 end
-            end
+
 
             if isstruct(value) && numel(fieldnames(value))==0
                 value = true(size(value));
@@ -88,6 +93,7 @@ classdef PluginParameter < dj.Part
             key.property_value = value;
             key.property_type = type;
             key.property_time = time;
+            key.property_trial = trial;
             try
                 self.insert(key);
             catch me

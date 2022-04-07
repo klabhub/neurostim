@@ -10,11 +10,18 @@ function v = filename(o,root)
 % array of filenames if o was a struct array
 %
 if nargin <2
-    root = '';
+    rt = fetchn(ns.Global & 'name=''root''' ,'value','ORDER BY id DESC LIMIT 1');
+    if isempty(rt)
+        root = '';
+    else
+        root =rt{1};
+    end    
 end
 nrExperiments = numel(o);
 if isa(o,'ns.Experiment')
     o =fetch(o,'*');
+elseif isstruct(o)
+    o = fetch(ns.Experiment & o,'*');
 end
 v= cell(1,nrExperiments);
 for i=1:nrExperiments

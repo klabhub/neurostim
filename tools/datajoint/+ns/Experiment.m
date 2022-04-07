@@ -72,24 +72,26 @@ classdef Experiment  < dj.Manual
                     % Parameters - they do not change within a trial. The
                     % output struct will have a vector/cell with one value for
                     % each trial
-                    [vals,names] = fetchn(props & 'property_type=''Parameter''' ,'property_value','property_name');
-                    for j=1:numel(names)
-                        v.(plgName).(names{j}) =vals{j};
-                    end
+
                     % Events - these can happen at any time. The struct
                     % contains both the values and the times at which they
                     % occurred (e.g. v.X and v.XTime)
-                    [vals,names,times] = fetchn(props & 'property_type=''Event''' ,'property_value','property_name','property_time');
-                    for j=1:numel(names)
-                        v.(plgName).(names{j}) =vals{j};
-                        v.(plgName).([names{j} 'Time']) = times{j};
-                    end
+                  
+                    %Bytestream - can contain objects, coded as bytes.
+                    % Decode here.
 
-                    [vals,names,times] = fetchn(props & 'property_type=''ByteStream''' ,'property_value','property_name','property_time');
+                    [vals,names,times,trials,types] = fetchn(props - 'property_type =''Global''' ,'property_value','property_name','property_time','property_trial','property_type');
                     for j=1:numel(names)
-                        v.(plgName).(names{j}) =getArrayFromByteStream(vals{j});
+                        if strcmpi(types(j),'ByteStream')
+                             v.(plgName).(names{j}) =getArrayFromByteStream(vals{j});
+                        else
+                        v.(plgName).(names{j}) =vals{j};
+                        end
                         v.(plgName).([names{j} 'Time']) = times{j};
+                        v.(plgName).([names{j} 'Trial']) = trials{j};
+
                     end
+                    
 
                 end
                 if isempty(v)
