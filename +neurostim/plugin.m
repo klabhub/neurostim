@@ -909,11 +909,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 if p==1
                     % This still points to the old style object. It will be
                     % deleted when it goes out of scope, but if the
-                    % destructor references dynprops, it will generate an
-                    % warning. Instead delete it explicitly here, and hide the warning
-                    % to avoid confusion
+                    % destructor references dynprops, it will generate a
+                    % warning or error if those don't exist in the old object
+                    % Instead delete it explicitly here, and hide the warning
+                    % and error to avoid confusion
                     warning('off','MATLAB:class:DestructorError')
+                    try
                      delete(fromCurrentClassdef.prms.(prmsNames{p}).plg);
+                    catch
+
+                    end
                     warning('on','MATLAB:class:DestructorError')                    
                 end
                 fromCurrentClassdef.prms.(prmsNames{p}).plg = fromCurrentClassdef;                

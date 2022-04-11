@@ -487,26 +487,23 @@ classdef parameter < handle & matlab.mixin.Copyable
                     end
                 end
                 %
-                out  =isnan(ix);
-                ix(out)=1;
+                notSet =isnan(ix);
+                ix(notSet)=1;  % Temporarily use ix==1  for the trials that could not be set(e.g, missing from first trial)
                 data=newData;
                 trial = repmat((1:maxTrial)',[1 nrTrialTimes]); % The trial where the event set came from is trial(ix);
                 time = time(ix);
                 trialTime = trialTime(ix);
                 
-                
-                if any(out)
-                    trial(out) = NaN;
-                    time(out) = NaN;
-                    trialTime(out)= NaN;
+                if any(notSet)
+                    % Trial is kept
+                    % data for this notSet trial is already empty
+                    time(notSet) = NaN;
+                    trialTime(notSet)= NaN;
                 end
-                
-                
+            else
+                out =false(size(data));
             end
-            
-            % Some more pruning if requested
-            out = false(size(data));
-            
+                      
             %% Prune if requested
             if ~isempty(p.Results.trial)
                 out = out | ~ismember(trial,p.Results.trial);
@@ -694,9 +691,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Some properties are initial as an empty struct with not
             % fields, but get fields at some point in the trial. Cannot
             % concatenate those; so exclude.
-            isStructNoFields =  @(x) (isstruct(x) && numel(fieldnames(x))==0);
-            if iscell(data) && any(diff(cellfun(isStructNoFields,data))~=0); return;end
-            
+            isStructDifferentFields =  @(x,y) (isstruct(x) && isstruct(y) && numel(fieldnames(x))~=numel(fieldnames(y)));
+            if iscell(data) && any(cellfun(@(x) (isStructDifferentFields(x,data{1})),data)); return;end
+            isStructNoFields = @(x) (isstruct(x) && numel(fieldnames(x))==0);
             % First check whether this conversion could work (same size ,
             % same type)            
             if iscell(data) && ~isempty(data) && ~iscellstr(data) && ~isa(data{1},'function_handle') ...               
