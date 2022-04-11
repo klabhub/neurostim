@@ -1,10 +1,10 @@
-function setupDatajoint(code,schemaName,dataRoot)
+function djActivate(code,schemaName,dataRoot,packageName)
 % Setup a new datajoint pipeline for a project. 
 % For instance, if Alice's data are all under the root folder x:\data\
 % and she wants to start a new project called 'alice_memory' with Matlab code
 % for the pipelin stored in u:\projects\memory\code, she uses:
 % 
-%  setupDatajoint('u:\projects\memory\code','alice_memory','x:\data\')
+%  djActivate('u:\projects\memory\code','alice_memory','x:\data\')
 %  And then she runs 
 %  djScan('date','01-May-2022','schedule','m','readFileContents',true)
 % to scan files collected in May '22 and add them to the pipeline.
@@ -20,6 +20,13 @@ function setupDatajoint(code,schemaName,dataRoot)
 % Alice can now add files to the u:\projects\memory\code\+ns that define
 % the analysis pipeline. 
 % 
+% If Alice also wants to analyze Calcium imaging data, she can add the Ca
+% package by calling
+% djActivate('u:\projects\memory\code','alice_memory','','ca')
+% This will create the lookup tables from CA Element in the alice_memory
+% database/schema, and create a +ca folder in the /code folder where Alice
+% can add her own additions to the analysis pipeline.
+% 
 % INPUT 
 % code -  The root level folder where your project's code lives. The script
 %           will create a +ns package subfolder with a getSchema.m file.
@@ -27,6 +34,9 @@ function setupDatajoint(code,schemaName,dataRoot)
 %                   'alice_memory')
 % dataRoot - The root folder that contains all data files. The
 %               folders below this are the years.
+% packageName- The package to install in the database. Default is ns
+% (package to handle Neurostim files). Other options are:
+%               'ca' - Calcium imaging element.
 %
 %  BK - April 2022
 
@@ -35,7 +45,9 @@ function setupDatajoint(code,schemaName,dataRoot)
 if ~exist(code,'dir')
     mkdir(code);
 end
-packageName = 'ns';
+if nargin< 4
+    packageName = 'ns';
+end
 
 %% Add the schema and utilities (dj*) 
 addpath(here)
@@ -43,7 +55,7 @@ addpath(here)
 mkdir(fullfile(code,['+' packageName]));
 
 %% Create the schema on the SQL server
-query(dj.conn, sprintf('CREATE SCHEMA `%s`',schemaName))
+query(dj.conn, sprintf('CREATE DATABASE IF NOT EXISTS `%s`',schemaName))
 
 %% Create the getSchema function
 gs= 'function obj = getSchema\n persistent OBJ \n if isempty(OBJ) \n     OBJ = dj.Schema(dj.conn,''%s'', ''%s'');\n end\n obj = OBJ;\n end \n';
@@ -51,12 +63,19 @@ fid = fopen(fullfile(code,['+' packageName],'getSchema.m'),"w");
 fprintf(fid,gs,packageName,schemaName);
 fclose(fid);
 
-%% Setup the global table with an entry for the preferred data root.
-insert(ns.Global,struct('id',0,'name','root','value',dataRoot));
+switch (packageName)
+    case 'ns'
+        %% Setup the global table with an entry for the preferred data root.
+        insert(ns.Global,struct('id',0,'name','root','value',dataRoot));
+        fprintf('The datajoint pipeline for %s has been setup. Run djScan to add files.\n',schemaName);
+    case 'ca'
+        ca.activate
+    otherwise
+end
 
 %% Go to the project folder
 cd(code)
-fprintf('The datajoint pipeline for %s has been setup. Run djScan to add files.\n',schemaName);
+
 
 
 

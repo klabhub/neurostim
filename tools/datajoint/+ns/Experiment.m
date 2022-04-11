@@ -20,6 +20,9 @@ seq = NULL : smallint       # The sequential recruitment number of this subject 
 
 classdef Experiment  < dj.Manual
     methods (Access = public)
+        function v = file(tbl)                        
+            v = string(fetchn(tbl ,'file'));                     
+        end
         function [out,filename] = get(tbl,plg)
             % function [out,filename] = get(o,plg)
             % Retrieve all information on a specific plugin in an experiment
@@ -63,6 +66,9 @@ classdef Experiment  < dj.Manual
                     plgName = plg{p};
                     % Get the properties for this plugin
                     props = (tbl & key) * ns.Plugin * ns.PluginParameter & ['plugin_name=''' plgName ''''] ;
+                    if ~exists(props)
+                        continue;
+                    end
                     % Global consts.
                     [vals,names] = fetchn(props & 'property_type=''Global''' ,'property_value','property_name');
                     tmp = cell(1,2*numel(names));
