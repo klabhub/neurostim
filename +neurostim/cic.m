@@ -952,6 +952,12 @@ classdef cic < neurostim.plugin
             %% Set up order and blocks
             order(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
+
+            % Force adaptive plugins assigned directly to parameters into
+            % the block design object(s) instead. This ensures the adaptive
+            % plugins are updated correctly (by the block object(s)).
+            handleAdaptives(c)
+
             %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);
             checkFrameRate(c);
@@ -1774,9 +1780,31 @@ classdef cic < neurostim.plugin
             fprintf(1,'%s --> ', c.pluginOrder.name)
             disp('Parameter plugins should depend only on plugins with earlier execution (i.e. to the left)');
         end
-        
-        
-        
+            
+        function handleAdaptives(c)
+            % Force adaptive plugins assigned directly to parameters into
+            % the block design object(s) instead. This ensures the adaptive
+            % plugins are updated correctly (by the block object(s)).
+           
+            plgs = c.order; % *all* plugins
+            for ii = 1:numel(plgs)
+              plg = plgs{ii}; 
+              prms = prmsByClass(c.(plg),'neurostim.plugins.adaptive');
+              if isempty(prms)
+                % no adaptive plugins/parameters
+                continue
+              end
+
+              for jj = 1:numel(prms)
+                prm = prms{jj};
+                obj = c.(plg).(prm);
+                c.(plg).(prm) = obj.getAdaptValue(); % default value?
+ 
+                % loop over blocks, adding plg.prm = obj
+                arrayfun(@(x) addAdaptive(x,plg,prm,obj),c.blocks);
+              end
+            end
+        end
         %% PTB Imaging Pipeline Setup
         function PsychImaging(c)
             % Tthis initializes the

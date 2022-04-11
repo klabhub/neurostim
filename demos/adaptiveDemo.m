@@ -1,4 +1,4 @@
-function adaptiveDemo
+function adaptiveDemo(varargin)
 % Demo to show adaptive threshold estimation.
 %
 % The subjects task is to detect the location of a Gabor:  left (press
@@ -26,7 +26,8 @@ simulatedObserver = '@(grating.contrast<(0.1+0.5*(cic.condition-1)))+1.0';
 % Or use this one for an observer with some zero mean gaussian noise on the threshold
 %simulatedObserver = '@(grating.contrast< (0.5*randn + (0.1+0.5*(cic.condition-1))))+1.0';
 %% Setup the controller 
-c= myRig;
+c= myRig(varargin{:});
+
 c.trialDuration = Inf;
 c.screen.color.background = [ 0.5 0.5 0.5];
 c.subjectNr= 0;

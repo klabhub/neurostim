@@ -74,6 +74,7 @@ d.maxRadius = 5;
 d.lifetime = Inf;
 d.noiseMode = 0;
 d.coherence = 0.6;
+d.size =  plugins.jitter(c,{2, 4, 8},'distribution','1ofn'); %Randomly choose size from 3 possible values everall trial, in all conditions
 
 % You can use a photo diode to check stimulus timing. This command will
 % show a small (0.02 of the horizontal screen size) blue square in the northeast corner of the screen
@@ -124,7 +125,7 @@ myDesign.fac1.fix.X=   [-10 0 10];             %Three different fixation positio
 myDesign.fac2.dots.direction=[-90 90];         %Two dot directions
 % Jitter the Y position in all conditions of the 2-factor design (you have
 % to explicitly specify two ':' to represent the two factors, a single (:) is interpreted as a single factor and will fail.)
-myDesign.conditions(:,:).fix.Y =  plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian)
+myDesign.conditions(:,:).fix.Y =  plugins.jitter(c,{0,4},'distribution','normal','bounds',[-5 5]);   %Vary Y-coord randomly from trial to trial (truncated Gaussian). Alternative syntax to direct assignment (cf. dots.size above)
 % By default, an incorrect answer is simply ignored (i.e. the condition is not repeated).
 % This corresponds to myDesign.retry ='IGNORE';
 % To repeat a condition immediately if the behavioral requiremnts are not met (e.g. during trainig) , specify
