@@ -146,6 +146,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             if ~isempty(o.design) && ~strcmpi(o.design,dsgn)
                 error('Not sure this works... one adaptive parm belongs to two designs?');
             end
+            assert(isnumeric(cond),'Conditions should be listed as numbers');
             o.design = dsgn;
             o.conditions = unique(cat(1,o.conditions,cond));
         end
