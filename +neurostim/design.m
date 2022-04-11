@@ -403,7 +403,14 @@ classdef design <handle & matlab.mixin.Copyable
         end
 
         function addAdaptive(o,plg,prm,obj)
-            % If plg.prm is NOT part of the design, plg.prm = obj is added to each condition
+            % This handles adaptives that were assigned directly to
+            % a plugin (and not part of the design). For consistency
+            % in updating these are added to the design object (and applied
+            % to all conditions, except those conditions where the same
+            % parameter is already set).  In other words, the design
+            % overrules any values set directly to the object (as it does
+            % for other, non-adaptive, parameters, in a condition-specific
+            % manner.
             %
             % Usage:
             %
@@ -416,24 +423,26 @@ classdef design <handle & matlab.mixin.Copyable
             %   obj - an adaptive plugin object
             assert(isa(obj,'neurostim.plugins.adaptive'),'obj must be an adaptive plugin');
 
-            % if the specified plg.prm is not already part of the design,
-            % then we add plg.prm = obj to all conditions
-            specs = cat(1,o.factorSpecs{:},o.conditionSpecs{:});
-
-            if any(strcmpi(specs(:,1),plg) & strcmpi(specs(:,2),prm))
-                % plg.prm is already part of the design... DO NOT overwrite it
-                return
+            for c=1:1:o.nrConditions
+                spcs = specs(o,c);
+                if any(strcmpi(spcs(:,1),plg) & strcmpi(spcs(:,2),prm))
+                    % plg.prm is already part of the design for this condition
+                    % DO NOT overwrite it
+                    continue
+                else
+                    % call subsasgn to add plg.prm = obj to this condition... as if
+                    % the user specified o.conditions(c).(plg).(prm) = obj
+                    %
+                    % note: we can't just invoke o.conditions(:).(plg).(prm) = obj
+                    %       here because MATLAB does not call the overloaded subsasgn
+                    %           method within class methods.
+                    %
+                    % https://au.mathworks.com/help/releases/R2021a/matlab/matlab_oop/indexed-reference-and-assignment.html#br09nsm
+                    o = subsasgn(o,struct('type',{'.','()','.','.'},'subs',{'conditions',{c},plg,prm}),obj); 
+                end
             end
 
-            % call subsasgn to add plg.prm = obj to all conditions... as if
-            % the user specified o.conditions(:).(plg).(prm) = obj
-            %
-            % note: we can't just invoke o.conditions(:).(plg).(prm) = obj
-            %       here because MATLAB does not call the overloaded subsasgn
-            %       method within class methods.
-            %
-            % https://au.mathworks.com/help/releases/R2021a/matlab/matlab_oop/indexed-reference-and-assignment.html#br09nsm
-            o = subsasgn(o,struct('type',{'.','()','.','.'},'subs',{'conditions',{':'},plg,prm}),obj); %#ok<NASGU>
+
         end
 
         function o = subsasgn(o,S,V)
@@ -607,7 +616,7 @@ classdef design <handle & matlab.mixin.Copyable
                             ix = ix{1};
                             assert(isnumeric(ix),sprintf('The indices (ix) used for design.conditions(ix).%s.%s = are not numeric',plg,prm))
                         end
-                       
+
                         if  isa(V,'neurostim.plugins.adaptive')
                             V.belongsTo(o.name,ix); % Tell the adaptive to listen to this design/level combination
                         end
