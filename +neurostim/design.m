@@ -407,10 +407,11 @@ classdef design <handle & matlab.mixin.Copyable
             % a plugin (and not part of the design). For consistency
             % in updating these are added to the design object (and applied
             % to all conditions, except those conditions where the same
-            % parameter is already set).  In other words, the design
+            % parameter is already set in the design).  In other words, the design
             % overrules any values set directly to the object (as it does
-            % for other, non-adaptive, parameters, in a condition-specific
-            % manner.
+            % for other, non-adaptive, parameters) and it does so in a 
+            % condition-specific manner.  (i.e. condition 4 can be set in
+            % the design, while 3 keeps its default value from the plugin)
             %
             % Usage:
             %
@@ -606,7 +607,7 @@ classdef design <handle & matlab.mixin.Copyable
                         % d.conditions([1:4]).bla.x = 1;
                         % Note that the value is assigned to each condition
                         % (so no 'deal()' functionality)
-                        assert(iscell(ix) && numel(ix)==1,'subasgn received noncell or nonscalar input')
+                        assert(iscell(ix) && numel(ix)==1,'subasgn received noncell or nonscalar ix')
                         if ischar(ix{1}) && strcmpi(ix{1},':')
                             % Replace : with  1:end
                             lvls = o.nrLevels;
