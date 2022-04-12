@@ -301,7 +301,7 @@ classdef cic < neurostim.plugin
                 c.screen.height = c.screen.ypixels;
             end
             if ~isequal(round(c.screen.xpixels/c.screen.ypixels,2),round(c.screen.width/c.screen.height,2))
-                warning('Physical aspect ratio and Pixel aspect ration are  not the same...');
+                warning('Physical aspect ratio and Pixel aspect ratio are not the same...');
             end
         end
 

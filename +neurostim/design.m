@@ -639,7 +639,7 @@ classdef design <handle & matlab.mixin.Copyable
                         if  isa(V,'neurostim.plugins.adaptive')
                             V.belongsTo(o.name,ix); % Tell the adaptive to listen to this design/level combination
                         end
-                        assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object. You may get the desired functionality by defining a parameter in another plugin/stimulus and then use a neurostim function to define the CIC propert (e.g. c.trialDuration = ''@myStimulus.trialDuration'')']);
+                        assert(~strcmpi(plg,'cic'),['Parameters of cic (' prm ') cannot be included in a design object. You may get the desired functionality by defining a parameter in another plugin/stimulus and then use a neurostim function to define the CIC property (e.g. c.trialDuration = ''@myStimulus.trialDuration'')']);
                         for thisIx = ix
                             if thisIx > numel(o.conditionSpecs)  || isempty(o.conditionSpecs{thisIx})
                                 o.conditionSpecs{thisIx ,1} = {plg,prm,V}; % first one for this condition
