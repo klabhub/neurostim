@@ -176,6 +176,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             o.prms.(parm.name) = duplicate(parm,o,h);
         end
         
+        function prms = prmsByClass(o,cls)
+          % return the names of the ns parameters that are
+          % instances of the class specified by cls
+          prms = fieldnames(o.prms);
+          ix = cellfun(@(x) isa(o.(x),cls),prms);
+          prms(~ix) = [];
+        end
         
         
         function tbl = getBIDSTable(o,varargin)
