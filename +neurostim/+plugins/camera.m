@@ -116,6 +116,8 @@ classdef camera < neurostim.plugin
         hWriter;
         hSource;
         frameAcquiredTime;  % Used as temp record in DURINGTRIAL mode
+        queue; % Pollable queue to send messages to worker in allOnWorker mode.
+        future; % The future for the process acquiring and saving data on the worker.
     end
     properties (Dependent)
 
@@ -184,6 +186,12 @@ classdef camera < neurostim.plugin
         end
 
         function beforeExperiment(o)
+            o.nrFramesTotal = 0;
+
+            if o.fake
+                o.writeToFeed('Fake video input from %s',o.adaptorName)
+                return
+            end
             % Connect to the specified hardware
             if ~ismember(o.adaptorName,cat(2,o.hwInfo.InstalledAdaptors))
                 error('The %s adaptor is not supported. Install a hardware support package? See imaqhwinfo for installed hardware.')
@@ -518,7 +526,7 @@ classdef camera < neurostim.plugin
             % Used to adjust the ROI interactively on the preview window.
             l = addlistener(hROI,'ROIClicked',@(x,e)neurostim.plugins.camera.clickCallback(hFig,e));
             % Block program execution
-            uiwait(hFig);
+            uiwait;
             % Remove listener
             delete(l);
             % Return the current position
