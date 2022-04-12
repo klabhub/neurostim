@@ -6,10 +6,8 @@ classdef camera < neurostim.plugin
     %               gige, matrox, etc. ( See imaqhelp videoinput)
     % deviceID  - ID Number of the device on the adaptor [1]
     % format   - Which format to use on the device. This is
-    % device-specific, get a list of allowable modes by calling
-    %           imaqhwinfo(adaptorName,deviceID); ['MJPG_1280x720']
-    % framerate - Framerate of the video device. Usually only a subset
-    %               of rates is allowed. [30]
+    %           device-specific, get a list of allowable modes by calling
+    %           imaqhwinfo(adaptorName,deviceID); ['MJPG_1280x720']   
     %
     % trialDuration - Used only in DURINGTRIAL mode; this determines the
     %               number of frames that will be collected each trial (must be constant
@@ -56,7 +54,7 @@ classdef camera < neurostim.plugin
     %       o.adaptorName= 'winvideo'; % Using buikt-in windows adapotr
     %       o.deviceID = 'Integrated Webcam' % Assuming this exists;
     %       o.trialDuration = 2000;
-    %       o.framerate =30;
+    %       o.properties ={'framerate',30};
     %       o.outputFormat = 'MPEG-4';
     %       o.outputMode = 'SAVEDURINGTRIAL';
     %       o.fileMode = 'PEREXPERIMENT';
@@ -107,7 +105,7 @@ classdef camera < neurostim.plugin
     % GETING STARTED
     % With a new camera it may help to first run 
     % 
-    % neurostim.plugins.video.info
+    % neurostim.plugins.camera.info
     % this will show properties of your hardware, including the names of
     % parameters that control framerate,etc.
     % 
@@ -129,9 +127,22 @@ classdef camera < neurostim.plugin
         outputFile; % Name of the output file       
         allOnWorker; % Evaluate to true if PEREXPERIMENT/SAVEAFTERTRIAL/nrWorkers>1
         saveOnWorker;% Evaluate to true if PERTRIAL/SAVEAFTERTRIAL/nrWorkers>1
+        framerate;
     end
 
     methods
+        function v = get.framerate(o)
+            % Pull framerate from video source using a case insensitive
+            % search for 'framerate' property.
+            fn = fieldnames(o.hSource.propinfo);
+            ix = strcmpi(fn,'framerate');
+            if any(ix) 
+                v = str2double(o.hSource.(fn{ix}));
+            else
+                writeToFeed('No framerate property. Using default 30 fps');
+                v = 30;
+            end
+        end
         function v = get.outputFile(o)
             %Determine the output file for the curren trial/experiment
             if isempty(o.outputFolder)
@@ -173,8 +184,7 @@ classdef camera < neurostim.plugin
             o=o@neurostim.plugin(c,name);
             o.addProperty('adaptorName','winvideo'); % Name of the adaptor used to access this video source
             o.addProperty('deviceID',1); % Device ID on the adaptor (defaults to 1)
-            o.addProperty('format','MJPG_1280x720'); % Specify a format to use for this device.
-            o.addProperty('framerate',30); % Frames per second
+            o.addProperty('format','MJPG_1280x720'); % Specify a format to use for this device.            
             o.addProperty('trialDuration',3000); % Expected, fixed duration of each trial (duringTrial outputMode only)
             o.addProperty('ROI',[]);
             o.addProperty('outputFolder',''); % Folder where video will be stored. Defaults to folder of the neurostim output 
@@ -183,7 +193,7 @@ classdef camera < neurostim.plugin
             o.addProperty('outputMode','saveDuringTrial'); %saveDuringTrial, saveAfterTrial
             o.addProperty('fileMode','perExperiment'); % 'perExperiment' , 'perTrial'
             o.addProperty('nrWorkers',0); % Set to 1 to use parfeval to save in the background (perTrial/afterTrial modes only).
-            o.addProperty('videoProperties',{});  % Parm/value pairs applied to the source input object. e,g, {'framerate',30} .
+            o.addProperty('properties',{});  % Parm/value pairs applied to the source input object. e,g, {'framerate',30} .
            
             %%
             o.addProperty('fake',false);  % Fake video for debugging
@@ -214,41 +224,6 @@ classdef camera < neurostim.plugin
             if ~ismember(o.adaptorName,cat(2,o.hwInfo.InstalledAdaptors))
                 error('The %s adaptor is not supported. Install a hardware support package? See imaqhwinfo for installed hardware.')
             end
-            try
-                if isempty(o.format)
-                    o.hVid  = videoinput(o.adaptorName,o.deviceID);
-                else
-                    o.hVid  = videoinput(o.adaptorName,o.deviceID,o.format);
-                end
-            catch me
-                imaqhwinfo(o.adaptorName,o.deviceID)
-                error('Constructing a video object failed (%s)  (Call imaqreset?)', me.message);
-            end
-            % Configure
-            triggerconfig(o.hVid,'manual'); % We'll start in beforeTrial.
-            if ~isempty(o.ROI)
-                o.hVid.ROIPosition = o.ROI;
-            end
-            o.hSource= getselectedsource(o.hVid);
-            frameRatesSet =set(o.hSource,'FrameRate');
-            availableFramerates = cellfun(@str2num,frameRatesSet);
-            [ok,ix]= ismember(o.framerate,availableFramerates);
-            if ok
-                set(o.hSource,'FrameRate',frameRatesSet{ix});
-            else
-                o.cic.error('STOPEXPERIMENT',sprintf('This device cannot generate a %.2f framerate.',o.framerate));
-                availableFramerates %#ok<NOPRT>
-            end
-
-            for i=1:2:numel(o.sourceSettings)
-                try
-                    set(o.hSource,o.sourceSettings{i},o.sourceSettings{i+1});
-                catch
-                    o.cic.error('STOPEXPERIMENT',sprintf('Could not set %s',o.sourceSettings{i}))
-                    fprintf(2,'Constraints:')
-                    propinfo(o.hSource,o.sourceSettings{i})
-                end
-            end
 
             %% Show a preview window and allow setting an ROI.
             if o.beforeExperimentPreview
@@ -265,7 +240,8 @@ classdef camera < neurostim.plugin
                     roi = o.ROI;
                 end
                 hRoi = drawrectangle(ax,'Position',roi,'Deletable',false);
-                roi = neurostim.plugins.camera.waitForRoi(hRoi);
+                hFig = ancestor(h,'Figure');
+                roi = neurostim.plugins.camera.waitForRoi(hRoi,hFig);
                 % Use even number of pixels (necessary for MPEG-4) and make
                 % sure that the ROI is inside the bounds of the camera
                 % image.
@@ -276,61 +252,14 @@ classdef camera < neurostim.plugin
                 outOfBounds = (xy+wh)>p.DefaultValue;
                 roi(outOfBounds) = roi(outOfBounds)-1;  %Shift (up/left) by one pixel.
                 o.ROI = roi; % Store for analysis.
-                o.hVid.ROIPosition = o.ROI;                
-                closepreview(o.hVid); % Always close to reshape ROI.                
-            end
-            
-            if o.duringExperimentPreview
-                % Reopen preview with correct size.
-               preview(o.hVid);
-            end
-            
-            % Prepare the video input device
-            switch upper(o.outputMode)
-                case 'DURINGTRIAL'
-                    % Use built-in logging - save throughout the trial
-                    o.hVid.LoggingMode='disk&memory';                    
-                    o.hVid.FramesPerTrigger = ceil(o.trialDuration/1000*o.framerate);
-                    o.nrFramesTotal = 0;
-                    o.hVid.TriggerRepeat = Inf;                    
-                    o.hVid.FramesAcquiredFcn = @(h,e) o.frameAcquired(h,e);
-                    o.hVid.FramesAcquiredFcnCount = 1;
-                    % Setup a videowriter 
-                    switch upper(o.fileMode)
-                        case 'PEREXPERIMENT'
-                            o.hWriter= VideoWriter(o.outputFile,o.outputFormat);
-                            o.hVid.DiskLogger= o.hWriter;
-                            start(o.hVid);  % Start now and run to the end of experiment
-                        case 'PERTRIAL'
-                            % Will create a new writer before each trial
-                            % and start hVid there.
-                        otherwise
-                            error('Unknown fileMode %s',o.fileMode);
-                    end                    
-                case 'AFTERTRIAL'
-                    % Save after the trial completes
-                    o.hVid.FramesPerTrigger = Inf;
-                    % Setup a videowriter 
-                    switch upper(o.fileMode)
-                        case 'PEREXPERIMENT'
-                            % Create a single writer here, write to it
-                            % after each trial, close it in
-                            % afterExperiment.
-                            o.hWriter= VideoWriter(o.outputFile,o.outputFormat);
-                            open(o.hWriter);
-                        case 'PERTRIAL'
-                            % Create a new writer each trial
-                        otherwise
-                            error('Unknown fileMode %s',o.fileMode);
-                    end
-                otherwise
-                    error('Unknown outputMode %s',o.outputMode);
+                o.hVid.ROIPosition = o.ROI;
+                closepreview(o.hVid); % Always close to reshape ROI.
             end
 
             if o.allOnWorker
                 % In this mode all acquisition and saving happens on a
                 % parallel worker.
-                % Close the video object - it will be reopened on the
+                % Close the camera object - it will be reopened on the
                 % worker
                 delete(o.hVid)
                 setupWorker(o);
@@ -348,7 +277,7 @@ classdef camera < neurostim.plugin
                     case 'SAVEDURINGTRIAL'
                         % Use built-in logging - save throughout the trial
                         o.hVid.LoggingMode='disk';
-                        o.hVid.FramesPerTrigger = ceil(o.trialDuration/1000*o.videoFramerate);
+                        o.hVid.FramesPerTrigger = ceil(o.trialDuration/1000*o.framerate);
                         o.hVid.TriggerRepeat = Inf;
                         o.hVid.FramesAcquiredFcn = @(h,e) o.frameAcquired(h,e);
                         o.hVid.FramesAcquiredFcnCount = 1;
@@ -392,7 +321,7 @@ classdef camera < neurostim.plugin
             end
 
         end
-        function frameAcquired(o,h,evt)
+        function frameAcquired(o,~,evt)
             % In DURINGTRIAL outputMode this is called after each frame to
             % store the time of the frame. After the trial, this
             % information is logged to allow accurate reproduction of frame
@@ -430,7 +359,7 @@ classdef camera < neurostim.plugin
                 end
                 % Make sure the videoinput is running and logging is off.
                 while ~isrunning(o.hVid)
-                    o.writeToFeed('Waiting for video to start')
+                    o.writeToFeed('Waiting for camera to start')
                     pause(0.25);
                 end
                 while islogging(o.hVid)
@@ -443,52 +372,66 @@ classdef camera < neurostim.plugin
         end
 
         function afterTrial(o)
-            switch upper(o.outputMode)
-                case 'DURINGTRIAL'
-                    % Wait until all the specified frames have been
-                    % collected
-                    while (o.hVid.FramesAcquired < o.hVid.FramesPerTrigger)
-                        pause(0.1);
-                        o.writeToFeed(sprintf('Waiting for all (%d) video frames ...please wait (%d)',o.hVid.FramesPerTrigger,o.hVid.FramesAcquired));
-                    end
-                    % Wait until saving has caught up with acquiistion
-                    while (o.hVid.FramesAcquired ~= o.hVid.DiskLoggerFrameCount)
-                        pause(0.1);
-                        o.writeToFeed('Saving video data...please wait')
-                    end
-                    % Store logging.
-                    nrFrames =o.hVid.FramesAcquired;
-                    o.nrFrames = nrFrames-o.nrFramesTotal;
-                    o.nrFramesTotal = o.nrFramesTotal + o.nrFrames;
-                    
-                    firstFrameTime = o.frameAcquiredTime(1);
-                    relativeFrameTime = [0 seconds(diff(o.frameAcquiredTime))];                    
-                    switch upper(o.fileMode)
-                        case 'PEREXPERIMENT'
-                            %Nothing to do
-                        case 'PERTRIAL'
-                            close(o.hWriter); % We'll open a new one in beforeTrial
-                    end
-                case 'AFTERTRIAL'
-                    % Save the video frames recorded in this trial
-                    stop(o.hVid); % Stop acquiring
-                    o.nrFrames = o.hVid.FramesAcquired;
-                    o.nrFramesTotal = o.nrFramesTotal+o.nrFrames;
-                    % For reconstruction of the snapshots, determine the
-                    % time of the first frame,
-                    [frameData,relativeFrameTime,metaData] = getdata(o.hVid,o.nrFrames);
-                    firstFrameTime = datetime(metaData(1).AbsTime);
-                    switch upper(o.fileMode)
-                        case 'PEREXPERIMENT'
-                            writeVideo(o.hWriter,frameData);
-                        case 'PERTRIAL'
-                            if o.nrWorkers>0
-                                parfeval(@neurostim.plugins.camera.write,0,o.outputFile,frameData,o.outputFormat);
-                            else
-                                neurostim.plugins.camera.write(o.outputFile,frameData,o.outputFormat);
-                            end
-                    end
+            if o.fake
+                o.writeToFeed('Fake camera input from %s after trial %d',o.adaptorName,o.cic.trial)
+                return
+            end
 
+            if o.allOnWorker
+                % Tell the worker to save to the writer
+                sendToWorker(o,-o.cic.trial);
+            else
+                switch upper(o.outputMode)
+                    case 'SAVEDURINGTRIAL'
+                        % Wait until all the specified frames have been
+                        % collected
+                        while (o.hVid.FramesAcquired < o.hVid.FramesPerTrigger)
+                            pause(0.25);
+                            o.writeToFeed(sprintf('Waiting for all (%d) camera frames ...please wait (%d)',o.hVid.FramesPerTrigger,o.hVid.FramesAcquired));
+                        end
+                        % Wait until saving has caught up with acquiistion
+                        while (o.hVid.FramesAcquired ~= o.hVid.DiskLoggerFrameCount)
+                            pause(0.25);
+                            o.writeToFeed('Saving camera data...please wait')
+                        end
+                        % Store logging.
+                        nrFrames =o.hVid.FramesAcquired;
+                        o.nrFrames = nrFrames-o.nrFramesTotal;
+                        o.nrFramesTotal = o.nrFramesTotal + o.nrFrames;
+                        firstFrameTime = o.frameAcquiredTime(1);
+                        relativeFrameTime = [0 seconds(diff(o.frameAcquiredTime))];
+                        switch upper(o.fileMode)
+                            case 'PEREXPERIMENT'
+                                %Nothing to do
+                            case 'PERTRIAL'
+                                close(o.hWriter); % We'll open a new one in beforeTrial
+                        end
+                    case 'SAVEAFTERTRIAL'
+                        % Save the camera frames recorded in this trial
+                        stop(o.hVid); % Stop acquiring
+                        o.nrFrames = o.hVid.FramesAcquired;
+                        o.nrFramesTotal = o.nrFramesTotal+o.nrFrames;
+                        % For reconstruction of the snapshots, determine the
+                        % time of the first frame,
+                        if o.nrFrames==0
+                            o.cic.error('STOPEXPERIMENT',sprintf('No frames acquired in trial %d',o.cic.trial));
+                            return; % Skip the storeInLog below
+                        else
+                        [frameData,relativeFrameTime,metaData] = getdata(o.hVid,o.nrFrames);
+                        firstFrameTime = datetime(metaData(1).AbsTime);
+                        switch upper(o.fileMode)
+                            case 'PEREXPERIMENT'
+                                writeVideo(o.hWriter,frameData);
+                            case 'PERTRIAL'
+                                if o.nrWorkers>0
+                                    % Send to worker to save
+                                    parfeval(@neurostim.plugins.camera.write,0,o.outputFile,frameData,o.outputFormat);
+                                else
+                                    % Save here.
+                                    neurostim.plugins.camera.write(o.outputFile,frameData,o.outputFormat);
+                                end
+                        end
+                        end
                 end
                 % Log the acquisition times of all frames
                 storeInLog(o,'firstVideoFrame',firstFrameTime,relativeFrameTime*1000);
@@ -498,7 +441,7 @@ classdef camera < neurostim.plugin
 
         function afterExperiment(o)
             if o.fake
-                o.writeToFeed('Fake video input from %s. afterExperiment')
+                o.writeToFeed('Fake camera input from %s. afterExperiment')
                 return
             end
 
@@ -550,9 +493,9 @@ classdef camera < neurostim.plugin
 
         function pos = waitForRoi(hROI,hFig)
             % Used to adjust the ROI interactively on the preview window.
-            l = addlistener(hROI,'ROIClicked',@neurostim.plugins.camera.clickCallback);
-            % Block program execution
-            uiwait;
+            l = addlistener(hROI,'ROIClicked',@(x,e)neurostim.plugins.camera.clickCallback(hFig,e));
+            % Block program execution            
+            uiwait(hFig);
             % Remove listener
             delete(l);
             % Return the current position
@@ -572,8 +515,19 @@ classdef camera < neurostim.plugin
         function o= debugbg
             % Test and debug
             o = neurostim.plugins.camera(neurostim.cic);
-            o.deviceID =2;
-            o.format='YUY2_1280x720';
+              o.outputFolder = 'c:/temp/';
+        
+            o.deviceID =1;
+            o.format='MJPG_1280x720';
+            o.diary = true;
+            o.outputFormat='MPEG-4';            
+            o.fileMode = 'perExperiment';
+            o.outputMode ='saveafterTrial';
+            o.nrWorkers = 1;
+            o.beforeExperimentPreview = true;
+            o.duringExperimentPreview = false;
+            o.properties = {'Brightness',60,'BacklightCompensation','off'};
+            o.ROI = [500 250 251 251];
 
             o.beforeExperiment;
 
@@ -595,7 +549,7 @@ classdef camera < neurostim.plugin
 
         function o= debug
             % Test and debug
-            o = neurostim.plugins.video(neurostim.cic);
+           o = neurostim.plugins.camera(neurostim.cic);
             o.outputFolder = 'c:/temp/';
         
       
@@ -605,11 +559,11 @@ classdef camera < neurostim.plugin
             o.outputFormat='MPEG-4';
             
             o.fileMode = 'perExperiment';
-            o.outputMode ='saveAfterTrial';
-            o.nrWorkers = 0;
+            o.outputMode ='saveDuringTrial';
+            o.nrWorkers = 1;
             o.beforeExperimentPreview = true;
-            o.duringExperimentPreview = true;
-            o.videoProperties = {'Brightness',100,'BacklightCompensation','off'};
+            o.duringExperimentPreview = false;
+            o.properties = {'Brightness',64,'BacklightCompensation','off'};
             o.ROI = [500 250 251 251];
             o.beforeExperiment;
 
@@ -629,8 +583,9 @@ classdef camera < neurostim.plugin
         end
 
 
-        % This function sets up video acquisition and writing on a parallel worker
-        % The client (i.e. the video plugin on the main Matlab) sends it messages at
+
+        % This function sets up camera acquisition and writing on a parallel worker
+        % The client (i.e. the camera plugin on the main Matlab) sends it messages at
         % the start and end of each trial
         function ok = acquireAndSave(queue,hO)
             % INPUT
@@ -696,7 +651,7 @@ classdef camera < neurostim.plugin
         function info
             hwInfo= imaqhwinfo;
             if isempty(hwInfo)
-                fprintf('No video adaptors found')
+                fprintf('No camera adaptors found')
             end
             adaptors = hwInfo.InstalledAdaptors;
             tmp =strcat(adaptors,'\n'); 
@@ -725,7 +680,7 @@ classdef camera < neurostim.plugin
                 tmp = strcat(cellstr(num2str(nr)),') ', props,'\n');                
                 pNr =1;
                 while true
-                    answer = input(sprintf(['These are the video properties. Show details for [%d], select one, or 0 to quit.\n' [tmp{:}]],pNr));
+                    answer = input(sprintf(['These are the camera properties. Show details for [%d], select one, or 0 to quit.\n' [tmp{:}]],pNr));
                     if ~isempty(answer)                        
                         pNr = answer; 
                     end
@@ -747,6 +702,7 @@ classdef camera < neurostim.plugin
 
 
         end
+
     end
 
     methods (Access=protected)
@@ -769,7 +725,7 @@ classdef camera < neurostim.plugin
                 end
             catch me
                 imaqhwinfo(o.adaptorName,o.deviceID)
-                error('Constructing a video object failed (%s)  (Call imaqreset?)', me.message);
+                error('Constructing a camera object failed (%s)  (Call imaqreset?)', me.message);
             end
 
             % Configure
@@ -778,13 +734,13 @@ classdef camera < neurostim.plugin
                 hVid.ROIPosition = o.ROI;
             end
             o.hSource= getselectedsource(hVid);
-            for i=1:2:numel(o.videoProperties)
+            for i=1:2:numel(o.properties)
                 try
-                    set(o.hSource,o.videoProperties{i},o.videoProperties{i+1});
+                    set(o.hSource,o.properties{i},o.properties{i+1});
                 catch
-                    fprintf(2,'The ***%s*** property has the following constraints:\n',o.videoProperties{i})
-                    propinfo(o.hSource,o.videoProperties{i})
-                    error('Could not set %s',o.videoProperties{i})
+                    fprintf(2,'The ***%s*** property has the following constraints:\n',o.properties{i})
+                    propinfo(o.hSource,o.properties{i})
+                    error('Could not set %s',o.properties{i})
                 end
             end
         end
@@ -800,13 +756,14 @@ classdef camera < neurostim.plugin
             workerQueueShared = parallel.pool.Constant(@parallel.pool.PollableDataQueue);
             % Retrieve a handle to the queue on the worker to use on the client
             o.queue = fetchOutputs(parfeval(@(x) x.Value, 1, workerQueueShared));
-            % Send the plugin object to the workerto start the video and wait for messages
-            o.future = parfeval(@neurostim.plugins.video.acquireAndSave, 1, workerQueueShared,oShared);
+            % Send the plugin object to the workerto start the camera and wait for messages
+            o.future = parfeval(@neurostim.plugins.camera.acquireAndSave, 1, workerQueueShared,oShared);
             if ~isempty(o.future.Error)
                 o.future.Error
             end
         end
     end
+
 
     %% GUI Functions
     methods (Access= public)
@@ -825,7 +782,7 @@ classdef camera < neurostim.plugin
     end
 
     methods (Static)
-        function guiLayout(pnl)
+        function guiLayout(pnl) %#ok<INUSD> 
             % Add plugin specific elements
 
         end
