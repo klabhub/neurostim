@@ -1,5 +1,4 @@
-classdef webcam < neurostim.plugin
-    
+classdef webcam < neurostim.plugin    
     % Plugin to control udpcam to record video with a webcam during an
     % experiment and save the results to file. udpcam should be run in a
     % separate matlab session (start one using !matlab&) or packaged as a
@@ -10,8 +9,11 @@ classdef webcam < neurostim.plugin
     % caused massive framedrops. updcam and it's companian class
     % updcam_remote_control (around which this plugin is merely a wrapper)
     % can be found at https://github.com/duijnhouwer/udpcam
+    %
+    % See also neurostim.plugins.camera for a plugin with similar
+    % functionailty, based on the Matlab Imagq Acquisition Toolbox
     properties (Access=public)
-        RC@udpcam_remote_control;
+        RC %udpcam_remote_control;
     end
     methods (Access=public)
         function o=webcam(c,name)
