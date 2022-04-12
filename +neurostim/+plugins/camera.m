@@ -1,4 +1,4 @@
-classdef video < neurostim.plugin
+classdef camera < neurostim.plugin
     % Plugin to record video (with a webcam, ip cam, or other video
     % device that the Mathworks Image Acquisition Toolbox can control).
     % PROPERTIES
@@ -8,7 +8,7 @@ classdef video < neurostim.plugin
     % format   - Which format to use on the device. This is
     % device-specific, get a list of allowable modes by calling
     %           imaqhwinfo(adaptorName,deviceID); ['MJPG_1280x720']
-    % videoFramerate - Framerate of the video device. Usually only a subset
+    % framerate - Framerate of the video device. Usually only a subset
     %               of rates is allowed. [30]
     %
     % trialDuration - Used only in DURINGTRIAL mode; this determines the
@@ -45,11 +45,11 @@ classdef video < neurostim.plugin
     %   In an experiment with fixed duration trials (2000 ms), collecting
     %   data during the trial and saving them  to file continuously could
     %   work
-    %       o = neurostim.plugins.video(c)
+    %       o = neurostim.plugins.camera(c)
     %       o.adaptorName= 'winvideo'; % Using buikt-in windows adapotr
     %       o.deviceID = 'Integrated Webcam' % Assuming this exists;
     %       o.trialDuration = 2000;
-    %       o.videoFramerate =30;
+    %       o.framerate =30;
     %       o.outputFormat = 'MPEG-4';
     %       o.outputMode = 'DURINGTRIAL';
     %       o.fileMode = 'PEREXPERIMENT';
@@ -119,19 +119,19 @@ classdef video < neurostim.plugin
     end
 
     methods (Access=public)
-        function o=video(c,name)
-            %video plugin constructor
+        function o=camera(c,name)
+            %camera plugin constructor
             if isempty(which('imaqhwinfo'))
-                error('The video plugin requires the Image Acquisition Toolbox. Please install it first.')
+                error('The camera plugin requires the Image Acquisition Toolbox. Please install it first.')
             end
             if nargin==1
-                name='video';
+                name='camera';
             end
             o=o@neurostim.plugin(c,name);
             o.addProperty('adaptorName','winvideo'); % Name of the adaptor used to access this video source
             o.addProperty('deviceID',1); % Device ID on the adaptor (defaults to 1)
             o.addProperty('format','MJPG_1280x720'); % Specify a format to use for this device.
-            o.addProperty('videoFramerate',30); % Frames per second
+            o.addProperty('framerate',30); % Frames per second
             o.addProperty('trialDuration',3000); % Expected, fixed duration of each trial (duringTrial outputMode only)
             o.addProperty('ROI',[]);
             o.addProperty('outputFolder',o.cic.dirs.output); % Folder where video will be stored
@@ -176,11 +176,11 @@ classdef video < neurostim.plugin
             o.hSource= getselectedsource(o.hVid);
             frameRatesSet =set(o.hSource,'FrameRate');
             availableFramerates = cellfun(@str2num,frameRatesSet);
-            [ok,ix]= ismember(o.videoFramerate,availableFramerates);
+            [ok,ix]= ismember(o.framerate,availableFramerates);
             if ok
                 set(o.hSource,'FrameRate',frameRatesSet{ix});
             else
-                o.cic.error('STOPEXPERIMENT',sprintf('This device cannot generate a %.2f framerate.',o.videoFramerate));
+                o.cic.error('STOPEXPERIMENT',sprintf('This device cannot generate a %.2f framerate.',o.framerate));
                 availableFramerates %#ok<NOPRT>
             end
 
@@ -208,7 +208,7 @@ classdef video < neurostim.plugin
                     roi = o.ROI;
                 end
                 hRoi = drawrectangle(ax,'Position',roi,'Deletable',false);
-                roi = neurostim.plugins.video.waitForRoi(hRoi);
+                roi = neurostim.plugins.camera.waitForRoi(hRoi);
                 % Use even number of pixels (necessary for MPEG-4) and make
                 % sure that the ROI is inside the bounds of the camera
                 % image.
@@ -233,7 +233,7 @@ classdef video < neurostim.plugin
                 case 'DURINGTRIAL'
                     % Use built-in logging - save throughout the trial
                     o.hVid.LoggingMode='disk&memory';                    
-                    o.hVid.FramesPerTrigger = ceil(o.trialDuration/1000*o.videoFramerate);
+                    o.hVid.FramesPerTrigger = ceil(o.trialDuration/1000*o.framerate);
                     o.nrFramesTotal = 0;
                     o.hVid.TriggerRepeat = Inf;                    
                     o.hVid.FramesAcquiredFcn = @(h,e) o.frameAcquired(h,e);
@@ -367,9 +367,9 @@ classdef video < neurostim.plugin
                             writeVideo(o.hWriter,frameData);
                         case 'PERTRIAL'
                             if o.nrWorkers>0
-                                parfeval(@neurostim.plugins.video.write,0,o.outputFile,frameData,o.outputFormat);
+                                parfeval(@neurostim.plugins.camera.write,0,o.outputFile,frameData,o.outputFormat);
                             else
-                                neurostim.plugins.video.write(o.outputFile,frameData,o.outputFormat);
+                                neurostim.plugins.camera.write(o.outputFile,frameData,o.outputFormat);
                             end
                     end
 
@@ -423,7 +423,7 @@ classdef video < neurostim.plugin
 
         function pos = waitForRoi(hROI)
             % Used to adjust the ROI interactively on the preview window.
-            l = addlistener(hROI,'ROIClicked',@neurostim.plugins.video.clickCallback);
+            l = addlistener(hROI,'ROIClicked',@neurostim.plugins.camera.clickCallback);
             % Block program execution
             uiwait;
             % Remove listener
@@ -441,7 +441,7 @@ classdef video < neurostim.plugin
 
         function o= debug
             % Test and debug
-            o = neurostim.plugins.video(neurostim.cic);
+            o = neurostim.plugins.camera(neurostim.cic);
             o.deviceID =2;
             o.format='YUY2_1280x720';
 
