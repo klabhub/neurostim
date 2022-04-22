@@ -387,7 +387,8 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % frame
                 else
                     % convert to physical coordinates
-                    eyeNr = str2eye(o,o.eye);
+                    %eyeNr = str2eye(o,o.eye);
+                    eyeNr = 1;
 
                     if o.loc_useRawData
                       % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
