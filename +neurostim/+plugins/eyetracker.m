@@ -22,6 +22,7 @@ classdef eyetracker < neurostim.plugin
         mouseButton = 1; % By default check the left click (button =1), but user can set to 2 or 3.
         keepExperimentSetup =true;
         eye='LEFT'; %LEFT,RIGHT, or BOTH
+        binoc_eye=''; % Tracks which eye to use for behaviour during binocular eye tracking
         tmr; %@timer
         
         doTrackerSetupEachBlock = false %Return to tracker setup before the first trial of every block.
@@ -53,7 +54,7 @@ classdef eyetracker < neurostim.plugin
             o.addProperty('foregroundColor',[]);
             o.addProperty('clbTargetColor',[1,0,0]);
             o.addProperty('clbTargetSize',0.25);
-            o.addProperty('continuous',false);
+            o.addProperty('continuous',false);            
             
             o.addKey('w','Toggle Blink');
             o.tmr = timer('name','eyetracker.blink','startDelay',200/1000,'ExecutionMode','singleShot','TimerFcn',{@o.openEye});

@@ -71,7 +71,8 @@ classdef eyelink < neurostim.plugins.eyetracker
         getSamples =true;
         getEvents =false;
         nTransferAttempts = 5;
-        
+        eyeNr=NaN; % Index variable for eye position
+
         callbackFun = 'neurostimEyelinkDispatchCallback'; % Modified callback for overlay use on VPIXX and PsychPortAudio for sounds
         boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]
         targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.            
@@ -85,7 +86,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         isRecording;
         isConnected; %double
     end
-    
+
     methods
         function v = get.isRecording(~)
             v = Eyelink('CheckRecording');%returns 0 if connected.
@@ -363,8 +364,22 @@ classdef eyelink < neurostim.plugins.eyetracker
                 else
                     o.eye = eye2str(o,available);
                 end
+                if strcmp(o.eye,'BOTH')
+                    % Check that binoc_eye is set
+                    if isempty(o.binoc_eye)
+                        % In order to use binocular tracking, you MUST
+                        % specify which eye to use for monocular tracking.
+                        error('In order to enable binocular tracking, you must specify which eye to use for behaviour. Set the property "binoc_eye" to LEFT or RIGHT for this purpose');
+                    end                    
+                end
             end
-            
+
+            % get the tracked eye for behavior in physical coordinates
+            o.eyeNr = str2eye(o,o.eye);
+            if o.eyeNr > 1 % binocular tracking
+                o.eyeNr = str2eye(o,o.binoc_eye);
+            end
+
             Eyelink('Command','record_status_message %s%s%s',o.cic.paradigm, '_TRIAL:',num2str(o.cic.trial));
             Eyelink('Message','%s',['TR:' num2str(o.cic.trial)]);   %will this be used to align clocks later?
             Eyelink('Message','TRIALID %d-%d',o.cic.condition,o.cic.trial);
@@ -386,19 +401,16 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % No sample or other error, just continue to next
                     % frame
                 else
-                    % convert to physical coordinates
-                    eyeNr = str2eye(o,o.eye);
-
                     if o.loc_useRawData
                       % get raw camera (x,y) of pupil center and apply o.clbMatrix (see @eyetracker)
-                      [o.x,o.y] = o.raw2ns(sample.px(eyeNr+1),sample.py(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                      [o.x,o.y] = o.raw2ns(sample.px(o.eyeNr+1),sample.py(o.eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
                     else
                       % get gaze position (in display pixels)
-                      [o.x,o.y] = o.raw2ns(sample.gx(eyeNr+1),sample.gy(eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
+                      [o.x,o.y] = o.raw2ns(sample.gx(o.eyeNr+1),sample.gy(o.eyeNr+1)); % eyeNr+1, since we're indexing a MATLAB array
                     end
                                         
-                    o.pupilSize = sample.pa(eyeNr+1);
-                    o.valid  = any(sample.gx(eyeNr+1)~=o.el.MISSING_DATA); % Blink or other missing data.
+                    o.pupilSize = sample.pa(o.eyeNr+1);
+                    o.valid  = any(sample.gx(o.eyeNr+1)~=o.el.MISSING_DATA); % Blink or other missing data.
                 end
             end
             if o.getEvents
