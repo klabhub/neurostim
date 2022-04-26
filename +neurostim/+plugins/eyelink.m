@@ -197,7 +197,9 @@ classdef eyelink < neurostim.plugins.eyetracker
                     case 'RIGHT'
                         Eyelink('Command','binocular_enabled=NO');
                         Eyelink('Command','active_eye=RIGHT');
-                        Eyelink('Message','%s', 'EYE_USED 1');                    
+                        Eyelink('Message','%s', 'EYE_USED 1');
+                    case 'BOTH' | 'BINOCULAR'
+                        c.error('STOPEXPERIMENT','The .eye parameter should only be set to "LEFT" or "RIGHT".')
                 end
             else % Binocular tracking is enabled
                 Eyelink('Command','binocular_enabled=YES');
@@ -373,12 +375,16 @@ classdef eyelink < neurostim.plugins.eyetracker
                     if ~o.binocular
                         % In order to use binocular tracking, you MUST
                         % specify which eye to use for monocular tracking.
-                        error('In order to enable binocular tracking, you must specify "binocular" as true.');
+                        c.error('STOPEXPERIMENT','In order to enable binocular tracking, you must specify "binocular" as true.');
                     end
                 else
                     % If not binocular, use whichever eye eyelink is
                     % tracking
-                    o.eye = eye;
+                    if strcmpi(o.eye,'LEFT') || ~strcmpi(o.eye,'RIGHT')
+                        o.eye = eye;
+                    else
+                        c.error('STOPEXPERIMENT','The .eye parameter must be set to "LEFT" or "RIGHT".')
+                    end
                 end
             end
 
