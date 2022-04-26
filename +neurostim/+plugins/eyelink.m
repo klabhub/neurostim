@@ -362,23 +362,24 @@ classdef eyelink < neurostim.plugins.eyetracker
                     % No eye
                     o.cic.error('STOPEXPERIMENT','eye not available')
                 else
-                    o.eye = eye2str(o,available);
+                    eye = eye2str(o,available);                    
                 end
-                if strcmp(o.eye,'BOTH')
-                    % Check that binoc_eye is set
-                    if isempty(o.binoc_eye)
+                if strcmp(eye,'BOTH')
+                    % Check that binocular is set
+                    if ~o.binocular
                         % In order to use binocular tracking, you MUST
                         % specify which eye to use for monocular tracking.
-                        error('In order to enable binocular tracking, you must specify which eye to use for behaviour. Set the property "binoc_eye" to LEFT or RIGHT for this purpose');
-                    end                    
+                        error('In order to enable binocular tracking, you must specify "binocular" as true.');
+                    end
+                else
+                    % If not binocular, use whichever eye eyelink is
+                    % tracking
+                    o.eye = eye;
                 end
             end
 
             % get the tracked eye for behavior in physical coordinates
-            o.eyeNr = str2eye(o,o.eye);
-            if o.eyeNr > 1 % binocular tracking
-                o.eyeNr = str2eye(o,o.binoc_eye);
-            end
+            o.eyeNr = str2eye(o,o.eye);            
 
             Eyelink('Command','record_status_message %s%s%s',o.cic.paradigm, '_TRIAL:',num2str(o.cic.trial));
             Eyelink('Message','%s',['TR:' num2str(o.cic.trial)]);   %will this be used to align clocks later?
