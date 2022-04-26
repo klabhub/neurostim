@@ -186,19 +186,23 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
             Eyelink('Openfile', o.edfFile);
             
-            switch upper(o.eye)
-                case 'LEFT'
-                    Eyelink('Command','binocular_enabled=NO');
-                    Eyelink('Command','active_eye=LEFT');
-                    Eyelink('Message','%s', 'EYE_USED 0');
-                case 'RIGHT'
-                    Eyelink('Command','binocular_enabled=NO');
-                    Eyelink('Command','active_eye=RIGHT');
-                    Eyelink('Message','%s', 'EYE_USED 1');
-                case {'BOTH','BINOCULAR'}
-                    Eyelink('Command','binocular_enabled=YES');
-                    Eyelink('Command','active_eye=LEFT,RIGHT');
-                    Eyelink('Message','%s', 'EYE_USED 2');
+            if ~o.binocular
+                % If binocular is true, o.eye is the eye neurostim uses for
+                % behaviour
+                switch upper(o.eye)
+                    case 'LEFT'
+                        Eyelink('Command','binocular_enabled=NO');
+                        Eyelink('Command','active_eye=LEFT');
+                        Eyelink('Message','%s', 'EYE_USED 0');
+                    case 'RIGHT'
+                        Eyelink('Command','binocular_enabled=NO');
+                        Eyelink('Command','active_eye=RIGHT');
+                        Eyelink('Message','%s', 'EYE_USED 1');                    
+                end
+            else % Binocular tracking is enabled
+                Eyelink('Command','binocular_enabled=YES');
+                Eyelink('Command','active_eye=LEFT,RIGHT');
+                Eyelink('Message','%s', 'EYE_USED 2');
             end
                 
             if o.useRawData
