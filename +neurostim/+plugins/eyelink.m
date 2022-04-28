@@ -372,11 +372,10 @@ classdef eyelink < neurostim.plugins.eyetracker
                     eye = eye2str(o,available);                    
                 end
                 if strcmp(eye,'BOTH')
-                    % Check that binocular is set
+                    % binocular eye data available
                     if ~o.binocular
-                        % In order to use binocular tracking, you MUST
-                        % specify which eye to use for monocular tracking.
-                        c.error('STOPEXPERIMENT','In order to enable binocular tracking, you must specify "binocular" as true.');
+                        % Binocular tracking active but not requested
+                        c.error('STOPEXPERIMENT','Eyelink is tracking both eyes but ''.binocular'' is false. To enable binocular tracking ''.binocular'' should be true.');
                     end
                 else
                     % If not binocular, use whichever eye eyelink is
