@@ -6,12 +6,14 @@ classdef (Abstract) ePhys < neurostim.plugin
         
         startMsg;
         stopMsg;
+
+        cfg;
     end
     
     properties (SetAccess = protected, GetAccess = public)         
         connectionStatus = false;
         
-        trialInfo;
+        trialInfo;        
     end
     
     methods (Access = public)        
