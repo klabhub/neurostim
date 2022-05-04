@@ -10,22 +10,33 @@ classdef eyetracker < neurostim.plugin
 %   foregroundColor - foreground colour for eyetracker functions.
 %   clbTargetColor - calibration target color.
 %   clbTargetSize - calibration target size.
-%   eyeToTrack - one of 'left','right','binocular' or 0,1,2.
+%   eye - one of 'left' or 'right'.
+%   binocular - if set to true, requests binocular eye tracking (may not be supported by all child classes).
 %   useMouse - if set to true, uses the mouse coordinates as eye coordinates.
 %
 % Keyboard:
 %   Pressing 'w' simulates a 200 ms eye blink
-    
-    
+%
+% Notes on binocular eye tracking:
+%   Where the eye tracker hardware (and the child plugin) supports it, setting
+%   the .binocular property to true will configure the eye tracker to track
+%   both eyes. However, at present, neurostim eyetracker plugins expose
+%   position for only one eye, via the .x and .y properties, at runtime.
+%   Which eye is used to populate these properties, and is therefore
+%   available for eye movement behaviours or gaze contingent stimuli, is
+%   determined by the .eye property, which must be either 'left' or 'right'. 
+
     properties (Access=public)
-        useMouse =false;
+        useMouse = false;
         mouseButton = 1; % By default check the left click (button =1), but user can set to 2 or 3.
-        keepExperimentSetup =true;
-        eye='LEFT'; %LEFT,RIGHT, or BOTH
-        binocular=false; % Tracks which eye to use for behaviour during binocular eye tracking
-        tmr; %@timer
+        keepExperimentSetup = true;
+
+        eye = 'LEFT'; % LEFT or RIGHT
+        binocular = false; % Set to true to request binocular eye tracking (see notes above)
+
+        tmr; % @timer (for blink simulation)
         
-        doTrackerSetupEachBlock = false %Return to tracker setup before the first trial of every block.
+        doTrackerSetupEachBlock = false % Return to tracker setup before the first trial of every block.
         doTrackerSetup = true;  % Do it before the next trial. Initialised to true to do setup on first trial.
         doDriftCorrect = false;  % Do it before the next trial
     end

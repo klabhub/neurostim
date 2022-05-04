@@ -186,6 +186,10 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
             Eyelink('Openfile', o.edfFile);
             
+            if ~strcmpi(o.eye,'LEFT') && ~strcmpi(o.eye,'RIGHT')
+                c.error('STOPEXPERIMENT','The .eye parameter should only be set to "LEFT" or "RIGHT".');
+            end
+
             if ~o.binocular
                 % If binocular is true, o.eye is the eye neurostim uses for
                 % behaviour
@@ -197,7 +201,7 @@ classdef eyelink < neurostim.plugins.eyetracker
                     case 'RIGHT'
                         Eyelink('Command','binocular_enabled=NO');
                         Eyelink('Command','active_eye=RIGHT');
-                        Eyelink('Message','%s', 'EYE_USED 1');                    
+                        Eyelink('Message','%s', 'EYE_USED 1');                       
                 end
             else % Binocular tracking is enabled
                 Eyelink('Command','binocular_enabled=YES');
@@ -223,8 +227,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             Eyelink('Message','DISPLAY_COORDS %d %d %d %d',o.cic.screen.xorigin, o.cic.screen.yorigin, o.cic.screen.xpixels,o.cic.screen.ypixels);
             Eyelink('Message','%s',['DISPLAY_SIZE ' num2str(o.cic.screen.width) ' ' num2str(o.cic.screen.height)]);
-            Eyelink('Message','%s', ['FRAMERATE ' num2str(o.cic.screen.frameRate) ' Hz.']);
-            
+            Eyelink('Message','%s', ['FRAMERATE ' num2str(o.cic.screen.frameRate) ' Hz.']);            
         end
         
         
@@ -369,11 +372,10 @@ classdef eyelink < neurostim.plugins.eyetracker
                     eye = eye2str(o,available);                    
                 end
                 if strcmp(eye,'BOTH')
-                    % Check that binocular is set
+                    % binocular eye data available
                     if ~o.binocular
-                        % In order to use binocular tracking, you MUST
-                        % specify which eye to use for monocular tracking.
-                        error('In order to enable binocular tracking, you must specify "binocular" as true.');
+                        % Binocular tracking active but not requested
+                        c.error('STOPEXPERIMENT','Eyelink is tracking both eyes but ''.binocular'' is false. To enable binocular tracking ''.binocular'' should be true.');
                     end
                 else
                     % If not binocular, use whichever eye eyelink is
