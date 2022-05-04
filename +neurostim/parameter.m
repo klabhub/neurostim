@@ -54,6 +54,11 @@ classdef parameter < handle & matlab.mixin.Copyable
         % To set this for a previously defined parameter call
         % setChangesInTrial(plugin,parameterName) in your stimulus/plugin
         % class.
+         
+        
+        hDynProp;                   % Handle to the dynamic property. See pulgin.updateClassdef for why this needs plugin write access
+        plg; %@neurostim.plugin;    % Handle to the plugin that this belongs to.     
+
     end
     
     properties (SetAccess= protected, GetAccess=public)
@@ -70,11 +75,9 @@ classdef parameter < handle & matlab.mixin.Copyable
         funPrms;
         funStr = '';                % The neurostim function string
         validate =[];               % Validation function
-        plg; %@neurostim.plugin;    % Handle to the plugin that this belongs to.
-        hDynProp;                   % Handle to the dynamic property
         hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
     end
-    
+            
     
     methods
         function  o = parameter(p,nm,v,h,options)

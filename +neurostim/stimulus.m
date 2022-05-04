@@ -36,7 +36,7 @@ classdef stimulus < neurostim.plugin
         frame; % frame since start of stimulus
     end
     
-    properties (SetAccess = protected, GetAccess = public)
+    properties (SetAccess = {?neurostim.plugin}, GetAccess = public)
         flags = struct('on',true);
         stimstart = false;
         stimstop = false;
