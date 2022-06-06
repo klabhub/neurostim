@@ -543,7 +543,7 @@ classdef starstim < neurostim.stimulus
         function afterBlock(o)
             switch upper(o.mode)
                 case 'BLOCKED'
-                    if o.enabled
+                    if o.enabled && ~o.sham
                         rampDown(o);
                     end
                 otherwise
@@ -691,6 +691,7 @@ classdef starstim < neurostim.stimulus
 
             waitFor(o,'PROTOCOL',{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
             sendMarker(o,'rampUp');
+            tSendUp = GetSecs;
             switch upper(o.type)
                 case 'TACS'
                     msg{1} = sprintf('Ramping tACS up in %d ms to:',o.transition);
@@ -738,11 +739,16 @@ classdef starstim < neurostim.stimulus
                 peakLevelDuration =o.shamDuration;
             end
 
-            % Schedule the rampDown. Assuming that this line is executed
-            % immediately after sending the rampup command to Starstim.
+            % Schedule the rampDown. 
             if isfinite(peakLevelDuration)
+                % I'm not sure waitFor(CODE_STATUS_STIMULATION_FULL) always
+                % works with starstim; it seems as if this status is returend even
+                % before the transition is complete. (and in Fake mode it returns immediately) 
+                % Make sure the scheduled rampDown delay is never shorter than the
+                % transition time.
+                additionalDelay  = max(0,o.transition - (tReachedPeak-tSendUp));
                 off  = @(timr,events,obj,tPeak) (rampDown(obj,tPeak));
-                o.tmr.StartDelay = peakLevelDuration/1000; %\ seconds
+                o.tmr.StartDelay = round(additionalDelay + peakLevelDuration)/1000; %\ seconds
                 o.tmr.ExecutionMode='SingleShot';
                 o.tmr.TimerFcn = {off,o,tReachedPeak};
                 start(o.tmr);

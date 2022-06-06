@@ -803,6 +803,10 @@ classdef cic < neurostim.plugin
 
         function afterBlock(c)
 
+            % Calls afterBlock on all plugins, in pluginOrder.
+            base(c.pluginOrder,neurostim.stages.AFTERBLOCK,c);
+
+            % now show message/wait for key if requested.
             waitforkey = false;
             if isa(c.blocks(c.block).afterMessage,'function_handle')
                 msg = c.blocks(c.block).afterMessage(c);
