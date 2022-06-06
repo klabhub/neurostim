@@ -44,6 +44,7 @@ p.addParameter('readFileContents',false);
 p.addParameter('ignore',{'.ini','.cache'});
 p.addParameter('safemode',true);
 p.addParameter('paradigms',{});
+p.addParameter('fileType','*.mat')
 p.parse(varargin{:});
 
 dj.config('safemode',p.Results.safemode);
@@ -52,13 +53,13 @@ dj.config('safemode',p.Results.safemode);
 switch (p.Results.schedule)
     case 'y'
         % Allow more than one folder below year
-        srcFolder = fullfile(p.Results.root,datestr(p.Results.date,'yyyy'),'**','*.mat');
+        srcFolder = fullfile(p.Results.root,datestr(p.Results.date,'yyyy'),'**',p.Results.fileType);
     case 'm'
         % Exactly one folder below month
-        srcFolder = fullfile(p.Results.root,datestr(p.Results.date,'yyyy/mm'),'*','*.mat');
+        srcFolder = fullfile(p.Results.root,datestr(p.Results.date,'yyyy/mm'),'**',p.Results.fileType);
     case 'd'
         % Inside the day folder
-        srcFolder = fullfile(p.Results.root,datestr(p.Results.date,'yyyy/mm/dd'),'*.mat');
+        srcFolder = fullfile(p.Results.root,datestr(p.Results.date,'yyyy/mm/dd'),p.Results.fileType);
     otherwise
         error('Unknown schedule %s',p.Results.schedule)
 end
@@ -75,7 +76,7 @@ if strcmpi(filesep','\')
 else
     fs = filesep;
 end
-pattern = ['(?<date>\d{4,4}' fs '\d{2,2}' fs '\d{2,2})' fs '(?<subject>\w{2,10})\.(?<paradigm>\w+)\.(?<startTime>\d{6,6})\.mat'];
+pattern = ['(?<date>\d{4,4}' fs '\d{2,2}' fs '\d{2,2})' fs '(?<subject>\w{2,10})\.(?<paradigm>\w+)\.(?<startTime>\d{6,6})\.'];
 nsDataFiles = regexp(fullName,pattern,'names');
 % Prune those file that did not match
 out = cellfun(@isempty,nsDataFiles);
@@ -85,7 +86,7 @@ nsDataFiles(out)=[];
 files(out) = [];
 nsDataFiles= [nsDataFiles{:}]; % Create a struct array with the relevant info
 
-if ~isempty(p.Results.paradigms)
+if ~isempty(p.Results.paradigms) && ~isempty(nsDataFiles)
     out = ~ismember({nsDataFiles.paradigm},p.Results.paradigms);
     if any(out)
         fprintf('Skipping %d files with non-matching paradigms\n',sum(out))

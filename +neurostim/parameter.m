@@ -500,10 +500,8 @@ classdef parameter < handle & matlab.mixin.Copyable
                     time(notSet) = NaN;
                     trialTime(notSet)= NaN;
                 end
-            else
-                out =false(size(data));
             end
-                      
+                out =false(size(data));       
             %% Prune if requested
             if ~isempty(p.Results.trial)
                 out = out | ~ismember(trial,p.Results.trial);
