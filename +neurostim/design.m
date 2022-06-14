@@ -240,9 +240,9 @@ classdef design <handle & matlab.mixin.Copyable
                 end
             end
         end
-
-
-        function show(o,f,str)
+        
+        
+        function show(o,f,str,conditionPerTrial)
             % Function to show the condition specifications in a figure.
             % f - the dimensions of the design to show (e.g. [1 2] to
             % show the first two factors, or [1 3] to show factors 1 and 3
@@ -252,6 +252,9 @@ classdef design <handle & matlab.mixin.Copyable
             %show blocks)
             if nargin <3
                 str = '';
+            end
+            if nargin <4
+                conditionPerTrial =[];
             end
             if nargin <2 || isempty(f)
                 f = 1:o.nrFactors;
@@ -265,8 +268,7 @@ classdef design <handle & matlab.mixin.Copyable
                 spcs{c} = specs(o,c);
             end
             spcs = reshape(spcs,o.nrLevels);
-            others = setdiff(1:o.nrFactors,f);
-
+            others = setdiff(1:o.nrFactors,f);            
             if numel(f)>1
                 spcs = permute(spcs,[f others]);
                 wghts = permute(o.weights,[f others]);
@@ -295,16 +297,27 @@ classdef design <handle & matlab.mixin.Copyable
             end
             title([str ': ' o.name ' :' num2str(o.nrFactors) '-way design. Rand: ' o.randomization]);
             hold on
+            
+             if ~isempty(conditionPerTrial)
+            [allConditions,lastPos] = unique(sort(conditionPerTrial),'last'); 
+            nrTrialsPerCondition = zeros([nrY nrX nrZ]);
+            nrTrialsPerCondition(allConditions) = [lastPos(1); diff(lastPos)];
+             end 
+                
+                
             for k=1:nrZ
                 for i=1:nrY
                     for j=1:nrX
                         this='';
                         for prm =1:size(spcs{i,j,k},1)
                             val = spcs{i,j,k}{prm,3};
-                            if isnumeric(val)
+                            if isnumeric(val) 
                                 val = num2str(val);
                             elseif isobject(val)
                                 val = val.name;
+                            elseif islogical(val)
+                                vals  = {'false','true'};
+                                val  = vals{val+1};
                             elseif ~ischar(val)
                                 val = '?';
                             end
@@ -315,8 +328,13 @@ classdef design <handle & matlab.mixin.Copyable
                         else
                             this =char(this,['Weight=' num2str(wghts)]);
                         end
-                        cndNr = ['Condition: ' num2str(sub2ind([nrY nrX nrZ],i,j,k)) ];
+                        thisCondition = sub2ind([nrY nrX nrZ],i,j,k);
+                        cndNr = ['Condition: ' num2str(thisCondition) ];
+                        
                         this  = char(this,cndNr);
+                        if ~isempty(conditionPerTrial)
+                            this = char(this,['#Trials: ' num2str(nrTrialsPerCondition(thisCondition))]);
+                        end
                         text(j,i,k,this,'HorizontalAlignment','Left','Interpreter','none','VerticalAlignment','middle')
                     end
                 end

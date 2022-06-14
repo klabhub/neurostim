@@ -291,7 +291,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         function afterExperiment(o)
             if o.fake; afterExperiment@neurostim.plugins.eyetracker(o);return;end
             
-            o.cic.drawFormattedText('Transfering data from Eyelink host, please wait.','ShowNow',true);
+            o.writeToFeed('Transfering data from Eyelink host, please wait.');
             Eyelink('StopRecording');
             Eyelink('CloseFile');
             pause(0.1);
