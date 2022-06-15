@@ -274,7 +274,8 @@ classdef rdots < neurostim.stimuli.dots
       % tuning: a 1xn array of Poisson lambda values for different motion directions
 
       p = inputParser;
-      p.addParameter('debug',false);      
+      p.addParameter('debug',false);
+      p.addParameter('noisy',true);
       p.addParameter('spontRate',2);
       p.addParameter('eye',false);
       p.addParameter('xyVals',[]);
@@ -314,8 +315,11 @@ classdef rdots < neurostim.stimuli.dots
         nFrames = size(p.xyVals{i},2);
 
         % get the dx,dy
-        dx = p.xyVals{i}(:,2,1) - p.xyVals{i}(:,1,1);
-        dy = p.xyVals{i}(:,2,2) - p.xyVals{i}(:,1,2);
+%         dx = p.xyVals{i}(:,2,1) - p.xyVals{i}(:,1,1); <-- first frame estimates get trashed by dots leaving the aperture
+%         dy = p.xyVals{i}(:,2,2) - p.xyVals{i}(:,1,2);
+        dx = median(diff(p.xyVals{i}(:,:,1),1,2),2);
+        dy = median(diff(p.xyVals{i}(:,:,2),1,2),2);
+        th = cart2pol(dx,dy); % dot directions... -pi to pi
 
         % get the fixation point
         fx = get(o.prms.X,'trial',i,'atTrialTime',Inf);
@@ -338,23 +342,35 @@ classdef rdots < neurostim.stimuli.dots
           mx = median(d.eye(i).x(eyeBins == j));
           my = median(d.eye(i).y(eyeBins == j));
 
-          valid = all(abs(d.eye(i).x(eyeBins == j)) <= 10.0) & ...
-            all(abs(d.eye(i).y(eyeBins == j)) <= 10.0) & ...
-            all(d.eye(i).parea(eyeBins == j) > 0);
+%           valid = all(abs(d.eye(i).x(eyeBins == j)) <= 10.0) & ...
+%             all(abs(d.eye(i).y(eyeBins == j)) <= 10.0) & ...
+%             all(d.eye(i).parea(eyeBins == j) > 0);
+%         
+%           x = rf_x - mx(valid) + fx; % fixation-centered receptive field coordinates
+%           y = rf_y - my(valid) + fy;
+% 
+%           % clip dots to the receptive field
+%           ix = p.xyVals{i}(:,j,1) > x-rf_width & p.xyVals{i}(:,j,1) < x+rf_width & ...
+%             p.xyVals{i}(:,j,2) > y-rf_height & p.xyVals{i}(:,j,2) < y+rf_height;
+% 
+%           % calculate average direction
+%           th = cart2pol(mean(dx(ix),'omitnan'),mean(dy(ix),'omitnan'));          
+          
+          x = p.xyVals{i}(:,j,1) - mx - rf_x; % RF centered dot positions
+          y = p.xyVals{i}(:,j,2) - my - rf_y;
 
-          x = rf_x - mx(valid) + fx; % fixation-centered receptive field coordinates
-          y = rf_y - my(valid) + fy;
+          [~,r] = cart2pol(x,y);
+          lambda = mean(neuronCallback(th).*normpdf(r,0,rf_width)); % <-- Gaussian RF envelope
 
-          % clip dots to the receptive field
-          ix = p.xyVals{i}(:,j,1) > x-rf_width & p.xyVals{i}(:,j,1) < x+rf_width & ...
-            p.xyVals{i}(:,j,2) > y-rf_height & p.xyVals{i}(:,j,2) < y+rf_height;
+          sp{1}{i}(j) = lambda; % <-- noise free!
+          
+          if ~p.noisy
+            continue
+          end
 
-          % calculate average direction
-          th = cart2pol(mean(dx(ix),'omitnan'),mean(dy(ix),'omitnan'));          
-
-          % simulate response
-          lambda = neuronCallback(th);
-          if isnan(lambda); lambda = p.spontRate; end
+          % simulate *noisy* response
+%           lambda = neuronCallback(th);
+%           if isnan(lambda); lambda = p.spontRate; end
           samples = zeros(1,floor(frameDur*1e3));
           for tt = 1:floor(frameDur*1e3) % ms in a frame
             samples(tt) = poissrnd(lambda);
@@ -437,8 +453,10 @@ classdef rdots < neurostim.stimuli.dots
         %end
 
         % get the dx,dy
-        dx = p.xyVals{i}(:,2,1) - p.xyVals{i}(:,1,1);
-        dy = p.xyVals{i}(:,2,2) - p.xyVals{i}(:,1,2);
+%         dx = p.xyVals{i}(:,2,1) - p.xyVals{i}(:,1,1);
+%         dy = p.xyVals{i}(:,2,2) - p.xyVals{i}(:,1,2);
+        dx = median(diff(p.xyVals{i}(:,:,1),1,2),2);
+        dy = median(diff(p.xyVals{i}(:,:,2),1,2),2);
 
         % get the fixation point
         fx = get(o.prms.X,'trial',i,'atTrialTime',Inf);
@@ -469,42 +487,57 @@ classdef rdots < neurostim.stimuli.dots
             all(abs(d.eye(i).y(frameBins == j)) <= 10.0) & ...
             all(d.eye(i).parea(frameBins == j) > 0);
 
-          % xyVals are relative to o.position, which is the fixation point
-          dix = zeros(size(rx,1)*size(rx,2),o.nrDots);
-          diy = zeros(size(ry,1)*size(ry,2),o.nrDots);
-          for dd = 1:o.nrDots            
-            dix(:,dd) = dx(dd) .* (p.xyVals{i}(dd,j,1) >= (rx(:) - bs/2) & p.xyVals{i}(dd,j,1) < (rx(:) + bs/2) & ...
-              p.xyVals{i}(dd,j,2) >= (ry(:) - bs/2) & p.xyVals{i}(dd,j,2) < (ry(:) + bs/2));
-            diy(:,dd) = dy(dd) .* (p.xyVals{i}(dd,j,1) >= (rx(:) - bs/2) & p.xyVals{i}(dd,j,1) < (rx(:) + bs/2) & ...
-              p.xyVals{i}(dd,j,2) >= (ry(:) - bs/2) & p.xyVals{i}(dd,j,2) < (ry(:) + bs/2));            
-          end
-          %dix(~dix) = NaN; diy(~diy) = NaN; % NaN zeros
-          % calculate average direction
-          th = cart2pol(mean(dix,2,'omitnan'),mean(diy,2,'omitnan'));          
-          dir{i}(:,j) = th;
+%           % xyVals are relative to o.position, which is the fixation point
+%           dix = zeros(size(rx,1)*size(rx,2),o.nrDots);
+%           diy = zeros(size(ry,1)*size(ry,2),o.nrDots);
+%           for dd = 1:o.nrDots            
+%             dix(:,dd) = dx(dd) .* (p.xyVals{i}(dd,j,1) >= (rx(:) - bs/2) & p.xyVals{i}(dd,j,1) < (rx(:) + bs/2) & ...
+%               p.xyVals{i}(dd,j,2) >= (ry(:) - bs/2) & p.xyVals{i}(dd,j,2) < (ry(:) + bs/2));
+%             diy(:,dd) = dy(dd) .* (p.xyVals{i}(dd,j,1) >= (rx(:) - bs/2) & p.xyVals{i}(dd,j,1) < (rx(:) + bs/2) & ...
+%               p.xyVals{i}(dd,j,2) >= (ry(:) - bs/2) & p.xyVals{i}(dd,j,2) < (ry(:) + bs/2));            
+%           end
+%           %dix(~dix) = NaN; diy(~diy) = NaN; % NaN zeros
+%           % calculate average direction
+%           th = cart2pol(mean(dix,2,'omitnan'),mean(diy,2,'omitnan'));          
+%           dir{i}(:,j) = th;
         end
 
         % convert screen centered to eye centered coordinates
-        x = rx(:) - mx(:,valid) + fx;
-        y = ry(:) - my(:,valid) + fy;
+%         x = rx(:) - mx(:,valid) + fx;
+%         y = ry(:) - my(:,valid) + fy;
+        x = p.xyVals{i}(:,:,1) - mx(:)'; % nrDots x nrFrames
+        x(:,~valid) = NaN;
 
+        y = p.xyVals{i}(:,:,2) - my(:)';
+        y(:,~valid) = NaN;
+        
         % clip to ROI
         x(x < (mnx-bs/2) | x > (mxx+bs/2)) = NaN; % nBins x nFrames
         y(y < (mny-bs/2) | y > (mxy+bs/2)) = NaN;
         ix = ~isnan(x(:)) & ~isnan(y(:));
         
         % weight stimuli by response
-        w = dir{i}.*sp{i};
-        w = w(:,valid);
+%         w = dir{i}.*sp{i};
+%         w = w(:,valid);
+        wx = dx.*sp{i}; % <-- for limited lifetime dots dx is nrDots x nrFrames
+        wy = dy.*sp{i};
 
-        ws{i} = full(sparse(binfn(y(ix)-(mny-bs/2)), binfn(x(ix)-(mnx-bs/2)), w(ix), binfn(mxy - mny)+1, binfn(mxx - mnx)+1));
+%         ws{i} = full(sparse(binfn(y(ix)-(mny-bs/2)), binfn(x(ix)-(mnx-bs/2)), w(ix), binfn(mxy - mny)+1, binfn(mxx - mnx)+1));
+%         n = n + sum(sp{i}(valid) > 0);
+        wsx{i} = full(sparse(binfn(y(ix)-(mny-bs/2)), binfn(x(ix)-(mnx-bs/2)), wx(ix), binfn(mxy - mny)+1, binfn(mxx - mnx)+1));
+        wsy{i} = full(sparse(binfn(y(ix)-(mny-bs/2)), binfn(x(ix)-(mnx-bs/2)), wy(ix), binfn(mxy - mny)+1, binfn(mxx - mnx)+1));
+
         n = n + sum(sp{i}(valid) > 0);
       end
       
       % compute STA
-      STA.sta = sum(cat(3,ws{:}),3,'omitnan')./(n*frameDur); % average response in each bin over all trials (sp/s?)
+%       STA.sta = sum(cat(3,ws{:}),3,'omitnan')./(n*frameDur); % average response in each bin over all trials (sp/s?)
+      STA.stax = sum(cat(3,wsx{:}),3)./(n*frameDur); % average response in each bin over all trials (sp/s?)
+      STA.stay = sum(cat(3,wsy{:}),3)./(n*frameDur); % average response in each bin over all trials (sp/s?)
       STA.xax = linspace(mnx, mxx, binfn(mxx - mnx)+1);
       STA.yax = linspace(mny, mxy, binfn(mxy - mny)+1);
+
+      [STA.pref,STA.sta] = cart2pol(STA.stax,STA.stay); % <-- .sta is the preferred direction vector magnitude
 
       % clean up memory
       clearvars('dix','diy','dx','dy','frameBins','frameEdges','ix','rx','ry','w','ws');
@@ -518,7 +551,8 @@ classdef rdots < neurostim.stimuli.dots
       end
 
       % now improve it
-      RF = findRFs(RFs,dir,STA.xax,STA.yax,sp);
+      RF = [];
+%       RF = findRFs(RFs,dir,STA.xax,STA.yax,sp);
 
       % plot the RF?
       if p.plotRF        
