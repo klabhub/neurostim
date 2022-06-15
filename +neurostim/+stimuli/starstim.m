@@ -287,6 +287,10 @@ classdef starstim < neurostim.stimulus
             o.addProperty('path',''); % Set to the folder on the starstim computer where data should be stored.
             % If path is empty, the path of the neurostim output file is
             % used (which may not exist on the remote starstim computer).
+            o.addProperty('experimentDuration',inf); % Time in ms to stop the experiment. 
+            % Used only in NIC mode.Use this to match the neurostim
+            % experiment duration to the protocol defined in NIC. The
+            % duration is relative to the start of the protocol
 
             o.addProperty('amplitude',NaN);
             o.addProperty('mean',NaN);
@@ -575,7 +579,12 @@ classdef starstim < neurostim.stimulus
                 case 'EEGONLY'
                     %nothing to do
                 case 'NIC'
-                    % Do nothing
+                    % Check whether it is time to end the experiment
+                    [~,~,~,startTime]  = get(o.prms.marker,'dataIsMember',o.code('protocolStarted'));
+                    if ~isempty(startTime) && neurostim.cic.clockTime > max(startTime)+o.experimentDuration
+                        o.writeToFeed(sprintf('Time is up (%2.2f min)',o.experimentDuration/60000));
+                        endExperiment(o.cic);   
+                    end
                 otherwise
                     o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
@@ -640,6 +649,8 @@ classdef starstim < neurostim.stimulus
             switch upper(o.mode)            
                 case 'EEGONLY'
                     %Nothing to do
+                case 'NIC'
+                    % Rely on NIC to handle the rampdown
                 otherwise
                     rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
             end

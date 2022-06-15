@@ -525,7 +525,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             
             if ~isempty(p.Results.dataIsMember)
-                out = out | cellfun(@(x)(~ismember(x,p.Results.dataIsMember)),data);
+                % Check whether data is a member of p.Results.dataIsMember
+                % - Note that empty never matches.
+                out = out | cellfun(@(x)(isempty(x) || ~ismember(x,p.Results.dataIsMember)),data);
             end
             
             % Prune
