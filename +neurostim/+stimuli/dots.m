@@ -84,7 +84,7 @@ classdef (Abstract) dots < neurostim.stimulus
       % values logged for debug/reconstruction only  
       o.addProperty('rngState',[]); % logged at the start of each trial
       o.addProperty('xyVals',[]);   % logged at the end of each trial
-            
+
       % snag a dedicated RNG stream
       % (to ensure it is protected for stimulus reconstruction offline)
       addRNGstream(o);
@@ -223,6 +223,46 @@ classdef (Abstract) dots < neurostim.stimulus
   end % public methods
   
   methods (Static)
+    function offlineReplay(xyVals,varargin)
+      % given an [nrDots x 2 x nrFrames] array of dot coordinates, play
+      % back the stimulus sequence in a figure window
+
+      warning('Replay is rudimentary and should not be taken too seriously.');
+      
+      p = inputParser;
+      p.addParameter('dt',50,@(x) validateattributes(x,{'numeric'},{'scalar','positive','nonempty'}));
+      p.addParameter('size',48,@(x) validateattributes(x,{'numeric'},{'scalar','positive','nonempty'}));
+      p.addParameter('type',1,@(x) isscalar(x) && ( (isnumeric(x) && ismember(x,0:4)) || ischar(x) ));
+      p.addParameter('color',1,@(x) validateattributes(x,{'numeric'},{'positive','nonempty'}));
+      
+      p.parse(varargin{:});
+      args = p.Results;
+      %
+
+      if isscalar(args.color)
+        order = get(gca,'ColorOrder');
+        args.color = mod(args.color-1,size(order,1))+1;
+        args.color = order(args.color,:);
+      end
+      
+      if isnumeric(args.type)
+        switch args.type
+          case {0,4}
+            args.type = 's';
+          case {1,2,3}
+            args.type = 'o';
+          otherwise
+            error('Unknown dot type %i. Valid options are 0-4.',args.type);
+        end
+      end
+
+      nrFrames = size(xyVals,3);
+      for ii = 1:nrFrames
+        scatter(xyVals(:,1,ii),xyVals(:,2,ii),args.size,args.color,'filled',args.type);
+        pause(args.dt/1e3);
+      end
+    end
+
     function [xnew,ynew] = rotateXY(x,y,th)
       % rotate (x,y) by angle th
 

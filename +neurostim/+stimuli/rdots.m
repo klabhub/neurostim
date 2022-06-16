@@ -26,24 +26,24 @@ classdef rdots < neurostim.stimuli.dots
       o.addProperty('callbackCnt',0);
     end
 
-    function [x,y] = getApertureCoords(o,bs)
-      % This function generates x-y coordinates (screen-centered) for the rdots aperture
-      switch o.aperture
-        case 'CIRC'
-          nx = o.apertureParms(1);
-          ny = o.apertureParms(1); % apply square analysis window over the circle aperture (fix?)
-        case 'RECT'
-          nx = o.apertureParms(1);
-          ny = o.apertureParms(2);
-      end
-      
-      %x = linspace(-1, 1,nx/bs)*nx*(1 - 1/nx);
-      %y = linspace( 1,-1,ny/bs)*ny*(1 - 1/ny);
-      x = -nx:bs:nx;
-      y = -ny:bs:ny;
-
-      [x,y] = meshgrid(x,y);
-    end
+%     function [x,y] = getApertureCoords(o,bs)
+%       % This function generates x-y coordinates (screen-centered) for the rdots aperture
+%       switch o.aperture
+%         case 'CIRC'
+%           nx = o.apertureParms(1);
+%           ny = o.apertureParms(1); % apply square analysis window over the circle aperture (fix?)
+%         case 'RECT'
+%           nx = o.apertureParms(1);
+%           ny = o.apertureParms(2);
+%       end
+%       
+%       %x = linspace(-1, 1,nx/bs)*nx*(1 - 1/nx);
+%       %y = linspace( 1,-1,ny/bs)*ny*(1 - 1/ny);
+%       x = -nx:bs:nx;
+%       y = -ny:bs:ny;
+% 
+%       [x,y] = meshgrid(x,y);
+%     end
 
     function initDots(o,ix)
       % initialises dots in the array positions indicated by ix
@@ -77,12 +77,24 @@ classdef rdots < neurostim.stimuli.dots
       o.initialized = false;
     end
 
-    function [xyVals,chk] = reconstructStimulus(o,varargin)
-      % Reconstructs the rdots stimulus offline. Returns the stimulus as
-      % a cell array of x-y dot positions, one for each trial.
+    function [xyVals,dxdyVals] = reconstructStimulus(o,varargin)
+      % Reconstructs the dots stimulus offline.
       %
-      % Each entry in xyVals is a [o.nrDots x nFrames x 2] array of dot
-      % positions.
+      % Usage:
+      %
+      %   [xyVals[,dxdyVals]] = o.reconstructStimulus()
+      %
+      % Returns the stimulus as a cell array of x,y dot positions, one entry
+      % for each trial. Each entry in xyVals is an [o.nrDots x nrFrames x 2] array
+      % of dot positions relative to o.position.
+      %
+      % The optional second output, dxdyVals, is a cell array the same size as
+      % xyVals containing x,y-components of each dot's direction vector.
+      %
+      % Optional name-value arguments:
+      %
+      %   trial - a vector of trials to reconstruct (default: [1:o.cic.trial])
+      %   replay - play back the stimulus in a figure window (default: false)
 
       p = inputParser;
       p.addParameter('trial',1:o.cic.trial);
@@ -93,172 +105,122 @@ classdef rdots < neurostim.stimuli.dots
       p = p.Results;
 
       % Get variables
+      sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf);
+      prms = get(o.prms.sampleParms,'trial',p.trial,'atTrialTime',Inf);
+      bnds = get(o.prms.sampleBounds,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);      
       rngSt = get(o.prms.rngState,'trial',p.trial,'atTrialTime',Inf);
-      nTrials = numel(p.trial);
+      cbCtr = get(o.prms.callbackCnt,'trial',p.trial,'atTrialTime',Inf);
 
-      % Gather frame drop data
+      lifetime = get(o.prms.lifetime,'trial',p.trial,'atTrialTime',Inf);
+
+      % FIXME: are 'direction' and 'speed' a good idea...
+      direction = get(o.prms.direction,'trial',p.trial,'atTrialTime',Inf);
+      speed = get(o.prms.speed,'trial',p.trial,'atTrialTime',Inf);
+
+      % FIXME: do we need aperture and apertureParams too?
+
+      % logged x,y values
+      xyVals = get(o.prms.xyVals,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
+        
+      % stimulus timing
+      stimStart = get(o.prms.startTime,'trial',p.trial,'struct',true);
+      stimStop = get(o.prms.stopTime,'trial',p.trial,'struct',true);
+      
+      % stimStop remains Inf if we terminated the experiment via Esc-Esc
+      [~,~,trialStopTime] = get(o.cic.prms.trialStopTime,'trial',p.trial);
+      ix = isinf(stimStop.trialTime);
+      stimStop.trialTime(ix) = trialStopTime(ix);
+            
+      % calculate stimulus duration in frames
+      stimDur_Fr = o.cic.ms2frames(stimStop.trialTime-stimStart.trialTime);
+      
+      % we need to account for dropped frames...
       frDr = get(o.cic.prms.frameDrop,'trial',p.trial,'struct',true);
       framesWereDropped = ~iscell(frDr.data);
       if framesWereDropped
         stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
-        %frDr = structfun(@(x) x(stay,:),frDr,'unif',false); %bugged?
         frDr.data = frDr.data(stay,:);
         frDr.trial = frDr.trial(stay,:);
-        %Convert duration of frame drop from ms to frames (this assumes frames were synced?)
+
+        % convert duration of frame drop from ms to frames (this assumes frames were synced?)
         frDr.data(:,2) = o.cic.ms2frames(1000*frDr.data(:,2));
       end
-      stimStart = get(o.prms.startTime,'trial',p.trial,'struct',true);
-      stimStop = get(o.prms.stopTime,'trial',p.trial,'struct',true);
-      [~,~,trialStopTime] = get(o.cic.prms.trialStopTime,'trial',p.trial);
-      it = isinf(stimStart.trialTime) | isinf(stimStop.trialTime);
-      stimStop.trialTime(it) = trialStopTime(it);
-      stimDur_Fr = o.cic.ms2frames(stimStop.trialTime-stimStart.trialTime);
 
-      stimDur_Fr = stimDur_Fr + 1; % Trials usually require one extra frame to match the final state of the dots. Why?
-      % Sometimes framedrops cause this to be unnecessary. Why?
+      for i = 1:numel(p.trial)
+        % restore stimulus parameters
+        o.sampleFun = sFun{i};
+        o.sampleParms = prms{i};
+        o.sampleBounds = bnds{i};
 
-      % Reconstruct
-      xyVals = cell(1,nTrials); chk = zeros(1,nTrials);
-      framesLeft = zeros(o.nrDots,1);
-      x = zeros(o.nrDots,1); dx = zeros(o.nrDots,1);
-      y = zeros(o.nrDots,1); dy = zeros(o.nrDots,1);
-      if p.replay; figure; end
-      for i = 1:nTrials
-        if it(i)
-          continue
-        end
-        % beforeTrial
-        % Reset the rng
+        o.lifetime = lifetime(i);
+
+        o.direction = direction(i);
+        o.speed = speed(i);
+
+        % restore the state of the RNG stream
         o.rng.State = rngSt(i,:);
-        RandStream.setGlobalStream(o.rng);
 
-        % Trial Variables
-        dir = get(o.prms.direction,'trial',i,'atTrialTime',Inf);
-        ix = true([o.nrDots,1]);
-        n = nnz(ix);
-        framesLeft(ix) = o.lifetime;
-        switch upper(o.aperture)
-          case 'CIRC'
-            rmax = o.apertureParms(1); % max radius
-            r = sqrt(rand(n,1).*rmax.*rmax);
-            th = rand(n,1).*360;
-            x(ix,1) = r.*cosd(th);
-            y(ix,1) = r.*sind(th);
-          case 'RECT'
-            width = o.apertureParms(1);
-            height = o.apertureParms(2);
-            x(ix,1) = (rand(n,1)-0.5)*width;
-            y(ix,1) = (rand(n,1)-0.5)*height;
-        end
-        dx(ix,1) = 0;
-        dy(ix,1) = 0;
-        direction = dir + o.callback(n);
-        [dx(ix,1), dy(ix,1)] = pol2cart(direction.*(pi/180),o.speed/o.cic.screen.frameRate);
+        % re-build the callback function
+        o.beforeTrial();
 
-        % Run the frames
-        for j = 1:stimDur_Fr(i)
-          %% beforeFrame
-          % dots get drawn on screen
-          xyVals{i}(:,j,1) = x;
-          xyVals{i}(:,j,2) = y;
-
-          %% afterFrame
-          framesLeft = framesLeft - 1;
-
-          x = x + dx;
-          y = y + dy;
-
-          switch upper(o.aperture)
-            case 'CIRC'
-              rmax = o.apertureParms(1); % max radius
-              r = sqrt(x.^2 + y.^2);
-              ix = find(r > rmax); % dots that have exited the aperture
-              if any(ix)
-                % (re-)place the dots on the other side of the aperture
-                [th,~] = cart2pol(dx(ix),dy(ix));
-                [xr,yr] = o.rotateXY(x(ix),y(ix),-1*th);
-                chordLength = 2*sqrt(rmax^2 - yr.^2);
-                xr = xr - chordLength;
-                [x(ix,1), y(ix,1)] = o.rotateXY(xr,yr,th);
-
-                x(ix,1) = x(ix,1) + dx(ix,1);
-                y(ix,1) = y(ix,1) + dy(ix,1);
-              end
-            case 'RECT'
-              width = o.apertureParms(1);
-              height = o.apertureParms(2);
-
-              % calculate verticies...
-              vx = [-0.5, 0.5, 0.5, -0.5]*width;
-              vy = [0.5, 0.5, -0.5, -0.5]*height;
-
-              ix = ~o.npnpoly(x,y,[vx(:),vy(:)]); % dots that have exited the aperture
-
-              if any(ix)
-                % (re-)place the dots on the other side of the aperture
-                [x(ix,1),y(ix,1)] = o.npopoly(x(ix,1),y(ix,1),[vx(:),vy(:)]);
-              end
-            otherwise
-              error('Unknown aperture %s.',o.aperture);
-          end
-
-          ix = o.framesLeft == 0; % dots that have exceeded their lifetime
-
-          if any(ix)
-            n = nnz(ix);
-            framesLeft(ix) = o.lifetime;
-            switch upper(o.aperture)
-              case 'CIRC'
-                rmax = o.apertureParms(1); % max radius
-                r = sqrt(rand(n,1).*rmax.*rmax);
-                th = rand(n,1).*360;
-                x(ix,1) = r.*cosd(th);
-                y(ix,1) = r.*sind(th);
-              case 'RECT'
-                width = o.apertureParms(1);
-                height = o.apertureParms(2);
-                x(ix,1) = (rand(n,1)-0.5)*width;
-                y(ix,1) = (rand(n,1)-0.5)*height;
-            end
-            dx(ix,1) = 0;
-            dy(ix,1) = 0;
-          end
-
+        % get frame drop data for this trial
+        ix = frDr.trial == p.trial(i);
+        fd = frDr.data(ix,:);
+                
+        if ~isempty(fd)
+          % discard drops that happened before or after the stimulus
+          ix = fd(:,1) < stimStart.frame(i) | fd(:,1) > stimStop.frame(i);
+          fd(ix,:) = [];
         end
 
-        % handle frame drops
-        these = frDr.trial==p.trial(i);
-        thisFrDrData = frDr.data(these,:);
-
-        if ~isempty(thisFrDrData)
-
-          %Discard drops that happened before or after
-          kill = thisFrDrData(:,1)<stimStart.frame(i) | thisFrDrData(:,1)>stimStop.frame(i);
-          thisFrDrData(kill,:) = [];
-
-          %Now re-number the frame drops relative to our first frame
-          thisFrDrData(:,1) = thisFrDrData(:,1) - stimStart.frame(i)+1;
-
-          %Now add in the repeats caused by dropped frames
-          framesPerFrame = ones(size(xyVals{i},2),1);
-          framesPerFrame(thisFrDrData(:,1)) = thisFrDrData(:,2)+1;
-          tmpX = repelem(squeeze(xyVals{i}(:,:,1)),ones(o.nrDots,1),framesPerFrame);
-          tmpY = repelem(squeeze(xyVals{i}(:,:,2)),ones(o.nrDots,1),framesPerFrame);
-          newFrCount = size(tmpX,2);
-          xyVals{i}(:,1:newFrCount,1) = tmpX;
-          xyVals{i}(:,1:newFrCount,2) = tmpY;
+        nrFrames = stimDur_Fr(i);
+        if ~isempty(fd)
+          nrFrames = nrFrames - sum(fd(:,2));
         end
 
-        % afterTrial
-        % dot values get stored in xyVals
-        storedXYVals = get(o.prms.xyVals,'trial',i,'atTrialTime',Inf);
-        chk(i) = all(squeeze(storedXYVals) == [xyVals{i}(:,end,1),xyVals{i}(:,end,2)],'all');
+        % iterate over frames for this trial
+        for jj = 1:nrFrames+1
+          % note: +1 here because afterFrame() is called after the last frame,
+          %       and before the "final" xyVals are logged... the "final" values
+          %       are never actually presented but we need to generate them here
+          %       to compare with the loged values to verify our reconstruction
+          xy{i}(:,:,jj) = [o.x(:), o.y(:)];
+          dxdy{i}(:,:,jj) = [o.dx(:), o.dy(:)];
 
-        %Use a figure window to show the reconstructed images
+          o.afterFrame(); % calls the callback function
+        end
+
+        % validate the reconstruction against the stored CLUT values
+        %
+        % FIXME: o.cnt off by one when lifetime is finite?
+        assert(isequal(o.cnt-~isinf(o.lifetime),cbCtr(i)), ...
+          'Stimulus reconstruction failed. The number of callback evaluations does not match the logged value.');
+
+        assert(isequal(xy{i}(:,:,nrFrames+1),xyVals{i}), ...
+          'Stimulus reconstruction failed. Values do not match the logged values.');
+
+        ix = 1:nrFrames; % excludes the "extra" frame we generated at the end
+
+        % account for the dropped frames
+        if ~isempty(fd)
+          % re-number the frame drops relative to our first frame
+          fd(:,1) = fd(:,1) - stimStart.frame(i) + 1; % FIXME: +1?
+                    
+          % replicate frames that were dropped
+          framesPerFrame = ones(size(ix));
+          framesPerFrame(fd(:,1)) = fd(:,2) + 1;
+          ix = repelem(ix,framesPerFrame);
+        end
+
+        xyVals{i} = xy{i}(:,:,ix);
+        dxdyVals{i} = dxdy{i}(:,:,ix);
+
+        % play the stimulus in a figure window
         if p.replay
-          neurostim.stimuli.rdots.offlineReplay(xyVals{i},stimDur_Fr(i),i,p.replayFrameDur,o.size,o.color,o.type);
+          o.offlineReplay(xyVals{i},'dt',p.replayFrameDur,'type',o.type);
         end
       end
+
     end
 
     function sp = simulateNeuron(o,RF,tuning,varargin)
@@ -279,7 +241,8 @@ classdef rdots < neurostim.stimuli.dots
       p.addParameter('spontRate',2);
       p.addParameter('eye',false);
       p.addParameter('xyVals',[]);
-      p.addParameter('chk',[]);
+      p.addParameter('dxdyVals',[]);
+%       p.addParameter('chk',[]);
       p.parse(varargin{:});
       p = p.Results;
 
@@ -295,10 +258,13 @@ classdef rdots < neurostim.stimuli.dots
       end
 
       % reconstruct the stimulus
-      if isempty(p.xyVals) || isempty(p.chk)
-        [p.xyVals,p.chk] = o.reconstructStimulus;
+      if isempty(p.xyVals) || isempty(p.dxdyVals) %|| isempty(p.chk)
+        [p.xyVals,p.dxdyVals] = o.reconstructStimulus();
       end
 
+      % hmm... I think I broke reconstructStimulus()
+      p.xyVals = cellfun(@(x) permute(x,[1,3,2]),p.xyVals,'UniformOutput',false);
+      
       % calculate receptive field
       rf_x = RF(1);
       rf_y = RF(2);
@@ -309,21 +275,24 @@ classdef rdots < neurostim.stimuli.dots
       nTrials = numel(p.xyVals);
       sp{1} = cell(1,nTrials);
       for i = 1:nTrials
-        if ~p.chk(i) % bad reconstruction
-          continue;
-        end
+%         if ~p.chk(i) % bad reconstruction
+%           continue;
+%         end
         nFrames = size(p.xyVals{i},2);
 
         % get the dx,dy
 %         dx = p.xyVals{i}(:,2,1) - p.xyVals{i}(:,1,1); <-- first frame estimates get trashed by dots leaving the aperture
 %         dy = p.xyVals{i}(:,2,2) - p.xyVals{i}(:,1,2);
-        dx = median(diff(p.xyVals{i}(:,:,1),1,2),2);
-        dy = median(diff(p.xyVals{i}(:,:,2),1,2),2);
+
+%         dx = median(diff(p.xyVals{i}(:,:,1),1,2),2);
+%         dy = median(diff(p.xyVals{i}(:,:,2),1,2),2);
+        dx = squeeze(p.dxdyVals{i}(:,1,:));
+        dy = squeeze(p.dxdyVals{i}(:,2,:));
         th = cart2pol(dx,dy); % dot directions... -pi to pi
 
         % get the fixation point
         fx = get(o.prms.X,'trial',i,'atTrialTime',Inf);
-        fy = get(o.prms.X,'trial',i,'atTrialTime',Inf);
+        fy = get(o.prms.Y,'trial',i,'atTrialTime',Inf);
 
         % if simulating gaze, fix gaze perfectly at fixation
         if ~p.eye
@@ -360,7 +329,7 @@ classdef rdots < neurostim.stimuli.dots
           y = p.xyVals{i}(:,j,2) - my - rf_y;
 
           [~,r] = cart2pol(x,y);
-          lambda = mean(neuronCallback(th).*normpdf(r,0,rf_width)); % <-- Gaussian RF envelope
+          lambda = mean(neuronCallback(th(:,j)).*normpdf(r,0,rf_width)); % <-- Gaussian RF envelope
 
           sp{1}{i}(j) = lambda; % <-- noise free!
           
@@ -400,7 +369,8 @@ classdef rdots < neurostim.stimuli.dots
       p.addParameter('nDirs',12,@(x) validateattributes(x,{'numeric'},{'nonempty','positive'}));
       p.addParameter('lag',0.0,@(x) validateattributes(x,{'numeric'},{'nonempty','scalar'}));
       p.addParameter('xyVals',[]);
-      p.addParameter('chk',[]);      
+      p.addParameter('dxdyVals',[]);
+%       p.addParameter('chk',[]);      
       p.addParameter('plotRF',false);
       p.addParameter('plotTuning',false);
       p.parse(varargin{:});
@@ -427,10 +397,13 @@ classdef rdots < neurostim.stimuli.dots
       end
 
       % reconstruct the stimulus
-      if isempty(p.xyVals) || isempty(p.chk)
-        [p.xyVals,p.chk] = o.reconstructStimulus;
+      if isempty(p.xyVals) || isempty(p.dxdyVals) %|| isempty(p.chk)
+        [p.xyVals,p.dxdyVals] = o.reconstructStimulus();
       end
 
+      % permute output from reconstructStimulus()
+      p.xyVals = cellfun(@(x) permute(x,[1,3,2]),p.xyVals,'UniformOutput',false);
+      
       % handle the spikes
       sp = sp{p.chan};
 
@@ -443,9 +416,9 @@ classdef rdots < neurostim.stimuli.dots
       ws = cell(1,nTrials);
       n = 0; % Number of frames in the response
       for i = 1:nTrials
-        if ~p.chk(i) % bad reconstruction
-          continue;
-        end
+%         if ~p.chk(i) % bad reconstruction
+%           continue;
+%         end
         nFrames = size(p.xyVals{i},2);
         %if nFrames ~= size(xyVals{9},2) % Trial did not complete. This is janky and seems to be causing problems.
         %  sp{i} = [];
@@ -455,12 +428,15 @@ classdef rdots < neurostim.stimuli.dots
         % get the dx,dy
 %         dx = p.xyVals{i}(:,2,1) - p.xyVals{i}(:,1,1);
 %         dy = p.xyVals{i}(:,2,2) - p.xyVals{i}(:,1,2);
-        dx = median(diff(p.xyVals{i}(:,:,1),1,2),2);
-        dy = median(diff(p.xyVals{i}(:,:,2),1,2),2);
+        
+%         dx = median(diff(p.xyVals{i}(:,:,1),1,2),2);
+%         dy = median(diff(p.xyVals{i}(:,:,2),1,2),2);
+        dx = squeeze(p.dxdyVals{i}(:,1,:));
+        dy = squeeze(p.dxdyVals{i}(:,2,:));
 
         % get the fixation point
         fx = get(o.prms.X,'trial',i,'atTrialTime',Inf);
-        fy = get(o.prms.X,'trial',i,'atTrialTime',Inf);
+        fy = get(o.prms.Y,'trial',i,'atTrialTime',Inf);
 
         % if simulating gaze, fix gaze perfectly at fixation
         if ~p.eye
@@ -673,23 +649,6 @@ classdef rdots < neurostim.stimuli.dots
   end % protected methods
 
   methods (Static, Access = private)
-
-    function offlineReplay(xyVals,nFrames,trialNum,frameDur,size,color,type)
-      %Show the reconstructed stimulus in a figure window.
-      warning('Replay is rudimentary and should not be taken too seriously.');
-      for j = 1:nFrames
-        % draw dots
-        if type == 0 || type == 4
-          scatter(xyVals(:,j,1),xyVals(:,j,2),size,color,'s');
-        elseif type == 1 || type == 2 || type == 3
-          scatter(xyVals(:,j,1),xyVals(:,j,2),size,color,'o');
-        end
-        set(gca,'Color',[0.5 0.5 0.5]);
-        title(['Trial ', num2str(trialNum)]);
-        pause(frameDur/1000);
-      end
-    end
-
     %function [tuning] = getTuning(RF,xdir,ysp,varargin)
     %       % This function computes the tuning curve observed at a single voxel
     %       %
