@@ -125,15 +125,10 @@ classdef rdots < neurostim.stimuli.dots
       % stimulus timing
       stimStart = get(o.prms.startTime,'trial',p.trial,'struct',true);
       stimStop = get(o.prms.stopTime,'trial',p.trial,'struct',true);
-      
-      % stimStop remains Inf if we terminated the experiment via Esc-Esc
-      [~,~,trialStopTime] = get(o.cic.prms.trialStopTime,'trial',p.trial);
-      ix = isinf(stimStop.trialTime);
-      stimStop.trialTime(ix) = trialStopTime(ix);
-            
+
       % calculate stimulus duration in frames
-      stimDur_Fr = o.cic.ms2frames(stimStop.trialTime-stimStart.trialTime);
-      
+      stimDur_Fr = floor(o.cic.ms2frames(stimStop.trialTime-stimStart.trialTime,false));
+
       % we need to account for dropped frames...
       frDr = get(o.cic.prms.frameDrop,'trial',p.trial,'struct',true);
       framesWereDropped = ~iscell(frDr.data);
@@ -169,7 +164,7 @@ classdef rdots < neurostim.stimuli.dots
                 
         if ~isempty(fd)
           % discard drops that happened before or after the stimulus
-          ix = fd(:,1) < stimStart.frame(i) | fd(:,1) > stimStop.frame(i);
+          ix = fd(:,1) < stimStart.frame(i) | fd(:,1) >= stimStop.frame(i);
           fd(ix,:) = [];
         end
 
@@ -179,11 +174,7 @@ classdef rdots < neurostim.stimuli.dots
         end
 
         % iterate over frames for this trial
-        for jj = 1:nrFrames+1
-          % note: +1 here because afterFrame() is called after the last frame,
-          %       and before the "final" xyVals are logged... the "final" values
-          %       are never actually presented but we need to generate them here
-          %       to compare with the loged values to verify our reconstruction
+        for jj = 1:nrFrames
           xy{i}(:,:,jj) = [o.x(:), o.y(:)];
           dxdy{i}(:,:,jj) = [o.dx(:), o.dy(:)];
 
@@ -191,15 +182,13 @@ classdef rdots < neurostim.stimuli.dots
         end
 
         % validate the reconstruction against the stored CLUT values
-        %
-        % FIXME: o.cnt off by one when lifetime is finite?
-        assert(isequal(o.cnt-~isinf(o.lifetime),cbCtr(i)), ...
+        assert(isequal(o.cnt,cbCtr(i)), ...
           'Stimulus reconstruction failed. The number of callback evaluations does not match the logged value.');
 
-        assert(isequal(xy{i}(:,:,nrFrames+1),xyVals{i}), ...
+        assert(isequal([o.x(:),o.y(:)],xyVals{i}), ...
           'Stimulus reconstruction failed. Values do not match the logged values.');
 
-        ix = 1:nrFrames; % excludes the "extra" frame we generated at the end
+        ix = 1:nrFrames;
 
         % account for the dropped frames
         if ~isempty(fd)
