@@ -185,11 +185,7 @@ classdef block < dynamicprops
         end
         
         function afterTrial(o,c)
-            allBehaviors  = c.behaviors;
-            success = true;
-            for i=1:numel(allBehaviors)
-                success = success && (~allBehaviors(i).required || allBehaviors(i).isSuccess);
-            end
+            success = trialSuccess(c); % Success defined by all required behaviors
             o.nrRetried = o.nrRetried + afterTrial(o.design,success); % Update the design object
         end
         
@@ -216,9 +212,9 @@ classdef block < dynamicprops
                 plgName =spcs{p,1};
                 varName = spcs{p,2};
                 if isa( spcs{p,3},'neurostim.plugins.adaptive')
-                    value = getValue(spcs{p,3});
+                    value = updateValue(spcs{p,3});
                 else
-                    value =  spcs{p,3};
+                    value = spcs{p,3};
                 end
                 c.(plgName).(varName) = value;
             end
@@ -257,6 +253,20 @@ classdef block < dynamicprops
             waitForKey = o.beforeKeyPress && (~isempty(msg) || ~isempty(o.beforeFunction));
         end
         
+        function addAdaptive(o,plg,prm,obj)
+          % Add plg.prm = obj to each design
+          %
+          % Usage:
+          %
+          %   addAdaptive(o,plg,prm,obj) 
+          %
+          % where
+          %
+          %   plg - the name of a plugin
+          %   prm - the name of a parameter of plg
+          %   obj - an adaptive plugin object
+          arrayfun(@(x) addAdaptive(x,plg,prm,obj),o.designs);
+        end
     end % methods
     
 end % classdef

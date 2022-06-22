@@ -54,6 +54,11 @@ classdef parameter < handle & matlab.mixin.Copyable
         % To set this for a previously defined parameter call
         % setChangesInTrial(plugin,parameterName) in your stimulus/plugin
         % class.
+         
+        
+        hDynProp;                   % Handle to the dynamic property. See pulgin.updateClassdef for why this needs plugin write access
+        plg; %@neurostim.plugin;    % Handle to the plugin that this belongs to.     
+
     end
     
     properties (SetAccess= protected, GetAccess=public)
@@ -70,11 +75,9 @@ classdef parameter < handle & matlab.mixin.Copyable
         funPrms;
         funStr = '';                % The neurostim function string
         validate =[];               % Validation function
-        plg; %@neurostim.plugin;    % Handle to the plugin that this belongs to.
-        hDynProp;                   % Handle to the dynamic property
         hasLocalized;               % Flag to indicate whether the plugin has a localized variable for this parameter (i.e. loc_X for X). Detected on construction
     end
-    
+            
     
     methods
         function  o = parameter(p,nm,v,h,options)
@@ -171,7 +174,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Check if the value changed and log only the changes.
             % (at some point this seemed to be slower than just logging everything.
             % but tests on July 1st 2017 showed that this was (no longer) correct.
-            if  (isnumeric(v) && numel(v)==numel(o.value) && isnumeric(o.value) && all(v(:)==o.value(:))) || (ischar(v) && ischar(o.value) && strcmp(v,o.value))
+            if  (isnumeric(v) && numel(v)==numel(o.value) && isnumeric(o.value) && isequaln(v(:),o.value(:))) || (ischar(v) && ischar(o.value) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end
@@ -254,14 +257,20 @@ classdef parameter < handle & matlab.mixin.Copyable
             % the user did not specify it as such.
             if ~o.changesInTrial && o.hasLocalized &&  o.plg.cic.stage == neurostim.cic.INTRIAL                
                 setChangesInTrial(o.plg,o); % Add it to the list of parms that need to be updated before each frame.
-                writeToFeed(o.plg,[o.name ' is changing within the trial; performance would improve with setChangesInTrial(''' o.plg.name ''',''' o.name ''') in your experiment file.']);
+                writeToFeed(o.plg,[o.name ' is changing within the trial; performance would improve with c.' o.plg.name '.setChangesInTrial(''' o.name ''') in your experiment file. (where ''c'' is your cic object)']);
                 o.changesInTrial  = true;
             end
             
             % validate
-            if ~isempty(o.validate)
-                o.validate(v);
-            end
+            % AM: commented out because no action was being taken on validation fail
+            % anyway. Perhaps it was deemed too costly?
+            %
+            %TODO: restore validation.
+            
+%             if ~isempty(o.validate)
+%                 o.validate(v);
+%             end
+            
             % Log the new value
             storeInLog(o,v,t);
         end
@@ -471,7 +480,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                     end
                     if ~isnan(ix(tr,:)) 
                         if  returnMatrixIfPossible 
-                            newData{tr} =  neurostim.parameter.matrixIfPossible(data{ix(tr,:)});
+                            newData{tr} =  neurostim.parameter.matrixIfPossible([data{ix(tr,:)}]);
                         else
                             newData(tr) =  data(ix(tr,:));
                         end
@@ -606,8 +615,18 @@ classdef parameter < handle & matlab.mixin.Copyable
         function t = firstFrameTime(o)
             %  t = firstFrameTime(o)
             % Return the time of the first frame in each trial, as a column
-            % vector.
+            % vector.  
             t = [o.plg.cic.prms.firstFrame.log{:}]'; % By using the log we use the stimOnsetTime returned by Screen('flip') on the first frame.
+            % BK NOTE: using o.plg.cic.trial (the dynprop) here leads to
+            % load errors (i.e. when reading data from file) with Matlab complaining that .trial is not a property. I dont understand why 
+            % findprop finds the property at load time in cic.loadobj. THis
+            % fix (Reading from .prms instead of the dynprop) seems harmless but maybe the error is a sign of a
+            % bigger/different problem.
+            if o.plg.cic.prms.trial.value >numel(t)  
+                % A trial has started but not reached first frame yet. Set
+                % its start time to inf.
+                t = [t;inf];
+            end
         end
         
         function tr = eTime2TrialNumber(o,eventTime)
@@ -635,7 +654,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             if isempty(trStartT) &&  all(tr==1)
                 error('This file contains 1 trial that did not even make it to the first frame. Nothing to analyze');
             end
-            trTime = eventTime - trStartT(tr);
+            trTime = eventTime - trStartT(tr);            
         end
         
         function eTime= trialTime2ETime(o,trTime,tr)
@@ -645,7 +664,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             if iscolumn(trTime)
                 trTime = trTime';
             end
-            trStartT = firstFrameTime(o);
+            trStartT = firstFrameTime(o);                                    
             eTime = repmat(trTime,[numel(trStartT) 1]) + repmat(trStartT(tr),[1 numel(trTime)]);
         end
         
@@ -669,7 +688,20 @@ classdef parameter < handle & matlab.mixin.Copyable
     
     methods (Static)
         function data = matrixIfPossible(data)
-            if iscell(data) && ~isempty(data) && all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)) && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
+            % Try to convert to a matrix 
+            % cellstr conversion to a char array can lead to weird
+            % reshaping;  excluded
+            % Some properties are initial as an empty struct with not
+            % fields, but get fields at some point in the trial. Cannot
+            % concatenate those; so exclude.
+            isStructNoFields =  @(x) (isstruct(x) && numel(fieldnames(x))==0);
+            if iscell(data) && any(diff(cellfun(isStructNoFields,data))~=0); return;end
+            
+            % First check whether this conversion could work (same size ,
+            % same type)            
+            if iscell(data) && ~isempty(data) && ~iscellstr(data) && ~isa(data{1},'function_handle') ...               
+                && all(cellfun(@(x) (strcmpi(class(data{1}),class(x))),data)) ...
+                && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
                 %Look for a singleton dimension
                 sz = size(data{1});
                 catDim = find(sz==1,1,'first');
@@ -679,12 +711,15 @@ classdef parameter < handle & matlab.mixin.Copyable
                 end
                 
                 %Convert to matrix
-                data = cat(catDim,data{:});
-                
+                if all(cellfun(isStructNoFields,data))
+                    % Replace a struct with no fields with a logical
+                    data  = true(size(data));
+                else
+                    data = cat(catDim,data{:});                     
+                end
                 %Put trials in the first dimension
                 data = permute(data,[catDim,setdiff(1:numel(sz),catDim)]);
-            end
-            
+            end            
         end
         
         function o = loadobj(o)

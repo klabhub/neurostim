@@ -9,8 +9,10 @@ classdef eyelink < neurostim.plugins.eyetracker
     % than the main cic.screen.color.background during calibration
     % then set c.eye.backgroundColor.
     %
-    % Use with non LUM color modes and VPIXX requires a modified dispatchCallback
-    % that is in the tools directory (neurostimEyelinkDispatchCallback.).
+    % The dispatch callback function neurostimEyelinkDispatchCallback
+    % is required as it allows calibrated and high-res colormode (e.g. VPIXX) and it
+    % reroutes calibration sounds through PsychPortAudio (instead of Snd)
+    %
     % Use o.overlay =  true to draw text (white) and the calibration targets to
     % the VPIXX overlay (using index colors that you define in
     % c.screen.overlayClut) and the eye image to the main window (which can
@@ -54,7 +56,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     %       By setting F9PassThrough to true, the confirmation is skipped
     %       (i.e. it mimics the use of F9 on the Host keyboard - an
     %       immediate drift correct, as long as the correction is smaller
-    %       than the setting final.ini.
+    %       than the setting in final.ini.
     %
     %       F10: Start drift correction before the next trial. (Eyelink
     %       will draw a target).
@@ -65,17 +67,15 @@ classdef eyelink < neurostim.plugins.eyetracker
     properties
         el; %@struct;  % Information structure to communicate with Eyelink host
         commands = {'link_sample_data = GAZE'};
-        edfFile = 'test.edf';
+        edfFile = '';
+        edfFileRemote = '';
         getSamples =true;
         getEvents =false;
         nTransferAttempts = 5;
         
-        callbackFun = 'PsychEyelinkDispatchCallback'; % The regular PTB version works fine for RGB displays
+        callbackFun = 'neurostimEyelinkDispatchCallback'; % Modified callback for overlay use on VPIXX and PsychPortAudio for sounds
         boostEyeImage = 0;  % Factor by which to boost the eye image on a LUM calibrated display. [Default 0 means not boosted. Try values above 1.]
-        targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.
-           
-
- 
+        targetWindow;       % If an overlay is present, calibration targets can be drawn to it. This will be set automatically.            
     end
         
     properties (SetAccess= {?neurostim.plugin}, GetAccess={?neurostim.plugin}, Hidden)
@@ -121,18 +121,28 @@ classdef eyelink < neurostim.plugins.eyetracker
         end
         
         function beforeExperiment(o)
-            %Initalise default Eyelink el structure and set some values.
-            % first call it with the mainWindow
             if o.fake; o.useMouse= true; beforeExperiment@neurostim.plugins.eyetracker(o);return;end
-            
-            o.el=EyelinkInitDefaults(o.cic.mainWindow);
+            % Initalise default Eyelink el structure and set some values.            
+            if ~hasPlugin(o.cic,'sound')
+                % Eyelink toolbox uses Snd() by default, which will not
+                % play nice with NS use of PsychPortAudio. Mapping Snd to
+                % use PscyhPortAudio as suggested in Eyelink toolbox did
+                % not work when tested (Host errors reported by
+                % PsychPortAudio). Instead, we use a Neurostim specific
+                % callback function
+                % (tools/neurostimEyelinkDispatchCallback) to generate
+                % Eyelink sounds via the NS sound plugin. Make sure the plugin
+                % is loaded.
+                neurostim.plugins.sound(o.cic);
+            end
+            o.el=EyelinkInitDefaults(o.cic.mainWindow);% first call it with the mainWindow                     
             setParms(o);
             
-            if o.overlay
+            if o.overlay && ~isempty(o.cic.overlayWindow)
                 % Draw targets and text on the overlay, but the main window
                 % has to be the mainWindow, because the callback calls flip
                 % on it.   Note that this only works if the callback is sset to
-                % use neurostimEyelinkDispatchCallback, which is located i
+                % use neurostimEyelinkDispatchCallback, which is located in
                 % neurostim/tools
                 o.targetWindow = o.cic.overlayWindow; % Used by neurostim modified callback function only
                 % Normally cic sets o.window to overlayWindow when o.overlay == true. Reset back
@@ -159,7 +169,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.el.TERMINATE_KEY = o.el.ESC_KEY;  % quit using ESC
             
             
-            %Tell Eyelink about the pixel coordinates
+            % Tell Eyelink about the pixel coordinates
             % Note: with a screen to the left of the main screen, the
             % xorigin can be negative (in Win10); that can cause weird
             % problems in Eyelink. The user should set explicitly set the origin to be
@@ -171,10 +181,14 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('command', 'sample_rate = %d',o.sampleRate);
             
             
-            % open file to record data to (will be renamed on copy)
+            % Create a temporary file anme to use on Eyelink remote PC
+            % side. Will be renamed to default ns format on transfer
+            % afterExperiment
             [~,tmpFile] = fileparts(tempname);
-            o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
-            Eyelink('Openfile', o.edfFile);
+            o.edfFileRemote = [tmpFile(end-7:end) '.edf']; %8 character limit in Eyelink software
+            
+            % open file to record data to (will be renamed on copy)
+            Eyelink('Openfile', o.edfFileRemote);
             
             switch upper(o.eye)
                 case 'LEFT'
@@ -277,7 +291,7 @@ classdef eyelink < neurostim.plugins.eyetracker
         function afterExperiment(o)
             if o.fake; afterExperiment@neurostim.plugins.eyetracker(o);return;end
             
-            o.cic.drawFormattedText('Transfering data from Eyelink host, please wait.','ShowNow',true);
+            o.writeToFeed('Transfering data from Eyelink host, please wait.');
             Eyelink('StopRecording');
             Eyelink('CloseFile');
             pause(0.1);
@@ -285,19 +299,19 @@ classdef eyelink < neurostim.plugins.eyetracker
                 try
                     newFileName = [o.cic.fullFile '.edf'];
                     for i=1:o.nTransferAttempts
-                        status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
+                        status=Eyelink('ReceiveFile',o.edfFileRemote,newFileName); %change to OUTPUT dir
                         if status>0
                             o.edfFile = newFileName;
                             writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
                             break
                         else
                             o.nTransferAttempts = o.nTransferAttempts - 1;
-                            writeToFeed(o,['Fail: EDF file (' o.edfFile ')  did not transfer ' num2str(status)]);
+                            writeToFeed(o,['Fail: EDF file (' o.edfFileRemote ')  did not transfer ' num2str(status)]);
                             writeToFeed(o,['Retrying. ' num2str(o.nTransferAttempts) ' attempts remaining.']);
                         end
                     end
                 catch
-                    error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
+                    error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFileRemote));
                 end
             end
             Eyelink('Shutdown');
@@ -362,17 +376,13 @@ classdef eyelink < neurostim.plugins.eyetracker
             
             o.eyeClockTime = Eyelink('TrackerTime'); 
             % BK Noticed that this does not always get updated values (i.e.
-            % same value throughout the experiment). Not fatal as we use
+            % same value throughout the experiment?). Not fatal as we use
             % only the logged time in Neurostim to align, but strange.                        
         end
         
         function afterFrame(o)
             if o.fake; afterFrame@neurostim.plugins.eyetracker(o);return;end
-            %             if ~o.isRecording
-            %                 o.cic.error('STOPEXPERIMENT','Eyelink is not recording...');
-            %                 return;
-            %             end
-            
+              
             if o.getSamples
                 % Continuous samples requested
                 % get the sample in the form of an event structure
@@ -508,11 +518,14 @@ classdef eyelink < neurostim.plugins.eyetracker
     %% GUI function
     methods (Access= public)
         function guiSet(o,parms)
-            %The nsGui calls this just before the experiment starts;
+            % The nsGui calls this just before the experiment starts and
+            % every time the value changes in one of the ui elements. 
+            % 
             % o = eyelink plugin
-            % p = struct with settings for each of the elements in the
-            % guiLayout, named after the Tag property
-            %
+            % parms = struct with the current/updated values for each of the elements in the
+            % guiLayout, named after the Tag property in the ui.(see
+            % guiLayout)
+            % BK  - 2020
             o.doTrackerSetup    = ~parms.SkipCal;
             o.eye               = parms.Eye;
             o.fake              = strcmpi(parms.onOffFakeKnob,'fake');
@@ -529,32 +542,45 @@ classdef eyelink < neurostim.plugins.eyetracker
     methods (Static, Access=public)
         
         function guiLayout(p)
-            % Add plugin specific elements            
+            % Add plugin specific elements by using appdesigner code. 
+            % The Tag property is used to link the ui elements with the
+            % code to update member variables in the plugin. 
+            % Only ui elements with a non-empty Tag are functional (i.e.
+            % can be linked to member variables/properties)
+            % INPUT 
+            % p =  The uipanel that will contain the elements of this
+            % plugin (i.e. the parent).
+            % 
+            % BK  - 2020
+            
+            %% A label and associated check box to skip calibration.
+            % The SkipCal tag is important; when guiSet is called, its
+            % input parms will have fields corresponding to the tag.
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [110 39 60 22];
             h.Text = 'Skip Calib.';
             
-            h = uicheckbox(p,'Tag','SkipCal');
+            h = uicheckbox(p,'Tag','SkipCal'); 
             h.Position = [130 17 22 22];
             h.Text = '';
             h.Value=  false;
             h.Tooltip = 'Check to skip calibration at the start of the experiment';
             
-            
+            %% A label and drop down to define the calibration mode
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [175 39 60 22];
             h.Text = 'Calib.';
             
-            h =uidropdown(p,'Tag','Calibration');
+            h =uidropdown(p,'Tag','Calibration'); % In guiSet parms.Calibration will have this value
             h.Position = [175 17 60 22];
             h.Items = {'HV9','HV5','HV5C'};
             h.Tooltip = 'Pick a calibration mode';
             
-            
+            %% Label and drop down to select an Eye
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
@@ -566,7 +592,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             h.Items = {'Left','Right','Both'};
             h.Tooltip = 'Select which eye to track';
             
-            
+            %% And a text box for the background color (RGB)
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';

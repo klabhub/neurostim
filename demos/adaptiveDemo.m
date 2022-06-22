@@ -1,4 +1,4 @@
-function adaptiveDemo
+function adaptiveDemo(varargin)
 % Demo to show adaptive threshold estimation.
 %
 % The subjects task is to detect the location of a Gabor:  left (press
@@ -13,7 +13,7 @@ function adaptiveDemo
 % BK  - Nov 2016.
 
 import neurostim.*
-method = 'QUEST'; % Set this to QUEST or STAIRCASE
+method = 'STAIRCASE'; % Set this to QUEST or STAIRCASE
 pianola = true; % Set this to true to simulate responses, false to provide your own responses ('a'=left,'l' = right).
 
 
@@ -22,11 +22,12 @@ pianola = true; % Set this to true to simulate responses, false to provide your 
 % should converge on a low contrast, the other on a high contrast.
 % Note that this function should return the keyIndex of the correct key (so
 % 1 for 'a', 2 for 'l')
-%simulatedObserver = '@(grating.contrast<(0.1+0.5*(cic.condition-1)))+1.0';
+simulatedObserver = '@iff(grating.contrast > (0.1+0.5*(cic.condition-1)),grating.X > 0,rand < 0.5) + 1.0';
 % Or use this one for an observer with some zero mean gaussian noise on the threshold
-simulatedObserver = '@(grating.contrast< (0.05*randn + (0.1+0.5*(cic.condition-1))))+1.0';
+%simulatedObserver = '@iff(grating.contrast > (0.5*randn + (0.1+0.5*(cic.condition-1))),grating.X > 0,rand < 0.5) + 1.0';
 %% Setup the controller 
-c= myRig;
+c= myRig(varargin{:});
+
 c.trialDuration = Inf;
 c.screen.color.background = [ 0.5 0.5 0.5];
 c.subjectNr= 0;
@@ -67,7 +68,55 @@ if pianola
     k.simWhat =  simulatedObserver;   % This function will provide a simulated answer
     k.simWhen = '@grating.on + grating.duration+50';  % At this time.
 end
+
 c.trialDuration = '@choice.stopTime';       %End the trial as soon as the 2AFC response is made.
+
+
+% There is a potentially tricky interaction between behavioral control (e.g. fixation)
+% and adaptive parameters. In the current example, on any trial that ends without
+% an answer (keypress), the choice object stores no response value,  then
+% choice.success evaluates to [] and that is the signal for the adaptive
+% parameter to ignore this trial for any updates. The components needed for
+% this are 1) a trial outcome function used for the adaptive parameter 
+% (here @choice.success) that evaluates to [] on
+% trials without a key press (the keyResponse object does this for you). 2)
+% a behavioral requirement that ends the trial prematurely. Here that is
+% achieved with fix.failEndsTrial = true;
+% 
+% However, you may not want to end a trial on a fixation break, or you also
+% want to discard adaptive parameter updates when a key has been pressed,
+% but some behavioral requirement (e.g. fixation) is not met *after* the key
+% press. For this, you specify the 'requiredBehaviors' of the adaptive
+% object. At the end of the trial (and before updating the adpative
+% parameter), the adaptive object will check whether these behaviors have
+% completed successfully and only then update the parameter.  By default no
+% behaviors are required. 
+
+%% Enforce fixation
+
+% Red fixation point
+f = stimuli.fixation(c,'reddot');       % Add a fixation point stimulus
+f.color             = [1 0 0];
+f.shape             = 'CIRC';           % Shape of the fixation point
+f.size              = 0.25;
+f.X                 = 0;
+f.Y                 = 0;
+f.on                = 0;                % On from the start of the trial
+
+%Make sure there is an eye tracker (or at least a virtual one)
+if isempty(c.pluginsByClass('eyetracker'))
+    e = neurostim.plugins.eyetracker(c);      %Eye tracker plugin not yet added, so use the virtual one. Mouse is used to control gaze position (click)
+    e.useMouse = true;
+end
+
+fix = behaviors.fixate(c,'fixation');
+fix.from            = 500;  % If fixation has not been achieved at this time, move to the next trial
+fix.to              = '@choice.stopTime';   % Require fixation until the choice is done.
+fix.X               = 0;
+fix.Y               = 0; 
+fix.tolerance       = 2;
+fix.failEndsTrial  = true;
+
 
 
 %% Setup the conditions in a design object
@@ -102,11 +151,15 @@ if strcmpi(method,'QUEST')
     % handles to the Quest object, not the object itself. In other words, if you used repmat you'd still use the
     % same Quest object for both orientations and could not estimate a
     % separate threshold per orientation.    
-    d.conditions(:,1).grating.contrast = duplicate(plugins.quest(c, '@choice.correct','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i),[nrLevels 1]);   
+    adpt = plugins.quest(c, '@choice.correct','guess',p2i(0.25),'guessSD',4,'i2p',i2p,'p2i',p2i);
+    adpt.requiredBehaviors = 'fixation';
+    d.conditions(:,1).grating.contrast = duplicate(adpt,[nrLevels 1]);   
 elseif strcmpi(method,'STAIRCASE')
     % As an alternative adaptive threshold estimation procedure, consider the 1-up 1-down staircase with fixed 0.01 stepsize on contrast.
     % With user responses, you use:
-    d.conditions(:,1).grating.contrast = duplicate(plugins.nDown1UpStaircase(c,'@choice.correct',rand,'min',0,'max',1,'weights',[1 1],'delta',0.1),[nrLevels 1]);
+    adpt = plugins.nDown1UpStaircase(c,'@choice.correct',rand,'min',0,'max',1,'weights',[1 1],'delta',0.1);
+    adpt.requiredBehaviors = 'fixation';
+    d.conditions(:,1).grating.contrast = duplicate(adpt,[nrLevels 1]);
 end
 
 % If you;d want to assign a different jitter object per condition (i.e. the

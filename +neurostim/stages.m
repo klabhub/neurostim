@@ -8,6 +8,7 @@ classdef  stages
         AFTERTRIAL
         BEFOREFRAME
         AFTERFRAME
+        BEFOREITIFRAME
         
         
     end

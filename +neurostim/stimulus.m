@@ -12,8 +12,11 @@ classdef stimulus < neurostim.plugin
     %   rsvp - RSVP conditions of the stimulus (see addRSVP() for more input
     %       details)
     %
-    % To monitor onset/offset timing of a stimulus, see stimuli.diodeFlasher
+    % To monitor stimulus onset timing with a photo diode, see addDiodeFlasher
     %
+    % To change some parameters in a rapid stream (Rapid Serial Visual
+    % Presentation), see addRSVP
+    
     
     properties
         % Function to call on onset. Used to communicate event to external hardware. See egiDemo
@@ -24,9 +27,6 @@ classdef stimulus < neurostim.plugin
         offsetFunction = [];
     end
     
-    properties (SetAccess =?neurostim.stimuli.diodeFlasher)
-        diodeFlasher = []; 
-    end
     
     properties (Dependent)
         off;
@@ -36,12 +36,12 @@ classdef stimulus < neurostim.plugin
         frame; % frame since start of stimulus
     end
     
-    properties (SetAccess = protected, GetAccess = public)
+    properties (SetAccess = {?neurostim.plugin}, GetAccess = public)
         flags = struct('on',true);
         stimstart = false;
         stimstop = false;
         rsvp;
-        
+        diodeFlasher = struct('location','nw','size',0.05,'offColor',[0 0 0],'onColor',[1 1 1],'enabled',false,'position',[]);
     end
     % These are local/locked parameters used to speed up access to the
     % values of a neurostim.parameter. Any member variables whose name starts
@@ -93,7 +93,7 @@ classdef stimulus < neurostim.plugin
         loc_ry
         loc_rz
         loc_rsvpIsi
-        loc_disabled                                
+        loc_disabled
     end
     
     properties (Access=private)
@@ -155,8 +155,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('ry',0,'validate',@isnumeric);
             s.addProperty('rz',1,'validate',@isnumeric);
             s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
-            s.addProperty('disabled',false);
-            
+            s.addProperty('disabled',false);            
             
             
             %% internally-set properties
@@ -207,22 +206,57 @@ classdef stimulus < neurostim.plugin
             s.rsvp.active = true;
         end
         
+        function addDiodeFlasher(s,varargin)
+            % addDiodeFlasher(s,varargin)
+            % Function that setups a visible square in one of the screen corners to
+            % flash on when the stimulus turns on. Point a photodiode at
+            % this location and connect its output to a DAQ to record exact stimulus onset timing.
+            %
+            % Parm/Value pairs:
+            % location - 'nw','sw','ne','se' to select one of the corners
+            %               of the monitor  [nw]
+            % size - Size of the square in fractions of the screen [0.05]
+            % offColor - Color shown when the stimulus is off. [0 0 0]
+            % onColor - Color shown when the stimulus is on. [1 1 1].
+            % stimulus is off. [false]
+            % enabled - Set this to false to turn the diodeFlasher off.
+            %
+            % Note that for stimuli that are drawn to an overlay
+            % (o.overlay =true), the diodeFlasher is also drawn to the
+            % overlay. As a consequence, for such stimuli the on and off color 
+            % should be defined as an overlay clut index
+            % (o.cic.screen.overlayClut).  This is only relevant for
+            % special color modes (e.g. VPIXX M16)
+            
+            p =inputParser;
+            p.addParameter('location','nw',@(x) (ischar(x) && ismember(x,{'nw','sw','ne','se'})));
+            p.addParameter('size',0.05,@(x) isnumeric(x) && x<1);
+            p.addParameter('offColor',[0 0 0],@isnumeric);
+            p.addParameter('onColor',[1 1 1],@isnumeric);
+            p.addParameter('enabled',true,@islogical);
+            p.addParameter('position',[],@isnumeric); % This will be set in baseBeforeExperiment
+            p.parse(varargin{:});
+            s.diodeFlasher  = p.Results;            
+         end
+        
     end
     
     
     methods (Access=private)
         
-        function s = updateRSVP(s)
+        function s = updateRSVP(s,sOnFrame,cFrame)
             % Called from baseBeforeFrame only when the stimulus is on.
-            %How many frames for item + blank (ISI)?
-            nFramesPerItem = s.cic.ms2frames(s.rsvp.duration+s.rsvp.isi);
-            %How many frames since the RSVP stream started?
-            rsvpFrame = s.cic.frame-s.onFrame;
+            % How many frames for item + blank (ISI)?
+            durationInFrames = s.cic.ms2frames(s.rsvp.duration,true);
+            isiInFrames = s.cic.ms2frames(s.rsvp.isi,true);
+            nrFramesPerItem = durationInFrames+isiInFrames;
+            % What is the frame we are preparing (base -0 relative to the first frame of the stimulus)
+            rsvpFrame = cFrame-sOnFrame;
             %Which item frame are we in?
-            itemFrame = mod(rsvpFrame, nFramesPerItem);
+            itemFrame = mod(rsvpFrame, nrFramesPerItem);
             %If at the start of a new element, move the design to the
             % next "trial"
-            if itemFrame==0
+            if itemFrame==0  % First of an item
                 ok = beforeTrial(s.rsvp.design);
                 if ~ok
                     % Ran out of "trials"
@@ -233,11 +267,11 @@ classdef stimulus < neurostim.plugin
                 for sp=1:size(specs,1)
                     s.(specs{sp,2}) = specs{sp,3};
                 end
+                localizeParms(s,true);  % Update those loc parameters that change within a trial
             end
             
             %Blank now if it's time to do so.
-            startIsiFrame = s.cic.ms2frames(s.rsvp.duration);
-            s.flags.on = itemFrame < startIsiFrame;  % Blank during rsvp isi
+            s.flags.on = itemFrame < durationInFrames;  % Blank during rsvp isi  (< because itemFrame is base-0)
             if s.rsvp.log
                 if itemFrame == 0
                     s.rsvpIsi = false;
@@ -245,7 +279,20 @@ classdef stimulus < neurostim.plugin
                     s.rsvpIsi = true;
                 end
             end
-        end                        
+        end
+        
+        function diodeFlasherOn(s,locWindow)
+            % Don't rotate or scale with the stimulus
+            Screen('glLoadIdentity', locWindow);
+            Screen('FillRect',locWindow,s.diodeFlasher.onColor,s.diodeFlasher.position);
+        end
+        
+        function diodeFlasherOff(s,locWindow)
+            % Don't rotate or scale with the stimulus
+            Screen('glLoadIdentity', locWindow);
+            Screen('FillRect',locWindow,s.diodeFlasher.offColor,s.diodeFlasher.position);
+        end
+        
     end % private methods
     
     %% Methods that the user cannot change.
@@ -276,7 +323,25 @@ classdef stimulus < neurostim.plugin
                     s.rsvp.duration = dur*1000/s.cic.screen.frameRate;
                     s.rsvp.isi = isi*1000/s.cic.screen.frameRate;
                 end
-            end                        
+            end
+            
+            
+            if s.diodeFlasher.enabled
+                % Using diodeFlasher. set its position based on actual
+                % screen size.
+                pixelsize=s.diodeFlasher.size*s.cic.screen.xpixels;
+                switch lower(s.diodeFlasher.location)
+                    case 'ne'
+                        s.diodeFlasher.position=[s.cic.screen.xpixels-pixelsize 0 s.cic.screen.xpixels pixelsize];
+                    case 'se'
+                        s.diodeFlasher.position=[s.cic.screen.xpixels-pixelsize s.cic.screen.ypixels-pixelsize s.cic.screen.xpixels s.cic.screen.ypixels];
+                    case 'sw'
+                        s.diodeFlasher.position=[0 s.cic.screen.ypixels-pixelsize pixelsize s.cic.screen.ypixels];
+                    case 'nw'
+                        s.diodeFlasher.position=[0 0 pixelsize pixelsize];
+                end
+            end
+            
             beforeExperiment(s);
         end
         
@@ -297,18 +362,24 @@ classdef stimulus < neurostim.plugin
             beforeTrial(s);
         end
         
-        function baseBeforeFrame(s)
-            
-            if s.loc_disabled; return;end
-            
+        function baseBeforeFrame(s)         
             % Because this function is called for every stimulus, every
             % frame, try to optimize as much as possible by avoiding
             % duplicate access to member properties and by using the localized
             % member variables for dynprops (see loc_X definition and the
             % plugin.localizeParms function).
-            locWindow =s.window;
+             
+            if s.loc_disabled
+                % Diode flasher should match the stimulus state always,
+                % eevn if disabled
+                if s.diodeFlasher.enabled ; diodeFlasherOff(s,s.window);end
+                return;
+            end
             
-            %Should the stimulus be drawn on this frame?
+            
+          
+            %% Determine the s.flags.on flag
+            % Should the stimulus be drawn on this frame?
             % This partially duplicates get.onFrame get.offFrame
             % code to minimize computations (and especially dynprop
             % evaluations which can be '@' functions and slow)
@@ -317,34 +388,37 @@ classdef stimulus < neurostim.plugin
             if isinf(s.loc_on)
                 s.flags.on =false; %Dont bother checking the rest
             else
-                sOnFrame = round(s.loc_on.*s.cic.screen.frameRate/1000)+1;
-                %sOnFrame = s.cic.ms2frames(sOn,true)+1; % rounded==true
+                % Time is base-0 but frames are base-1 (frame 1 is the
+                % first that can be visible on the screen).
+                sOnFrame = round(s.loc_on.*s.cic.screen.frameRate/1000)+1;               
                 if cFrame < sOnFrame % Not on yet.
                     s.flags.on = false;
-                else % Is on already or turning on. Checck that we have not
-                    % reached full duration yet.
-                    sOffFrame = round((s.loc_on+s.loc_duration)*s.cic.screen.frameRate/1000);
-                    %sOffFrame = s.cic.ms2frames(sOn+s.duration,true);
+                else % Is on already or turning on. 
+                    % Checck that we have not  reached full duration yet.
+                    % No +1 here.
+                    sOffFrame = sOnFrame + round(s.loc_duration*s.cic.screen.frameRate/1000);                    
                     s.flags.on = cFrame <sOffFrame;
+                    
+                    % This is the only path where s.flags.on can be true
+                    % Update RSVP parameter values if necesssary
+                    if s.rsvp.active && s.flags.on
+                        s=updateRSVP(s,sOnFrame,cFrame);
+                    end            
                 end
             end
             
-            %% RSVP mode
-            %   Update parameter values if necesssary
-            if s.rsvp.active && s.flags.on
-                s=updateRSVP(s);
-            end
-            
-            %%
-            
-            %If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
+                        
+            %% Setup offset logging
+            % If this is the first frame on which the stimulus will NOT be drawn, schedule logging after the pending flip
             if cFrame==sOffFrame
                 s.cic.addFlipCallback(s);
                 s.logOffset = true;
             end
             
+            %% Draw to the backbuffer
             %If the stimulus should be drawn on this frame:
-            if s.flags.on
+            locWindow =s.window;      
+            if s.flags.on                      
                 %Apply stimulus transform
                 if  any([s.loc_X s.loc_Y s.loc_Z]~=0)
                     Screen('glTranslate',locWindow,s.loc_X,s.loc_Y,s.loc_Z);
@@ -363,15 +437,21 @@ classdef stimulus < neurostim.plugin
                     s.logOnset = true;
                 end
                 
-                %Pass control to the child class
-                beforeFrame(s);
+                %Pass control to the child class to do its drawing
+                beforeFrame(s);                                
             end
-            Screen('glLoadIdentity', locWindow);
-                        
-            if ~isempty(s.diodeFlasher)
-                setStimulusState(s.diodeFlasher,s.flags.on); % Tell the diodeFlasher that the stimulus is on now.                
-            end
+
+            %% Flash
             
+            if s.diodeFlasher.enabled        
+                if s.flags.on
+                   diodeFlasherOn(s,locWindow);
+                else                                        
+                   diodeFlasherOff(s,locWindow); 
+                end
+            end
+            % WARNING: the diode flasher flushes the coord system for this
+            % stim. No further drawing beyond this point.
         end
         
         function baseAfterFrame(s)
@@ -387,6 +467,45 @@ classdef stimulus < neurostim.plugin
             end
             afterTrial(s);
         end
+        
+        function baseBeforeItiFrame(s)
+            if s.loc_disabled               
+                if s.diodeFlasher.enabled; diodeFlasherOff(s,s.window);end                
+                return;
+            end
+            % The flags.on parameter is used **as is** from the l`ast frame
+            % (frames are not updated in the ITI)                       
+            locWindow = s.window;   
+            if s.flags.on
+                %Apply stimulus transform
+                if  any([s.loc_X s.loc_Y s.loc_Z]~=0)
+                    Screen('glTranslate',locWindow,s.loc_X,s.loc_Y,s.loc_Z);
+                end
+                if any(s.loc_scale~=1)
+                    Screen('glScale',locWindow,s.loc_scale(1),s.loc_scale(2),s.loc_scale(3));
+                end
+                if  s.loc_angle ~=0
+                    Screen('glRotate',locWindow,s.loc_angle,s.loc_rx,s.loc_ry,s.loc_rz);
+                end
+                %Pass control to the child class
+                beforeItiFrame(s);
+            end
+            
+            % diodeFlasher is in pixel coordinates, so after glLoadIdentity
+            if s.diodeFlasher.enabled
+     
+                % The diodeFlasher should reflect whether the stimulus is
+                % visible or not.
+                if s.flags.on && ~s.cic.itiClear
+                    diodeFlasherOn(s,locWindow);
+                else
+                    diodeFlasherOff(s,locWindow); 
+                end       
+            end
+            % WARNING: the diode flasher flushes the coord system for this
+            % stim. No further drawing beyond this point.
+        end
+        
         
         function baseAfterExperiment(s)
             %NOP
