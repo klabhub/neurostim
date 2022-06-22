@@ -208,13 +208,13 @@ classdef intan < neurostim.plugins.ePhys
             c = [o.estimulus{ii}.port '-' num2str(o.chnMap(o.estimulus{ii}.chn)-1,'%03d')];
         end
         function chnMap = loadIntanChannelMap(o)
-            switch exist(o.config)                %#ok<EXIST>
-                case 2 % o.config is a file
-                    config = load(o.chanMap,'chnMap');
+            switch exist(o.chnMapSource)                %#ok<EXIST>
+                case 2 % o.chnMapSource is a file
+                    config = load(o.chnMapSource,'chnMap');
                     assert(exist(config.chnMap,'var'),'Could not parse the contents of the provided channel map file. Please double-check.');
                     chnMap = config.chnMap;
-                case 8
-                    config = feval(o.cfg);
+                case 8 % o.chnMapSource is a marmodata configuration class
+                    config = feval(o.chnMapSource);
                     chnMap = config.chanMap;
                     % Sanitise the channel mapping for Intan's port-numbering
                     while sum(chnMap > 32)
