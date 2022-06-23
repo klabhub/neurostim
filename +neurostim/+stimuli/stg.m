@@ -144,7 +144,7 @@ classdef stg < neurostim.stimulus
 
         function v = get.isConnected(o)
             % Boolean to check whether the device is connected.
-            v = ~o.fake && ~isempty(o.device) && o.device.IsConnected();
+            v = o.fake || (~isempty(o.device) && o.device.IsConnected());
         end
 
         function v =get.chunkBytes(o)
@@ -544,7 +544,7 @@ classdef stg < neurostim.stimulus
 
         function disconnect(o)
             % Disconnect
-            if o.isConnected
+            if o.isConnected && ~o.fake
                 o.device.Disconnect();
             end
         end
