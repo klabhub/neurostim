@@ -46,7 +46,7 @@ classdef intan < neurostim.plugins.ePhys
     
     methods (Access=public)
         %% Constructor
-        function o = intan(c,varargin)
+        function o = intan(c,name,varargin)
             % Intan does not have any dependencies on the host computer
             % Parse arguments
             pin = inputParser;
@@ -65,7 +65,7 @@ classdef intan < neurostim.plugins.ePhys
             % Call parent class constructor
             % Pass HostAddr to the parent constructor via the 'Unmatched'
             % property of the input parser
-            o = o@neurostim.plugins.ePhys(c,'intan',pin.Unmatched);            
+            o = o@neurostim.plugins.ePhys(c,name,pin.Unmatched);            
 
             % Initialise class properties
             o.addProperty('createNewDir',args.CreateNewDir,'validate',@isnumeric);
@@ -204,8 +204,14 @@ classdef intan < neurostim.plugins.ePhys
         end
 
         %% Handle Channel Mapping
-        function c = getIntanChannel(o,ii)            
-            c = [o.estimulus{ii}.port '-' num2str(o.chnMap(o.estimulus{ii}.chn)-1,'%03d')];
+        function c = getIntanChannel(o,ii)
+            thisChn = o.chnMap(o.estimulus{ii}.chn);
+            % Sanitise channel numbering to 1 - 32 for Intan port numbering
+            % schemes
+            while thisChn > 32
+                thisChn = thisChn - 32;
+            end
+            c = [o.estimulus{ii}.port '-' num2str(thisChn-1,'%03d')]; % Intan is 0-indexed
         end
         function chnMap = loadIntanChannelMap(o)
             switch exist(o.chnMapSource)                %#ok<EXIST>
@@ -215,11 +221,7 @@ classdef intan < neurostim.plugins.ePhys
                     chnMap = config.chnMap;
                 case 8 % o.chnMapSource is a marmodata configuration class
                     config = feval(o.chnMapSource);
-                    chnMap = config.chanMap;
-                    % Sanitise the channel mapping for Intan's port-numbering
-                    while sum(chnMap > 32)
-                        chnMap(chnMap > 32) = chnMap(chnMap > 32) - 32;
-                    end
+                    chnMap = config.chanMap;                    
                 otherwise
                     error('Could not parse the channel map source. Please double-check your configuration.')
             end
