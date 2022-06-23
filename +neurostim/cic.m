@@ -1243,16 +1243,15 @@ classdef cic < neurostim.plugin
 
                     afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
 
-                    %Exit experiment if requested
+                    %Exit experiment or block if requested
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                 end % one block
 
                 Screen('glLoadIdentity', c.mainWindow);
-                if ~c.flags.experiment;break;end
-
-                %% Perform afterBlock message/function
-
+                % Perform afterBlock message/function
                 afterBlock(c);
+                % Exit experiment if requested 
+                if ~c.flags.experiment;break;end
             end %blocks
             c.stage = neurostim.cic.POST;
             c.stopTime = now;
