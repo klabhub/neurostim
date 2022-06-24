@@ -56,8 +56,7 @@ classdef intan < neurostim.plugins.ePhys
             pin.addParameter('SettingsFile', '', @ischar); % Settings file for Intan
             pin.addParameter('tcpSocket', '');
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording            
-            pin.addParameter('chnMap', [], @isnumeric);
-            pin.addParameter('mcs', 0, @isnumeric); % Controls multi-channel stimulation in Intan's firmware
+            pin.addParameter('chnMap', [], @isnumeric);            
             pin.addParameter('saveFile','',@ischar); % Contains the saveFile string associated with the current recording
             pin.addParameter('chnMapSource',[],@ischar); % Specifies a source for the channel map. Can be a .mat file, or a marmodata configuration
             pin.parse(varargin{:});
@@ -75,7 +74,6 @@ classdef intan < neurostim.plugins.ePhys
             o.addProperty('testMode',args.testMode);
             o.addProperty('chnMapSource',args.chnMapSource);
             o.addProperty('chnMap',args.chnMap);
-            o.addProperty('mcs',args.mcs);
             o.addProperty('saveFile',args.saveFile);
             o.addProperty('isRecording',false);
         end
@@ -101,17 +99,12 @@ classdef intan < neurostim.plugins.ePhys
             % Create a tcp/ip socket           
             o.tcpSocket = o.local_TCPIP_server;
             o.chnMap = o.loadIntanChannelMap;
-            o.sendMessage('RUOK');
-            if o.mcs
-                o.sendMessage('MCS');
-            else
-                o.sendMessage('NOMCS');
-            end
+            o.sendMessage('RUOK');            
             o.sendMessage(['SETSAVEPATH=' o.cic.estim.recDir]);
             o.startRecording();            
         end
         function beforeTrial(o)
-            if ~isempty(o.activechns) && o.mcs
+            if ~isempty(o.activechns)
                 marker = ones(1,numel(o.activechns));
                 for ii = 1:numel(o.estimulus)
                     thisChn = getIntanChannel(o,ii);                    
@@ -180,15 +173,13 @@ classdef intan < neurostim.plugins.ePhys
                 msg{17} = strcat('maintainAmpSettle=',num2str(o.estimulus{ii}.maAS));
                 msg{18} = strcat('enableChargeRecovery=',num2str(o.estimulus{ii}.enCR));
                 msg{19} = strcat('ID=',num2str(o.cic.trial));
-                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));                
-                o.sendMessage(msg);                
-                o.sendSet();
-                if ii == numel(o.estimulus) && o.mcs
-                    o.handshake = 1;
-                    o.checkTCPOK;
-                end
+                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));
+                o.sendMessage(msg);
                 o.activechns(numel(o.activechns)+1) = {thisChn};
             end
+            o.sendSet();            
+            o.handshake = 1;
+            o.checkTCPOK;
         end
 
         %% Specific Intan Commands
@@ -264,7 +255,7 @@ classdef intan < neurostim.plugins.ePhys
             end
         end
         function stopRecording(o)
-            if ~o.testMode                
+            if ~o.testMode
                 o.sendMessage('STOP');
                 o.isRecording = false;
             end
