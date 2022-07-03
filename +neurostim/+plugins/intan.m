@@ -42,6 +42,10 @@ classdef intan < neurostim.plugins.ePhys
         handshake = 0;      % Controls whether the Intan manager plugin will halt execution of the thread while awaiting
                             % a handshake from the Intan firmware over the
                             % TCP connection. !!Important!!
+        cfgFcn = [];        % Can be given an anonymous function that specifies the channel mapping. Overrides other channel mapping sources
+        cfgFile = [];       % Can be given a filepath that contains the channel mapping.
+        settingsFcn = [];   % Can be given an anonymous function that specifies the Intan settings file. Overrides other channel mapping sources
+        settingsPath = [];  % Can be given a filepath that contains the Intan settings file.
     end
     
     methods (Access=public)
@@ -57,8 +61,7 @@ classdef intan < neurostim.plugins.ePhys
             pin.addParameter('tcpSocket', '');
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording            
             pin.addParameter('chnMap', [], @isnumeric);            
-            pin.addParameter('saveFile','',@ischar); % Contains the saveFile string associated with the current recording
-            pin.addParameter('chnMapSource',[],@ischar); % Specifies a source for the channel map. Can be a .mat file, or a marmodata configuration
+            pin.addParameter('saveFile','',@ischar); % Contains the saveFile string associated with the current recording            
             pin.parse(varargin{:});
             args = pin.Results;
             % Call parent class constructor
@@ -72,9 +75,8 @@ classdef intan < neurostim.plugins.ePhys
             o.addProperty('settingsFile',args.SettingsFile,'validate',@ischar);
             o.addProperty('tcpSocket',args.tcpSocket);
             o.addProperty('testMode',args.testMode);
-            o.addProperty('chnMapSource',args.chnMapSource);
             o.addProperty('chnMap',args.chnMap);
-            o.addProperty('saveFile',args.saveFile);
+            o.addProperty('saveFile',args.saveFile,'validate',@ischar);
             o.addProperty('isRecording',false);
         end
 
@@ -98,8 +100,15 @@ classdef intan < neurostim.plugins.ePhys
         function beforeExperiment(o)     
             % Create a tcp/ip socket           
             o.tcpSocket = o.local_TCPIP_server;
+            % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
-            o.sendMessage('RUOK');            
+            % Grab the settings file
+            o.settingsFile = o.loadSettingsFile;
+            % Verify TCP connections
+            o.sendMessage('RUOK');
+            % Tell Intan to load the settings file
+            o.sendMessage(['LOADSETTINGS=' o.cic.estim.settingsFile]);
+            % Set the Intan save path
             o.sendMessage(['SETSAVEPATH=' o.cic.estim.recDir]);
             o.startRecording();            
         end
@@ -204,20 +213,30 @@ classdef intan < neurostim.plugins.ePhys
             end
             c = [o.estimulus{ii}.port '-' num2str(thisChn-1,'%03d')]; % Intan is 0-indexed
         end
-        function chnMap = loadIntanChannelMap(o)
-            switch exist(o.chnMapSource)                %#ok<EXIST>
-                case 2 % o.chnMapSource is a file
-                    config = load(o.chnMapSource,'chnMap');
-                    assert(exist(config.chnMap,'var'),'Could not parse the contents of the provided channel map file. Please double-check.');
-                    chnMap = config.chnMap;
-                case 8 % o.chnMapSource is a marmodata configuration class
-                    config = feval(o.chnMapSource);
-                    chnMap = config.chanMap;                    
-                otherwise
-                    error('Could not parse the channel map source. Please double-check your configuration.')
+        function chnMap = loadIntanChannelMap(o)            
+            if isa(o.cfgFcn, 'function_handle') && strncmp(char(o.cfgFcn), '@', 1)
+                % If this property is an anonymous function, get channel map from here
+                chnMap = o.cfgFcn();
+                return
             end
+            if isa(o.cfgFile, 'file') && ~isempty(dir(o.cfgFile))
+                % If this property contains a file, get channel map from here
+                config = load(o.cfgFile,'chnMap');
+                assert(exist(config.chnMap,'var'),'Could not parse the contents of the provided channel map file. Please double-check.');
+                chnMap = config.chnMap;
+            end            
         end
-
+        function settingsFile = loadSettingsFile(o)
+            if isa(o.settingsFcn, 'function_handle') && strncmp(char(o.settingsFcn), '@', 1)
+                % If this property is an anonymous function, get channel map from here
+                settingsFile = o.settingsFcn();
+                return
+            end
+            if isa(o.settingsPath,'char')
+                % If this property contains a path, use this as the path to the settings file              
+                settingsFile = o.settingsPath;
+            end  
+        end
         %% Generic Health Check
         function OK = checkTCPOK(o)
             if o.handshake
