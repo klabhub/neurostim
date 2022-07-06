@@ -1830,20 +1830,7 @@ classdef cic < neurostim.plugin
             %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
             switch upper(c.screen.type)
                 case 'GENERIC'
-                    % Generic monitor.
-                case 'VPIXX-C24'
-                    % Standard 8-bit passthrough.
-                    % By not setting any of the advanced modes,
-                    % PsychImaging will call SetVideoMode,0, to go to 
-                    % the c24 mode.
-                    PsychImaging('AddTask', 'General', 'UseDataPixx');
-                    % I also have to add this to force PsychImaging to use
-                    % datapixx to open a window. According to BitsPlusPLus
-                    % this results in a standad 8 bit  window with identity
-                    % clut.               
-                    PsychImaging('AddTask', 'General', 'EnableBits++Bits++Output');
-                    % After upgrading to Win10 we seem to need this.
-                    PsychDataPixx('PsyncTimeoutFrames' , 1);
+                    % Generic monitor.              
                 case 'VPIXX-M16'
                     % The VPIXX monitor in Monochrome 16 bit mode.
                     % Set up your vpixx once, using
@@ -1909,7 +1896,7 @@ classdef cic < neurostim.plugin
 
             %% Perform initialization that requires an open window
             switch upper(c.screen.type)
-                case {'GENERIC','VPIXX-C24'}
+                case 'GENERIC'
                     % nothing to do
                 case 'VPIXX-M16'
                     if (all(round(c.screen.color.background) == c.screen.color.background))
