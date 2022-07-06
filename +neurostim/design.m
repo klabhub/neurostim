@@ -444,7 +444,7 @@ classdef design <handle & matlab.mixin.Copyable
 
             for c=1:1:o.nrConditions
                 spcs = specs(o,c);
-                if any(strcmpi(spcs(:,1),plg) & strcmpi(spcs(:,2),prm))
+                if ~isempty(spcs) && any(strcmpi(spcs(:,1),plg) & strcmpi(spcs(:,2),prm))
                     % plg.prm is already part of the design for this condition
                     % DO NOT overwrite it
                     continue
