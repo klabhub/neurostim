@@ -55,13 +55,12 @@ classdef intan < neurostim.plugins.ePhys
             % Parse arguments
             pin = inputParser;
             pin.KeepUnmatched = true;
-            pin.addParameter('CreateNewDir', 1, @(x) assert(x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));
-            pin.addParameter('RecDir', '', @ischar); % Save path on the Intan computer            
+            pin.addParameter('CreateNewDir', 1, @(x) assert(x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));            
             pin.addParameter('SettingsFile', '', @ischar); % Settings file for Intan
             pin.addParameter('tcpSocket', '');
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording            
             pin.addParameter('chnMap', [], @isnumeric);            
-            pin.addParameter('saveFile','',@ischar); % Contains the saveFile string associated with the current recording            
+            pin.addParameter('saveDir','',@ischar); % Contains the saveDir string associated with the current recording            
             pin.parse(varargin{:});
             args = pin.Results;
             % Call parent class constructor
@@ -71,12 +70,11 @@ classdef intan < neurostim.plugins.ePhys
 
             % Initialise class properties
             o.addProperty('createNewDir',args.CreateNewDir,'validate',@isnumeric);
-            o.addProperty('recDir',args.RecDir,'validate',@ischar);
             o.addProperty('settingsFile',args.SettingsFile,'validate',@ischar);
             o.addProperty('tcpSocket',args.tcpSocket);
             o.addProperty('testMode',args.testMode);
             o.addProperty('chnMap',args.chnMap);
-            o.addProperty('saveFile',args.saveFile,'validate',@ischar);
+            o.addProperty('saveDir',args.saveDir,'validate',@ischar);
             o.addProperty('isRecording',false);
         end
 
@@ -100,6 +98,11 @@ classdef intan < neurostim.plugins.ePhys
         function beforeExperiment(o)     
             % Create a tcp/ip socket           
             o.tcpSocket = o.local_TCPIP_server;
+            msg = o.readMessage;
+            if ~strcmp(msg,"READY")
+                disp('ERROR. BAD CONNECTION.')
+            end
+            flushinput(o.tcpSocket)
             % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
             % Grab the settings file
@@ -107,9 +110,9 @@ classdef intan < neurostim.plugins.ePhys
             % Verify TCP connections
             o.sendMessage('RUOK');
             % Tell Intan to load the settings file
-            o.sendMessage(['LOADSETTINGS=' o.cic.estim.settingsFile]);
+            o.sendMessage(['LOADSETTINGS=' o.settingsFile]);
             % Set the Intan save path
-            o.sendMessage(['SETSAVEPATH=' o.cic.estim.recDir]);
+            o.sendMessage(['SETSAVEPATH=' o.saveDir]);
             o.startRecording();            
         end
         function beforeTrial(o)
@@ -267,9 +270,9 @@ classdef intan < neurostim.plugins.ePhys
                 msg = split(msg,'=');
                 % This should always be true
                 if strcmp(msg{1},'SAVE')
-                    o.saveFile = msg{2};
+                    o.saveDir = msg{2};
                 else
-                    warning('Intan did not notify neurostim of its saveFile. This is a non-critical error.');
+                    warning('Intan did not notify neurostim of its saveDir. This is a non-critical error.');
                 end
             end
         end
@@ -288,12 +291,7 @@ classdef intan < neurostim.plugins.ePhys
             disp(['The IP address is: ' myIP]);
             disp(['The port is: ' num2str(PORT)]);
             t = tcpip(CONNECTION,PORT,'NetworkRole',TYPE,'Timeout',TIMEOUT);
-            fopen(t);
-            msg = o.readMessage;
-            if ~strcmp(msg,"READY")
-                disp('ERROR. BAD CONNECTION.')
-            end
-            flushinput(t)
+            fopen(t);            
         end
     end
     methods (Static)        
