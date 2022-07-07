@@ -42,42 +42,43 @@ classdef intan < neurostim.plugins.ePhys
         handshake = 0;      % Controls whether the Intan manager plugin will halt execution of the thread while awaiting
                             % a handshake from the Intan firmware over the
                             % TCP connection. !!Important!!
+        cfgFcn = [];        % Can be given an anonymous function that specifies the channel mapping. Overrides other channel mapping sources
+        cfgFile = [];       % Can be given a filepath that contains the channel mapping.
+        settingsFcn = [];   % Can be given an anonymous function that specifies the Intan settings file. Overrides other channel mapping sources
+        settingsPath = [];  % Can be given a filepath that contains the Intan settings file.
     end
     
     methods (Access=public)
-        % Initialisation
-        function o = intan(c,varargin)
+        %% Constructor
+        function o = intan(c,name,varargin)
             % Intan does not have any dependencies on the host computer
             % Parse arguments
             pin = inputParser;
             pin.KeepUnmatched = true;
-            pin.addParameter('CreateNewDir', 1, @(x) assert(x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));
-            pin.addParameter('RecDir', '', @ischar); % Save path on the Intan computer            
+            pin.addParameter('CreateNewDir', 1, @(x) assert(x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));            
             pin.addParameter('SettingsFile', '', @ischar); % Settings file for Intan
             pin.addParameter('tcpSocket', '');
-            pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
-            pin.addParameter('mapPath', '', @ischar);
-            pin.addParameter('chnMap', [], @isnumeric);
-            pin.addParameter('mcs', 0, @isnumeric); % Controls multi-channel stimulation in Intan's firmware            
+            pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording            
+            pin.addParameter('chnMap', [], @isnumeric);            
+            pin.addParameter('saveDir','',@ischar); % Contains the saveDir string associated with the current recording            
             pin.parse(varargin{:});
             args = pin.Results;
             % Call parent class constructor
             % Pass HostAddr to the parent constructor via the 'Unmatched'
             % property of the input parser
-            o = o@neurostim.plugins.ePhys(c,'intan',pin.Unmatched);            
+            o = o@neurostim.plugins.ePhys(c,name,pin.Unmatched);            
 
             % Initialise class properties
             o.addProperty('createNewDir',args.CreateNewDir,'validate',@isnumeric);
-            o.addProperty('recDir',args.RecDir,'validate',@ischar);
             o.addProperty('settingsFile',args.SettingsFile,'validate',@ischar);
             o.addProperty('tcpSocket',args.tcpSocket);
             o.addProperty('testMode',args.testMode);
-            o.addProperty('mapPath',args.mapPath);
             o.addProperty('chnMap',args.chnMap);
-            o.addProperty('mcs',args.mcs);
+            o.addProperty('saveDir',args.saveDir,'validate',@ischar);
             o.addProperty('isRecording',false);
         end
-        % Communcation
+
+        %% Generic Communcation
         function sendMessage(o,msg)
             % Send a message to Intan
             if ~iscell(msg)
@@ -85,30 +86,38 @@ classdef intan < neurostim.plugins.ePhys
             end
             for ii = 1:numel(msg)
                 fprintf(o.tcpSocket,msg{ii});
-            end
-            if o.handshake
-                OK = 0;
-                while(~OK)
-                    OK = o.checkTCPOK;
-                end
-                o.handshake = 0; % Disable handshake
-            end
+            end            
         end
+        function msg = readMessage(o)
+            % Read a message from Intan
+            msg = fscanf(o.tcpSocket);
+            msg = string(msg(1:end-1));            
+        end
+
+        %% Neurostim Events
         function beforeExperiment(o)     
             % Create a tcp/ip socket           
             o.tcpSocket = o.local_TCPIP_server;
-            o.chnMap = o.loadIntanChannelMap;
-            o.sendMessage('RUOK');
-            if o.mcs
-                o.sendMessage('MCS');
-            else
-                o.sendMessage('NOMCS');
+            msg = o.readMessage;
+            if ~strcmp(msg,"READY")
+                disp('ERROR. BAD CONNECTION.')
             end
-            o.sendMessage(['SETSAVEPATH=' o.cic.estim.recDir]);
+            flushinput(o.tcpSocket)
+            % Grab the channel mapping
+            o.chnMap = o.loadIntanChannelMap;
+            % Grab the settings file
+            o.settingsFile = o.loadSettingsFile;            
+            % Verify TCP connections
+            o.handshake = 1;
+            o.checkTCPOK;
+            % Tell Intan to load the settings file            
+            o.sendMessage(['LOADSETTINGS=' o.settingsFile]);
+            % Set the Intan save path
+            o.sendMessage(['SETSAVEPATH=' o.saveDir]);
             o.startRecording();            
         end
         function beforeTrial(o)
-            if ~isempty(o.activechns) && o.mcs
+            if ~isempty(o.activechns)
                 marker = ones(1,numel(o.activechns));
                 for ii = 1:numel(o.estimulus)
                     thisChn = getIntanChannel(o,ii);                    
@@ -124,10 +133,11 @@ classdef intan < neurostim.plugins.ePhys
                         msg{1} = strcat('channel=',o.activechns{jj});
                         msg{2} = 'enabled=0';
                         o.sendMessage(msg);
+                        o.sendSet();
                         if jj == kk
                             o.handshake = 1;
+                            o.checkTCPOK;
                         end
-                        o.sendSet();
                     end
                 end
                 o.activechns = {};
@@ -140,6 +150,8 @@ classdef intan < neurostim.plugins.ePhys
         function afterExperiment(o)
             o.stopRecording();
         end
+
+        %% Setup Intan Firmware
         function setupIntan(o)
             % Convert the parameter set into strings
             % Convert the channel number into an Intan channel identifier
@@ -174,15 +186,16 @@ classdef intan < neurostim.plugins.ePhys
                 msg{17} = strcat('maintainAmpSettle=',num2str(o.estimulus{ii}.maAS));
                 msg{18} = strcat('enableChargeRecovery=',num2str(o.estimulus{ii}.enCR));
                 msg{19} = strcat('ID=',num2str(o.cic.trial));
-                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));                
+                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));
                 o.sendMessage(msg);
-                if ii == numel(o.estimulus) && o.mcs
-                    o.handshake = 1;
-                end
-                o.sendSet();
                 o.activechns(numel(o.activechns)+1) = {thisChn};
             end
+            o.sendSet();            
+            o.handshake = 1;
+            o.checkTCPOK;
         end
+
+        %% Specific Intan Commands
         function sendSet(o)
             if o.cic.stage == 1
                 o.sendMessage('SET');
@@ -193,30 +206,59 @@ classdef intan < neurostim.plugins.ePhys
         function setActive(o,e)
             o.estimulus(numel(o.estimulus)+1) = {e};
         end
-        function c = getIntanChannel(o,ii)            
-            c = [o.estimulus{ii}.port '-' num2str(o.chnMap(o.estimulus{ii}.chn)-1,'%03d')];
-        end
-        function chnMap = loadIntanChannelMap(o)
-            if exist(o.mapPath,'file')
-                chnMap = load(o.mapPath,'chnMap'); chnMap = chnMap.chnMap;
-            else
-                [mapFile,mapPath] = uigetfile('*.mat','Select the Intan Channel Map File');
-                o.mapPath = [mapPath mapFile];
-                chnMap = load(o.mapPath,'chnMap'); chnMap = chnMap.chnMap;
+
+        %% Handle Channel Mapping
+        function c = getIntanChannel(o,ii)
+            thisChn = o.chnMap(o.estimulus{ii}.chn);
+            % Sanitise channel numbering to 1 - 32 for Intan port numbering
+            % schemes
+            while thisChn > 32
+                thisChn = thisChn - 32;
             end
+            c = [o.estimulus{ii}.port '-' num2str(thisChn-1,'%03d')]; % Intan is 0-indexed
         end
+        function chnMap = loadIntanChannelMap(o)            
+            if isa(o.cfgFcn, 'function_handle') && strncmp(char(o.cfgFcn), '@', 1)
+                % If this property is an anonymous function, get channel map from here
+                chnMap = o.cfgFcn();
+                return
+            end
+            if isa(o.cfgFile, 'file') && ~isempty(dir(o.cfgFile))
+                % If this property contains a file, get channel map from here
+                config = load(o.cfgFile,'chnMap');
+                assert(exist(config.chnMap,'var'),'Could not parse the contents of the provided channel map file. Please double-check.');
+                chnMap = config.chnMap;
+            end            
+        end
+        function settingsFile = loadSettingsFile(o)
+            if isa(o.settingsFcn, 'function_handle') && strncmp(char(o.settingsFcn), '@', 1)
+                % If this property is an anonymous function, get channel map from here
+                settingsFile = o.settingsFcn();
+                return
+            end
+            if isa(o.settingsPath,'char')
+                % If this property contains a path, use this as the path to the settings file              
+                settingsFile = o.settingsPath;
+            end  
+        end
+        %% Generic Health Check
         function OK = checkTCPOK(o)
-            % Initialise the check
-            flushinput(o.tcpSocket);
-            fprintf(o.tcpSocket,'RUOK');
-            data = fscanf(o.tcpSocket);
-            data = string(data(1:end-1));
-            if ~strcmp(data,"YEAH")
+            if o.handshake
                 OK = 0;
-            else
-                OK = 1;
+                while(~OK)
+                    % Initialise the check
+                    flushinput(o.tcpSocket);                    
+                    o.sendMessage('RUOK');
+                    msg = o.readMessage;
+                    if ~strcmp(msg,"YEAH")
+                        OK = 0;
+                    else
+                        OK = 1;
+                    end
+                    flushinput(o.tcpSocket);
+                end
+                o.handshake = 0; % Disable handshake
             end
-            flushinput(o.tcpSocket);
         end
     end
     methods (Access = protected)
@@ -224,17 +266,24 @@ classdef intan < neurostim.plugins.ePhys
             if ~o.testMode
                 o.sendMessage('RECORD');
                 o.isRecording = true;
+                % Expect a message from Intan here
+                msg = o.readMessage;
+                msg = split(msg,'=');
+                % This should always be true
+                if strcmp(msg{1},'SAVE')
+                    o.saveDir = msg{2};
+                else
+                    warning('Intan did not notify neurostim of its saveDir. This is a non-critical error.');
+                end
             end
         end
         function stopRecording(o)
-            if ~o.testMode                
+            if ~o.testMode
                 o.sendMessage('STOP');
                 o.isRecording = false;
             end
-        end        
-    end
-    methods (Static)
-        function t = local_TCPIP_server
+        end
+        function t = local_TCPIP_server(o)
             CONNECTION = '0.0.0.0'; % Use '0.0.0.0' to allow any connection, from anywhere
             PORT = 9004;            % Can be anything, but must be consistent. Don't use a common port.
             TYPE = 'server';        % Use 'client' to connect to the other side of this connection.
@@ -243,14 +292,10 @@ classdef intan < neurostim.plugins.ePhys
             disp(['The IP address is: ' myIP]);
             disp(['The port is: ' num2str(PORT)]);
             t = tcpip(CONNECTION,PORT,'NetworkRole',TYPE,'Timeout',TIMEOUT);
-            fopen(t);
-            data = fscanf(t);
-            data = string(data(1:end-1));
-            if ~strcmp(data,"READY")
-                disp('ERROR. BAD CONNECTION.')
-            end
-            flushinput(t)
+            fopen(t);            
         end
+    end
+    methods (Static)        
         function myIP = getIP
             [~,myIP]=system('ipconfig');
             myIP = strsplit(myIP,'IPv4 Address');
