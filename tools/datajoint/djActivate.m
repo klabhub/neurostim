@@ -49,7 +49,10 @@ if nargin< 4
     packageName = 'ns';
 end
 
+
 %% Add the schema and utilities (dj*) 
+% Move to the code folder and add it to the path
+cd(code)
 addpath(here)
 %% Create a package folder in the project to extend the schema 
 mkdir(fullfile(code,['+' packageName]));
