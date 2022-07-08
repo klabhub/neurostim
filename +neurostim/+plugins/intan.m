@@ -194,7 +194,9 @@ classdef intan < neurostim.plugins.ePhys
                 o.sendMessage(msg);
                 o.activechns(numel(o.activechns)+1) = {thisChn};
             end
-            o.sendSet();            
+            if numel(o.estimulus) > 0
+                o.sendSet();
+            end
             o.handshake = 1;
             o.checkTCPOK;
         end
@@ -283,6 +285,8 @@ classdef intan < neurostim.plugins.ePhys
         end
         function stopRecording(o)
             if ~o.testMode
+                o.handshake = 1;
+                o.checkTCPOK;
                 o.sendMessage('STOP');
                 o.isRecording = false;
             end
