@@ -14,9 +14,9 @@ function djScan(varargin)
 % schedule - 'y' - Scan the year in which the date falls.
 %          - 'm' - Scan the month
 %          - ['d'] - Scan the specified day only.
-% readFile - Read each Neurostim file and update the database with its
+% readFileContents - Read each Neurostim file and update the database with its
 %               values [false]
-%           With this set to true, this creates a quick overview of files
+%           With this set to false, this creates a quick overview of files
 %           in the data root folder. File content can later be added using
 %           the ns.Experiment.updateWithFileContents
 %
@@ -100,6 +100,7 @@ if isempty(nsDataFiles)
     return;
 end
 
+fprintf('Foound %d files with matching paradigms\n',numel(files))
 
 %% Add the new subjects (if any)
 % Assuming that all non-primary keys are nullable.
@@ -112,10 +113,13 @@ tmp = cell(1,2*numel(nullFields));
 [tmp{1:2:end}] = deal(nullFields{:});
 [tmp{2:2:end}] = deal([]);
 newSubjects = struct(tbl.primaryKey{1},newSubjects,tmp{:});
+fprintf('Adding %d new subjects \n',numel(newSubjects))
 insert(ns.Subject,newSubjects)
 
 % Loop over datafiles (which should correspond to Neurostim experiments
-for i=1:numel(nsDataFiles)
+nrDataFiles  = numel(nsDataFiles);
+for i=1:nrDataFiles
+    fprintf('Processing file %d of %d (%s)\n',i,nrDataFiles,files(i).name);
 
     %% Find or add Session
     qry =struct('session_date', datestr(nsDataFiles(i).date,29),...  % Convert to ISO 8601

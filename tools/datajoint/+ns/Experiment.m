@@ -20,8 +20,8 @@ seq = NULL : smallint       # The sequential recruitment number of this subject 
 
 classdef Experiment  < dj.Manual
     methods (Access = public)
-        function v = file(tbl)                        
-            v = string(fetchn(tbl ,'file'));                     
+        function v = file(tbl)
+            v = string(fetchn(tbl ,'file'));
         end
         function [out,filename] = get(tbl,plg)
             % function [out,filename] = get(o,plg)
@@ -56,8 +56,8 @@ classdef Experiment  < dj.Manual
             cntr =0;
             for key=tbl.fetch()'
                 cntr = cntr + 1;
-                filename{cntr} = fetch1(tbl &key,'file');               
-                if nargin <2 || isempty(plg) 
+                filename{cntr} = fetch1(tbl &key,'file');
+                if nargin <2 || isempty(plg)
                     % Get info from all plugins
                     plg  = fetchn( (tbl & key) * ns.Plugin,'plugin_name');
                 end
@@ -82,22 +82,22 @@ classdef Experiment  < dj.Manual
                     % Events - these can happen at any time. The struct
                     % contains both the values and the times at which they
                     % occurred (e.g. v.X and v.XTime)
-                  
+
                     %Bytestream - can contain objects, coded as bytes.
                     % Decode here.
 
                     [vals,names,times,trials,types] = fetchn(props - 'property_type =''Global''' ,'property_value','property_name','property_time','property_trial','property_type');
                     for j=1:numel(names)
                         if strcmpi(types(j),'ByteStream')
-                             v.(plgName).(names{j}) =getArrayFromByteStream(vals{j});
+                            v.(plgName).(names{j}) =getArrayFromByteStream(vals{j});
                         else
-                        v.(plgName).(names{j}) =vals{j};
+                            v.(plgName).(names{j}) =vals{j};
                         end
                         v.(plgName).([names{j} 'Time']) = times{j};
                         v.(plgName).([names{j} 'Trial']) = trials{j};
 
                     end
-                    
+
 
                 end
                 if isempty(v)
@@ -127,7 +127,7 @@ classdef Experiment  < dj.Manual
             % specified or empty, all experiments in tbl will be updated).
             % newOnly  - Set to true to update only those experiments that
             % have no information in the database currently. [true]
-            
+
             if nargin <3
                 newOnly = true;
             end
@@ -150,34 +150,46 @@ classdef Experiment  < dj.Manual
             else
                 file = fetch1(tbl & oldKey, 'file');
             end
-
+            lastwarn(''); % Reset
             load(file,'c');
-            actualNrTrialsStarted = max([c.prms.trial.log{:}]);
-            if actualNrTrialsStarted <1
-                fprintf('Skipping %s - no completed trials\n',file);
-                return
-            end
-
-            % Pull the top level information to put in the tbl
-            tuple = {'stimuli',c.nrStimuli,'blocks',c.nrBlocks,...
-                'conditions',c.nrConditions,'trials',actualNrTrialsStarted,...
-                'matlab',c.matlabVersion,'ptb',c.ptbVersion.version,...
-                'ns','somehash','run',c.runNr,'seq',c.seqNr};
-            if ~exists(tbl & oldKey)
-                insert(tbl,oldKey)
-            end
-            % Then update
-            for i=1:2:numel(tuple)
-                update(tbl & oldKey,tuple{i:i+1}); %Updated version
-            end
-            % Remove the current plugin info.
-            if exists(ns.Plugin & oldKey)
-                del(ns.Plugin & oldKey)
-            end
-            % re-add each plugin (pluginOrder includes stimuli)
-            for plg = [c.pluginOrder c]
-                plgKey = struct('starttime',oldKey.starttime,'session_date',oldKey.session_date,'subject',oldKey.subject);
-                make(ns.Plugin,plgKey,plg);
+            if contains(lastwarn,'Cannot load an object of class')
+                fprintf(2,'Please add the path to all Neurostim classes to your path.\n')
+                fprintf(2,'Skipping %s\n',file)
+            else
+                actualNrTrialsStarted = max([c.prms.trial.log{:}]);
+                if actualNrTrialsStarted <1
+                    % Cannot read some information in a file without trials..
+                    % Just putting zeros.
+                    fprintf('Skipping %s - no completed trials\n',file);
+                    tuple = {'stimuli',0,'blocks',0,...
+                        'conditions',0,'trials',actualNrTrialsStarted,...
+                        'matlab',c.matlabVersion,'ptb',c.ptbVersion.version,...
+                        'ns','somehash','run',0,'seq',0};
+                else
+                    % Pull the top level information to put in the tbl
+                    tuple = {'stimuli',c.nrStimuli,'blocks',c.nrBlocks,...
+                        'conditions',c.nrConditions,'trials',actualNrTrialsStarted,...
+                        'matlab',c.matlabVersion,'ptb',c.ptbVersion.version,...
+                        'ns','somehash','run',c.runNr,'seq',c.seqNr};
+                end
+                if ~exists(tbl & oldKey)
+                    insert(tbl,oldKey)
+                end
+                % Then update
+                for i=1:2:numel(tuple)
+                    update(tbl & oldKey,tuple{i:i+1}); %Updated version
+                end
+                % Remove the current plugin info.
+                if exists(ns.Plugin & oldKey)
+                    del(ns.Plugin & oldKey)
+                end
+                if actualNrTrialsStarted>1
+                    % re-add each plugin (pluginOrder includes stimuli)
+                    for plg = [c.pluginOrder c]
+                        plgKey = struct('starttime',oldKey.starttime,'session_date',oldKey.session_date,'subject',oldKey.subject);
+                        make(ns.Plugin,plgKey,plg);
+                    end
+                end
             end
         end
 
