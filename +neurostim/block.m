@@ -253,6 +253,20 @@ classdef block < dynamicprops
             waitForKey = o.beforeKeyPress && (~isempty(msg) || ~isempty(o.beforeFunction));
         end
         
+        function addAdaptive(o,plg,prm,obj)
+          % Add plg.prm = obj to each design
+          %
+          % Usage:
+          %
+          %   addAdaptive(o,plg,prm,obj) 
+          %
+          % where
+          %
+          %   plg - the name of a plugin
+          %   prm - the name of a parameter of plg
+          %   obj - an adaptive plugin object
+          arrayfun(@(x) addAdaptive(x,plg,prm,obj),o.designs);
+        end
     end % methods
     
 end % classdef

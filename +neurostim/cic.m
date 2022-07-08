@@ -44,7 +44,7 @@ classdef cic < neurostim.plugin
             'type','GENERIC',...
             'frameRate',60,'number',[],'viewDist',[],...
             'calFile','','colorMatchingFunctions','',...
-            'calibration',struct('ns',struct('gamma',2.2*ones(1,3),'bias',zeros(1,3),'min',zeros(1,3),'max',60*ones(1,3),'gain',ones(1,3))),...
+            'calibration',struct('gammaTable',[],'ns',struct('gamma',2.2*ones(1,3),'bias',zeros(1,3),'min',zeros(1,3),'max',60*ones(1,3),'gain',ones(1,3))),...
             'overlayClut',[]);    % screen-related parameters.
 
         timing = struct('vsyncMode',0); % 0 = busy wait until vbl, 1 = schedule flip asynchronously then continue
@@ -301,7 +301,7 @@ classdef cic < neurostim.plugin
                 c.screen.height = c.screen.ypixels;
             end
             if ~isequal(round(c.screen.xpixels/c.screen.ypixels,2),round(c.screen.width/c.screen.height,2))
-                warning('Physical aspect ratio and Pixel aspect ration are  not the same...');
+                warning('Physical aspect ratio and Pixel aspect ratio are not the same...');
             end
         end
 
@@ -803,6 +803,10 @@ classdef cic < neurostim.plugin
 
         function afterBlock(c)
 
+            % Calls afterBlock on all plugins, in pluginOrder.
+            base(c.pluginOrder,neurostim.stages.AFTERBLOCK,c);
+
+            % now show message/wait for key if requested.
             waitforkey = false;
             if isa(c.blocks(c.block).afterMessage,'function_handle')
                 msg = c.blocks(c.block).afterMessage(c);
@@ -952,6 +956,12 @@ classdef cic < neurostim.plugin
             %% Set up order and blocks
             order(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
+
+            % Force adaptive plugins assigned directly to parameters into
+            % the block design object(s) instead. This ensures the adaptive
+            % plugins are updated correctly (by the block object(s)).
+            handleAdaptives(c)
+
             %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);
             checkFrameRate(c);
@@ -959,8 +969,9 @@ classdef cic < neurostim.plugin
             %% Start preparation in all plugins.
             c.window = c.mainWindow; % Allows plugins to use .window
             locHAVEOVERLAY = ~isempty(c.overlayWindow);
-            showCursor(c);
+
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
+            showCursor(c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
             c.drawFormattedText(c.beforeExperimentText,'ShowNow',true);
 
@@ -1232,16 +1243,15 @@ classdef cic < neurostim.plugin
 
                     afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
 
-                    %Exit experiment if requested
+                    %Exit experiment or block if requested
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                 end % one block
 
                 Screen('glLoadIdentity', c.mainWindow);
-                if ~c.flags.experiment;break;end
-
-                %% Perform afterBlock message/function
-
+                % Perform afterBlock message/function
                 afterBlock(c);
+                % Exit experiment if requested 
+                if ~c.flags.experiment;break;end
             end %blocks
             c.stage = neurostim.cic.POST;
             c.stopTime = now;
@@ -1774,9 +1784,31 @@ classdef cic < neurostim.plugin
             fprintf(1,'%s --> ', c.pluginOrder.name)
             disp('Parameter plugins should depend only on plugins with earlier execution (i.e. to the left)');
         end
+            
+        function handleAdaptives(c)
+            % Force adaptive plugins assigned directly to parameters into
+            % the block design object(s) instead. This ensures the adaptive
+            % plugins are updated correctly (by the block object(s)).
+           
+            plgs = c.order; % *all* plugins
+            for ii = 1:numel(plgs)
+              plg = plgs{ii}; 
+              prms = prmsByClass(c.(plg),'neurostim.plugins.adaptive');
+              if isempty(prms)
+                % no adaptive plugins/parameters
+                continue
+              end
 
-
-
+              for jj = 1:numel(prms)
+                prm = prms{jj};
+                obj = c.(plg).(prm);
+                c.(plg).(prm) = obj.getAdaptValue(); % default value?
+ 
+                % loop over blocks, adding plg.prm = obj
+                arrayfun(@(x) addAdaptive(x,plg,prm,obj),c.blocks);
+              end
+            end
+        end
         %% PTB Imaging Pipeline Setup
         function PsychImaging(c)
             % Tthis initializes the
@@ -1798,14 +1830,13 @@ classdef cic < neurostim.plugin
             %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
             switch upper(c.screen.type)
                 case 'GENERIC'
-                    % Generic monitor.
+                    % Generic monitor.              
                 case 'VPIXX-M16'
                     % The VPIXX monitor in Monochrome 16 bit mode.
                     % Set up your vpixx once, using
                     % BitsPlusImagingPipelineTest(screenID);
                     % BitsPlusIdentityClutTest(screenID,1); this will
                     % create correct identity cluts.
-
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
                     % After upgrading to Win10 we seem to need this.
@@ -1847,11 +1878,9 @@ classdef cic < neurostim.plugin
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'xyYToXYZ');
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'SensorToPrimary');
                 case 'RGB'
-                    % The user specifies "raw" RGB values as color
-                    dac = 8;
-                    Screen('LoadNormalizedGammaTable',c.screen.number,repmat(linspace(0,1,2^dac)',[1 3])); % Reset gamma
-                    PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'None');
-                case 'RGB_GAMMACORRECTED'
+                    % The user specifies "raw" RGB values as color. These may or may not have been gamma
+                    % corrected by specifying a gammatable (c.screen.calibration.gammaTable ) or calibration
+                    % file (c.screen.calFile) that contains a gammatable.
                     Screen('LoadNormalizedGammaTable',c.screen.number,c.screen.calibration.gammaTable);
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'None');
                 otherwise
@@ -2025,7 +2054,7 @@ classdef cic < neurostim.plugin
                 case {'XYZ','XYL'}
                     % Apply color calibration to the window
                     PsychColorCorrection('SetSensorToPrimary', c.mainWindow, c.screen.calibration);
-                case {'RGB','RGB_GAMMACORRECTED'}
+                case {'RGB'}
                     % Nothing to do (gamma table already loaded for the screen above)
                 otherwise
                     error(['Unknown color mode: ' c.screen.colorMode]);
@@ -2047,17 +2076,46 @@ classdef cic < neurostim.plugin
 
         function colorOk = loadCalibration(c)
             colorOk = false;
-            if ~isempty(c.screen.calFile)
 
-                switch upper(c.screen.colorMode)
-                    case 'RGB_GAMMACORRECTED'
+            switch upper(c.screen.colorMode)
+                case 'RGB'
+                    if isempty(c.screen.calFile) && isempty(c.screen.calibration.gammaTable)
+                        % Neither a file specified, nor a table. Set a linear gamma table
+                        % The experiment will use pure,uncorrected RGB
+                        % values.
+                        dac =8;% 8 bits
+                        c.screen.calibration.gammaTable =repmat(linspace(0,1,2^dac)',[1 3]);
+                    elseif ~isempty(c.screen.calFile) && isempty(c.screen.calibration.gammaTable)
+                        % Load a variable called gammaTable* from a named
+                        % file. If the file as multiple variables that
+                        % match this, pick the first. If there are none,
+                        % generate an error.
                         ff =fullfile(c.dirs.calibration,c.screen.calFile);
                         if ~exist(ff,'file')
                             error('The calibration file %s does not exist.',ff);
                         end
                         tmp=load(ff);
-                        c.dirs.gammaTable = tmp.gammafit;
-                    otherwise
+                        fn = fieldnames(tmp);
+                        ix= find(startsWith(fn,'gammaTable','IgnoreCase',true));
+                        if numel(ix)>1
+                            c.writeToFeed(sprintf('There are %d gammaTable variables in %s. Using the first (%s)',numel(ix), ff,fn{ix(1)}));
+                            ix =ix(1);
+                        elseif isempty(ix)
+                            error('No gammaTable in %s', ff);
+                        end
+                        tbl = tmp.(fn{ix});
+                        if size(tbl,2)==1
+                            tbl = repmat(tbl,[1 3]);
+                        end
+                        c.screen.calibration.gammaTable = tbl;
+                    elseif ~isempty(c.screen.calFile) && ~isempty(c.screen.calibration.gammaTable)
+                        error('Both a gamma table and a gamma table file (%s) were specified. Please pick one.',c.screen.calFile);
+                    else 
+                        % c.screen.calibration.gammatable specified
+                        % somehow- nothing to do, it will be used.
+                    end
+                otherwise
+                    if ~isempty(c.screen.calFile)
                         % Load a full calibration from file. The cal struct has been
                         % generated by utils.ptbcal
 
@@ -2083,10 +2141,9 @@ classdef cic < neurostim.plugin
                         end
 
                         c.screen.calibration = SetGammaMethod(c.screen.calibration,0); % Linear interpolation for Gamma table
-
-                end
-
+                    end
             end
+
         end
 
 

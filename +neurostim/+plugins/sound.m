@@ -99,7 +99,7 @@ classdef sound < neurostim.plugin
                 waveform = waveform';
             end
             
-            bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,waveform);
+               bufferHandle = PsychPortAudio('CreateBuffer',o.paHandle,waveform);
         end
         
         function beep(o,frequency,duration)       
