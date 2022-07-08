@@ -106,13 +106,18 @@ classdef intan < neurostim.plugins.ePhys
             % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
             % Grab the settings file
-            o.settingsFile = o.loadSettingsFile;
+            o.settingsFile = o.loadSettingsFile;            
             % Verify TCP connections
-            o.sendMessage('RUOK');
+            o.handshake = 1;
+            o.checkTCPOK;
             % Tell Intan to load the settings file
+            pause(0.5);
             o.sendMessage(['LOADSETTINGS=' o.settingsFile]);
             % Set the Intan save path
+            pause(0.5);
             o.sendMessage(['SETSAVEPATH=' o.saveDir]);
+            % Start recording
+            pause(0.5);
             o.startRecording();            
         end
         function beforeTrial(o)
