@@ -517,13 +517,15 @@ classdef ripple < neurostim.plugin
                                    % Should depend on Table.Chan... xippmex('signal',chanThisFe,streamsOff{i},0);
                                 else
                                     xippmex('signal',firstChanThisFe,streamsOff{i},0);
+                                    xippmex('signal-save',firstChanThisFe,streamsOff{i},0);                    
                                 end
                             end
                             for i=1:numel(streamsOn)
                                 if ismember(streamsOn{i},{'spk','stim'})
                                    % Should depend on Table.Chan... xippmex('signal',chanThisFe,streamsOff{i},0);
                                 else
-                                    xippmex('signal',firstChanThisFe,streamsOn{i},1);
+                                    xippmex('signal',firstChanThisFe,streamsOn{i},1); 
+                                    xippmex('signal-save',firstChanThisFe,streamsOn{i},1);
                                 end
                             end
                             if hasObject
