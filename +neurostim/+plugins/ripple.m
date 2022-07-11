@@ -48,7 +48,7 @@ classdef ripple < neurostim.plugin
         % identifies a specific piece of hardware in/on the head). For
         % arrayTypes without the -x suffix, the array number is assumed to
         % be 1.
-        arrayTypes = ["OFF","FMA-1","FMA-2","EEG"];
+        arrayTypes = ["OFF","FMA-1","FMA-2","EEG","3D-1","3D-2","3D-3","3D-4"];
         connectors = containers.Map;
     end
     
@@ -131,9 +131,9 @@ classdef ripple < neurostim.plugin
             p.addParameter('streams',{},@iscell); % Streams to enable
             p.parse(port,connector,varargin{:});
             name = [port num2str(connector)];
-            results = p.Results;                       
+            results = p.Results;
             o.connectors(name)=results;
-           
+            
             
         end
         function o = ripple(c)
@@ -244,22 +244,7 @@ classdef ripple < neurostim.plugin
         function beforeExperiment(o)
             if o.fake; return;end
             
-            %% Define recording & stim electrodes
-            % Disabled for now as this only does the streaming not saving.
-            % First turn everything off
-            %             for strm = 1:numel(o.availableStreams)
-            %                 for p=1:numel(o.availablePorts)
-            %                     stream(o,'port',o.availablePorts(p),'channel',1:128,'stream','','on',false);
-            %                 end
-            %             end
-            %             stream(o,'port','ANALOG','channel',1:32,'stream','','on',false);
-            %             % Then enable those that have been selected.
-            %             if ~isempty(o.streamSettings)
-            %                 for i=1:numel(o.streamSettings)
-            %                     record(o,o.streamSettings{i}{:});
-            %                 end
-            %             end
-            
+           
             % Now the connection has to be active.
             stat = tryXippmex(o);
             if stat~=1; error('Failed to connect to Trellis');end
@@ -408,44 +393,10 @@ classdef ripple < neurostim.plugin
             % guiLayout, named after the Tag property
             %
             o.fake = strcmpi(parms.onOffFakeKnob,'fake');
-            
-            
             neurostim.plugins.ripple.checkStreamSettings(parms.checkRipple,[],true,o);
-%             for prt=1:numel(neurostim.plugins.ripple.availablePorts)
-%                 thisPortName = neurostim.plugins.ripple.availablePorts(prt);
-%                 thisPort = parms.(['Port' thisPortName]);
-%                 for fe=1:4
-%                     thisTypeAndNr = thisPort.Type(fe);
-%                     if thisTypeAndNr==categorical("OFF")
-%                         % Turn streaming off for this FE
-%                         if o.fake
-%                             o.writeToFeed(sprintf("Turned off %s-%d",thisPortName,fe));
-%                         else
-%                             
-%                         end
-%                     else
-%                         % Turn streaming on for the selected channels in this FE
-%                         channelListAsString=strjoin(["[",thisPort.Chan(fe), "]"]);
-%                         chan = eval(channelListAsString);
-%                         typeElms = strsplit(string(thisTypeAndNr),'-');
-%                         thisType = typeElms{1};
-%                         if numel(typeElms)==1
-%                             arrayNr =1;
-%                         else
-%                             arrayNr = str2double(typeElms{2});
-%                         end
-%                         
-%                         connect(o,thisPortName,fe,'arrayNr',arrayNr,'arrayType',thisType,'flip',false);
-%                         if o.fake
-%                             o.writeToFeed(sprintf("Connected %s-%d as %s (Channels: %s)",thisPortName,fe,thisType,channelListAsString));
-%                         else
-%                             chan
-%                         end
-%                     end
-                    
-                end
-            
-            
+        end
+        
+        
         
     end
     
@@ -459,8 +410,8 @@ classdef ripple < neurostim.plugin
             
             oldPointer = hButton.Parent.Parent.Parent.Pointer;
             hButton.Parent.Parent.Parent.Pointer='watch';
-            drawnow            
-                                    
+            drawnow
+            
             if live
                 % Contact Ripple to check
                 channels = xippmex('elec','all');
@@ -477,6 +428,7 @@ classdef ripple < neurostim.plugin
                 port = neurostim.plugins.ripple.availablePorts(prtNr);
                 hTable = findobj(hButton.Parent.Children,'Tag',['Port' port]);
                 T = hTable.Data;
+                setpref('ripple',['port_' num2str(prtNr)],T);           
                 removeStyle(hTable);
                 for feNr = 1:4
                     chanThisFe = (prtNr-1)*128+(feNr-1)*32+ (1:32);
@@ -485,7 +437,7 @@ classdef ripple < neurostim.plugin
                         if live
                             streamsThisFe = xippmex('signal',firstChanThisFe);
                         end
-                        isOn = T.Type(feNr) ~=categorical("OFF");                        
+                        isOn = T.Type(feNr) ~=categorical("OFF");
                         elms = strsplit(string(T.Type(feNr)),'-');
                         if numel(elms)>1
                             thisArrayNr = str2double(elms{2});
@@ -500,61 +452,61 @@ classdef ripple < neurostim.plugin
                                 switch (upper(thisType))
                                     case "FMA"
                                         % FMA recordings- turn on raw and lfp
-                                        streamsOn = {'raw','lfp'};                                   
+                                        streamsOn = {'raw','lfp'};
                                     case "EEG"
                                         % EEG, turn on hi-res only.
                                         streamsOn = {'hi-res'};
-                                end                                                               
+                                end
                             end
                         else
-                            addStyle(hTable,offStyle,'row',feNr); 
+                            addStyle(hTable,offStyle,'row',feNr);
                             streamsOn = {};
                         end
                         if live
                             streamsOff = setxor(streamsOn,streamsThisFe);
                             for i=1:numel(streamsOff)
                                 if ismember(streamsOff{i},{'spk','stim'})
-                                   % Should depend on Table.Chan... xippmex('signal',chanThisFe,streamsOff{i},0);
+                                    % Should depend on Table.Chan... xippmex('signal',chanThisFe,streamsOff{i},0);
                                 else
                                     xippmex('signal',firstChanThisFe,streamsOff{i},0);
-                                    xippmex('signal-save',firstChanThisFe,streamsOff{i},0);                    
+                                    %NOT FUNCTIONAL   xippmex('signal-save',firstChanThisFe,streamsOff{i},0);
                                 end
                             end
                             for i=1:numel(streamsOn)
                                 if ismember(streamsOn{i},{'spk','stim'})
-                                   % Should depend on Table.Chan... xippmex('signal',chanThisFe,streamsOff{i},0);
+                                    % Should depend on Table.Chan... xippmex('signal',chanThisFe,streamsOff{i},0);
                                 else
-                                    xippmex('signal',firstChanThisFe,streamsOn{i},1); 
-                                    xippmex('signal-save',firstChanThisFe,streamsOn{i},1);
+                                    xippmex('signal',firstChanThisFe,streamsOn{i},1);
+                                  %NOT FUNCTIONAL  xippmex('signal-save',firstChanThisFe,streamsOn{i},1);
                                 end
                             end
                             if hasObject
                                 try
-                                  channelListAsString=strjoin(["[",T.Chan(feNr), "]"]);
-                                  chan = eval(channelListAsString);     
-                                  elecListAsString=strjoin(["[",T.Elec(feNr), "]"]);                                  
-                                  elec= eval(elecListAsString);
-                                  assert(numel(chan)==numel(elec));  
+                                    channelListAsString=strjoin(["[",T.Chan(feNr), "]"]);
+                                    chan = eval(channelListAsString);
+                                    elecListAsString=strjoin(["[",T.Elec(feNr), "]"]);
+                                    elec= eval(elecListAsString);
+                                    assert(numel(chan)==numel(elec));
                                 catch me
                                     % Restore
                                     hButton.Parent.Parent.Parent.Pointer=oldPointer;
-                                    error('Incorrect channel/electrode specs for %s%d',port,feNr);                                    
-                                end                                      
+                                    error('Incorrect channel/electrode specs for %s%d',port,feNr);
+                                end
                                 logConnection(o,port,feNr,...
-                                        'channels',chan,'electrodes',elec,'arrayType',thisType,...
-                                        'streams',streamsOn,'arrayNr',thisArrayNr);
+                                    'channels',chan,'electrodes',elec,'arrayType',thisType,...
+                                    'streams',streamsOn,'arrayNr',thisArrayNr);
                             end
                         end
                     else
                         streamsThisFe = {};
                         addStyle(hTable,notConnectedStyle,'row',feNr);
                         if live
-                            % Nothing to do here - not connected.                            
-                             if hasObject                                                              
+                            % Nothing to do here - not connected.
+                            if hasObject
                                 logConnection(o,port,feNr,...
-                                        'channels',[],'electrodes',[],'arrayType',"OFF",...
-                                        'streams',{},'arrayNr',[]);
-                             end                            
+                                    'channels',[],'electrodes',[],'arrayType',"OFF",...
+                                    'streams',{},'arrayNr',[]);
+                            end
                         end
                     end
                 end
@@ -571,8 +523,9 @@ classdef ripple < neurostim.plugin
             pnl.Position = [pnl.Position([1 2 3] ) 150];
             % One table per port to setup the Connector
             arrayType =  categorical("OFF",neurostim.plugins.ripple.arrayTypes);
-            for prt=1:numel(neurostim.plugins.ripple.availablePorts)
-                T = table(repmat(arrayType,[4 1]),repmat("1:32",[4 1]),repmat("1:32",[4 1]),'VariableNames',{'Type','Chan','Elec'});
+            defaultT = table(repmat(arrayType,[4 1]),repmat("1:32",[4 1]),repmat("1:32",[4 1]),'VariableNames',{'Type','Chan','Elec'});        
+            for prt=1:numel(neurostim.plugins.ripple.availablePorts)                
+                T = getpref('ripple',['port_' num2str(prt)],defaultT);
                 hTable = uitable(pnl,"Data",T,"Tag",['Port' neurostim.plugins.ripple.availablePorts(prt)]);
                 hTable.ColumnSortable = false;
                 hTable.ColumnEditable = [true true true];
