@@ -89,13 +89,13 @@ classdef intan < neurostim.plugins.ePhys
                 msg = {msg};
             end
             for ii = 1:numel(msg)
-                fprintf(o.tcpSocket,msg{ii});
-            end            
+                writeline(o.tcpSocket,msg{ii});
+            end
         end
         function msg = readMessage(o)
             % Read a message from Intan
-            msg = fscanf(o.tcpSocket);
-            msg = string(msg(1:end-1));            
+            msg = readline(o.tcpSocket);
+            msg = string(msg(1:end-1));
         end
 
         %% Neurostim Events
@@ -122,7 +122,7 @@ classdef intan < neurostim.plugins.ePhys
             o.handshake = 1;
             o.checkTCPOK;
             % Pass the savepath to Intan
-            o.sendMessage(['SETSAVEPATH=' o.saveDir]);            
+            o.sendMessage(['SETSAVEPATH=' o.saveDir]);
             % Verify TCP connections
             o.handshake = 1;
             o.checkTCPOK;
@@ -307,8 +307,9 @@ classdef intan < neurostim.plugins.ePhys
                 o.checkTCPOK;
                 o.sendMessage('STOP');
                 o.isRecording = false;
+                clear o.tcpSocket;
             end
-        end  
+        end
         function t = createTCPobject(o)
             CONNECTION = '0.0.0.0'; % Allows connections from any IP
             PORT = 9004;            % Can be anything, but must be consistent. Don't use a common port.
@@ -316,7 +317,7 @@ classdef intan < neurostim.plugins.ePhys
             myIP = neurostim.plugins.intan.getIP;            
             disp(['The IP address is: ' myIP]);
             disp(['The port is: ' num2str(PORT)]);
-            t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);                       
+            t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);    
             while ~t.Connected
                 pause(0.01);
             end
