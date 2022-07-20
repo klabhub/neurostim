@@ -46,6 +46,8 @@ classdef intan < neurostim.plugins.ePhys
         cfgFile = [];       % Can be given a filepath that contains the channel mapping.
         settingsFcn = [];   % Can be given an anonymous function that specifies the Intan settings file. Overrides other channel mapping sources
         settingsPath = [];  % Can be given a filepath that contains the Intan settings file.
+
+        saveDir = 'C:\Data';% Provides the base path to the Data directory on the recording machine. Default is C:\Data
     end
     
     methods (Access=public)
@@ -73,9 +75,11 @@ classdef intan < neurostim.plugins.ePhys
             o.addProperty('settingsFile',args.SettingsFile,'validate',@ischar);
             o.addProperty('tcpSocket',args.tcpSocket);
             o.addProperty('testMode',args.testMode);
-            o.addProperty('chnMap',args.chnMap);
-            o.addProperty('saveDir',args.saveDir,'validate',@ischar);
+            o.addProperty('chnMap',args.chnMap);            
             o.addProperty('isRecording',false);
+            if ~isempty(args.saveDir)
+                o.saveDir = args.saveDir;
+            end
         end
 
         %% Generic Communcation
@@ -97,7 +101,7 @@ classdef intan < neurostim.plugins.ePhys
         %% Neurostim Events
         function beforeExperiment(o)     
             % Create a tcp/ip socket           
-            o.tcpSocket = o.local_TCPIP_server;
+            o.tcpSocket = o.createTCPobject;
             msg = o.readMessage;
             if ~strcmp(msg,"READY")
                 disp('ERROR. BAD CONNECTION.')
@@ -111,13 +115,18 @@ classdef intan < neurostim.plugins.ePhys
             o.handshake = 1;
             o.checkTCPOK;
             % Tell Intan to load the settings file
-            pause(0.5);
             o.sendMessage(['LOADSETTINGS=' o.settingsFile]);
             % Set the Intan save path
-            pause(0.5);
-            o.sendMessage(['SETSAVEPATH=' o.saveDir]);
+            o.saveDir = o.setSaveDir(o.saveDir);
+            % Verify TCP connections
+            o.handshake = 1;
+            o.checkTCPOK;
+            % Pass the savepath to Intan
+            o.sendMessage(['SETSAVEPATH=' o.saveDir]);            
+            % Verify TCP connections
+            o.handshake = 1;
+            o.checkTCPOK;
             % Start recording
-            pause(0.5);
             o.startRecording();            
         end
         function beforeTrial(o)
@@ -152,7 +161,7 @@ classdef intan < neurostim.plugins.ePhys
             o.estimulus = {};
         end
         function afterExperiment(o)
-            o.stopRecording();
+            o.stopRecording();            
         end
 
         %% Setup Intan Firmware
@@ -247,6 +256,15 @@ classdef intan < neurostim.plugins.ePhys
                 settingsFile = o.settingsPath;
             end  
         end
+
+        %% Force Uniform Save Directory
+        function saveDir = setSaveDir(o,saveDir)
+            saveDir = strsplit(saveDir,filesep);
+            saveDir = strjoin(saveDir(1:end-1),filesep);
+            [y,m,d] = ymd(datetime(o.cic.date,'InputFormat','dd MMM yyyy'));
+            saveDir = [saveDir filesep num2str(y,'%4.0f') filesep num2str(m,'%02.0f') filesep num2str(d,'%02.0f') filesep o.cic.file];
+        end
+
         %% Generic Health Check
         function OK = checkTCPOK(o)
             if o.handshake
@@ -290,17 +308,18 @@ classdef intan < neurostim.plugins.ePhys
                 o.sendMessage('STOP');
                 o.isRecording = false;
             end
-        end
-        function t = local_TCPIP_server(o)
-            CONNECTION = '0.0.0.0'; % Use '0.0.0.0' to allow any connection, from anywhere
+        end  
+        function t = createTCPobject(o)
+            CONNECTION = '0.0.0.0'; % Allows connections from any IP
             PORT = 9004;            % Can be anything, but must be consistent. Don't use a common port.
-            TYPE = 'server';        % Use 'client' to connect to the other side of this connection.
             TIMEOUT = 1;            % How long execution will wait for a response (seconds)
             myIP = neurostim.plugins.intan.getIP;            
             disp(['The IP address is: ' myIP]);
             disp(['The port is: ' num2str(PORT)]);
-            t = tcpip(CONNECTION,PORT,'NetworkRole',TYPE,'Timeout',TIMEOUT);
-            fopen(t);            
+            t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);                       
+            while ~t.Connected
+                pause(0.01);
+            end
         end
     end
     methods (Static)        
