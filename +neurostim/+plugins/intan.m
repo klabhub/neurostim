@@ -65,9 +65,8 @@ classdef intan < neurostim.plugins.ePhys
             pin.addParameter('saveDir','',@ischar); % Contains the saveDir string associated with the current recording            
             pin.parse(varargin{:});
             args = pin.Results;
-            % Call parent class constructor
-            % Pass HostAddr to the parent constructor via the 'Unmatched'
-            % property of the input parser
+            
+            % Call parent class constructor            
             o = o@neurostim.plugins.ePhys(c,name,pin.Unmatched);            
 
             % Initialise class properties
@@ -108,24 +107,7 @@ classdef intan < neurostim.plugins.ePhys
             end
             flushinput(o.tcpSocket)
             % Grab the channel mapping
-            o.chnMap = o.loadIntanChannelMap;
-            % Grab the settings file
-            o.settingsFile = o.loadSettingsFile;            
-            % Verify TCP connections
-            o.handshake = 1;
-            o.checkTCPOK;
-            % Tell Intan to load the settings file
-            o.sendMessage(['LOADSETTINGS=' o.settingsFile]);
-            % Set the Intan save path
-            o.saveDir = o.setSaveDir(o.saveDir);
-            % Verify TCP connections
-            o.handshake = 1;
-            o.checkTCPOK;
-            % Pass the savepath to Intan
-            o.sendMessage(['SETSAVEPATH=' o.saveDir]);
-            % Verify TCP connections
-            o.handshake = 1;
-            o.checkTCPOK;
+            o.chnMap = o.loadIntanChannelMap;                      
             % Start recording
             o.startRecording();            
         end
@@ -221,6 +203,24 @@ classdef intan < neurostim.plugins.ePhys
         function setActive(o,e)
             o.estimulus(numel(o.estimulus)+1) = {e};
         end
+        function setSettings(o)
+            % Grab the settings file
+            o.settingsFile = o.loadSettingsFile;
+            % Verify TCP connections
+            o.handshake = 1;
+            o.checkTCPOK;
+            % Tell Intan to load the settings file
+            o.sendMessage(['LOADSETTINGS=' o.settingsFile]);
+        end
+        function setSavePath(o)
+            % Set the Intan save path
+            o.saveDir = o.setSaveDir(o.saveDir);
+            % Verify TCP connections
+            o.handshake = 1;
+            o.checkTCPOK;
+            % Pass the savepath to Intan
+            o.sendMessage(['SETSAVEPATH=' o.saveDir]);
+        end
 
         %% Handle Channel Mapping
         function c = getIntanChannel(o,ii)
@@ -288,6 +288,9 @@ classdef intan < neurostim.plugins.ePhys
     methods (Access = protected)
         function startRecording(o)
             if ~o.testMode
+                % Verify TCP connections
+                o.handshake = 1;
+                o.checkTCPOK;
                 o.sendMessage('RECORD');
                 o.isRecording = true;
                 % Expect a message from Intan here
@@ -314,7 +317,7 @@ classdef intan < neurostim.plugins.ePhys
             CONNECTION = '0.0.0.0'; % Allows connections from any IP
             PORT = 9004;            % Can be anything, but must be consistent. Don't use a common port.
             TIMEOUT = 1;            % How long execution will wait for a response (seconds)
-            myIP = neurostim.plugins.intan.getIP;            
+            myIP = neurostim.plugins.intan.getIP;
             disp(['The IP address is: ' myIP]);
             disp(['The port is: ' num2str(PORT)]);
             t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);    
