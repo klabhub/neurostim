@@ -1,34 +1,6 @@
 classdef electricalwhitenoise < neurostim.stimulus
     % Class for electrical white noise.
-    % Adjustable variables:
-    %   dph - duration of each phase of the stimulus waveform (eg. 200 us)
-    %   ipi - inter-phase interval (eg. 100 us)   
-    %   nsp - the number of stimulation pulses
-    %   fre - the frequency of stimulation pulses
-    %   chn - the channel stimulation is delivered on
-    %   on - time the stimulus should come 'on' (ms) from start of trial
-    %   duration - time the stimulus should turn 'off' (ms) from start of trial
-    %   enabled - turn stimulation on or off
-    %   fpa - first phase amplitude of stimulus waveform (eg. 10 uA)
-    %   spa - second phase amplitude of stimulus waveform (eg. 10 uA)
-    %   fpd - duration of first phase of the stimulus waveform (eg. 200 us)
-    %   spd - duration of second phase of the stimulus waveform (eg. 200 us)    
-    %   pot - controls single-pulse or multi-pulse stimulation trains
-    %   nod - controls number of stimulation pulses in train, or duration
-    %   pod - duration of stimulation pulses (us). Max 99 pulses
-    %   ptr - post-stimulation pulse train refractory period
-    %   prAS - pre-stimulation amp settle ON time
-    %   poAS - post-stimulation amp settle OFF time
-    %   prCR - post-stimulation charge recovery ON time
-    %   poCR - post-stimulation charge recovery OFF time
-    %   stSH - stimulation shape (eg. biphasic, triphasic, cathodic-first. See Intan for codes)
-    %   enAS - controls amp settle enabled
-    %   maAS - maintain or end amp settle throughout stimulation pulse train
-    %   enCR - controls charge recovery enabled
-    %   recDir - specify the recording directory for Intan
-    %   settingsFile - specify an Intan general settings file
-    %   port - controls which port Intan uses for stimulation ('A','B','C','D')
-    
+        
     properties
         bit = 1; % This is the mcc digital line bit, allowing control over which pin will carry this stimulus' on and off functions
         stimSets = {};
@@ -41,33 +13,40 @@ classdef electricalwhitenoise < neurostim.stimulus
             s = s@neurostim.stimulus(c,name);
                         
             %% User-defined variables
+            s.addProperty('random',1,'validate',@(x) {'logical'});
             s.addProperty('channels',[],'validate',@(x) {'numeric'});
             s.addProperty('numChannelFcn',@(x) poissrnd(x),'validate',@(x) {'char'});
-            s.addProperty('lambda',1,'validate',@(x) {'numeric'});
-            s.addProperty('enabled',0,'validate',@(x) {'numeric'});
+            s.addProperty('lambda',1,'validate',@(x) {'numeric'});            
             s.addProperty('amplitudes',[],'validate',@(x) {'numeric'});
-            s.addProperty('frequency',[],'validate',@(x) {'numeric'});
+            s.addProperty('ampFcn',@(x,y) randi(x,y),'validate',@(x) {'char'});
+            s.addProperty('minFrequency',[],'validate',@(x) {'numeric'});
+            s.addProperty('maxFrequency',[],'validate',@(x) {'numeric'});
             s.addProperty('maxPulses',[],'validate',@(x) {'numeric'});
 
-            s.addProperty('rngState',[]);       % Logged at the start of each trial.            
+            s.addProperty('rngState',[]);       % Logged at the start of each trial.
             s.addProperty('stimVals',[]);       % If requested, just log all stimulation parameters.
 
             % We need our own RNG stream, to ensure its protected for stimulus reconstruction offline
             addRNGstream(s);
+            
         end % constructor
 
         function beforeExperiment(s)
             s.onsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,true);
-            s.offsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,false);            
+            s.offsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,false);
         end % beforeExperiment
 
         function beforeTrial(s)
             % Switch to the RNG stream
-            r = RandStream.setGlobalStream(s.rng);            
+            r = RandStream.setGlobalStream(s.rng);
             % log the RNG state
             s.rngState = s.rng.State;
-
-            s.initialise;
+            
+            if s.random
+                s.initialise;
+            else
+                s.SabrinaPremadeFunction;
+            end
 
             for ii = 1:numel(s.stimSets)
                 if s.stimSets{ii}.enabled
@@ -82,6 +61,7 @@ classdef electricalwhitenoise < neurostim.stimulus
 
          function afterTrial(s)
              s.stimVals = s.stimSets; % Necessary?
+             s.stimSets = [];
          end % afterTrial
 
         function afterExperiment(s)
@@ -89,7 +69,7 @@ classdef electricalwhitenoise < neurostim.stimulus
             % Log the RNG state
             s.rngState = s.rng.State;
             % Log the stimVals
-            s.stimVals = s.stim;
+            s.stimVals = s.stimSets;
         end % afterExperiment
 
     end %methods (public)
@@ -102,9 +82,9 @@ classdef electricalwhitenoise < neurostim.stimulus
             % Which channels will be active?
             activeChns = randperm(numel(s.channels),nEnabled);            
             % What are their amplitudes?
-            amp = randi(numel(s.amplitudes),[1,nEnabled]);
+            amp = s.ampFcn(numel(s.amplitudes),[1,nEnabled]);
             % How many pulses on each channel?
-            pulses = randi(s.maxPulseCount,[1,nEnabled]);
+            pulses = randi(s.maxPulses,[1,nEnabled]);
             % What frequencies?
             freq = randi([s.minFrequency, s.maxFrequency],[1,nEnabled]);
             % Generate the stimulation parameter sets

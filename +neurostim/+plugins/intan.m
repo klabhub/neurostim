@@ -88,12 +88,20 @@ classdef intan < neurostim.plugins.ePhys
                 msg = {msg};
             end
             for ii = 1:numel(msg)
-                writeline(o.tcpSocket,msg{ii});
+                try
+                    writeline(o.tcpSocket,msg{ii});
+                catch % older matlab?
+                    fprintf(o.tcpSocket,msg{ii});
+                end
             end
         end
         function msg = readMessage(o)
             % Read a message from Intan
-            msg = readline(o.tcpSocket);
+            try
+                msg = readline(o.tcpSocket);
+            catch % older matlab?
+                msg = fscanf(o.tcpSocket);
+            end
             msg = string(msg(1:end-1));
         end
 
@@ -320,10 +328,15 @@ classdef intan < neurostim.plugins.ePhys
             myIP = neurostim.plugins.intan.getIP;
             disp(['The IP address is: ' myIP]);
             disp(['The port is: ' num2str(PORT)]);
-            t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);    
-            while ~t.Connected
-                pause(0.01);
-            end
+            try
+                t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);    
+                while ~t.Connected
+                    pause(0.01);
+                end
+            catch % older matlab?
+                t = tcpip(CONNECTION,PORT,'NetworkRole','server','Timeout',TIMEOUT);
+                fopen(t);
+            end            
         end
     end
     methods (Static)        
