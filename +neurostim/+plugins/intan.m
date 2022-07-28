@@ -40,13 +40,13 @@ classdef intan < neurostim.plugins.ePhys
         estimulus = {};     % Contains a pointer to the active estim plugin
         activechns = {};    % Contains a list of active stimulation channels
         handshake = 0;      % Controls whether the Intan manager plugin will halt execution of the thread while awaiting
-                            % a handshake from the Intan firmware over the
-                            % TCP connection. !!Important!!
+        % a handshake from the Intan firmware over the
+        % TCP connection. !!Important!!
         cfgFcn = [];        % Can be given an anonymous function that specifies the channel mapping. Overrides other channel mapping sources
         cfgFile = [];       % Can be given a filepath that contains the channel mapping.
         settingsFcn = [];   % Can be given an anonymous function that specifies the Intan settings file. Overrides other channel mapping sources
         settingsPath = [];  % Can be given a filepath that contains the Intan settings file.
-
+        chnList = [];       % Used to pass a list of channels for amplifier settle configuration
         saveDir = 'C:\Data';% Provides the base path to the Data directory on the recording machine. Default is C:\Data
     end
     
@@ -57,30 +57,30 @@ classdef intan < neurostim.plugins.ePhys
             % Parse arguments
             pin = inputParser;
             pin.KeepUnmatched = true;
-            pin.addParameter('CreateNewDir', 1, @(x) assert(x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));            
+            pin.addParameter('CreateNewDir', 1, @(x) assert(x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));
             pin.addParameter('SettingsFile', '', @ischar); % Settings file for Intan
             pin.addParameter('tcpSocket', '');
-            pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording            
-            pin.addParameter('chnMap', [], @isnumeric);            
-            pin.addParameter('saveDir','',@ischar); % Contains the saveDir string associated with the current recording            
+            pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
+            pin.addParameter('chnMap', [], @isnumeric);
+            pin.addParameter('saveDir','',@ischar); % Contains the saveDir string associated with the current recording
             pin.parse(varargin{:});
             args = pin.Results;
             
-            % Call parent class constructor            
-            o = o@neurostim.plugins.ePhys(c,name,pin.Unmatched);            
-
+            % Call parent class constructor
+            o = o@neurostim.plugins.ePhys(c,name,pin.Unmatched);
+            
             % Initialise class properties
             o.addProperty('createNewDir',args.CreateNewDir,'validate',@isnumeric);
             o.addProperty('settingsFile',args.SettingsFile,'validate',@ischar);
             o.addProperty('tcpSocket',args.tcpSocket);
             o.addProperty('testMode',args.testMode);
-            o.addProperty('chnMap',args.chnMap);            
+            o.addProperty('chnMap',args.chnMap);
             o.addProperty('isRecording',false);
             if ~isempty(args.saveDir)
                 o.saveDir = args.saveDir;
             end
         end
-
+        
         %% Generic Communcation
         function sendMessage(o,msg)
             % Send a message to Intan
@@ -104,10 +104,10 @@ classdef intan < neurostim.plugins.ePhys
             end
             msg = string(msg(1:end-1));
         end
-
+        
         %% Neurostim Events
-        function beforeExperiment(o)     
-            % Create a tcp/ip socket           
+        function beforeExperiment(o)
+            % Create a tcp/ip socket
             o.tcpSocket = neurostim.plugins.intan.createTCPobject;
             msg = o.readMessage;
             if ~strcmp(msg,"READY")
@@ -116,16 +116,22 @@ classdef intan < neurostim.plugins.ePhys
             flushinput(o.tcpSocket)
             % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
+            % Send the settings file to Intan
+            o.setSettings();
+            % Set the save path in Intan
+            o.setSavePath();
             % Configure Intan for amplifier settling
             o.ampSettle();
+            % Set the save path in Intan (again)
+            o.setSavePath();
             % Start recording
-            o.startRecording();            
+            o.startRecording();
         end
         function beforeTrial(o)
             if ~isempty(o.activechns)
                 marker = ones(1,numel(o.activechns));
                 for ii = 1:numel(o.estimulus)
-                    thisChn = getIntanChannel(o,ii);                    
+                    thisChn = getIntanChannel(o,'index',ii);
                     for jj = 1:numel(o.activechns)
                         if strcmp(o.activechns{jj},thisChn)
                             marker(jj) = 0;
@@ -137,9 +143,9 @@ classdef intan < neurostim.plugins.ePhys
                     if marker(jj) % Disable all channels not used in the coming trial
                         msg{1} = strcat('channel=',o.activechns{jj});
                         msg{2} = 'enabled=0';
-                        o.sendMessage(msg);
-                        o.sendSet();
+                        o.sendMessage(msg);                        
                         if jj == kk
+                            o.sendSet();
                             o.handshake = 1;
                             o.checkTCPOK;
                         end
@@ -153,15 +159,15 @@ classdef intan < neurostim.plugins.ePhys
             o.estimulus = {};
         end
         function afterExperiment(o)
-            o.stopRecording();            
+            o.stopRecording();
         end
-
+        
         %% Setup Intan Firmware
         function setupIntan(o)
             % Convert the parameter set into strings
             % Convert the channel number into an Intan channel identifier
             for ii = 1:numel(o.estimulus)
-                thisChn = getIntanChannel(o,ii);
+                thisChn = getIntanChannel(o,'index',ii);
                 msg{1} = strcat('channel=',thisChn);
                 msg{2} = strcat('pulseOrTrain=',num2str(o.estimulus{ii}.pot));
                 if o.estimulus{ii}.pot
@@ -174,6 +180,8 @@ classdef intan < neurostim.plugins.ePhys
                         end
                         msg{3} = strcat('numberOfStimPulses=',num2str(nsp));
                     end
+                else
+                    msg{3} = 'numberOfStimPulses=1';
                 end
                 msg{4} = strcat('pulseTrainPeriod=',num2str((1e6/o.estimulus{ii}.fre)));
                 msg{5} = strcat('refractoryPeriod=',num2str(o.estimulus{ii}.ptr));
@@ -191,21 +199,25 @@ classdef intan < neurostim.plugins.ePhys
                 msg{17} = strcat('maintainAmpSettle=',num2str(o.estimulus{ii}.maAS));
                 msg{18} = strcat('enableChargeRecovery=',num2str(o.estimulus{ii}.enCR));
                 msg{19} = strcat('ID=',num2str(o.cic.trial));
-                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));
-                o.sendMessage(msg);
+                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));                
+                o.sendMessage(msg);                
                 o.activechns(numel(o.activechns)+1) = {thisChn};
             end
             if numel(o.estimulus) > 0
                 o.sendSet();
+                reply = o.readMessage;
+                while ~strcmpi(reply,['Parameter ' num2str(o.cic.trial) ' Set'])
+                    reply = o.readMessage;
+                end
             end
             o.handshake = 1;
             o.checkTCPOK;
         end
-
+        
         %% Specific Intan Commands
         function sendSet(o)
             if o.cic.stage == 1
-                o.sendMessage('SET');
+                o.sendMessage('SET');              
             elseif o.cic.stage == 2
                 c.error('CONTINUE','SET Command called to Intan during a trial. This is a critical error');
             end
@@ -229,15 +241,37 @@ classdef intan < neurostim.plugins.ePhys
             o.handshake = 1;
             o.checkTCPOK;
             % Pass the savepath to Intan
-            o.sendMessage(['SETSAVEPATH=' o.saveDir]);
+            o.sendMessage(['SETSAVEPATH=' o.saveDir]);            
         end
-
+        
         %% Handle Channel Mapping
-        function c = getIntanChannel(o,ii)
-            thisChn = o.chnMap(o.estimulus{ii}.chn);            
-            % Sanitise channel numbering to 1 - 32 for Intan port numbering
-            % schemes
-            if isempty(o.estimulus{ii}.port)
+        function c = getIntanChannel(o,varargin)
+            % Handle input
+            p = inputParser;
+            p.addParameter('index',0,@isnumeric);
+            p.addParameter('chn',0,@isnumeric);
+            p.parse(varargin{:});
+            args = p.Results;
+            if args.index
+                thisChn = o.chnMap(o.estimulus{args.index}.chn);
+                % Sanitise channel numbering to 1 - 32 for Intan port numbering
+                % schemes
+                if isempty(o.estimulus{args.index}.port)
+                    switch ceil(thisChn / 32)
+                        case 1 % port A
+                            c = ['A-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
+                        case 2 % port B
+                            c = ['B-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
+                        case 3 % port C
+                            c = ['C-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
+                        case 4 % port D
+                            c = ['D-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
+                    end
+                else                    
+                    c = [o.estimulus{args.index}.port '-' num2str(thisChn-1,'%03d')]; % Intan is 0-indexed
+                end
+            elseif args.chn
+                thisChn = o.chnMap(args.chn);
                 switch ceil(thisChn / 32)
                     case 1 % port A
                         c = ['A-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
@@ -248,14 +282,9 @@ classdef intan < neurostim.plugins.ePhys
                     case 4 % port D
                         c = ['D-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
                 end
-            else
-                while thisChn > 32
-                    thisChn = thisChn - 32;
-                end
-                c = [o.estimulus{ii}.port '-' num2str(thisChn-1,'%03d')]; % Intan is 0-indexed
-            end            
+            end
         end
-        function chnMap = loadIntanChannelMap(o)            
+        function chnMap = loadIntanChannelMap(o)
             if isa(o.cfgFcn, 'function_handle') && strncmp(char(o.cfgFcn), '@', 1)
                 % If this property is an anonymous function, get channel map from here
                 chnMap = o.cfgFcn();
@@ -266,7 +295,7 @@ classdef intan < neurostim.plugins.ePhys
                 config = load(o.cfgFile,'chnMap');
                 assert(exist(config.chnMap,'var'),'Could not parse the contents of the provided channel map file. Please double-check.');
                 chnMap = config.chnMap;
-            end            
+            end
         end
         function settingsFile = loadSettingsFile(o)
             if isa(o.settingsFcn, 'function_handle') && strncmp(char(o.settingsFcn), '@', 1)
@@ -275,25 +304,36 @@ classdef intan < neurostim.plugins.ePhys
                 return
             end
             if isa(o.settingsPath,'char')
-                % If this property contains a path, use this as the path to the settings file              
+                % If this property contains a path, use this as the path to the settings file
                 settingsFile = o.settingsPath;
-            end  
+            end
         end
         %% Handle Amplifier Settle Configuration
-        function ampSettle(o,chnList)
+        function ampSettle(o)
             % Configure each channel in the experiment for amplifier settle
-            for ii = 1:numel(chnList)
-                msg{1} = strcat('channel=',chnList(ii));
+            for ii = 1:numel(o.chnList)
+                switch ceil(o.chnList(ii)/32)
+                    case 1 % port A
+                        o.sendMessage('changePort=0');
+                    case 2 % port B
+                        o.sendMessage('changePort=1');
+                    case 3 % port C
+                        o.sendMessage('changePort=2');
+                    case 4 % port D
+                        o.sendMessage('changePort=3');
+                end
+                msg{1} = strcat('channel=',o.getIntanChannel('chn',o.chnList(ii)));
                 msg{2} = 'enabled=1';
                 msg{3} = 'firstPhaseAmplitude=0';
                 msg{4} = 'secondPhaseAmplitude=0';
                 msg{5} = 'stimShape=1';
                 msg{6} = 'preStimAmpSettle=200';
                 msg{7} = 'postStimAmpSettle=500000';
-                msg{8} = 'enableAmpSettle=1';                
+                msg{8} = 'enableAmpSettle=1';
                 o.sendMessage(msg);
+                o.sendSet;
                 pause(0.1);
-                o.sendMessage(strcat('changeFrame=',find(o.chnMap == chnList(ii),1)));
+                o.sendMessage(strcat('changeFrame=',num2str(mod(o.chnList(ii)-1,32))));
                 pause(0.1);
                 o.sendMessage('OPENSTIM');
                 pause(0.1);
@@ -308,9 +348,10 @@ classdef intan < neurostim.plugins.ePhys
                 msg{2} = 'enabled=0';
                 o.sendMessage(msg);
                 pause(0.1);
+                o.sendSet;
             end
         end
-
+        
         %% Force Uniform Save Directory
         function saveDir = setSaveDir(o,saveDir)
             saveDir = strsplit(saveDir,filesep);
@@ -318,14 +359,14 @@ classdef intan < neurostim.plugins.ePhys
             [y,m,d] = ymd(datetime(o.cic.date,'InputFormat','dd MMM yyyy'));
             saveDir = [saveDir filesep num2str(y,'%4.0f') filesep num2str(m,'%02.0f') filesep num2str(d,'%02.0f') filesep o.cic.file];
         end
-
+        
         %% Generic Health Check
         function OK = checkTCPOK(o)
             if o.handshake
                 OK = 0;
                 while(~OK)
                     % Initialise the check
-                    flushinput(o.tcpSocket);                    
+                    flushinput(o.tcpSocket);
                     o.sendMessage('RUOK');
                     msg = o.readMessage;
                     if ~strcmp(msg,"YEAH")
@@ -336,11 +377,12 @@ classdef intan < neurostim.plugins.ePhys
                     flushinput(o.tcpSocket);
                 end
                 o.handshake = 0; % Disable handshake
+                flushinput(o.tcpSocket);
             end
         end
     end % methods (public)
-
-    methods (Access = protected)        
+    
+    methods (Access = protected)
         function startRecording(o)
             if ~o.testMode
                 % Verify TCP connections
@@ -352,11 +394,12 @@ classdef intan < neurostim.plugins.ePhys
                 msg = o.readMessage;
                 msg = split(msg,'=');
                 % This should always be true
-                if strcmp(msg{1},'SAVE')
-                    o.saveDir = msg{2};
-                else
+                while ~strcmp(msg{1},'SAVE')
                     warning('Intan did not notify neurostim of its saveDir. This is a non-critical error.');
+                    msg = o.readMessage;
+                    msg = split(msg,'=');
                 end
+                o.saveDir = msg{2};
             end
         end
         function stopRecording(o)
@@ -367,7 +410,7 @@ classdef intan < neurostim.plugins.ePhys
                 o.isRecording = false;
                 clear o.tcpSocket;
             end
-        end        
+        end
     end
     methods (Static)
         function t = createTCPobject
@@ -383,7 +426,7 @@ classdef intan < neurostim.plugins.ePhys
                     pause(0.01);
                 end
             catch % older matlab?
-                t = tcpip(CONNECTION,PORT,'NetworkRole','server','Timeout',TIMEOUT); %#ok<TCPS>
+                t = tcpip(CONNECTION,PORT,'NetworkRole','server','Timeout',TIMEOUT);
                 fopen(t);
             end
         end
@@ -393,6 +436,6 @@ classdef intan < neurostim.plugins.ePhys
             myIP = splitlines(myIP{2});
             myIP = strsplit(myIP{1},':');
             myIP = myIP{2}(2:end);
-        end        
+        end
     end
 end
