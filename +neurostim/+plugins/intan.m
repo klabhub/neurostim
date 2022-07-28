@@ -108,14 +108,16 @@ classdef intan < neurostim.plugins.ePhys
         %% Neurostim Events
         function beforeExperiment(o)     
             % Create a tcp/ip socket           
-            o.tcpSocket = o.createTCPobject;
+            o.tcpSocket = neurostim.plugins.intan.createTCPobject;
             msg = o.readMessage;
             if ~strcmp(msg,"READY")
                 disp('ERROR. BAD CONNECTION.')
             end
             flushinput(o.tcpSocket)
             % Grab the channel mapping
-            o.chnMap = o.loadIntanChannelMap;                      
+            o.chnMap = o.loadIntanChannelMap;
+            % Configure Intan for amplifier settling
+            o.ampSettle();
             % Start recording
             o.startRecording();            
         end
@@ -264,6 +266,37 @@ classdef intan < neurostim.plugins.ePhys
                 settingsFile = o.settingsPath;
             end  
         end
+        %% Handle Amplifier Settle Configuration
+        function ampSettle(o,chnList)
+            % Configure each channel in the experiment for amplifier settle
+            for ii = 1:numel(chnList)
+                msg{1} = strcat('channel=',chnList(ii));
+                msg{2} = 'enabled=1';
+                msg{3} = 'firstPhaseAmplitude=0';
+                msg{4} = 'secondPhaseAmplitude=0';
+                msg{5} = 'stimShape=1';
+                msg{6} = 'preStimAmpSettle=200';
+                msg{7} = 'postStimAmpSettle=500000';
+                msg{8} = 'enableAmpSettle=1';                
+                o.sendMessage(msg);
+                pause(0.1);
+                o.sendMessage(strcat('changeFrame=',find(o.chnMap == chnList(ii),1)));
+                pause(0.1);
+                o.sendMessage('OPENSTIM');
+                pause(0.1);
+                o.sendMessage('CLOSESTIM');
+                pause(0.1);
+                o.handshake = 1;
+                o.checkTCPOK;
+                o.sendMessage('RUN');
+                pause(0.1);
+                o.sendMessage('STOP');
+                pause(0.1);
+                msg{2} = 'enabled=0';
+                o.sendMessage(msg);
+                pause(0.1);
+            end
+        end
 
         %% Force Uniform Save Directory
         function saveDir = setSaveDir(o,saveDir)
@@ -292,8 +325,9 @@ classdef intan < neurostim.plugins.ePhys
                 o.handshake = 0; % Disable handshake
             end
         end
-    end
-    methods (Access = protected)
+    end % methods (public)
+
+    methods (Access = protected)        
         function startRecording(o)
             if ~o.testMode
                 % Verify TCP connections
@@ -320,8 +354,10 @@ classdef intan < neurostim.plugins.ePhys
                 o.isRecording = false;
                 clear o.tcpSocket;
             end
-        end
-        function t = createTCPobject(o)
+        end        
+    end
+    methods (Static)
+        function t = createTCPobject
             CONNECTION = '0.0.0.0'; % Allows connections from any IP
             PORT = 9004;            % Can be anything, but must be consistent. Don't use a common port.
             TIMEOUT = 1;            % How long execution will wait for a response (seconds)
@@ -329,17 +365,15 @@ classdef intan < neurostim.plugins.ePhys
             disp(['The IP address is: ' myIP]);
             disp(['The port is: ' num2str(PORT)]);
             try
-                t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);    
+                t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);
                 while ~t.Connected
                     pause(0.01);
                 end
             catch % older matlab?
-                t = tcpip(CONNECTION,PORT,'NetworkRole','server','Timeout',TIMEOUT);
+                t = tcpip(CONNECTION,PORT,'NetworkRole','server','Timeout',TIMEOUT); %#ok<TCPS>
                 fopen(t);
-            end            
+            end
         end
-    end
-    methods (Static)        
         function myIP = getIP
             [~,myIP]=system('ipconfig');
             myIP = strsplit(myIP,'IPv4 Address');

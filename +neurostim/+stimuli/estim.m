@@ -66,7 +66,7 @@ classdef estim < neurostim.stimulus
         end
         function beforeExperiment(s)
             s.onsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,true);
-            s.offsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,false);
+            s.offsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,false);            
         end
         function beforeTrial(s)
             if s.enabled
