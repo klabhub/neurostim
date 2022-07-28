@@ -129,7 +129,7 @@ classdef electricalwhitenoise < neurostim.stimulus
             p.addParameter('maAS',1,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('enCR',1,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('recDir','',@(x) validateattributes(x,{'char'},{'nonempty'}));
-            p.addParameter('port','A',@(x) validateattributes(x,{'char'},{'nonempty'}));
+            p.addParameter('port','',@(x) validateattributes(x,{'char'},{'nonempty'}));
             p.parse(varargin{:});
             args = p.Results;
 

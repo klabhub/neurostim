@@ -234,13 +234,26 @@ classdef intan < neurostim.plugins.ePhys
 
         %% Handle Channel Mapping
         function c = getIntanChannel(o,ii)
-            thisChn = o.chnMap(o.estimulus{ii}.chn);
+            thisChn = o.chnMap(o.estimulus{ii}.chn);            
             % Sanitise channel numbering to 1 - 32 for Intan port numbering
             % schemes
-            while thisChn > 32
-                thisChn = thisChn - 32;
-            end
-            c = [o.estimulus{ii}.port '-' num2str(thisChn-1,'%03d')]; % Intan is 0-indexed
+            if isempty(o.estimulus{ii}.port)
+                switch ceil(thisChn / 32)
+                    case 1 % port A
+                        c = ['A-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
+                    case 2 % port B
+                        c = ['B-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
+                    case 3 % port C
+                        c = ['C-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
+                    case 4 % port D
+                        c = ['D-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
+                end
+            else
+                while thisChn > 32
+                    thisChn = thisChn - 32;
+                end
+                c = [o.estimulus{ii}.port '-' num2str(thisChn-1,'%03d')]; % Intan is 0-indexed
+            end            
         end
         function chnMap = loadIntanChannelMap(o)            
             if isa(o.cfgFcn, 'function_handle') && strncmp(char(o.cfgFcn), '@', 1)
