@@ -1,7 +1,4 @@
 classdef estim < neurostim.stimulus
-
-%% At the moment, multiple channels are added by adding multiple estim plugins. This incurs overhead, and we should revisit this in the future to better define multi-stimulation
-
     % Base class for electrical stimuli in PTB.    
     % Adjustable variables:
     %   dph - duration of each phase of the stimulus waveform (eg. 200 us)
@@ -62,11 +59,11 @@ classdef estim < neurostim.stimulus
             s.addProperty('maAS',1,'validate',@isnumeric);
             s.addProperty('enCR',1,'validate',@isnumeric);
             s.addProperty('recDir','','validate',@ischar);
-            s.addProperty('port','','validate',@ischar);
+            s.addProperty('port','A','validate',@ischar);
         end
         function beforeExperiment(s)
             s.onsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,true);
-            s.offsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,false);                        
+            s.offsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,false);
         end
         function beforeTrial(s)
             if s.enabled

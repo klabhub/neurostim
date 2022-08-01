@@ -311,6 +311,10 @@ classdef intan < neurostim.plugins.ePhys
         %% Handle Amplifier Settle Configuration
         function ampSettle(o)
             % Configure each channel in the experiment for amplifier settle
+            if o.chnList == 0
+                pause(1);
+                return;
+            end
             for ii = 1:numel(o.chnList)
                 switch ceil(o.chnList(ii)/32)
                     case 1 % port A
