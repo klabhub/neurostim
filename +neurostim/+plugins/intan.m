@@ -56,12 +56,9 @@ classdef intan < neurostim.plugins.ePhys
             % Intan does not have any dependencies on the host computer
             % Parse arguments
             pin = inputParser;
-            pin.KeepUnmatched = true;
-            pin.addParameter('CreateNewDir', 1, @(x) assert(x == 0 || x == 1, 'It must be either 1 (true) or 0 (false).'));
-            pin.addParameter('SettingsFile', '', @ischar); % Settings file for Intan
+            pin.KeepUnmatched = true;            
             pin.addParameter('tcpSocket', '');
-            pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
-            pin.addParameter('chnMap', [], @isnumeric);
+            pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording            
             pin.addParameter('saveDir','',@ischar); % Contains the saveDir string associated with the current recording
             pin.parse(varargin{:});
             args = pin.Results;
@@ -70,12 +67,10 @@ classdef intan < neurostim.plugins.ePhys
             o = o@neurostim.plugins.ePhys(c,name,pin.Unmatched);
             
             % Initialise class properties
-            o.addProperty('createNewDir',args.CreateNewDir,'validate',@isnumeric);
-            o.addProperty('settingsFile',args.SettingsFile,'validate',@ischar);
             o.addProperty('tcpSocket',args.tcpSocket);
             o.addProperty('testMode',args.testMode);
-            o.addProperty('chnMap',args.chnMap);
             o.addProperty('isRecording',false);
+            o.addProperty('loggedEstim',[],'validate',@iscell);
             if ~isempty(args.saveDir)
                 o.saveDir = args.saveDir;
             end
@@ -127,6 +122,7 @@ classdef intan < neurostim.plugins.ePhys
             % Start recording
             o.startRecording();
         end
+
         function beforeTrial(o)
             if ~isempty(o.activechns)
                 marker = ones(1,numel(o.activechns));
@@ -153,6 +149,8 @@ classdef intan < neurostim.plugins.ePhys
                 end
                 o.activechns = {};
             end
+            % Log o.estimulus
+            o.loggedEstim = o.estimulus;
             o.setupIntan();
         end
         function afterTrial(o)

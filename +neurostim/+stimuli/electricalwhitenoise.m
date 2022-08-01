@@ -60,6 +60,7 @@ classdef electricalwhitenoise < neurostim.stimulus
         end % beforeTrial
 
          function afterTrial(s)
+             s.offsetFunction(s,0);        % Forcibly turn the digital line to false
              s.stimVals = s.stimSets; % Necessary?
              s.stimSets = [];
          end % afterTrial
@@ -79,6 +80,9 @@ classdef electricalwhitenoise < neurostim.stimulus
         function initialise(s)
             % How many channels will be active?
             nEnabled = s.numChannelFcn(s.lambda);
+            if isempty(nEnabled)
+                return;
+            end
             % Which channels will be active?
             activeChns = randperm(numel(s.channels),nEnabled);            
             % What are their amplitudes?
@@ -110,9 +114,9 @@ classdef electricalwhitenoise < neurostim.stimulus
             p.addParameter('enabled',0,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('fpa',0,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('spa',0,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
-            p.addParameter('fpd',0,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
-            p.addParameter('spd',0,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
-            p.addParameter('ipi',0,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
+            p.addParameter('fpd',200,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
+            p.addParameter('spd',200,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
+            p.addParameter('ipi',100,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('pot',0,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('nod',1,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('nsp',0,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
@@ -129,14 +133,16 @@ classdef electricalwhitenoise < neurostim.stimulus
             p.addParameter('maAS',1,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('enCR',1,@(x) validateattributes(x,{'numeric'},{'scalar','nonempty'}));
             p.addParameter('recDir','',@(x) validateattributes(x,{'char'},{'nonempty'}));
-            p.addParameter('port','',@(x) validateattributes(x,{'char'},{'nonempty'}));
+            p.addParameter('port','A',@(x) validateattributes(x,{'char'},{'nonempty'}));
             p.parse(varargin{:});
             args = p.Results;
 
             % Generate a new stimulation parameter set
             ns.enabled = args.enabled;
-            ns.fpd = args.fpa;
-            ns.spd = args.spa;
+            ns.fpa = args.fpa;
+            ns.spa = args.spa;
+            ns.fpd = args.fpd;
+            ns.spd = args.spd;
             ns.ipi = args.ipi;
             ns.pot = args.pot;
             ns.nod = args.nod;
