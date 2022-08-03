@@ -46,8 +46,10 @@ classdef intan < neurostim.plugins.ePhys
         cfgFile = [];       % Can be given a filepath that contains the channel mapping.
         settingsFcn = [];   % Can be given an anonymous function that specifies the Intan settings file. Overrides other channel mapping sources
         settingsPath = [];  % Can be given a filepath that contains the Intan settings file.
+        settingsFile = [];  % Contains the Intan settings file path.
         chnList = [];       % Used to pass a list of channels for amplifier settle configuration
         saveDir = 'C:\Data';% Provides the base path to the Data directory on the recording machine. Default is C:\Data
+        chnMap = [];        % Contains the channel mapping for the experiment.        
     end
     
     methods (Access=public)
@@ -112,9 +114,7 @@ classdef intan < neurostim.plugins.ePhys
             % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
             % Send the settings file to Intan
-            o.setSettings();
-            % Set the save path in Intan
-            o.setSavePath();
+            o.setSettings();            
             % Configure Intan for amplifier settling
             o.ampSettle();
             % Set the save path in Intan (again)
