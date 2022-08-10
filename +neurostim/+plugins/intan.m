@@ -85,10 +85,12 @@ classdef intan < neurostim.plugins.ePhys
                 msg = {msg};
             end
             for ii = 1:numel(msg)
-                try
-                    writeline(o.tcpSocket,msg{ii});
-                catch % older matlab?
-                    fprintf(o.tcpSocket,msg{ii});
+                if ~isempty(msg{ii})
+                    try
+                        writeline(o.tcpSocket,msg{ii});
+                    catch % older matlab?
+                        fprintf(o.tcpSocket,msg{ii});
+                    end
                 end
             end
         end
@@ -114,12 +116,16 @@ classdef intan < neurostim.plugins.ePhys
             % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
             % Send the settings file to Intan
+            pause(0.5);
             o.setSettings();            
             % Configure Intan for amplifier settling
+            pause(0.5);
             o.ampSettle();
             % Set the save path in Intan (again)
+            pause(0.5);
             o.setSavePath();
             % Start recording
+            pause(0.5);
             o.startRecording();
         end
 
@@ -164,7 +170,7 @@ classdef intan < neurostim.plugins.ePhys
         function setupIntan(o)
             % Convert the parameter set into strings
             % Convert the channel number into an Intan channel identifier
-            for ii = 1:numel(o.estimulus)
+            for ii = 1:numel(o.estimulus)                
                 thisChn = getIntanChannel(o,'index',ii);
                 msg{1} = strcat('channel=',thisChn);
                 msg{2} = strcat('pulseOrTrain=',num2str(o.estimulus{ii}.pot));
@@ -188,14 +194,14 @@ classdef intan < neurostim.plugins.ePhys
                 msg{8} = strcat('interphaseDelay=',num2str(o.estimulus{ii}.ipi));
                 msg{9} = strcat('firstPhaseAmplitude=',num2str(o.estimulus{ii}.fpa));
                 msg{10} = strcat('secondPhaseAmplitude=',num2str(o.estimulus{ii}.spa));
-                msg{11} = strcat('preStimAmpSettle=',num2str(o.estimulus{ii}.prAS));
-                msg{12} = strcat('postStimAmpSettle=',num2str(o.estimulus{ii}.poAS));
-                msg{13} = strcat('postStimChargeRecovOn=',num2str(o.estimulus{ii}.prCR));
-                msg{14} = strcat('postStimChargeRecovOff=',num2str(o.estimulus{ii}.poCR));
+                %msg{11} = strcat('preStimAmpSettle=',num2str(o.estimulus{ii}.prAS));
+                %msg{12} = strcat('postStimAmpSettle=',num2str(o.estimulus{ii}.poAS));
+                %msg{13} = strcat('postStimChargeRecovOn=',num2str(o.estimulus{ii}.prCR));
+                %msg{14} = strcat('postStimChargeRecovOff=',num2str(o.estimulus{ii}.poCR));
                 msg{15} = strcat('stimShape=',num2str(o.estimulus{ii}.stSH));
-                msg{16} = strcat('enableAmpSettle=',num2str(o.estimulus{ii}.enAS));
-                msg{17} = strcat('maintainAmpSettle=',num2str(o.estimulus{ii}.maAS));
-                msg{18} = strcat('enableChargeRecovery=',num2str(o.estimulus{ii}.enCR));
+                %msg{16} = strcat('enableAmpSettle=',num2str(o.estimulus{ii}.enAS));
+                %msg{17} = strcat('maintainAmpSettle=',num2str(o.estimulus{ii}.maAS));
+                %msg{18} = strcat('enableChargeRecovery=',num2str(o.estimulus{ii}.enCR));
                 msg{19} = strcat('ID=',num2str(o.cic.trial));
                 msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));                
                 o.sendMessage(msg);                
@@ -330,23 +336,30 @@ classdef intan < neurostim.plugins.ePhys
                 msg{4} = 'secondPhaseAmplitude=0';
                 msg{5} = 'stimShape=1';
                 msg{6} = 'preStimAmpSettle=200';
-                msg{7} = 'postStimAmpSettle=500000';
-                msg{8} = 'enableAmpSettle=1';
+                msg{7} = 'postStimAmpSettle=160000';
+                msg{8} = 'enableAmpSettle=1';                
+                msg{9} = 'postStimChargeRecovOn=100000';
+                msg{10} = 'postStimChargeRecovOff=150000';
+                msg{11} = 'enableChargeRecovery=1';
                 o.sendMessage(msg);
                 o.sendSet;
                 pause(0.1);
                 o.sendMessage(strcat('changeFrame=',num2str(mod(o.chnList(ii)-1,32))));
                 pause(0.1);
                 o.sendMessage('OPENSTIM');
-                pause(0.1);
+                pause(0.4);
                 o.sendMessage('CLOSESTIM');
-                pause(0.1);
+                pause(0.4);
                 o.handshake = 1;
                 o.checkTCPOK;
                 o.sendMessage('RUN');
+                pause(0.5);
+                o.cic.estim.onsetFunction(o.cic.estim)
                 pause(0.1);
+                o.cic.estim.offsetFunction(o.cic.estim)
+                pause(0.5);
                 o.sendMessage('STOP');
-                pause(0.1);
+                pause(0.5);
                 msg{2} = 'enabled=0';
                 o.sendMessage(msg);
                 pause(0.1);
