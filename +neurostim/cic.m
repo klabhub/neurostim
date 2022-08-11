@@ -1816,7 +1816,7 @@ classdef cic < neurostim.plugin
                     PsychImaging('AddTask', 'General', 'EnableBits++Mono++Output');
                  case 'DISPLAY++COLOR'
                     PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection', 'ClampOnly');
-                    PsychImaging('AddTask', 'General', 'EnableBits++Color++Output',1);%2
+                    PsychImaging('AddTask', 'General', 'EnableBits++Color++Output',2);%2
                 case 'SOFTWARE-OVERLAY'
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
