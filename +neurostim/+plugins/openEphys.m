@@ -97,8 +97,10 @@ classdef openEphys < neurostim.plugins.ePhys
             sendMessage(o,'StartAcquisition');
             o.connectionStatus = true; % <-- FIXME: is this used/useful for anything?
             
-            pause(o.startDelay);
-
+            if o.startDelay>0
+                pause(o.startDelay);
+            end
+            
             % Generate command string that is used to initiate recording and specify save information  
             request = sprintf('StartRecord CreateNewDir=%i RecDir=%s PrependText=%s AppendText=%s', ...
                 o.createNewDir, o.recDir, o.prependText, o.appendText);
