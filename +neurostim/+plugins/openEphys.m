@@ -95,6 +95,7 @@ classdef openEphys < neurostim.plugins.ePhys
             sendMessage(o,'StartAcquisition');
             o.connectionStatus = true; % <-- FIXME: is this used/useful for anything?
             
+            dum
             pause(5);
             
             % Generate command string that is used to initiate recording and specify save information  
