@@ -47,7 +47,7 @@ classdef estim < neurostim.stimulus
             s.addProperty('pot',0,'validate',@isnumeric);
             s.addProperty('nod',1,'validate',@isnumeric);
             s.addProperty('nsp',0,'validate',@isnumeric);
-            s.addProperty('fre',0,'validate',@isnumeric);
+            s.addProperty('fre',80,'validate',@isnumeric);
             s.addProperty('pod',0,'validate',@isnumeric);
             s.addProperty('ptr',1e3,'validate',@isnumeric);
             s.addProperty('chn','A-001','validate',@ischar);

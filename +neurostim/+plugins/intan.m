@@ -7,6 +7,9 @@ classdef intan < neurostim.plugins.ePhys
     % SettingsFile - .isf Intan settings file for a specific electrode
     % configuration
     
+    %% The Intan plugin has now been updated to work with our custom build of the Intan RHX v3.1 software    
+
+    %% -- deprecated -- for Intan versions below 3.1.0 %%
     % Here's a list of commands Intan will recognise
     % 'channel=A-001' % Initialises a new parameter set
     % 'SET' % Commands Intan to program the headstage with new
@@ -34,7 +37,7 @@ classdef intan < neurostim.plugins.ePhys
     % 'DALL' % Clears all stimulation parameters on all channels.
     % 'CHANGEFRAME=1' % Changes the selected frame for OPENSTIM
     % 'SETSAVEPATH' % Sets the filepath used for saving data
-    % 'LOADSETTINGS' % Loads an on-disk settings file
+    % 'LOADSETTINGS' % Loads an on-disk settings file   
     
     properties
         estimulus = {};     % Contains a pointer to the active estim plugin
@@ -44,12 +47,14 @@ classdef intan < neurostim.plugins.ePhys
         % TCP connection. !!Important!!
         cfgFcn = [];        % Can be given an anonymous function that specifies the channel mapping. Overrides other channel mapping sources
         cfgFile = [];       % Can be given a filepath that contains the channel mapping.
+        chnMap = [];        % Stores the channel mapping
         settingsFcn = [];   % Can be given an anonymous function that specifies the Intan settings file. Overrides other channel mapping sources
         settingsPath = [];  % Can be given a filepath that contains the Intan settings file.
+        settingsStruct = [];% Can contain a list of settings to apply to Intan. Automatically populated with default values.        
         settingsFile = [];  % Contains the Intan settings file path.
         chnList = [];       % Used to pass a list of channels for amplifier settle configuration
-        saveDir = 'C:\Data';% Provides the base path to the Data directory on the recording machine. Default is C:\Data
-        chnMap = [];        % Contains the channel mapping for the experiment.        
+        saveDir = 'C:\Data';% Provides the base path to the Data directory on the recording machine. Default is C:\Data           
+        intanVer = 3.1;
     end
     
     methods (Access=public)
@@ -62,6 +67,7 @@ classdef intan < neurostim.plugins.ePhys
             pin.addParameter('tcpSocket', '');
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording            
             pin.addParameter('saveDir','',@ischar); % Contains the saveDir string associated with the current recording
+            pin.addParameter('hostPort',9004, @isnumeric); % The port Intan will use to communicate with neurostim
             pin.parse(varargin{:});
             args = pin.Results;
             
@@ -73,9 +79,10 @@ classdef intan < neurostim.plugins.ePhys
             o.addProperty('testMode',args.testMode);
             o.addProperty('isRecording',false);
             o.addProperty('loggedEstim',[],'validate',@iscell);
+            o.addProperty('hostPort',args.hostPort);
             if ~isempty(args.saveDir)
                 o.saveDir = args.saveDir;
-            end
+            end            
         end
         
         %% Generic Communcation
@@ -84,41 +91,65 @@ classdef intan < neurostim.plugins.ePhys
             if ~iscell(msg)
                 msg = {msg};
             end
-            for ii = 1:numel(msg)
-                try
-                    writeline(o.tcpSocket,msg{ii});
-                catch % older matlab?
-                    fprintf(o.tcpSocket,msg{ii});
+            if o.intanVer >= 3.1
+                for ii = 1:numel(msg)
+                    try
+                        write(o.tcpSocket,msg{ii});
+                        pause(0.02);
+                    catch % older matlab?
+                        fprintf(o.tcpSocket,msg{ii});
+                    end
+                end
+            else
+                for ii = 1:numel(msg)
+                    try
+                        writeline(o.tcpSocket,msg{ii});
+                    catch % older matlab?
+                        fprintf(o.tcpSocket,msg{ii});
+                    end
                 end
             end
         end
         function msg = readMessage(o)
             % Read a message from Intan
-            try
-                msg = readline(o.tcpSocket);
-            catch % older matlab?
-                msg = fscanf(o.tcpSocket);
+            if o.intanVer >= 3.1
+                try msg = char(read(o.tcpSocket));
+                catch % older matlab?
+                    msg = fscanf(o.tcpSocket);
+                end
+            else
+                try
+                    msg = readline(o.tcpSocket);
+                catch % older matlab?
+                    msg = fscanf(o.tcpSocket);
+                end
+                msg = string(msg(1:end-1));
             end
-            msg = string(msg(1:end-1));
         end
         
         %% Neurostim Events
         function beforeExperiment(o)
             % Create a tcp/ip socket
-            o.tcpSocket = neurostim.plugins.intan.createTCPobject;
-            msg = o.readMessage;
-            if ~strcmp(msg,"READY")
-                disp('ERROR. BAD CONNECTION.')
+            o.createTCPobject;
+            if ~o.intanVer == 3.1
+                msg = o.readMessage;
+                if ~strcmp(msg,"READY")
+                    disp('ERROR. BAD CONNECTION.')
+                end
+                flushinput(o.tcpSocket)
             end
-            flushinput(o.tcpSocket)
             % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
             % Send the settings file to Intan
-            o.setSettings();            
-            % Configure Intan for amplifier settling
-            o.ampSettle();
-            % Set the save path in Intan (again)
+            o.setSettings();
+            % Send default stimulation settings to Intan
+            %o.setDefaultStim(); %% TODO
+            % Set the save path in Intan
             o.setSavePath();
+            % Configure old Intan for amplifier settling
+            if o.intanVer < 3.1
+                o.ampSettle();
+            end
             % Start recording
             o.startRecording();
         end
@@ -162,54 +193,125 @@ classdef intan < neurostim.plugins.ePhys
         
         %% Setup Intan Firmware
         function setupIntan(o)
-            % Convert the parameter set into strings
-            % Convert the channel number into an Intan channel identifier
-            for ii = 1:numel(o.estimulus)
-                thisChn = getIntanChannel(o,'index',ii);
-                msg{1} = strcat('channel=',thisChn);
-                msg{2} = strcat('pulseOrTrain=',num2str(o.estimulus{ii}.pot));
-                if o.estimulus{ii}.pot
-                    if o.estimulus{ii}.nod == 1
-                        msg{3} = strcat('numberOfStimPulses=',num2str(o.estimulus{ii}.nsp));
-                    elseif o.estimulus{ii}.nod == 2
-                        nsp = floor((o.estimulus{ii}.pod / 1e6) * o.estimulus{ii}.fre);
-                        if nsp > 99
-                            nsp = 99;
-                        end
-                        msg{3} = strcat('numberOfStimPulses=',num2str(nsp));
+            if o.intanVer >= 3.1
+                for ii = 1:numel(o.estimulus)
+                    thisChn = getIntanChannel(o,'index',ii);                    
+                    switch o.estimulus{ii}.pot
+                        case 0
+                            msg{1} = ['set ' thisChn '.PulseOrTrain SinglePulse;'];
+                            msg{2} = ['set ' thisChn '.NumberOfStimPulses 1;'];
+                        case 1
+                            msg{1} = ['set ' thisChn '.PulseOrTrain PulseTrain;'];
+                            if o.estimulus{ii}.nod == 1
+                                msg{2} = ['set ' thisChn '.NumberOfStimPulses ' num2str(o.estimulus{ii}.nsp) ';'];
+                            elseif o.estimulus{ii}.nod == 2
+                                nsp = floor((o.estimulus{ii}.pod / 1e6) * o.estimulus{ii}.fre);
+                                if nsp > 256
+                                    nsp = 256;
+                                end
+                                msg{2} = ['set ' thisChn '.numberOfStimPulses ' num2str(nsp) ';'];
+                            end
                     end
-                else
-                    msg{3} = 'numberOfStimPulses=1';
+                    msg{3} = ['set ' thisChn '.PulseTrainPeriodMicroseconds ' num2str((1e6/o.estimulus{ii}.fre)) ';'];
+                    msg{4} = ['set ' thisChn '.RefractoryPeriodMicroseconds ' num2str(o.estimulus{ii}.ptr) ';'];
+                    msg{5} = ['set ' thisChn '.FirstPhaseDurationMicroseconds ' num2str(o.estimulus{ii}.fpd) ';'];
+                    msg{6} = ['set ' thisChn '.SecondPhaseDurationMicroseconds ' num2str(o.estimulus{ii}.spd) ';'];
+                    msg{7} = ['set ' thisChn '.InterphaseDelayMicroseconds ' num2str(o.estimulus{ii}.ipi) ';'];
+                    msg{8} = ['set ' thisChn '.FirstPhaseAmplitudeMicroAmps ' num2str(o.estimulus{ii}.fpa) ';'];
+                    msg{9} = ['set ' thisChn '.SecondPhaseAmplitudeMicroAmps ' num2str(o.estimulus{ii}.spa) ';'];
+                    msg{10} = ['set ' thisChn '.PreStimAmpSettleMicroseconds ' num2str(o.estimulus{ii}.prAS) ';'];
+                    msg{11} = ['set ' thisChn '.PostStimAmpSettleMicroseconds ' num2str(o.estimulus{ii}.poAS) ';'];
+                    msg{12} = ['set ' thisChn '.PostStimChargeRecovOnMicroseconds ' num2str(o.estimulus{ii}.prCR) ';'];
+                    msg{13} = ['set ' thisChn '.PostStimChargeRecovOffMicroseconds ' num2str(o.estimulus{ii}.poCR) ';'];
+                    switch o.estimulus{ii}.stSH
+                        case 0
+                             msg{14} = ['set ' thisChn '.Shape Biphasic;'];
+                        case 1
+                             msg{14} = ['set ' thisChn '.Shape BiphasicWithInterphaseDelay;'];
+                        case 2
+                             msg{14} = ['set ' thisChn '.Shape Triphasic;'];
+                    end                   
+                    switch o.estimulus{ii}.enAS
+                        case 0
+                            msg{15} = ['set ' thisChn '.EnableAmpSettle False;'];
+                        case 1
+                            msg{15} = ['set ' thisChn '.EnableAmpSettle True;'];
+                    end
+                    switch o.estimulus{ii}.maAS
+                        case 0
+                            msg{16} = ['set ' thisChn '.MaintainAmpSettle False;'];
+                        case 1
+                            msg{16} = ['set ' thisChn '.MaintainAmpSettle True;'];
+                    end
+                    switch o.estimulus{ii}.enCR
+                        case 0
+                            msg{17} = ['set ' thisChn '.EnableChargeRecovery False;'];
+                        case 1
+                            msg{17} = ['set ' thisChn '.EnableChargeRecovery True;'];
+                    end
+                    switch o.estimulus{ii}.enabled
+                        case 0
+                            msg{18} = ['set ' thisChn '.StimEnabled False;'];
+                        case 1
+                            msg{18} = ['set ' thisChn '.StimEnabled True;'];
+                    end                                                          
+                    o.sendMessage(msg);
+                    o.activechns(numel(o.activechns)+1) = {thisChn};
+                    o.sendMessage('set runmode pause;');
+                    o.sendMessage(['execute uploadstimparameters ' thisChn ';']);
+                    o.getUploadInProgress;
+                    o.sendMessage('set runmode unpause;');
+                end                
+            else
+                % Convert the parameter set into strings
+                % Convert the channel number into an Intan channel identifier
+                for ii = 1:numel(o.estimulus)
+                    thisChn = getIntanChannel(o,'index',ii);
+                    msg{1} = strcat('channel=',thisChn);
+                    msg{2} = strcat('pulseOrTrain=',num2str(o.estimulus{ii}.pot));
+                    if o.estimulus{ii}.pot
+                        if o.estimulus{ii}.nod == 1
+                            msg{3} = strcat('numberOfStimPulses=',num2str(o.estimulus{ii}.nsp));
+                        elseif o.estimulus{ii}.nod == 2
+                            nsp = floor((o.estimulus{ii}.pod / 1e6) * o.estimulus{ii}.fre);
+                            if nsp > 99
+                                nsp = 99;
+                            end
+                            msg{3} = strcat('numberOfStimPulses=',num2str(nsp));
+                        end
+                    else
+                        msg{3} = 'numberOfStimPulses=1';
+                    end
+                    msg{4} = strcat('pulseTrainPeriod=',num2str(min((1e6/o.estimulus{ii}.fre),1e6)));
+                    msg{5} = strcat('refractoryPeriod=',num2str(o.estimulus{ii}.ptr));
+                    msg{6} = strcat('firstPhaseDuration=',num2str(o.estimulus{ii}.fpd));
+                    msg{7} = strcat('secondPhaseDuration=',num2str(o.estimulus{ii}.spd));
+                    msg{8} = strcat('interphaseDelay=',num2str(o.estimulus{ii}.ipi));
+                    msg{9} = strcat('firstPhaseAmplitude=',num2str(o.estimulus{ii}.fpa));
+                    msg{10} = strcat('secondPhaseAmplitude=',num2str(o.estimulus{ii}.spa));
+                    msg{11} = strcat('preStimAmpSettle=',num2str(o.estimulus{ii}.prAS));
+                    msg{12} = strcat('postStimAmpSettle=',num2str(o.estimulus{ii}.poAS));
+                    msg{13} = strcat('postStimChargeRecovOn=',num2str(o.estimulus{ii}.prCR));
+                    msg{14} = strcat('postStimChargeRecovOff=',num2str(o.estimulus{ii}.poCR));
+                    msg{15} = strcat('stimShape=',num2str(o.estimulus{ii}.stSH));
+                    msg{16} = strcat('enableAmpSettle=',num2str(o.estimulus{ii}.enAS));
+                    msg{17} = strcat('maintainAmpSettle=',num2str(o.estimulus{ii}.maAS));
+                    msg{18} = strcat('enableChargeRecovery=',num2str(o.estimulus{ii}.enCR));
+                    msg{19} = strcat('ID=',num2str(o.cic.trial));
+                    msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));
+                    o.sendMessage(msg);
+                    o.activechns(numel(o.activechns)+1) = {thisChn};
                 end
-                msg{4} = strcat('pulseTrainPeriod=',num2str((1e6/o.estimulus{ii}.fre)));
-                msg{5} = strcat('refractoryPeriod=',num2str(o.estimulus{ii}.ptr));
-                msg{6} = strcat('firstPhaseDuration=',num2str(o.estimulus{ii}.fpd));
-                msg{7} = strcat('secondPhaseDuration=',num2str(o.estimulus{ii}.spd));
-                msg{8} = strcat('interphaseDelay=',num2str(o.estimulus{ii}.ipi));
-                msg{9} = strcat('firstPhaseAmplitude=',num2str(o.estimulus{ii}.fpa));
-                msg{10} = strcat('secondPhaseAmplitude=',num2str(o.estimulus{ii}.spa));
-                %msg{11} = strcat('preStimAmpSettle=',num2str(o.estimulus{ii}.prAS));
-                %msg{12} = strcat('postStimAmpSettle=',num2str(o.estimulus{ii}.poAS));
-                %msg{13} = strcat('postStimChargeRecovOn=',num2str(o.estimulus{ii}.prCR));
-                %msg{14} = strcat('postStimChargeRecovOff=',num2str(o.estimulus{ii}.poCR));
-                msg{15} = strcat('stimShape=',num2str(o.estimulus{ii}.stSH));
-                %msg{16} = strcat('enableAmpSettle=',num2str(o.estimulus{ii}.enAS));
-                %msg{17} = strcat('maintainAmpSettle=',num2str(o.estimulus{ii}.maAS));
-                %msg{18} = strcat('enableChargeRecovery=',num2str(o.estimulus{ii}.enCR));
-                msg{19} = strcat('ID=',num2str(o.cic.trial));
-                msg{20} = strcat('enabled=',num2str(o.estimulus{ii}.enabled));                
-                o.sendMessage(msg);                
-                o.activechns(numel(o.activechns)+1) = {thisChn};
-            end
-            if numel(o.estimulus) > 0
-                o.sendSet();
-                reply = o.readMessage;
-                while ~strcmpi(reply,['Parameter ' num2str(o.cic.trial) ' Set'])
+                if numel(o.estimulus) > 0
+                    o.sendSet();
                     reply = o.readMessage;
+                    while ~strcmpi(reply,['Parameter ' num2str(o.cic.trial) ' Set'])
+                        reply = o.readMessage;
+                    end
                 end
+                o.handshake = 1;
+                o.checkTCPOK;
             end
-            o.handshake = 1;
-            o.checkTCPOK;
         end
         
         %% Specific Intan Commands
@@ -224,24 +326,76 @@ classdef intan < neurostim.plugins.ePhys
             o.estimulus(numel(o.estimulus)+1) = {e};
         end
         function setSettings(o)
-            % Grab the settings file
-            o.settingsFile = o.loadSettingsFile;
-            % Verify TCP connections
-            o.handshake = 1;
-            o.checkTCPOK;
-            % Tell Intan to load the settings file
-            o.sendMessage(['LOADSETTINGS=' o.settingsFile]);
+            if o.intanVer >= 3.1
+                %% Populate default values
+                % Save file formatting
+                settings.saveFormat = 'FileFormat OneFilePerChannel;';
+                settings.saveSpikes = 'SaveSpikeData true;';
+                settings.saveSpikeSnapshots = 'SaveSpikeSnapshots true;';
+                settings.saveDCAmplifierWaveforms = 'SaveDCAmplifierWaveforms true;';
+                % Default display filters
+                settings.NotchFilter = 'NotchFilterFreqHertz 50;';
+                % Default display settings
+                settings.FilterDisplay1 = 'FilterDisplay1 Low;';
+                settings.FilterDisplay2 = 'FilterDisplay2 Spk;';
+                settings.ArrangeBy = 'ArrangeBy Filter;';
+                settings.LabelWidth = 'LabelWidth Narrow;';
+                % Artifact Suppresssion
+                settings.ArtifactSuppression = 'ArtifactSuppressionEnabled true;';
+                settings.ArtifactsShown = 'ArtifactsShown true;';
+                settings.ArtifactSuppressionThreshold = 'ArtifactSuppressionThresholdMicroVolts 500;';
+                % Amplifier Fast Settle
+                settings.HeadstageGlobalSettle = 'HeadstageGlobalSettle true;';
+                % Digital In Channels
+                settings.DigitalIn1 = 'DIGITAL-IN-01.enabled true;';
+                settings.DigitalIn2 = 'DIGITAL-IN-02.enabled true;';
+                settings.AnalogIn1 = 'ANALOG-IN-1.enabled true;';
+                % Apply the channel mapping
+                for ii = 1:numel(o.chnMap)
+                    settings.(['CHN' num2str(ii)]) = [o.getIntanChannel('chn',ii) '.customchannelname E' num2str(ii) ';'];
+                    settings.(['CHN' num2str(ii) 'Order']) = [o.getIntanChannel('chn',ii) '.UserOrder ' num2str(ii) ';'];
+                end
+                % Store the default settings
+                o.settingsStruct = settings;
+                % Apply these settings
+                fnames = fieldnames(o.settingsStruct);
+                for ii = 1:numel(fieldnames(o.settingsStruct))
+                    o.sendMessage(['set ' o.settingsStruct.(fnames{ii})]);
+                end
+                o.sendMessage('execute uploadampsettlesettings');
+                o.getUploadInProgress;
+                o.sendMessage('execute uploadchargerecoverysettings');
+                o.getUploadInProgress;
+                o.sendMessage('execute uploadbandwidthsettings');
+                o.getUploadInProgress;
+            else
+                % Grab the settings file
+                o.settingsFile = o.loadSettingsFile;
+                % Verify TCP connections
+                o.handshake = 1;
+                o.checkTCPOK;
+                % Tell Intan to load the settings file
+                o.sendMessage(['LOADSETTINGS=' o.settingsFile]);
+            end
         end
         function setSavePath(o)
             % Set the Intan save path
             o.saveDir = o.setSaveDir(o.saveDir);
-            % Verify TCP connections
-            o.handshake = 1;
-            o.checkTCPOK;
+            savePath = split(o.saveDir,filesep);
+            saveFile = savePath{end};
+            savePath = strjoin(savePath(1:end-1),filesep);
             % Pass the savepath to Intan
-            o.sendMessage(['SETSAVEPATH=' o.saveDir]);            
+            o.sendMessage(['set FileName.Path ' savePath]);
+            o.sendMessage(['set FileName.BaseFileName ' saveFile]);
         end
-        
+        function setDefaultStim(o)
+            % Default stim parameters
+            
+            % Check for estimulus defaults
+
+            o.sendMessage('execute uploadstimparameters');
+            o.getUploadInProgress;
+        end
         %% Handle Channel Mapping
         function c = getIntanChannel(o,varargin)
             % Handle input
@@ -286,6 +440,13 @@ classdef intan < neurostim.plugins.ePhys
             if isa(o.cfgFcn, 'function_handle') && strncmp(char(o.cfgFcn), '@', 1)
                 % If this property is an anonymous function, get channel map from here
                 chnMap = o.cfgFcn();
+                if iscell(chnMap)
+                    tmp = [];
+                    for ii = 1:numel(chnMap)
+                        tmp = [tmp,chnMap{ii}]; %#ok<AGROW> 
+                    end
+                    chnMap = tmp;
+                end
                 return
             end
             if isa(o.cfgFile, 'file') && ~isempty(dir(o.cfgFile))
@@ -387,21 +548,23 @@ classdef intan < neurostim.plugins.ePhys
     methods (Access = protected)
         function startRecording(o)
             if ~o.testMode
-                % Verify TCP connections
-                o.handshake = 1;
-                o.checkTCPOK;
-                o.sendMessage('RECORD');
+                pause(0.05);
+                o.sendMessage('set runmode record');
                 o.isRecording = true;
                 % Expect a message from Intan here
-                msg = o.readMessage;
-                msg = split(msg,'=');
-                % This should always be true
-                while ~strcmp(msg{1},'SAVE')
-                    warning('Intan did not notify neurostim of its saveDir. This is a non-critical error.');
+                notifSaveDir = 0;
+                while ~notifSaveDir
                     msg = o.readMessage;
-                    msg = split(msg,'=');
+                    expectedReturnString = 'Return: FileName ';
+                    if contains(msg, expectedReturnString)
+                        o.saveDir = msg(length(expectedReturnString)+1:end);
+                        notifSaveDir = 1;
+                    end
+                    pause(0.01);
                 end
-                o.saveDir = msg{2};
+                if isempty(o.saveDir)
+                    warning('Intan did not notify neurostim of its saveDir. This is a non-critical error.');                    
+                end                
             end
         end
         function stopRecording(o)
@@ -413,31 +576,39 @@ classdef intan < neurostim.plugins.ePhys
                 clear o.tcpSocket;
             end
         end
-    end
-    methods (Static)
-        function t = createTCPobject
-            CONNECTION = '0.0.0.0'; % Allows connections from any IP
-            PORT = 9004;            % Can be anything, but must be consistent. Don't use a common port.
-            TIMEOUT = 1;            % How long execution will wait for a response (seconds)
-            myIP = neurostim.plugins.intan.getIP;
-            disp(['The IP address is: ' myIP]);
-            disp(['The port is: ' num2str(PORT)]);
-            try
-                t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);
-                while ~t.Connected
-                    pause(0.01);
+        function uploadInProgress = getUploadInProgress(o)
+            % Query if upload is currently in progress. If it still is, then wait
+            % 100 ms and try again until it's not
+            pause(0.05);
+            uploadInProgress = "True";
+            while ~strcmp(uploadInProgress, "False")
+                o.sendMessage('get uploadinprogress');
+                msg = o.readMessage;
+                expectedReturnString = 'Return: UploadInProgress ';
+                if contains(msg, expectedReturnString)                
+                    uploadInProgress = msg(length(expectedReturnString)+1:end);
                 end
-            catch % older matlab?
-                t = tcpip(CONNECTION,PORT,'NetworkRole','server','Timeout',TIMEOUT);
-                fopen(t);
-            end
+                pause(0.1);
+            end            
         end
-        function myIP = getIP
-            [~,myIP]=system('ipconfig');
-            myIP = strsplit(myIP,'IPv4 Address');
-            myIP = splitlines(myIP{2});
-            myIP = strsplit(myIP{1},':');
-            myIP = myIP{2}(2:end);
+        function createTCPobject(o)
+            if o.intanVer >= 3.1
+                try
+                    o.tcpSocket = tcpclient(o.hostAddr,o.hostPort,'ConnectTimeout',30);
+                catch % older matlab?
+                    o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','client','Timeout',1); %#ok<TCPC>
+                    fopen(o.tcpSocket);
+                end
+            else
+                % old Intan software. Not recommended!
+                disp('Please connect Intan to neurostim');
+                try
+                    o.tcpServer = tcpserver(o.hostAddr,o.hostPort,'ConnectTimeout',30);
+                catch % older matlab?
+                    o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','server','Timeout',1); %#ok<TCPS>
+                    fopen(o.tcpSocket);
+                end
+            end
         end
     end
 end
