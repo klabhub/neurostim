@@ -419,9 +419,15 @@ classdef intan < neurostim.plugins.ePhys
             CONNECTION = '0.0.0.0'; % Allows connections from any IP
             PORT = 9004;            % Can be anything, but must be consistent. Don't use a common port.
             TIMEOUT = 1;            % How long execution will wait for a response (seconds)
-            myIP = neurostim.plugins.intan.getIP;
-            disp(['The IP address is: ' myIP]);
-            disp(['The port is: ' num2str(PORT)]);
+            
+            if ispc
+                myIP = neurostim.plugins.intan.getIP;
+                disp(['The IP address is: ' myIP]);
+                disp(['The port is: ' num2str(PORT)]);
+            else
+                disp('This is not Windows, so we do not know IP. It should be configured correctly elsewhere.');
+            end
+            keyboard
             try
                 t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);
                 while ~t.Connected
@@ -433,6 +439,7 @@ classdef intan < neurostim.plugins.ePhys
             end
         end
         function myIP = getIP
+            keyboard;
             [~,myIP]=system('ipconfig');
             myIP = strsplit(myIP,'IPv4 Address');
             myIP = splitlines(myIP{2});
