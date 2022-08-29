@@ -427,7 +427,6 @@ classdef intan < neurostim.plugins.ePhys
             else
                 disp('This is not Windows, so we do not know IP. It should be configured correctly elsewhere.');
             end
-            keyboard
             try
                 t = tcpserver(CONNECTION,PORT,'Timeout',TIMEOUT);
                 while ~t.Connected
