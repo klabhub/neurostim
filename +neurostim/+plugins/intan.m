@@ -52,8 +52,10 @@ classdef intan < neurostim.plugins.ePhys
         settingsPath = [];  % Can be given a filepath that contains the Intan settings file.
         settingsStruct = [];% Can contain a list of settings to apply to Intan. Automatically populated with default values.        
         settingsFile = [];  % Contains the Intan settings file path.
-        chnList = [];       % Used to pass a list of channels for amplifier settle configuration
-        saveDir = 'C:\Data';% Provides the base path to the Data directory on the recording machine. Default is C:\Data           
+        chnList = [];       % Used to pass a list of channels for amplifier settle configuration        
+        numChannels = 0;    % The number of active channels in Intan
+        ports = [];         % List of enabled Intan ports
+        saveDir = '';       % Intan acquisition directory
         intanVer = 3.1;
     end
     
@@ -66,8 +68,8 @@ classdef intan < neurostim.plugins.ePhys
             pin.KeepUnmatched = true;            
             pin.addParameter('tcpSocket', '');
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording            
-            pin.addParameter('saveDir','',@ischar); % Contains the saveDir string associated with the current recording
-            pin.addParameter('hostPort',9004, @isnumeric); % The port Intan will use to communicate with neurostim
+            pin.addParameter('saveDir','C:\Data',@ischar); % Contains the saveDir string associated with the current recording
+            pin.addParameter('hostPort',9004, @isnumeric); % The port Intan will use to communicate with neurostim            
             pin.parse(varargin{:});
             args = pin.Results;
             
@@ -80,9 +82,9 @@ classdef intan < neurostim.plugins.ePhys
             o.addProperty('isRecording',false);
             o.addProperty('loggedEstim',[],'validate',@iscell);
             o.addProperty('hostPort',args.hostPort);
-            if ~isempty(args.saveDir)
-                o.saveDir = args.saveDir;
-            end            
+           
+            % Update saveDir
+            o.saveDir = args.saveDir;
         end
         
         %% Generic Communcation
@@ -140,6 +142,8 @@ classdef intan < neurostim.plugins.ePhys
             end
             % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
+            % Create port mapping
+            o.portMapping;
             % Send the settings file to Intan
             o.setSettings();
             % Send default stimulation settings to Intan
@@ -352,8 +356,8 @@ classdef intan < neurostim.plugins.ePhys
                 settings.AnalogIn1 = 'ANALOG-IN-1.enabled true;';
                 % Apply the channel mapping
                 for ii = 1:numel(o.chnMap)
-                    settings.(['CHN' num2str(ii)]) = [o.getIntanChannel('chn',ii) '.customchannelname E' num2str(ii) ';'];
-                    settings.(['CHN' num2str(ii) 'Order']) = [o.getIntanChannel('chn',ii) '.UserOrder ' num2str(ii) ';'];
+                    settings.(['CHN' num2str(ii)]) = [o.getIntanChannel('chn',ii) '.customchannelname E' num2str(ii - (ceil(ii/32)-1) * 32) ';'];
+                    settings.(['CHN' num2str(ii) 'Order']) = [o.getIntanChannel('chn',ii) '.UserOrder ' num2str(ii - (ceil(ii/32)-1) * 32) ';'];
                 end
                 % Store the default settings
                 o.settingsStruct = settings;
@@ -396,6 +400,36 @@ classdef intan < neurostim.plugins.ePhys
             o.sendMessage('execute uploadstimparameters');
             o.getUploadInProgress;
         end
+        function portMapping(o)
+            % Handles conversion from channel mapping to port numbering
+            o.sendMessage('get a.channelspresent');
+            numC = o.readMessage;            
+            if numC > 0
+                o.ports{end+1} = 'A';
+                o.numChannels = o.numChannels + numC;
+            end
+            o.sendMessage('get b.channelspresent');
+            numC = o.readMessage;            
+            if numC > 0
+                o.ports{end+1} = 'B';
+                o.numChannels = o.numChannels + numC;
+            end
+            o.sendMessage('get c.channelspresent');
+            numC = o.readMessage;            
+            if numC > 0
+                o.ports{end+1} = 'C';
+                o.numChannels = o.numChannels + numC;
+            end
+            o.sendMessage('get d.channelspresent');
+            numC = o.readMessage;            
+            if numC > 0
+                o.ports{end+1} = 'D';
+                o.numChannels = o.numChannels + numC;
+            end            
+            if o.numChannels ~= numel(o.chnMap)
+                warning('Intan does not have the same number of enabled channels as the provided configuration. Proceed at your own risk.');
+            end
+        end
         %% Handle Channel Mapping
         function c = getIntanChannel(o,varargin)
             % Handle input
@@ -409,31 +443,13 @@ classdef intan < neurostim.plugins.ePhys
                 % Sanitise channel numbering to 1 - 32 for Intan port numbering
                 % schemes
                 if isempty(o.estimulus{args.index}.port)
-                    switch ceil(thisChn / 32)
-                        case 1 % port A
-                            c = ['A-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
-                        case 2 % port B
-                            c = ['B-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
-                        case 3 % port C
-                            c = ['C-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
-                        case 4 % port D
-                            c = ['D-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
-                    end
+                    c = [o.ports{ceil(thisChn / 32)} '-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed                    
                 else                    
                     c = [o.estimulus{args.index}.port '-' num2str(thisChn-1,'%03d')]; % Intan is 0-indexed
                 end
             elseif args.chn
                 thisChn = o.chnMap(args.chn);
-                switch ceil(thisChn / 32)
-                    case 1 % port A
-                        c = ['A-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
-                    case 2 % port B
-                        c = ['B-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
-                    case 3 % port C
-                        c = ['C-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
-                    case 4 % port D
-                        c = ['D-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
-                end
+                c = [o.ports{ceil(thisChn / 32)} '-' num2str(mod(thisChn-1,32),'%03d')]; % Intan is 0-indexed
             end
         end
         function chnMap = loadIntanChannelMap(o)
@@ -517,10 +533,10 @@ classdef intan < neurostim.plugins.ePhys
         
         %% Force Uniform Save Directory
         function saveDir = setSaveDir(o,saveDir)
-            saveDir = strsplit(saveDir,filesep);
-            saveDir = strjoin(saveDir(1:end-1),filesep);
+            saveDir = strsplit(saveDir,'\');
+            saveDir = strjoin(saveDir(1:end-1),'\');
             [y,m,d] = ymd(datetime(o.cic.date,'InputFormat','dd MMM yyyy'));
-            saveDir = [saveDir filesep num2str(y,'%4.0f') filesep num2str(m,'%02.0f') filesep num2str(d,'%02.0f') filesep o.cic.file];
+            saveDir = [saveDir '\' num2str(y,'%4.0f') '\' num2str(m,'%02.0f') '\' num2str(d,'%02.0f') '\' o.cic.file];
         end
         
         %% Generic Health Check
