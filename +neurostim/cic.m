@@ -956,7 +956,8 @@ classdef cic < neurostim.plugin
             %% Set up order and blocks
             order(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
-
+            
+            
             % Force adaptive plugins assigned directly to parameters into
             % the block design object(s) instead. This ensures the adaptive
             % plugins are updated correctly (by the block object(s)).
@@ -969,7 +970,7 @@ classdef cic < neurostim.plugin
             %% Start preparation in all plugins.
             c.window = c.mainWindow; % Allows plugins to use .window
             locHAVEOVERLAY = ~isempty(c.overlayWindow);
-
+            
             base(c.pluginOrder,neurostim.stages.BEFOREEXPERIMENT,c);
             showCursor(c);
             KbQueueCreate(c); % After plugins have completed their beforeExperiment (to addKeys)
@@ -1010,11 +1011,14 @@ classdef cic < neurostim.plugin
                 c.flags.block = true;
                 c.block = c.blockFlow.list(blockCntr); % Logged.
                 c.blockCntr= blockCntr;
-
+                
                 beforeBlock(c);
 
                 %% Start the trials in the block
+                Priority(MaxPriority(c.mainWindow));
                 c.blockTrial =0;
+                
+                
                 while ~c.blocks(c.block).done
                     c.trial = c.trial+1;
 
@@ -1053,7 +1057,7 @@ classdef cic < neurostim.plugin
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush',kbDeviceIndices);
-                    Priority(MaxPriority(c.mainWindow));
+%                    Priority(MaxPriority(c.mainWindow));
 
                     % Timing the draw : commented out. See drawingFinished code below
                     % draw = nan(1,1000);
@@ -1239,7 +1243,7 @@ classdef cic < neurostim.plugin
 
                     c.frame = c.frame+1;
 
-                    Priority(0);
+%                     Priority(0);
 
                     afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
 

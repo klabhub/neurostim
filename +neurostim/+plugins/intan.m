@@ -114,7 +114,10 @@ classdef intan < neurostim.plugins.ePhys
             % Grab the channel mapping
             o.chnMap = o.loadIntanChannelMap;
             % Send the settings file to Intan
-            o.setSettings();            
+            o.setSettings();  
+            % Throw a keyboard break to allow rescan ports n.b. Sabrina fix
+            % for port D
+            keyboard;
             % Configure Intan for amplifier settling
             o.ampSettle();
             % Set the save path in Intan (again)
@@ -356,10 +359,10 @@ classdef intan < neurostim.plugins.ePhys
         
         %% Force Uniform Save Directory
         function saveDir = setSaveDir(o,saveDir)
-            saveDir = strsplit(saveDir,filesep);
-            saveDir = strjoin(saveDir(1:end-1),filesep);
+            saveDir = strsplit(saveDir,'\');
+            saveDir = strjoin(saveDir(1:end-1),'\');
             [y,m,d] = ymd(datetime(o.cic.date,'InputFormat','dd MMM yyyy'));
-            saveDir = [saveDir filesep num2str(y,'%4.0f') filesep num2str(m,'%02.0f') filesep num2str(d,'%02.0f') filesep o.cic.file];
+            saveDir = [saveDir '\' num2str(y,'%4.0f') '\' num2str(m,'%02.0f') '\' num2str(d,'%02.0f') '\' o.cic.file];
         end
         
         %% Generic Health Check
