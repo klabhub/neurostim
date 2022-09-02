@@ -215,8 +215,6 @@ classdef intan < neurostim.plugins.ePhys
         function setupIntan(o)
             if o.intanVer >= 3.1
                 msg = {};
-                uploadASFlag = 0;
-                uploadCRFlag = 0;
                 for ii = 1:numel(o.estimulus)
                     thisChn = o.getIntanChannel('index',ii);                    
                     switch o.estimulus{ii}.pot
@@ -312,7 +310,6 @@ classdef intan < neurostim.plugins.ePhys
                             if o.estimulus{ii}.enAS ~= o.chns{o.estimulus{ii}.chn}.enAS
                                 o.chns{o.estimulus{ii}.chn}.enAS = o.estimulus{ii}.enAS;
                                 msg{end+1} = ['set ' thisChn '.EnableAmpSettle True;'];
-                                uploadASFlag = 1;
                             end
                     end
                     switch o.estimulus{ii}.maAS
@@ -337,7 +334,6 @@ classdef intan < neurostim.plugins.ePhys
                             if o.estimulus{ii}.enCR ~= o.chns{o.estimulus{ii}.chn}.enCR
                                 o.chns{o.estimulus{ii}.chn}.enCR = o.estimulus{ii}.enCR;
                                 msg{end+1} = ['set ' thisChn '.EnableChargeRecovery True;'];
-                                uploadCRFlag = 1;
                             end
                     end
                     switch o.estimulus{ii}.enabled
@@ -353,14 +349,6 @@ classdef intan < neurostim.plugins.ePhys
                     o.activechns(numel(o.activechns)+1) = {thisChn};                                        
                     o.sendMessage(['execute uploadstimparameters ' thisChn ';']);
                     o.getUploadInProgress;
-                    if uploadASFlag
-                        o.sendMessage('execute uploadampsettlesettings true;');
-                        o.getUploadInProgress;
-                    end
-                    if uploadCRFlag
-                        o.sendMessage(['execute uploadchargerecoverysettings;']);
-                        o.getUploadInProgress;
-                    end
                     o.sendMessage('set runmode unpause;');
                 end                
             else
