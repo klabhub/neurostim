@@ -60,7 +60,7 @@ classdef estim < neurostim.stimulus
             s.addProperty('maAS',1,'validate',@isnumeric);
             s.addProperty('enCR',1,'validate',@isnumeric);
             s.addProperty('recDir','','validate',@ischar);
-            s.addProperty('port','A','validate',@ischar);
+            s.addProperty('port','','validate',@ischar);
         end
         function beforeExperiment(s)
             if s.mccCntr

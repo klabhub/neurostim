@@ -1795,10 +1795,10 @@ classdef cic < neurostim.plugin
             % the block design object(s) instead. This ensures the adaptive
             % plugins are updated correctly (by the block object(s)).
            
-            plgs = c.order; % *all* plugins
+            plgs = c.pluginOrder; % *all* plugins
             for ii = 1:numel(plgs)
-              plg = plgs{ii}; 
-              prms = prmsByClass(c.(plg),'neurostim.plugins.adaptive');
+              plg = plgs(ii); 
+              prms = prmsByClass(c.(plg.name),'neurostim.plugins.adaptive');
               if isempty(prms)
                 % no adaptive plugins/parameters
                 continue
