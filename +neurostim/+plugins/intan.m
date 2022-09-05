@@ -71,7 +71,7 @@ classdef intan < neurostim.plugins.ePhys
             pin.addParameter('tcpSocket', '');
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
             pin.addParameter('saveDir','C:\Data',@ischar); % Contains the saveDir string associated with the current recording
-            pin.addParameter('hostPort',9004, @isnumeric); % The port Intan will use to communicate with neurostim
+            pin.addParameter('hostPort',5000, @isnumeric); % The port Intan will use to communicate with neurostim
             pin.parse(varargin{:});
             args = pin.Results;
             % Call parent class constructor
@@ -160,23 +160,21 @@ classdef intan < neurostim.plugins.ePhys
         end
         
         function beforeTrial(o)
-            if ~isempty(o.activechns)
-                marker = ones(1,numel(o.activechns));
-                for ii = 1:numel(o.estimulus)
-                    thisChn = getIntanChannel(o,'index',ii);
-                    for jj = 1:numel(o.activechns)
-                        if strcmp(o.activechns{jj},thisChn)
-                            marker(jj) = 0;
+            if o.intanVer < 3.1
+                if ~isempty(o.activechns)
+                    marker = ones(1,numel(o.activechns));
+                    for ii = 1:numel(o.estimulus)
+                        thisChn = getIntanChannel(o,'index',ii);
+                        for jj = 1:numel(o.activechns)
+                            if strcmp(o.activechns{jj},thisChn)
+                                marker(jj) = 0;
+                            end
                         end
                     end
-                end
-                kk = find(marker == 1,1,'last');
-                msg = {};
-                for jj = 1:numel(o.activechns)
-                    if marker(jj) % Disable all channels not used in the coming trial
-                        if o.intanVer >= 3.1
-                            msg{end+1} = ['set ' o.activechns{jj} '.StimEnabled True;'];
-                        else
+                    kk = find(marker == 1,1,'last');
+                    msg = {};
+                    for jj = 1:numel(o.activechns)
+                        if marker(jj) % Disable all channels not used in the coming trial
                             msg{1} = strcat('channel=',o.activechns{jj});
                             msg{2} = 'enabled=0';
                             o.sendMessage(msg);
@@ -186,20 +184,9 @@ classdef intan < neurostim.plugins.ePhys
                                 o.checkTCPOK;
                             end
                         end
-                    end
+                    end                    
+                    o.activechns = {};
                 end
-                if o.intanVer >= 3.1 && ~isempty(msg)
-                    o.sendMessage(msg);
-                    o.sendMessage('set runmode pause;');
-                    for jj = 1:numel(o.activechns)
-                        if marker(jj)
-                            o.sendMessage(['execute uploadstimparameters ' o.activechns{jj} ';']);
-                            o.getUploadInProgress;
-                        end
-                    end
-                    o.sendMessage('set runmode unpause;');
-                end
-                o.activechns = {};
             end
             % Log o.estimulus
             o.loggedEstim = o.estimulus;
@@ -213,9 +200,12 @@ classdef intan < neurostim.plugins.ePhys
         end
         
         %% Setup Intan Firmware
-        function setupIntan(o)
+        function setupIntan(o)            
             if o.intanVer >= 3.1
                 msg = {};
+                for jj = 1:numel(o.activeChns)                    
+                    msg{end+1} = ['set ' o.activechns{jj} '.StimEnabled False;'];
+                end                
                 for ii = 1:numel(o.estimulus)
                     thisChn = o.getIntanChannel('index',ii);
                     switch o.estimulus{ii}.pot
@@ -343,7 +333,7 @@ classdef intan < neurostim.plugins.ePhys
                         case 1
                             msg{end+1} = ['set ' thisChn '.StimEnabled True;'];
                     end
-                    msg{end+1} = ['set trial ' num2str(o.cic.trial) ';']);
+                    msg{end+1} = ['set trial ' num2str(o.cic.trial) ';'];
                     if strcmp(o.iFormat,'pause')
                         o.sendMessage('set runmode pause;');
                     elseif strcmp(o.iFormat,'stop')
@@ -351,8 +341,15 @@ classdef intan < neurostim.plugins.ePhys
                     end
                     o.sendMessage(msg);
                     o.activechns(numel(o.activechns)+1) = {thisChn};
-                    o.sendMessage(['execute uploadstimparameters ' thisChn ';']);
-                    o.getUploadInProgress;
+                    for jj = 1:numel(o.activeChns)
+                        o.sendMessage(['execute uploadstimparameters ' o.activeChns{jj} ';']);
+                        o.getUploadInProgress;
+                    end
+                    if ~any(cellfun(@(x) strcmp(thisChn,x),activeChns))
+                        o.sendMessage(['execute uploadstimparameters ' thisChn ';']);
+                        o.getUploadInProgress;
+                    end
+                    o.activeChns = {};
                     if strcmp(o.iFormat,'pause')
                         o.sendMessage('set runmode unpause;');
                     elseif strcmp(o.iFormat,'stop')
@@ -430,6 +427,12 @@ classdef intan < neurostim.plugins.ePhys
                 settings.saveSpikes = 'SaveSpikeData true;';
                 settings.saveSpikeSnapshots = 'SaveSpikeSnapshots true;';
                 settings.saveDCAmplifierWaveforms = 'SaveDCAmplifierWaveforms true;';
+                settings.createNewDir = 'createNewDirectory true;';
+                if strcmp(o.iFormat,'pause')
+                    settings.createNewDirTrial = 'createNewDirectoryTrial false;';
+                elseif strcmp(o.iFormat,'stop')
+                    settings.createNewDirTrial = 'createNewDirectoryTrial true;';
+                end
                 % Default display filters
                 settings.NotchFilter = 'NotchFilterFreqHertz 50;';
                 % Default display settings
