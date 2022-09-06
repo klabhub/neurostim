@@ -57,8 +57,8 @@ classdef intan < neurostim.plugins.ePhys
         numChannels = 0;    % The number of active channels in Intan
         ports = [];         % List of enabled Intan ports
         saveDir = '';       % Intan acquisition directory
-        intanVer = 3.1;
-        iFormat = 'pause'   % Default format for Intan operation. 'pause' between trials or 'stop' between trials
+        intanVer = 3.1;     % The Intan acqusition software version
+        iFormat = 'single'  % Default format for Intan operation. single: 'pause' between trials or trials: 'stop' between trials
     end
     
     methods (Access=public)
@@ -334,9 +334,9 @@ classdef intan < neurostim.plugins.ePhys
                             msg{end+1} = ['set ' thisChn '.StimEnabled True;'];
                     end
                     msg{end+1} = ['set trial ' num2str(o.cic.trial) ';'];
-                    if strcmp(o.iFormat,'pause')
+                    if strcmp(o.iFormat,'single')
                         o.sendMessage('set runmode pause;');
-                    elseif strcmp(o.iFormat,'stop')
+                    elseif strcmp(o.iFormat,'trial')
                         o.sendMessage('set runmode stop;');
                     end
                     o.sendMessage(msg);
@@ -350,9 +350,9 @@ classdef intan < neurostim.plugins.ePhys
                         o.getUploadInProgress;
                     end
                     o.activeChns = {};
-                    if strcmp(o.iFormat,'pause')
+                    if strcmp(o.iFormat,'single')
                         o.sendMessage('set runmode unpause;');
-                    elseif strcmp(o.iFormat,'stop')
+                    elseif strcmp(o.iFormat,'trial')
                         o.sendMessage('set runmode record;');
                     end                    
                 end
@@ -420,6 +420,7 @@ classdef intan < neurostim.plugins.ePhys
             o.estimulus(numel(o.estimulus)+1) = {e};
         end
         function setSettings(o)
+            o.loadIntanFormat;
             if o.intanVer >= 3.1
                 %% Populate default values
                 % Save file formatting
@@ -428,9 +429,9 @@ classdef intan < neurostim.plugins.ePhys
                 settings.saveSpikeSnapshots = 'SaveSpikeSnapshots true;';
                 settings.saveDCAmplifierWaveforms = 'SaveDCAmplifierWaveforms true;';
                 settings.createNewDir = 'createNewDirectory true;';
-                if strcmp(o.iFormat,'pause')
+                if strcmp(o.iFormat,'single')
                     settings.createNewDirTrial = 'createNewDirectoryTrial false;';
-                elseif strcmp(o.iFormat,'stop')
+                elseif strcmp(o.iFormat,'trial')
                     settings.createNewDirTrial = 'createNewDirectoryTrial true;';
                 end
                 % Default display filters
@@ -610,7 +611,7 @@ classdef intan < neurostim.plugins.ePhys
                 assert(exist(config.chnMap,'var'),'Could not parse the contents of the provided channel map file. Please double-check.');
                 chnMap = config.chnMap;
             end
-        end
+        end        
         function settingsFile = loadSettingsFile(o)
             if isa(o.settingsFcn, 'function_handle') && strncmp(char(o.settingsFcn), '@', 1)
                 % If this property is an anonymous function, get channel map from here
@@ -620,6 +621,12 @@ classdef intan < neurostim.plugins.ePhys
             if isa(o.settingsPath,'char')
                 % If this property contains a path, use this as the path to the settings file
                 settingsFile = o.settingsPath;
+            end
+        end
+        function loadIntanFormat(o)
+            if isa(o.cfgFcn, 'function_handle') && strncmp(char(o.cfgFcn), '@', 1)
+                % If this property is an anonymous function, get channel map from here
+                o.iFormat = o.cfgFcn().iFormat;                
             end
         end
         %% Handle Amplifier Settle Configuration
