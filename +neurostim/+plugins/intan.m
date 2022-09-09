@@ -58,7 +58,8 @@ classdef intan < neurostim.plugins.ePhys
         ports = [];         % List of enabled Intan ports
         saveDir = '';       % Intan acquisition directory
         intanVer = 3.1;     % The Intan acqusition software version
-        iFormat = 'single'  % Default format for Intan operation. single: 'pause' between trials or trials: 'stop' between trials
+        iFormat = 'single'; % Default format for Intan operation. single: 'pause' between trials or trials: 'stop' between trials
+        sFormat = '';       % Contains Intan save format - one file per signal (amplifier.dat, time.dat) or per channel (amp-001.dat, amp-002.dat)
     end
     
     methods (Access=public)
@@ -431,10 +432,10 @@ classdef intan < neurostim.plugins.ePhys
                 o.loadIntanFormat;
                 %% Populate default values
                 % Save file formatting
-                settings.saveFormat = 'FileFormat OneFilePerChannel;';
+                settings.saveFormat = ['FileFormat ' o.sFormat ';'];
                 settings.saveSpikes = 'SaveSpikeData true;';
                 settings.saveSpikeSnapshots = 'SaveSpikeSnapshots true;';
-                settings.saveDCAmplifierWaveforms = 'SaveDCAmplifierWaveforms true;';
+                settings.saveDCAmplifierWaveforms = 'SaveDCAmplifierWaveforms false;';
                 settings.createNewDir = 'createNewDirectory true;';
                 if strcmp(o.iFormat,'single')
                     settings.createNewDirTrial = 'createNewDirectoryTrial false;';
@@ -627,11 +628,14 @@ classdef intan < neurostim.plugins.ePhys
                 settingsFile = o.settingsPath;
             end
         end
-        function loadIntanFormat(o)
-            if isa(o.cfgFcn, 'function_handle') && strncmp(char(o.cfgFcn), '@', 1)
+        function loadIntanFormat(o)            
                 % If this property is an anonymous function, get channel map from here
                 o.iFormat = o.cfg.iFormat;
-            end
+                if isa(o.cfg,'marmodata.intan.formats.intan')
+                    o.sFormat = 'OneFilePerSignal';
+                elseif isa(o.cfg,'marmodata.intan.formats.oephys')
+                    o.sFormat = 'OneFilePerChannel';
+                end
         end
         %% Handle Amplifier Settle Configuration
         function ampSettle(o)
