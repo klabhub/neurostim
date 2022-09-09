@@ -138,14 +138,13 @@ classdef mcc < neurostim.plugins.daq
                 current = DaqDIn(o.daq);
                 port = (channel>8)+1; %Determine which port the bit number belongs to.
                 current = current(port); %Retrieve current value of the port 
-                newValue = bitset(current,mod(channel,8),value); 
-                DaqDOut(o.daq,port-1,newValue);
-                
+                newValue = bitset(current,mod(channel-1,8)+1,value); 
+                DaqDOut(o.daq,port-1,newValue);                
                 if size(varargin) == 1 
                     duration = varargin{1};
                     % timer function may override other functions when time is met
                     % and could cause problems for time-critical tasks
-                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current)); %#ok<CPROPLC>
+                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current)); 
                     start(o.timer);
                 end
             else

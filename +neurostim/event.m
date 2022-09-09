@@ -64,8 +64,10 @@ classdef event
         end
         
         function disp(o)
-            disp([o.eventTypes{o.type} '-event'])
-            builtin('display',o)
+            uT  = unique([o.type]);
+            uTString = strcat(o(1).eventTypes{uT},'/'); 
+            disp([num2str(numel(o)) ' ' uTString(1:end-1) ' events'])
+            %builtin('display',o)
         end
         
     end
