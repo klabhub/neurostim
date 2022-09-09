@@ -579,13 +579,21 @@ classdef cic < neurostim.plugin
 
 
 
-
-
-        function newOrder = order(c,varargin)
-            % pluginOrder = c.order([plugin1] [,plugin2] [,...])
-            % Returns pluginOrder when no input is given.
-            % Inputs: lists name of plugins in the order they are requested
-            % to be executed in.
+        function newOrder = setPluginOrder(c,varargin)
+            % Set and return pluginOrder.
+            %
+            %   pluginOrder = c.setPluginOrder([plugin1] [,plugin2] [,...])
+            %
+            % Inputs:
+            %   A list of plugin names in the order they are requested to
+            %   be executed in.
+            %
+            %   If called with no arguments, the plugin order will be reset
+            %   to the default order, i.e., the order in which plugins were
+            %   added to cic.
+            %
+            % Output:
+            %   A list of plugin names reflecting the new plugin order.
 
             %If there is an existing order, preserve it, unless an empty
             %vector has been supplied (to clear it back to default order)
@@ -954,7 +962,7 @@ classdef cic < neurostim.plugin
             end
 
             %% Set up order and blocks
-            order(c,c.pluginOrder);
+            setPluginOrder(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
 
             % Force adaptive plugins assigned directly to parameters into

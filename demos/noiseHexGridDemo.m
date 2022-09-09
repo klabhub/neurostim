@@ -35,7 +35,7 @@ myBlock = block('myBlock',myDesign);
 myBlock.nrRepeats = 10;
 
 % Run the experiment.
-c.order('fix','noise');
+c.setPluginOrder('fix','noise');
 c.subject = 'easyD';
 c.run(myBlock);
 end
