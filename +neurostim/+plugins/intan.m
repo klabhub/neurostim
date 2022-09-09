@@ -59,7 +59,7 @@ classdef intan < neurostim.plugins.ePhys
         saveDir = '';       % Intan acquisition directory
         intanVer = 3.1;     % The Intan acqusition software version
         iFormat = 'single'; % Default format for Intan operation. single: 'pause' between trials or trials: 'stop' between trials
-        sFormat = '';       % Contains Intan save format - one file per signal (amplifier.dat, time.dat) or per channel (amp-001.dat, amp-002.dat)
+        sFormat = 'OneFilePerChannel'; % Contains Intan save format - one file per signal (amplifier.dat, time.dat) or per channel (amp-001.dat, amp-002.dat)
     end
     
     methods (Access=public)
@@ -628,14 +628,16 @@ classdef intan < neurostim.plugins.ePhys
                 settingsFile = o.settingsPath;
             end
         end
-        function loadIntanFormat(o)            
-                % If this property is an anonymous function, get channel map from here
+        function loadIntanFormat(o)
+            % If this property is an anonymous function, get channel map from here
+            if ~isempty(o.cfg)
                 o.iFormat = o.cfg.iFormat;
                 if isa(o.cfg,'marmodata.intan.formats.intan')
                     o.sFormat = 'OneFilePerSignal';
                 elseif isa(o.cfg,'marmodata.intan.formats.oephys')
                     o.sFormat = 'OneFilePerChannel';
                 end
+            end
         end
         %% Handle Amplifier Settle Configuration
         function ampSettle(o)
