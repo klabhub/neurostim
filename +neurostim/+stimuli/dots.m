@@ -307,8 +307,11 @@ classdef (Abstract) dots < neurostim.stimulus
     end
 
     function v = npnpoly(x,y,vert)
-      % c.f. pnpoly(), but for n points (x,y)     
-      v = arrayfun(@(x,y) neurostim.stimuli.dots.pnpoly(x,y,vert),x,y);
+      % c.f. pnpoly(), but for n points (x,y)
+      v = false(size(x));
+      for ii = 1:numel(x)
+        v(ii) = neurostim.stimuli.dots.pnpoly(x(ii),y(ii),vert);
+      end
     end
 
     function [ox,oy] = popoly(x,y,vert)
@@ -365,7 +368,10 @@ classdef (Abstract) dots < neurostim.stimulus
 
     function [ox,oy] = npopoly(x,y,vert)
       % c.f. popoly(), but for n points (x,y)
-      [ox,oy] = arrayfun(@(x,y) neurostim.stimuli.dots.popoly(x,y,vert),x,y);
+      ox = NaN(size(x)); oy = NaN(size(y));
+      for ii = 1:numel(x)
+        [ox(ii),oy(ii)] = neurostim.stimuli.dots.popoly(x(ii),y(ii),vert);
+      end
     end
 
   end % static methods
