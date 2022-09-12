@@ -721,8 +721,9 @@ classdef intan < neurostim.plugins.ePhys
         function startRecording(o)
             if ~o.testMode
                 if o.intanVer >= 3.1
+                    o.sendMessage('set trial 0;');
                     pause(0.05);
-                    o.sendMessage('set runmode record');
+                    o.sendMessage('set runmode record;');
                     o.isRecording = true;
                     % Expect a message from Intan here
                     notifSaveDir = 0;
@@ -757,7 +758,7 @@ classdef intan < neurostim.plugins.ePhys
         function stopRecording(o)
             if ~o.testMode
                 if o.intanVer >= 3.1
-                    o.sendMessage('set runmode stop');
+                    o.sendMessage('set runmode stop;');
                     o.isRecording = false;
                     clear o.tcpSocket;
                 else
