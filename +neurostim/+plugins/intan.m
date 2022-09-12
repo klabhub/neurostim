@@ -40,9 +40,11 @@ classdef intan < neurostim.plugins.ePhys
     % 'LOADSETTINGS' % Loads an on-disk settings file
     
     properties
+        testMode = 0;       % Flag for test mode. Disables TCP communications and stim for rapid stimulus testing
         estimulus = {};     % Contains a pointer to the active estim plugin
         activechns = {};    % Contains a list of active stimulation channels
         chns = {};          % Contains a list of stimulation parameters for all channels
+        tcpSocket = [];     % Contains a TCP socket for communication with Intan
         handshake = 0;      % Controls whether the Intan manager plugin will halt execution of the thread while awaiting
         % a handshake from the Intan firmware over the
         % TCP connection. !!Important!!
@@ -58,7 +60,8 @@ classdef intan < neurostim.plugins.ePhys
         ports = [];         % List of enabled Intan ports
         saveDir = '';       % Intan acquisition directory
         intanVer = 3.1;     % The Intan acqusition software version
-        iFormat = 'single'  % Default format for Intan operation. single: 'pause' between trials or trials: 'stop' between trials
+        iFormat = 'single'; % Default format for Intan operation. single: 'pause' between trials or trials: 'stop' between trials
+        sFormat = 'OneFilePerChannel'; % Contains Intan save format - one file per signal (amplifier.dat, time.dat) or per channel (amp-001.dat, amp-002.dat)
     end
     
     methods (Access=public)
@@ -67,8 +70,7 @@ classdef intan < neurostim.plugins.ePhys
             % Intan does not have any dependencies on the host computer
             % Parse arguments
             pin = inputParser;
-            pin.KeepUnmatched = true;
-            pin.addParameter('tcpSocket', '');
+            pin.KeepUnmatched = true;            
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
             pin.addParameter('saveDir','C:\Data',@ischar); % Contains the saveDir string associated with the current recording
             pin.addParameter('hostPort',5000, @isnumeric); % The port Intan will use to communicate with neurostim
@@ -77,15 +79,14 @@ classdef intan < neurostim.plugins.ePhys
             % Call parent class constructor
             o = o@neurostim.plugins.ePhys(c,name,pin.Unmatched);
             
-            % Initialise class properties
-            o.addProperty('tcpSocket',args.tcpSocket);
-            o.addProperty('testMode',args.testMode);
+            % Initialise class properties            
             o.addProperty('isRecording',false);
             o.addProperty('loggedEstim',[],'validate',@iscell);
             o.addProperty('hostPort',args.hostPort);
             
-            % Update saveDir
-            o.saveDir = args.saveDir;
+            % Update properties
+            o.testMode = args.testMode;
+            o.saveDir = args.saveDir;            
         end
         
         %% Generic Communcation
@@ -161,8 +162,7 @@ classdef intan < neurostim.plugins.ePhys
                 o.ampSettle();
             end
             % Start recording
-            % HACK BREAKPOINT HERE VV
-             o.startRecording();
+            o.startRecording();
         end
         
         function beforeTrial(o)
@@ -432,10 +432,10 @@ classdef intan < neurostim.plugins.ePhys
                 o.loadIntanFormat;
                 %% Populate default values
                 % Save file formatting
-                settings.saveFormat = 'FileFormat OneFilePerChannel;';
+                settings.saveFormat = ['FileFormat ' o.sFormat ';'];
                 settings.saveSpikes = 'SaveSpikeData true;';
                 settings.saveSpikeSnapshots = 'SaveSpikeSnapshots true;';
-                settings.saveDCAmplifierWaveforms = 'SaveDCAmplifierWaveforms true;';
+                settings.saveDCAmplifierWaveforms = 'SaveDCAmplifierWaveforms false;';
                 settings.createNewDir = 'createNewDirectory true;';
                 if strcmp(o.iFormat,'single')
                     settings.createNewDirTrial = 'createNewDirectoryTrial false;';
@@ -629,9 +629,14 @@ classdef intan < neurostim.plugins.ePhys
             end
         end
         function loadIntanFormat(o)
-            if isa(o.cfgFcn, 'function_handle') && strncmp(char(o.cfgFcn), '@', 1)
-                % If this property is an anonymous function, get channel map from here
+            % If this property is an anonymous function, get channel map from here
+            if ~isempty(o.cfg)
                 o.iFormat = o.cfg.iFormat;
+                if isa(o.cfg,'marmodata.intan.formats.intan')
+                    o.sFormat = 'OneFilePerSignal';
+                elseif isa(o.cfg,'marmodata.intan.formats.oephys')
+                    o.sFormat = 'OneFilePerChannel';
+                end
             end
         end
         %% Handle Amplifier Settle Configuration
@@ -716,8 +721,9 @@ classdef intan < neurostim.plugins.ePhys
         function startRecording(o)
             if ~o.testMode
                 if o.intanVer >= 3.1
+                    o.sendMessage('set trial 0;');
                     pause(0.05);
-                    o.sendMessage('set runmode record');
+                    o.sendMessage('set runmode record;');
                     o.isRecording = true;
                     % Expect a message from Intan here
                     notifSaveDir = 0;
@@ -751,16 +757,33 @@ classdef intan < neurostim.plugins.ePhys
         end
         function stopRecording(o)
             if ~o.testMode
-                if o.intanVer >= 3.1
-                    o.sendMessage('set runmode stop');
-                    o.isRecording = false;
-                    clear o.tcpSocket;
+                tf = isMATLABReleaseOlderThan('R2021a');
+                if tf
+                    if o.intanVer >= 3.1
+                        o.sendMessage('set runmode stop;');
+                        o.isRecording = false;
+                        fclose(o.tcpSocket);
+                        clear o.tcpSocket;
+                    else
+                        o.handshake = 1;
+                        o.checkTCPOK;
+                        o.sendMessage('STOP');
+                        o.isRecording = false;
+                        fclose(o.tcpSocket);
+                        clear o.tcpSocket;
+                    end
                 else
-                    o.handshake = 1;
-                    o.checkTCPOK;
-                    o.sendMessage('STOP');
-                    o.isRecording = false;
-                    clear o.tcpSocket;
+                    if o.intanVer >= 3.1
+                        o.sendMessage('set runmode stop;');
+                        o.isRecording = false;
+                        clear o.tcpSocket;
+                    else
+                        o.handshake = 1;
+                        o.checkTCPOK;
+                        o.sendMessage('STOP');
+                        o.isRecording = false;
+                        clear o.tcpSocket;
+                    end
                 end
             end
         end
@@ -783,21 +806,20 @@ classdef intan < neurostim.plugins.ePhys
             end
         end
         function createTCPobject(o)
-            if o.intanVer >= 3.1
-                try
-                    o.tcpSocket = tcpclient(o.hostAddr,o.hostPort,'ConnectTimeout',30);
-                catch % older matlab?
-                    o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','client','Timeout',1);
+            tf = isMATLABReleaseOlderThan('R2021a');
+            if tf
+                if o.intanVer >= 3.1
+                    o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','client','Timeout',1); %#ok<TCPC> 
+                    fopen(o.tcpSocket);
+                else
+                    o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','server','Timeout',1); %#ok<TCPS> 
                     fopen(o.tcpSocket);
                 end
             else
-                % old Intan software. Not recommended!
-                disp('Please connect Intan to neurostim');
-                try
-                    o.tcpServer = tcpserver(o.hostAddr,o.hostPort,'ConnectTimeout',30);
-                catch % older matlab?
-                    o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','server','Timeout',1);
-                    fopen(o.tcpSocket);
+                if o.intanVer >= 3.1
+                    o.tcpSocket = tcpclient(o.hostAddr,o.hostPort,'ConnectTimeout',30,'Timeout',1);
+                else
+                    o.tcpServer = tcpserver(o.hostAddr,o.hostPort,'ConnectTimeout',30,'Timeout',1);
                 end
             end
         end
