@@ -182,7 +182,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             p.addParameter('replay',false);
             p.addParameter('replayFrameDur',50);
             p.addParameter('debug',false);
-            p.addParameter('rect',[]); %range of randels to reconstruct in deg [left top right bottom]
+            p.addParameter('randelMask',[]); %indices of randels to reconstruct
             p.parse(varargin{:});
             p = p.Results;
             
@@ -211,30 +211,30 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             nRndls = cellfun(@(x) max(x(:)),ixImage);
             
             %Limit the pixel range of reconstruction to save memory
-            rect = p.rect;
-            ny = size(ixImage{1},1);
-            nx = size(ixImage{1},2);
+            randelMask = p.randelMask;
+%             ny = size(ixImage{1},1);
+%             nx = size(ixImage{1},2);
+%             
+%             if isempty(rect)
+%                 xPixRange = [1 nx];
+%                 yPixRange = [1 ny];
+%             else
+%                 
+%                 % get (x,y) coords (screen centered) of each randel
+%                 width = get(o.prms.width,'trial',1,'atTrialTime',Inf); % deg.
+%                 height = get(o.prms.height,'trial',1,'atTrialTime',Inf);
+%                 
+%                 coordx = linspace(-0.5, 0.5,nx)*width*(1 - 1/nx);
+%                 coordy = linspace( 0.5,-0.5,ny)*height*(1 - 1/ny);
+%                 
+%                 [~,xPixRange(1)] = min(abs(coordx - rect(1)));%left
+%                 [~,xPixRange(2)] = min(abs(coordx - rect(3)));%right
+%                 [~,yPixRange(1)] = min(abs(coordy - rect(2)));%top
+%                 [~,yPixRange(2)] = min(abs(coordy - rect(4)));%bottom
+%             end
             
-            if isempty(rect)
-                xPixRange = [1 nx];
-                yPixRange = [1 ny];
-            else
-                
-                % get (x,y) coords (screen centered) of each randel
-                width = get(o.prms.width,'trial',1,'atTrialTime',Inf); % deg.
-                height = get(o.prms.height,'trial',1,'atTrialTime',Inf);
-                
-                coordx = linspace(-0.5, 0.5,nx)*width*(1 - 1/nx);
-                coordy = linspace( 0.5,-0.5,ny)*height*(1 - 1/ny);
-                
-                [~,xPixRange(1)] = min(abs(coordx - rect(1)));%left
-                [~,xPixRange(2)] = min(abs(coordx - rect(3)));%right
-                [~,yPixRange(1)] = min(abs(coordy - rect(2)));%top
-                [~,yPixRange(2)] = min(abs(coordy - rect(4)));%bottom
-            end
-            
-            [XRANGE, YRANGE] = meshgrid(xPixRange(1):xPixRange(2), yPixRange(1):yPixRange(2));
-            irange = sub2ind([ny nx], YRANGE(:), XRANGE(:));
+%            [XRANGE, YRANGE] = meshgrid(xPixRange(1):xPixRange(2), yPixRange(1):yPixRange(2));
+%            randelMask = sub2ind([ny nx], YRANGE(:), XRANGE(:));
             %test = reshape(clutVals{i}, ySize, xSize,[]);
             %test2 = reshape(clutVals{i}(:,idx,:), diff(yPixRange)+1,diff(xPixRange)+1,[]);
             %isequal(test(yPixRange(1):yPixRange(2),xPixRange(1):xPixRange(2),:),test2);
@@ -289,7 +289,9 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 end
                 
                 %Limit the reconstruction range
-                clutVals{i} = clutVals{i}(:,irange,:);
+                if ~isempty(randelMask)
+                    clutVals{i} = clutVals{i}(:,randelMask,:);
+                end
                 
                 %Use a figure window to show the reconstructed images
                 if p.replay
