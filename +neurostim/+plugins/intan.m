@@ -460,9 +460,16 @@ classdef intan < neurostim.plugins.ePhys
                 settings.DigitalIn2 = 'DIGITAL-IN-02.enabled true;';
                 settings.AnalogIn1 = 'ANALOG-IN-1.enabled true;';
                 % Apply the channel mapping
+                x = [o.cfg.xcoords{:}];
+                y = [o.cfg.ycoords{:}];
+                uShank = unique(x);
+                uElectrode = unique(y);
+                if all(uElectrode < 0)
+                    uElectrode = fliplr(uElectrode);
+                end
                 for ii = 1:numel(o.chnMap)
-                    settings.(['CHN' num2str(ii)]) = [o.getIntanChannel('chn',ii) '.customchannelname E' num2str(ii - (ceil(ii/32)-1) * 32) ';'];
-                    settings.(['CHN' num2str(ii) 'Order']) = [o.getIntanChannel('chn',ii) '.UserOrder ' num2str(ii - (ceil(ii/32)-1) * 32) ';'];                    
+                    settings.(['CHN' num2str(ii)]) = [o.getIntanChannel('chn',ii) '.customchannelname S' num2str(find(x(ii) == uShank,1)) 'E' num2str(find(y(ii) == uElectrode,1)) ';'];
+                    settings.(['CHN' num2str(ii) 'Order']) = [o.getIntanChannel('chn',ii) '.UserOrder ' num2str(ii - (ceil(ii/32)-1) * 32 - 1) ';'];
                 end
                 % Store the default settings
                 o.settingsStruct = settings;
