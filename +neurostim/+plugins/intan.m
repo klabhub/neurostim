@@ -45,6 +45,7 @@ classdef intan < neurostim.plugins.ePhys
         activechns = {};    % Contains a list of active stimulation channels
         chns = {};          % Contains a list of stimulation parameters for all channels
         tcpSocket = [];     % Contains a TCP socket for communication with Intan
+        clearComms = true;  % Flag for clearing communications after the experiment
         handshake = 0;      % Controls whether the Intan manager plugin will halt execution of the thread while awaiting
         % a handshake from the Intan firmware over the
         % TCP connection. !!Important!!
@@ -74,8 +75,7 @@ classdef intan < neurostim.plugins.ePhys
             pin.KeepUnmatched = true;
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
             pin.addParameter('saveDir','C:\Data',@ischar); % Contains the saveDir string associated with the current recording
-            pin.addParameter('hostPort',5000, @isnumeric); % The port Intan will use to communicate with neurostim
-            pin.addParameter('configureIntan',false,@islogical); % Should we apply settings to Intan?
+            pin.addParameter('hostPort',5000, @isnumeric); % The port Intan will use to communicate with neurostim            
             pin.parse(varargin{:});
             args = pin.Results;
             % Call parent class constructor
@@ -88,8 +88,7 @@ classdef intan < neurostim.plugins.ePhys
 
             % Update properties
             o.testMode = args.testMode;
-            o.saveDir = args.saveDir;
-            o.applySettings = args.configureIntan;
+            o.saveDir = args.saveDir;            
         end
 
         %% Generic Communcation
@@ -775,7 +774,9 @@ classdef intan < neurostim.plugins.ePhys
                     if o.intanVer >= 3.1
                         o.sendMessage('set runmode stop;');
                         o.isRecording = false;
-                        fclose(o.tcpSocket);
+                        if o.clearComms
+                            fclose(o.tcpSocket);                            
+                        end
                         clear o.tcpSocket;
                         o.tcpSocket = [];
                     else
@@ -783,15 +784,17 @@ classdef intan < neurostim.plugins.ePhys
                         o.checkTCPOK;
                         o.sendMessage('STOP');
                         o.isRecording = false;
-                        fclose(o.tcpSocket);
+                        if o.clearComms
+                            fclose(o.tcpSocket);
+                        end
                         clear o.tcpSocket;
                         o.tcpSocket = [];
                     end
                 else
                     if o.intanVer >= 3.1
                         o.sendMessage('set runmode stop;');
-                        o.isRecording = false;
-                        clear o.tcpSocket;
+                        o.isRecording = false;                        
+                        clear o.tcpSocket;                        
                         o.tcpSocket = [];
                     else
                         o.handshake = 1;
