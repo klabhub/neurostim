@@ -55,6 +55,7 @@ classdef intan < neurostim.plugins.ePhys
         settingsPath = [];  % Can be given a filepath that contains the Intan settings file.
         settingsStruct = [];% Can contain a list of settings to apply to Intan. Automatically populated with default values.
         settingsFile = [];  % Contains the Intan settings file path.
+        applySettings = false;% Flag for applying settings to Intan.
         chnList = [];       % Used to pass a list of channels for amplifier settle configuration
         numChannels = 0;    % The number of active channels in Intan
         ports = [];         % List of enabled Intan ports
@@ -74,6 +75,8 @@ classdef intan < neurostim.plugins.ePhys
             pin.addParameter('testMode', 0, @isnumeric); % Test mode that disables stimulation and recording
             pin.addParameter('saveDir','C:\Data',@ischar); % Contains the saveDir string associated with the current recording
             pin.addParameter('hostPort',5000, @isnumeric); % The port Intan will use to communicate with neurostim
+            pin.addParameter('configureIntan',false,@islogical); % Should we apply settings to Intan?
+            pin.addParameter('tcpConn',[]); % Are we providing an external TCP connection to Intan?
             pin.parse(varargin{:});
             args = pin.Results;
             % Call parent class constructor
@@ -86,7 +89,9 @@ classdef intan < neurostim.plugins.ePhys
             
             % Update properties
             o.testMode = args.testMode;
-            o.saveDir = args.saveDir;            
+            o.saveDir = args.saveDir;  
+            o.applySettings = args.configureIntan;
+            o.tcpSocket = args.tcpConn;
         end
         
         %% Generic Communcation
@@ -150,9 +155,13 @@ classdef intan < neurostim.plugins.ePhys
             % Create port mapping
             if o.intanVer >= 3.1
                 o.portMapping;
-            end
+            end            
+            % Tell Intan to stop running
+            o.sendMessage('set runmode stop;');           
             % Send the settings file to Intan
-            o.setSettings();
+            if o.applySettings
+                o.setSettings();
+            end 
             % Send default stimulation settings to Intan
             %o.setDefaultStim(); %% TODO
             % Set the save path in Intan
@@ -445,8 +454,7 @@ classdef intan < neurostim.plugins.ePhys
                 % Default display filters
                 settings.NotchFilter = 'NotchFilterFreqHertz 50;';
                 % Default display settings
-                settings.FilterDisplay1 = 'FilterDisplay1 Low;';
-                settings.FilterDisplay2 = 'FilterDisplay2 Spk;';
+                settings.FilterDisplay1 = 'FilterDisplay1 High;';                
                 settings.ArrangeBy = 'ArrangeBy Filter;';
                 settings.LabelWidth = 'LabelWidth Narrow;';
                 % Artifact Suppresssion
@@ -813,20 +821,32 @@ classdef intan < neurostim.plugins.ePhys
             end
         end
         function createTCPobject(o)
-            tf = isMATLABReleaseOlderThan('R2021a');
-            if tf
-                if o.intanVer >= 3.1
-                    o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','client','Timeout',1); %#ok<TCPC> 
-                    fopen(o.tcpSocket);
-                else
-                    o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','server','Timeout',1); %#ok<TCPS> 
-                    fopen(o.tcpSocket);
+            if ~isempty(o.tcpSocket)
+                % Test the connection
+                o.sendMessage('get runmode');                
+                if isempty(o.readMessage)
+                    % Failed. Reset the connection.
+                    o.tcpSocket = [];
+                    o.createTCPobject;
                 end
             else
-                if o.intanVer >= 3.1
-                    o.tcpSocket = tcpclient(o.hostAddr,o.hostPort,'ConnectTimeout',30,'Timeout',1);
+                tf = isMATLABReleaseOlderThan('R2021a');
+                if tf
+                    if o.intanVer >= 3.1
+                        o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','client','Timeout',1); %#ok<TCPC>                        
+                        fopen(o.tcpSocket);
+                    else
+                        o.tcpSocket = tcpip(o.hostAddr,o.hostPort,'NetworkRole','server','Timeout',1); %#ok<TCPS>
+                        disp('Please connect Intan to neurostim');
+                        fopen(o.tcpSocket);
+                    end
                 else
-                    o.tcpServer = tcpserver(o.hostAddr,o.hostPort,'ConnectTimeout',30,'Timeout',1);
+                    if o.intanVer >= 3.1
+                        o.tcpSocket = tcpclient(o.hostAddr,o.hostPort,'ConnectTimeout',30,'Timeout',1);
+                    else
+                        disp('Please connect Intan to neurostim');
+                        o.tcpServer = tcpserver(o.hostAddr,o.hostPort,'ConnectTimeout',30,'Timeout',1);
+                    end
                 end
             end
         end

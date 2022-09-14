@@ -229,6 +229,9 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 %anything. That said, everything should work fine as long
                 %as their function does not depend on any other property
                 %values that changed throughout the experiment.
+                if ~iscell(o.sampleFun)
+                    o.sampleFun = {o.sampleFun};
+                end
                 if any(cellfun(@(x) isa(x,'function_handle'),o.sampleFun))
                     if ~warned
                         warning('This stimulus used a user-defined function to set the luminance/color of the randels. The reconstruction might fail if your custom function calls upon any Neurostim parameters other than o.nRandels and o.ixImage). We really have no way to know what you did!');
@@ -274,6 +277,9 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             framesWereDropped = ~iscell(frDr.data);
             if framesWereDropped
                 stay = ~isnan(frDr.data(:,1)); %frameDrop initialises to NaN
+                if size(frDr.block,1) < size(frDr.block,2)
+                    frDr.block = frDr.block';
+                end
                 frDr = structfun(@(x) x(stay,:),frDr,'unif',false);
                 
                 %Convert duration of frame drop from ms to frames (this assumes frames were synced?)
