@@ -647,9 +647,9 @@ classdef intan < neurostim.plugins.ePhys
             % If this property is an anonymous function, get channel map from here
             if ~isempty(o.cfg)
                 o.iFormat = o.cfg.iFormat;
-                if isa(o.cfg,'marmodata.intan.formats.intan')
+                if isa(o.cfg,'marmodata.intan.formats.ofps')
                     o.sFormat = 'OneFilePerSignal';
-                elseif isa(o.cfg,'marmodata.intan.formats.oephys')
+                elseif isa(o.cfg,'marmodata.intan.formats.ofpc')
                     o.sFormat = 'OneFilePerChannel';
                 end
             end
