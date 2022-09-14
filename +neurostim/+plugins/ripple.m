@@ -48,15 +48,14 @@ classdef ripple < neurostim.plugin
         % identifies a specific piece of hardware in/on the head). For
         % arrayTypes without the -x suffix, the array number is assumed to
         % be 1.
-        arrayTypes = ["OFF","FMA-1","FMA-2","EEG","3D-1","3D-2","3D-3","3D-4"];
-        connectors = containers.Map;
+        arrayTypes = ["OFF","FMA-1","FMA-2","EEG","3D-1","3D-2","3D-3","3D-4"];        
     end
     
     
     properties (SetAccess=protected,GetAccess=public)
         tmr=timer; % Array of timer objects for digouts 1-5 (to handle duration of pulse)
         currentDigout = false(1,neurostim.plugins.ripple.NRDIGOUT); % Track state of digout
-        
+        connectors = containers.Map;
     end
     
     properties (Dependent)
@@ -72,6 +71,7 @@ classdef ripple < neurostim.plugin
         allChannels;        % All channels.
         
     end
+        
     
     methods
         function v = get.nipTime(o)
@@ -86,7 +86,7 @@ classdef ripple < neurostim.plugin
             else
                 % Probably called before any trial
                 v = 'stopped';
-            end
+            end            
         end
         
         function v= get.stimChannels(o)
@@ -334,6 +334,16 @@ classdef ripple < neurostim.plugin
         
         function varargout = tryXippmex(o,varargin)
             % Wrapper around xippmex to retry calls to Trellis
+            if o.cic.loadedFromFile
+                % Deal with ripple objects loaded from file.
+                switch (varargin{1})
+                    case 'status'
+                        varargout{1} = 'stopped';
+                    otherwise 
+                        varargout{1} = NaN;
+                end
+                return;
+            end
             nrTries=0;
             MAXNRTRIES = 10;
             v  = cell(1,nargout);
