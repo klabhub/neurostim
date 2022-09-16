@@ -53,5 +53,61 @@ classdef noisegrid < neurostim.stimuli.noiseclut
             initialise(o,im);
 
         end
+        
+        function [clutVals,ixImage] = reconstructStimulus(o,varargin)
+            
+            p=inputParser;
+            p.KeepUnmatched = true;
+            p.addParameter('rect',[]); %[left top right bottom]
+            p.parse(varargin{:});
+            p = p.Results;
+            
+             rect = p.rect;
+            if ~isempty(rect)
+                
+                assert(rect(1)<rect(3));
+                assert(rect(2)>rect(4));
+             
+                width = o.width;
+                height = o.height;
+                nx = o.size_w;
+                ny = o.size_h;
+                
+                %from analyais/noisegrid.getRandelCoords
+                 rx = linspace(-0.5, 0.5,nx)*width*(1 - 1/nx);
+                 ry = linspace( 0.5,-0.5,ny)*height*(1 - 1/ny);
+           
+                [~,xPixRange(1)] = min(abs(rx - rect(1)));%left
+                [~,xPixRange(2)] = min(abs(rx - rect(3)));%right
+                [~,yPixRange(1)] = min(abs(ry - rect(2)));%top
+                [~,yPixRange(2)] = min(abs(ry - rect(4)));%bottom
+                
+%                 rx = rx(yPixRange(1):yPixRange(2), xPixRange(1):xPixRange(2));
+%                 ry = ry(yPixRange(1):yPixRange(2), xPixRange(1):xPixRange(2));
+                
+                [XRANGE, YRANGE] = meshgrid(xPixRange(1):xPixRange(2), ...
+                    yPixRange(1):yPixRange(2));
+                randelMask = sub2ind([ny nx], YRANGE(:), XRANGE(:));
+            else
+                randelMask = [];
+            end
+            
+            %               [clutVals,ixImage] = o@neurostim.stimuli.noiseclut.reconstructStimulus(o,...
+            %                   'randelMask',randelMask);
+            [clutVals, ixImage] = reconstructStimulus@neurostim.stimuli.noiseclut(...
+                o,'randelMask',randelMask);
+           
+%            for ii = 1:numel(o.cic)
+%                 [clut_, img{ii}] = o.cic(ii).noise.reconstructStimulus(...
+%                     'randelMask',randelMask); % all trials
+%                 
+%                 clut{ii} = cellfun(@(x) 2*squeeze(x) - 1.0,clut_,'UniformOutput',false); % make clut zero mean [-1,0,+1]
+%            end
+%             
+%            clutVals = cat(2,clut{:});
+%             ixImage = cat(1,img{:})';
+            
+        end
+ 
     end % public methods
 end % classdef

@@ -264,6 +264,11 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 %Limit the reconstruction range
                 if ~isempty(randelMask)
                     clutVals{i} = clutVals{i}(:,randelMask,:);
+                    
+                    test = ismember(ixImage{i}, randelMask);
+                    randelMaskIdx = find(test);
+                    [ysub,xsub]=ind2sub(size(test),randelMaskIdx);
+                    test2 = ixImage{1}(ysub,xsub);
                 end
                 
                 %Use a figure window to show the reconstructed images
