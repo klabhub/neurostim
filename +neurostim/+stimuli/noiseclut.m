@@ -187,9 +187,8 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             p = p.Results;
             
             %Callback parameters
-            sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf);
-            prms = get(o.prms.parms,'trial',p.trial,'atTrialTime',Inf);
-            bnds = get(o.prms.bounds,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
+            sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false); 
+            prms = get(o.prms.parms,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);             bnds = get(o.prms.bounds,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
             rngSt = get(o.prms.rngState,'trial',p.trial,'atTrialTime',Inf);
             cbCtr = get(o.prms.callbackCounter,'trial',p.trial,'atTrialTime',Inf);
             
@@ -266,9 +265,7 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                     clutVals{i} = clutVals{i}(:,randelMask,:);
                     
                     test = ismember(ixImage{i}, randelMask);
-                    randelMaskIdx = find(test);
-                    [ysub,xsub]=ind2sub(size(test),randelMaskIdx);
-                    test2 = ixImage{1}(ysub,xsub);
+                    ixImage{i} = ixImage{i} .* test;
                 end
                 
                 %Use a figure window to show the reconstructed images

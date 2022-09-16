@@ -55,6 +55,13 @@ classdef noisegrid < neurostim.stimuli.noiseclut
         end
         
         function [clutVals,ixImage] = reconstructStimulus(o,varargin)
+            %[clutVals,ixImage] = reconstructStimulus(o,rect)
+            %lets you specify the spatial range of stimulus to reconstruct the
+            %stimulus
+            %
+            % OUTPUT:
+            % clutVals:
+            % ixImage: randel index values stored in 2D matrix
             
             p=inputParser;
             p.KeepUnmatched = true;
@@ -92,20 +99,8 @@ classdef noisegrid < neurostim.stimuli.noiseclut
                 randelMask = [];
             end
             
-            %               [clutVals,ixImage] = o@neurostim.stimuli.noiseclut.reconstructStimulus(o,...
-            %                   'randelMask',randelMask);
             [clutVals, ixImage] = reconstructStimulus@neurostim.stimuli.noiseclut(...
-                o,'randelMask',randelMask);
-           
-%            for ii = 1:numel(o.cic)
-%                 [clut_, img{ii}] = o.cic(ii).noise.reconstructStimulus(...
-%                     'randelMask',randelMask); % all trials
-%                 
-%                 clut{ii} = cellfun(@(x) 2*squeeze(x) - 1.0,clut_,'UniformOutput',false); % make clut zero mean [-1,0,+1]
-%            end
-%             
-%            clutVals = cat(2,clut{:});
-%             ixImage = cat(1,img{:})';
+                o,'randelMask',randelMask);           
             
         end
  
