@@ -46,28 +46,37 @@ classdef arc < neurostim.stimulus
         
         
         function beforeFrame(o)
-           
-            %x0 = 0; %center coordinate of circle
-            %y0 = 5; %center coordinate of circle
-            nSides = 360;
-            th = 2*pi/360*linspace(0 + o.startAngle,360 + o.startAngle,nSides+1);
-            %th = th(2:end);
-            if o.innerRad == 0
-                vx_inner = 0; vy_inner = 0;
-            else
-                [vx_inner, vy_inner] = pol2cart(th(1:o.arcAngle),o.innerRad);
-            end
-            [vx_outer, vy_outer] = pol2cart(th(1:o.arcAngle),o.outerRad);
+ 
+%             %% implementation 1: polygon
+%             nSides = 360;
+%             th = 2*pi/360*linspace(0 + o.startAngle,360 + o.startAngle,nSides+1);
+%             %th = th(2:end);
+%             if o.innerRad == 0
+%                 vx_inner = 0; vy_inner = 0;
+%             else
+%                 [vx_inner, vy_inner] = pol2cart(th(1:o.arcAngle),o.innerRad);
+%             end
+%             [vx_outer, vy_outer] = pol2cart(th(1:o.arcAngle),o.outerRad);
+%             
+%             vx = [vx_inner fliplr(vx_outer) vx_inner(1)];
+%             vy = [vy_inner fliplr(vy_outer) vy_inner(1)];
+%           
+%             %Draw
+%             if o.filled
+%                 Screen('FillPoly',o.window, o.color,[vx(:),vy(:)],0);
+%             else
+%                 Screen('FramePoly',o.window, o.color,[vx(:),vy(:)],o.linewidth);
+%             end
             
-            vx = [vx_inner fliplr(vx_outer) vx_inner(1)];
-            vy = [vy_inner fliplr(vy_outer) vy_inner(1)];
-          
+            %% implementation 2: arc
+            rect = [];
             %Draw
             if o.filled
-                Screen('FillPoly',o.window, o.color,[vx(:),vy(:)],0);
+                Screen('FillArc',o.window, o.color,rect,o.startAngle, o.arcAngle);
             else
-                Screen('FramePoly',o.window, o.color,[vx(:),vy(:)],o.linewidth);
+                Screen('DrawArc',o.window, o.color,rect,o.startAngle, o.arcAngle);
             end
+            
         end
     end
 end
