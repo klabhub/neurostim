@@ -35,7 +35,7 @@ classdef arc < neurostim.stimulus
             o.addProperty('linewidth',10,'validate',@isnumeric); %Used only for unfilled polygon.
             o.addProperty('startAngle',0,'validate',@isinteger); %[deg] from horizontal, CCW
             o.addProperty('arcAngle',60,'validate',@isinteger); %[deg]
-            o.addProperty('innerRad',0,'validate',@isnumeric);
+            %o.addProperty('innerRad',0,'validate',@isnumeric);
             o.addProperty('outerRad',10,'validate',@isnumeric);
             
             %o.addProperty('preCalc',false);
