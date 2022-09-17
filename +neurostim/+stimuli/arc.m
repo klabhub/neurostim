@@ -69,10 +69,8 @@ classdef arc < neurostim.stimulus
 %             end
             
             %% implementation 2: arc
-            %rect = [-3 -6 3 0]'; %left top right bottom
-            rect = [-o.outerRad -o.outerRad o.outerRad o.outerRad]';
-            o.color = [1 1 0];
-            o.filled = true;
+            rect = [-o.outerRad -o.outerRad o.outerRad o.outerRad]';%left bottom right top
+            
             %Draw
             if o.filled
                 Screen('FillArc',o.window, o.color,rect,o.startAngle, o.arcAngle);
