@@ -69,7 +69,7 @@ classdef arc < neurostim.stimulus
 %             end
             
             %% implementation 2: arc
-            rect = [-3 6 3 0]'; %left top right bottom
+            rect = [-3 -6 3 0]'; %left top right bottom
             o.color = [1 1 0];
             o.filled = true;
             %Draw
