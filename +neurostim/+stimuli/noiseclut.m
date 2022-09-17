@@ -182,13 +182,13 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             p.addParameter('replay',false);
             p.addParameter('replayFrameDur',50);
             p.addParameter('debug',false);
+            p.addParameter('randelMask',[]); %indices of randels to reconstruct
             p.parse(varargin{:});
             p = p.Results;
             
             %Callback parameters
-            sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf);
-            prms = get(o.prms.parms,'trial',p.trial,'atTrialTime',Inf);
-            bnds = get(o.prms.bounds,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
+            sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false); 
+            prms = get(o.prms.parms,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);             bnds = get(o.prms.bounds,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
             rngSt = get(o.prms.rngState,'trial',p.trial,'atTrialTime',Inf);
             cbCtr = get(o.prms.callbackCounter,'trial',p.trial,'atTrialTime',Inf);
             
@@ -208,6 +208,9 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             
             %How many randels were there?
             nRndls = cellfun(@(x) max(x(:)),ixImage);
+            
+            %Limit the pixel range of reconstruction to save memory
+            randelMask = p.randelMask;
             
             %Everything is in hand. Reconstruct.
             clutVals = cell(1,numel(p.trial));
@@ -230,8 +233,8 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 %as their function does not depend on any other property
                 %values that changed throughout the experiment.
                 if ~iscell(o.sampleFun)
-                    o.sampleFun = {o.sampleFun}; 
-                end 
+                    o.sampleFun = {o.sampleFun};
+                end
                 if any(cellfun(@(x) isa(x,'function_handle'),o.sampleFun))
                     if ~warned
                         warning('This stimulus used a user-defined function to set the luminance/color of the randels. The reconstruction might fail if your custom function calls upon any Neurostim parameters other than o.nRandels and o.ixImage). We really have no way to know what you did!');
@@ -255,6 +258,14 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 nLogged = o.nRandelsToLog;
                 if ~isequal(clutVals{i}(:,1:nLogged,end),loggedClut{i}(:,1:nLogged))
                     error('Stimulus reconstruction failed. Values do not match the logged values.');
+                end
+                
+                %Limit the reconstruction range
+                if ~isempty(randelMask)
+                    clutVals{i} = clutVals{i}(:,randelMask,:);
+                    
+                    test = ismember(ixImage{i}, randelMask);
+                    ixImage{i} = ixImage{i} .* test;
                 end
                 
                 %Use a figure window to show the reconstructed images
