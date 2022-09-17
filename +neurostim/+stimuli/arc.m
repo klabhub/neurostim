@@ -47,7 +47,7 @@ classdef arc < neurostim.stimulus
         
         function beforeFrame(o)
  
-%             %% implementation 1: polygon
+%             %% implementation 1: polygon ... missed 44frames/1000s
 %             nSides = 360;
 %             th = 2*pi/360*linspace(0 + o.startAngle,360 + o.startAngle,nSides+1);
 %             %th = th(2:end);
@@ -68,7 +68,7 @@ classdef arc < neurostim.stimulus
 %                 Screen('FramePoly',o.window, o.color,[vx(:),vy(:)],o.linewidth);
 %             end
             
-            %% implementation 2: arc
+            %% implementation 2: arc ... missed 169frames in 1000s?
             rect = [-o.outerRad -o.outerRad o.outerRad o.outerRad]';%left bottom right top
             
             %Draw
