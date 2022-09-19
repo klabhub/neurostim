@@ -186,8 +186,8 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             p = p.Results;
             
             %Callback parameters
-            sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf);
-            prms = get(o.prms.parms,'trial',p.trial,'atTrialTime',Inf);
+            sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
+            prms = get(o.prms.parms,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
             bnds = get(o.prms.bounds,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
             rngSt = get(o.prms.rngState,'trial',p.trial,'atTrialTime',Inf);
             cbCtr = get(o.prms.callbackCounter,'trial',p.trial,'atTrialTime',Inf);
