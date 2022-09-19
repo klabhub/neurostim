@@ -30,7 +30,8 @@ classdef estim < neurostim.stimulus
     %   port - controls which port Intan uses for stimulation ('A','B','C','D')
     
     properties
-        bit = 1; % This is the mcc digital line bit, allowing control over which pin will carry this stimulus' on and off functions
+        bit = 1;            % This is the mcc digital line bit, allowing control over which pin will carry this stimulus' on and off functions
+        mccCntr = 1;        % Decides whether this estim class will take control of the digital line
     end
     
     methods (Access = public)
@@ -46,7 +47,7 @@ classdef estim < neurostim.stimulus
             s.addProperty('pot',0,'validate',@isnumeric);
             s.addProperty('nod',1,'validate',@isnumeric);
             s.addProperty('nsp',0,'validate',@isnumeric);
-            s.addProperty('fre',0,'validate',@isnumeric);
+            s.addProperty('fre',80,'validate',@isnumeric);
             s.addProperty('pod',0,'validate',@isnumeric);
             s.addProperty('ptr',1e3,'validate',@isnumeric);
             s.addProperty('chn','A-001','validate',@ischar);
@@ -59,11 +60,13 @@ classdef estim < neurostim.stimulus
             s.addProperty('maAS',1,'validate',@isnumeric);
             s.addProperty('enCR',1,'validate',@isnumeric);
             s.addProperty('recDir','','validate',@ischar);
-            s.addProperty('port','A','validate',@ischar);
+            s.addProperty('port','','validate',@ischar);
         end
         function beforeExperiment(s)
-            s.onsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,true);
-            s.offsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,false);
+            if s.mccCntr
+                s.onsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,true);
+                s.offsetFunction = @(s,t) s.cic.mcc.digitalOut(8+s.bit,false);
+            end
         end
         function beforeTrial(s)
             if s.enabled
