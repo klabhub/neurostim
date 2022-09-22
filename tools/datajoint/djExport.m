@@ -9,27 +9,32 @@ function djExport(targetDataRoot,varargin)
 % 'skipExisting'  - Copy only new files.
 % 'paradigm' - Cell array of paradigms to include
 % 'extension' - Selection of file extensions to include (e.g. '.mat' to
-% copy only .mat files)
+% copy only .mat files). Only one extension can be handled at a time (until
+% the or-restriction on tables works in datajoint).
+% 'include' - Copy only files that contain this string (or multiple strings
+% specified as a cellstr. {'temp','notanalyze'};
+% 'exclude' - Don't copy files that contain this string (or multiple
+% strings specified as a cellstr).
 % 'dryrun' - If true only a log is produced, no files are copied. [True]
 % 'maxNrFiles'  - Process at most this number of files. [Inf]
-% 
+%
 % 'ssh' - To copy files to a remote system, provide an SSH struct that is
 %          genrated by ssh2_config in the matlab-ssh2 package by David
-%          Friedman. It is available on github. 
-% 
+%          Friedman. It is available on github.
+%
 % 'fun' - The default export simply copies the raw data files, but youc an
 %        also provide a function_handle to process these files. This
 %        function should take the file name as its input and return a sigle
-%        output. If this output is a table, you can export it as a CSV file 
-%           by specifying 'format', '.csv'. If this output is somethign
-%           else (e.g. a struct), use the '.mat' format to save the output
+%        output. If this output is a table, you can export it as a CSV file
+%           by specifying 'format', '.csv'. If this output is something
+%           else (e.g. a struct), it uses the '.mat' format to save the output
 %           in a .mat file. The .mat file will be named after the Neurostim
 %           output file, with the addition of a 'tag'.  (e.g., 'export' to
 %           distinghuish it from the main Neurostim output file.
 % 'tag' - Tag used to label the exported file ['export']
 % 'format' - '.CSV' is allowed for Table exports, and '.MAT'for everything
-%               else. 
-% 
+%               else.
+%
 % OUTPUT
 % void
 %
@@ -48,16 +53,25 @@ function djExport(targetDataRoot,varargin)
 %   djExport('data','useDayFolders',false,'extension','.mat',...
 %           'dryrun',false,'paradigm','posner','fun',@export,'format','.CSV')
 %
-%           
+% Or, if you need to use datajoint queries to select a more specific subset
+% of files (selecting on session_date is not built-in to this function)
+% f = ns.File * ns.Experiment & 'session_date=''2015-03-30''' & 'extension=''.spk'''
+% Then:
+% djExport('../data','table',f,'useDayFolders',true,'exclude',{'.lfp','.cls'},'dryrun',false)
+% Note that include/exclude/extension/paradigm parameters are still allowed, even when
+% passing a specific table to djExport. 
+%
 % BK - July 2022.
-
-
+% BK - Added table input, Sept 2022.
 p=inputParser;
 p.addRequired('targetDataRoot',@mustBeTextScalar)
 p.addParameter('useDayFolders',false,@islogical);
 p.addParameter('skipExisting',true,@islogical);
 p.addParameter('paradigm','',@mustBeText);
 p.addParameter('extension','',@mustBeText);
+p.addParameter('table',[],@(x) isa(x,'dj.internal.GeneralRelvar'));
+p.addParameter('include','',@mustBeText);
+p.addParameter('exclude','',@mustBeText);
 p.addParameter('dryrun',true,@islogical);
 p.addParameter('maxNrFiles',Inf,@isnumeric);
 p.addParameter('ssh','');
@@ -66,7 +80,7 @@ p.addParameter('format',''); % Empty for copying, .CSV for table fun output, .MA
 p.addParameter('tag','export');
 p.parse(targetDataRoot,varargin{:});
 
-%% Find relevant files in the database
+% Define restrictions
 if isempty(p.Results.paradigm)
     keepParadigm = true;
 else
@@ -77,26 +91,50 @@ if isempty(p.Results.extension)
 else
     keepExtension = struct('extension',p.Results.extension);
 end
-files = fetch((ns.File & keepExtension) * (ns.Experiment & keepParadigm),'*');
+%% Get the files from the database
+if isempty(p.Results.table)
+    %% Find relevant files by querying the database
+    files = fetch((ns.File & keepExtension) * (ns.Experiment & keepParadigm),'*');
+else
+    % Fetch the table that was passed 
+    files = fetch(p.Results.table & keepExtension & keepParadigm,'*');
+end
+
 srcRoot = fetch1(ns.Global & 'name=''root''' ,'value','ORDER BY id DESC LIMIT 1');
 nrFiles = numel(files);
+
+% Select on include/exclude
+keepRows = true(nrFiles,1);
+if ~isempty(p.Results.exclude)
+    keepRows = keepRows & ~contains({files.filename}',p.Results.exclude);
+end
+if ~isempty(p.Results.include)
+    keepRows = keepRows &  contains({files.filename}',p.Results.include);
+end
+nrFiles= sum(keepRows);
+rows = find(keepRows);
+
 if ~p.Results.useDayFolders
     % Check that filenames are unique
-    assert(numel(unique({files.filename}))==nrFiles,"Some of these files have the same name. Please use ''dayFolders'',true ")
+    assert(numel(unique({files(keepRows).filename}))==nrFiles,"Some of these files have the same name. Please use ''dayFolders'',true ")
 end
 
 %% Export one by one
+mbytes=0;
+nrFailed = 0;
+nrSkipped = 0;
+nrMissing =0;    
 if nrFiles==0
     fprintf('No matching files. Noting to do \n');
 else
-    nrFailed = 0;
-    nrSkipped = 0;
-    nrMissing =0;
-    for i=1:min(p.Results.maxNrFiles,nrFiles)
-        dayFolder = datestr(files(i).session_date,'YYYY/mm/DD');
-        [subFolder,filename,ext]= fileparts(files(i).filename);
-        srcFullFile = fullfile(srcRoot,dayFolder,subFolder,[filename ext]);
+    cntr =0;
+    for row=rows'
+        cntr =cntr+1;
+        if cntr > p.Results.maxNrFiles;break;end
 
+        dayFolder = datestr(files(row).session_date,'YYYY/mm/DD');
+        [subFolder,filename,ext]= fileparts(files(row).filename);
+        srcFullFile = fullfile(srcRoot,dayFolder,subFolder,[filename ext]);
         if ~exist(srcFullFile,'file')
             fprintf('%s does not exist.\n',srcFullFile)
             nrMissing = nrMissing+1;
@@ -155,12 +193,14 @@ else
             end
 
             %% Create target folder
+             trgFolder = fileparts(trgFullFile);                
             if p.Results. dryrun
-                fprintf('(DRYRUN): creating %s \n', fileparts(trgFullFile));
+                if ~exist(trgFolder,'dir')
+                    fprintf('(DRYRUN): creating %s \n', trgFolder);
+                end
             else
                 if isempty(p.Results.ssh)
                     % Local file system
-                    trgFolder = fileparts(trgFullFile);
                     if ~exist(trgFolder,"dir")
                         [ok,msg] = mkdir(trgFolder);
                         if ~ok
@@ -171,12 +211,14 @@ else
                     end
                 else
                     % Remote file system
-                    remotePath = strrep(fileparts(trgFullFile),'\','/');
+                    remotePath = strrep(trgFolder,'\','/');
                     ssh2_command(p.Results.ssh,['mkdir --parents ' remotePath])
                 end
             end
             %% Now do the export
-            if p.Results.dryrun
+            d = dir(srcFullFile);  
+            mbytes = mbytes +d.bytes;            % Collect size for report at end (also during DRYRUN)
+            if p.Results.dryrun                
                 fprintf('(DRYRUN) Exporting %s to \n \t \t %s \n',srcFullFile,trgFullFile)
             else
                 fprintf('Exporting %s to \n \t \t %s \n',srcFullFile,trgFullFile)
@@ -184,7 +226,7 @@ else
                     % Simple copy - no analysis
                     if isempty(p.Results.ssh)
                         [success,message] = copyfile(srcFullFile,trgFullFile);
-                    else 
+                    else
                         %- will be copied below
                         success =true;
                     end
@@ -236,5 +278,5 @@ else
         end
     end
 end
-fprintf('Total %d, Copied %d, Skipped %d, Failed %d, Missing %d files.\n',nrFiles,min(p.Results.maxNrFiles,nrFiles)-nrFailed-nrSkipped-nrMissing,nrSkipped,nrFailed,nrMissing)
+fprintf('Total %d, Copied %d, Skipped %d, Failed %d, Missing %d files (%g MB).\n',nrFiles,min(p.Results.maxNrFiles,nrFiles)-nrFailed-nrSkipped-nrMissing,nrSkipped,nrFailed,nrMissing,round(mbytes/1e6))
 end
