@@ -54,6 +54,12 @@ classdef starstim < neurostim.stimulus
     %
     % There are different modes to control stimulation, with increasing levels of
     % temporal and parameter control.  (.mode)
+    % NIC:
+    %  This ignores all current parameters specified in Neurostim; it
+    %  starts the requested protocol before the start of the experiment,
+    %  and then simply keeps running without changing anything (but while
+    %  sending trial markers etc)
+    %  
     % BLOCKED:
     %    Simplest mode: trigger the start of a named protocol in the first
     %   trial in a block in which .enabled =true and keep running until the
@@ -277,10 +283,14 @@ classdef starstim < neurostim.stimulus
             o.addProperty('z',NaN,'sticky',true);
             o.addProperty('zProtocol','','sticky',true); %THe protocol to be used for impedance checks.
             o.addProperty('type','tACS');%tACS, tDCS, tRNS
-            o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED','EEGONLY'
+            o.addProperty('mode','BLOCKED');  % 'BLOCKED','TRIAL','TIMED','EEGONLY', 'NIC'
             o.addProperty('path',''); % Set to the folder on the starstim computer where data should be stored.
             % If path is empty, the path of the neurostim output file is
             % used (which may not exist on the remote starstim computer).
+            o.addProperty('experimentDuration',inf); % Time in ms to stop the experiment. 
+            % Used only in NIC mode.Use this to match the neurostim
+            % experiment duration to the protocol defined in NIC. The
+            % duration is relative to the start of the protocol
 
             o.addProperty('amplitude',NaN);
             o.addProperty('mean',NaN);
@@ -492,10 +502,11 @@ classdef starstim < neurostim.stimulus
                         rampUp(o);
                     end
                 case 'TIMED'
-
+                    % Do nothing
                 case 'EEGONLY'
                     % Do nothing
-
+                case 'NIC'
+                    % Do nothing
                 otherwise
                     o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
@@ -532,6 +543,8 @@ classdef starstim < neurostim.stimulus
                     end
                 case 'EEGONLY'
                     %Do nothing
+                case 'NIC'
+                    % Do nothing
                 otherwise
                     o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
@@ -540,10 +553,11 @@ classdef starstim < neurostim.stimulus
         %function afterFrame(o)
         %handleEeg(o,o.eegAfterFrame); DISABLED FOR NOW - not likely to be fast enough... need some pacer.
         %end
+
         function afterBlock(o)
             switch upper(o.mode)
                 case 'BLOCKED'
-                    if o.enabled
+                    if o.enabled && ~o.sham
                         rampDown(o);
                     end
                 otherwise
@@ -564,6 +578,13 @@ classdef starstim < neurostim.stimulus
                     o.isTimedStarted =false;
                 case 'EEGONLY'
                     %nothing to do
+                case 'NIC'
+                    % Check whether it is time to end the experiment
+                    [~,~,~,startTime]  = get(o.prms.marker,'dataIsMember',o.code('protocolStarted'));
+                    if ~isempty(startTime) && neurostim.cic.clockTime > max(startTime)+o.experimentDuration
+                        o.writeToFeed(sprintf('Time is up (%2.2f min)',o.experimentDuration/60000));
+                        endExperiment(o.cic);   
+                    end
                 otherwise
                     o.cic.error('STOPEXPERIMENT',['Unknown starstim mode :' o.mode]);
             end
@@ -624,9 +645,17 @@ classdef starstim < neurostim.stimulus
             if isvalid(o.tmr)
                 o.tmr.stop; % Stop the timer
             end
-            if ~strcmpi(o.mode,'EEGONLY')
-                rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
+
+            switch upper(o.mode)            
+                case 'EEGONLY'
+                    %Nothing to do
+                case 'NIC'
+                    % Rely on NIC to handle the rampdown
+                otherwise
+                    rampDown(o); % Just to be sure (inc case the experiment was terminated early)..
             end
+
+            
             % Always stop the protocol if it is still runnning
             if ~strcmpi(o.protocolStatus,'CODE_STATUS_IDLE')
                 stop(o);
@@ -646,14 +675,11 @@ classdef starstim < neurostim.stimulus
                     o.inlet.close_stream;
                     o.inlet = []; % Force a delete
                 end
-
                 MatNICMarkerCloseLSL(o.markerStream);
                 o.markerStream = [];
-
                 close(o)
             end
             o.writeToFeed('Stimulation done. Connection with Starstim closed');
-
         end
 
     end
@@ -691,6 +717,7 @@ classdef starstim < neurostim.stimulus
 
             waitFor(o,'PROTOCOL',{'CODE_STATUS_STIMULATION_FULL','CODE_STATUS_IDLE'});
             sendMarker(o,'rampUp');
+            tSendUp = GetSecs;
             switch upper(o.type)
                 case 'TACS'
                     msg{1} = sprintf('Ramping tACS up in %d ms to:',o.transition);
@@ -738,11 +765,16 @@ classdef starstim < neurostim.stimulus
                 peakLevelDuration =o.shamDuration;
             end
 
-            % Schedule the rampDown. Assuming that this line is executed
-            % immediately after sending the rampup command to Starstim.
+            % Schedule the rampDown. 
             if isfinite(peakLevelDuration)
+                % I'm not sure waitFor(CODE_STATUS_STIMULATION_FULL) always
+                % works with starstim; it seems as if this status is returend even
+                % before the transition is complete. (and in Fake mode it returns immediately) 
+                % Make sure the scheduled rampDown delay is never shorter than the
+                % transition time.
+                additionalDelay  = max(0,o.transition - (tReachedPeak-tSendUp));
                 off  = @(timr,events,obj,tPeak) (rampDown(obj,tPeak));
-                o.tmr.StartDelay = peakLevelDuration/1000; %\ seconds
+                o.tmr.StartDelay = round(additionalDelay + peakLevelDuration)/1000; %\ seconds
                 o.tmr.ExecutionMode='SingleShot';
                 o.tmr.TimerFcn = {off,o,tReachedPeak};
                 start(o.tmr);
@@ -953,7 +985,10 @@ classdef starstim < neurostim.stimulus
 
         function  ok = hasValidParameters(o)
             ok = true;
-
+            if strcmpi(o.mode,'NIC')
+                % Just doing what the NIC GUI plans. Always valid
+                return;
+            end
             % Floating point values result in zero current being applied by
             % Starstim. Flag an error.
             if any(~isnan(o.amplitude) & (round(o.amplitude) ~=o.amplitude & o.amplitude <=2000 & o.amplitude >=0))

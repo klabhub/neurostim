@@ -805,6 +805,10 @@ classdef cic < neurostim.plugin
 
         function afterBlock(c)
 
+            % Calls afterBlock on all plugins, in pluginOrder.
+            base(c.pluginOrder,neurostim.stages.AFTERBLOCK,c);
+
+            % now show message/wait for key if requested.
             waitforkey = false;
             if isa(c.blocks(c.block).afterMessage,'function_handle')
                 msg = c.blocks(c.block).afterMessage(c);
@@ -1241,16 +1245,15 @@ classdef cic < neurostim.plugin
 
                     afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
 
-                    %Exit experiment if requested
+                    %Exit experiment or block if requested
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                 end % one block
 
                 Screen('glLoadIdentity', c.mainWindow);
-                if ~c.flags.experiment;break;end
-
-                %% Perform afterBlock message/function
-
+                % Perform afterBlock message/function
                 afterBlock(c);
+                % Exit experiment if requested 
+                if ~c.flags.experiment;break;end
             end %blocks
             c.stage = neurostim.cic.POST;
             c.stopTime = now;
@@ -1829,14 +1832,13 @@ classdef cic < neurostim.plugin
             %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
             switch upper(c.screen.type)
                 case 'GENERIC'
-                    % Generic monitor.
+                    % Generic monitor.              
                 case 'VPIXX-M16'
                     % The VPIXX monitor in Monochrome 16 bit mode.
                     % Set up your vpixx once, using
                     % BitsPlusImagingPipelineTest(screenID);
                     % BitsPlusIdentityClutTest(screenID,1); this will
                     % create correct identity cluts.
-
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
                     % After upgrading to Win10 we seem to need this.

@@ -241,6 +241,7 @@ classdef design <handle & matlab.mixin.Copyable
             end
         end
         
+        
         function show(o,f,str,conditionPerTrial)
             % Function to show the condition specifications in a figure.
             %show blocks)
@@ -438,7 +439,7 @@ classdef design <handle & matlab.mixin.Copyable
 
             for c=1:1:o.nrConditions
                 spcs = specs(o,c);
-                if any(strcmpi(spcs(:,1),plg) & strcmpi(spcs(:,2),prm))
+                if ~isempty(spcs) && any(strcmpi(spcs(:,1),plg) & strcmpi(spcs(:,2),prm))
                     % plg.prm is already part of the design for this condition
                     % DO NOT overwrite it
                     continue
@@ -504,7 +505,10 @@ classdef design <handle & matlab.mixin.Copyable
                         end
                     else
                         targetFactors = S(2).subs;
-                        if o.nrFactors >0 && (targetFactors{end}~=1 && numel(targetFactors) ~= o.nrFactors && ~(numel(targetFactors)==1 && strcmpi(targetFactors{1},':'))) % allow (:,1) for a one-factor
+                        if o.nrFactors >0 && ( ...
+                            targetFactors{end}~=1 && numel(targetFactors) ~= o.nrFactors && ... % allow (:,1) for a one-factor
+                            ~(numel(targetFactors)==1 && strcmpi(targetFactors{1},':')) && ... % allow (:)
+                            ~(numel(targetFactors)==1 && isnumeric(targetFactors{1})) ) % allow use of linear indicies
                             error(['Specify an entry for each of the ' num2str(o.nrFactors) ' dimensions of .conditions'])
                         end
                     end
@@ -519,6 +523,10 @@ classdef design <handle & matlab.mixin.Copyable
                         % Singleton expansion of (:) to  (:,:)
                         ix = cell(1,o.nrFactors);
                         [ix{:}] = deal(':');
+                    end
+                    if numel(ix)==1 && o.nrFactors>1
+                        % Linear index... convert to subscripts
+                        [ix{1:o.nrFactors}] = ind2sub(o.nrLevels,ix{1});
                     end
                     if o.nrFactors>0
                         %% Factors have previously been defined. Allow only

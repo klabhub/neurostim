@@ -174,7 +174,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Check if the value changed and log only the changes.
             % (at some point this seemed to be slower than just logging everything.
             % but tests on July 1st 2017 showed that this was (no longer) correct.
-            if  (isnumeric(v) && numel(v)==numel(o.value) && isnumeric(o.value) && all(v(:)==o.value(:))) || (ischar(v) && ischar(o.value) && strcmp(v,o.value))
+            if  (isnumeric(v) && numel(v)==numel(o.value) && isnumeric(o.value) && isequaln(v(:),o.value(:))) || (ischar(v) && ischar(o.value) && strcmp(v,o.value))
                 % No change, no logging.
                 return;
             end
@@ -520,7 +520,9 @@ classdef parameter < handle & matlab.mixin.Copyable
             end
             
             if ~isempty(p.Results.dataIsMember)
-                out = out | cellfun(@(x)(~ismember(x,p.Results.dataIsMember)),data);
+                % Check whether data is a member of p.Results.dataIsMember
+                % - Note that empty never matches.
+                out = out | cellfun(@(x)(isempty(x) || ~ismember(x,p.Results.dataIsMember)),data);
             end
             
             % Prune
@@ -550,7 +552,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             if nargout >4 || p.Results.struct
                 % User asked for block information
                 block= get(o.plg.cic.prms.block,'atTrialTime',Inf,'matrixIfPossible',false); % Blck at end of trial
-                block = [block{trial}]; % Match other info that is returned
+                block = [block{trial}]'; % Match other info that is returned. Make it a column vector to match other data/trial info.
             end
             
             if (nargout >5 || p.Results.struct) && ~strcmp(o.name,'frameDrop')
@@ -695,7 +697,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % First check whether this conversion could work (same size ,
             % same type)            
             if iscell(data) && ~isempty(data) && ~iscellstr(data) && ~isa(data{1},'function_handle') ...               
-                && all(cellfun(@(x) (strcmpi(class(data{1}),class(x))),data)) ...
+                && (all(cellfun(@(x) (strcmpi(class(data{1}),class(x))),data)) || all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)))...
                 && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
                 %Look for a singleton dimension
                 sz = size(data{1});
