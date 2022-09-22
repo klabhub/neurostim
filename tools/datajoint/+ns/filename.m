@@ -3,7 +3,8 @@ function v = filename(o,root,filetype)
 % name (including the root if specified).
 % INPUT
 % o = The output of a call to .Experiment
-% root = The top level folder ['']
+% root = The top level folder to use. Will default to the value of 'root'
+% in ns.Global.
 %
 % OUTPUT
 % v = the filename of the corresponding Neurostim output file, or a cell
@@ -12,20 +13,21 @@ function v = filename(o,root,filetype)
 if nargin < 3
     filetype = '.mat';
     if nargin <2
-        rt = fetchn(ns.Global & 'name=''root''' ,'value','ORDER BY id DESC LIMIT 1');
-        if isempty(rt)
-            root = '';
-        else
-            root =rt{1};
-        end
+        root = '';
     end
 end
-nrExperiments = numel(o);
+if isempty(root)
+    rt = fetchn(ns.Global & 'name=''root''' ,'value','ORDER BY id DESC LIMIT 1');
+    if ~isempty(rt)
+        root =rt{1};
+    end
+end
 if isa(o,'ns.Experiment')
     o =fetch(o,'*');
 elseif isstruct(o)
     o = fetch(ns.Experiment & o,'*');
 end
+nrExperiments = numel(o);
 v= cell(1,nrExperiments);
 for i=1:nrExperiments
     v{i} = fullfile(root,datestr(o(i).session_date,'YYYY/mm/dd'), ...

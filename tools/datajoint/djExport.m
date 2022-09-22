@@ -131,7 +131,7 @@ else
     for row=rows'
         cntr =cntr+1;
         if cntr > p.Results.maxNrFiles;break;end
-
+        
         dayFolder = datestr(files(row).session_date,'YYYY/mm/DD');
         [subFolder,filename,ext]= fileparts(files(row).filename);
         srcFullFile = fullfile(srcRoot,dayFolder,subFolder,[filename ext]);
@@ -221,7 +221,7 @@ else
             if p.Results.dryrun                
                 fprintf('(DRYRUN) Exporting %s to \n \t \t %s \n',srcFullFile,trgFullFile)
             else
-                fprintf('Exporting %s to \n \t \t %s \n',srcFullFile,trgFullFile)
+                fprintf('Exporting %s to \n \t \t %s   (%d/%d)\n',srcFullFile,trgFullFile,cntr,min(nrFiles,p.Results.maxNrFiles))
                 if isempty(p.Results.fun)
                     % Simple copy - no analysis
                     if isempty(p.Results.ssh)
