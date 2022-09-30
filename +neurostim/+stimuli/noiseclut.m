@@ -321,7 +321,10 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
                 if ~isempty(thisFrDrData)
                     
                     %Discard drops that happened before or after
-                    kill = thisFrDrData(:,1)<stimStart.frame(i) | thisFrDrData(:,1)>stimStop.frame(i);
+                    %kill = thisFrDrData(:,1)<stimStart.frame(i) | thisFrDrData(:,1)>stimStop.frame(i);
+                    kill = thisFrDrData(:,1)<stimStart.frame(i) | thisFrDrData(:,1)>=stimStop.frame(i);
+                    %https://brains-trust.slack.com/archives/C5ZU26YJ3/p1660883763555489
+                    
                     thisFrDrData(kill,:) = [];
                     
                     %Now re-number the frame drops relative to our first frame
