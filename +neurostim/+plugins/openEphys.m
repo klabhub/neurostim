@@ -57,7 +57,7 @@ classdef openEphys < neurostim.plugins.ePhys
             pin.addParameter('RecDir', '', @ischar); % save path on the open ephys computer
             pin.addParameter('PrependText', '', @ischar); 
             pin.addParameter('AppendText', '', @ischar);
-            pin.addParameter('startDelay',0, @isnumeric);
+            pin.addParameter('startEndDelay',0, @isnumeric);
             
             pin.parse(varargin{:});
             
@@ -74,7 +74,7 @@ classdef openEphys < neurostim.plugins.ePhys
             o.addProperty('recDir',args.RecDir,'validate',@ischar); 
             o.addProperty('prependText',args.PrependText,'validate',@ischar); 
             o.addProperty('appendText',args.AppendText,'validate',@ischar);                                   
-            o.addProperty('startDelay',args.startDelay,'validate',@isnumeric);
+            o.addProperty('startEndDelay',args.startEndDelay,'validate',@isnumeric);
         end
         
         function sendMessage(o,msg)
