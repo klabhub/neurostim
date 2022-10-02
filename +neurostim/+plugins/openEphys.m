@@ -97,8 +97,8 @@ classdef openEphys < neurostim.plugins.ePhys
             sendMessage(o,'StartAcquisition');
             o.connectionStatus = true; % <-- FIXME: is this used/useful for anything?
             
-            if o.startDelay>0
-                pause(o.startDelay);
+            if o.startEndDelay>0
+                pause(o.startEndDelay);
             end
             
             % Generate command string that is used to initiate recording and specify save information  
@@ -111,7 +111,11 @@ classdef openEphys < neurostim.plugins.ePhys
         function stopRecording(o) 
             % Stop recording and data acquisition. 
             % Reset connectionStatus flag.
-            
+
+            if o.startEndDelay>0
+                pause(o.startEndDelay);
+            end
+
             sendMessage(o,'StopRecord');
                        
             sendMessage(o,'StopAcquisition');
