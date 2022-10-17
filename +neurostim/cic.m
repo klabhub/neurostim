@@ -611,7 +611,7 @@ classdef cic < neurostim.plugin
                 
                 ix = ismember(stimOrder, 'trialDiode');
                 if any(ix)
-                  stimOrder = cat(2,stimOrder{~ix},stimOrder{ix}); %trialDiode are called last amongst stimuli
+                  stimOrder = cat(2,stimOrder(~ix),stimOrder(ix)); %trialDiode are called last amongst stimuli
                 end
                 defaultOrder = cat(2,defaultOrder,stimOrder);
                 
