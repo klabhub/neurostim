@@ -5,6 +5,8 @@ function djExport(targetDataRoot,varargin)
 % INPUT
 % targetDataRoot = Path to the folder where data will be stored (e.g.
 % '../data')
+% srcDataRoot = Path tot thefolder where data will be retrieved. Defaults
+%   to '', in which case the root is read from the ns.Global table.
 % 'useDayFolders' - Structure the files using year/month/day hiearchy
 % 'skipExisting'  - Copy only new files.
 % 'paradigm' - Cell array of paradigms to include
@@ -65,6 +67,7 @@ function djExport(targetDataRoot,varargin)
 % BK - Added table input, Sept 2022.
 p=inputParser;
 p.addRequired('targetDataRoot',@mustBeTextScalar)
+p.addParameter('srcDataRoot','',@mustBeTextScalar);
 p.addParameter('useDayFolders',false,@islogical);
 p.addParameter('skipExisting',true,@islogical);
 p.addParameter('paradigm','',@mustBeText);
@@ -99,8 +102,11 @@ else
     % Fetch the table that was passed 
     files = fetch(p.Results.table & keepExtension & keepParadigm,'*');
 end
-
-srcRoot = fetch1(ns.Global & 'name=''root''' ,'value','ORDER BY id DESC LIMIT 1');
+if isempty(p.Results.srcDataRoot)
+    srcRoot = fetch1(ns.Global & 'name=''root''' ,'value','ORDER BY id DESC LIMIT 1');
+else
+    srcRoot = p.Results.srcDataRoot;
+end
 nrFiles = numel(files);
 
 % Select on include/exclude
