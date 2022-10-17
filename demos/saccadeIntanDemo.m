@@ -155,6 +155,6 @@ myDesign.fac1.estim2.spa = [1,3,5,-1,-1,1,3,5];
 myBlock=block('myBlock',myDesign);             %Create a block of trials using the factorial. Type "help neurostim/block" for more options.
 myBlock.nrRepeats=1;
 %% Make sure the plugins are in the right order
-c.order(['eye'],['saccade'],['sound'],['soundFeedback'],['mcc'],['fix'],['target'],['estim'],['estim2'],['intan']); %#ok<NBRAK>
+c.setPluginOrder(['eye'],['saccade'],['sound'],['soundFeedback'],['mcc'],['fix'],['target'],['estim'],['estim2'],['intan']); %#ok<NBRAK>
 %% Run it
 c.run(myBlock);    

@@ -75,6 +75,6 @@ d.fac1.fix.trialDuration=[2500 5000];  % Vary the placeholder.
 myBlock=neurostim.block('MyBlock',d);
 myBlock.nrRepeats=5;
 myBlock.randomization='RANDOMWITHREPLACEMENT';
-c.order('fix','gabor');
+c.setPluginOrder('fix','gabor');
 c.run(myBlock);
 end
