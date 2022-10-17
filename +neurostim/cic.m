@@ -602,12 +602,19 @@ classdef cic < neurostim.plugin
             end
 
             if ~isempty(c.plugins)
-                defaultOrder = {c.plugins.name}; %plugins are called earlier 
+                defaultOrder = {c.plugins.name}; %non-stim plugins are called earlier 
             else
                 defaultOrder = {};
             end
             if ~isempty(c.stimuli)
-                defaultOrder = cat(2,defaultOrder,{c.stimuli.name}); %stimuli are called later
+                stimOrder = {c.stimuli.name};
+                
+                ix = ismember(stimOrder, 'trialDiode');
+                if any(ix)
+                  stimOrder = cat(2,stimOrder{~ix},stimOrder{ix}); %trialDiode are called last amongst stimuli
+                end
+                defaultOrder = cat(2,defaultOrder,stimOrder);
+                
             end
 
             if nargin==1 || (numel(varargin)==1 && isempty(varargin{1}))
