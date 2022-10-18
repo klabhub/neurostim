@@ -43,7 +43,7 @@ myBlock=block('myBlock',myDesign);             %Create a block of trials using t
 myBlock.nrRepeats=10;
 
 %% Run the experiment.
-c.order('fix','grid');   %Ignore this for now - we hope to remove the need for this.
+c.setPluginOrder('fix','grid');   %Ignore this for now - we hope to remove the need for this.
 c.subject = 'easyD';
 c.run(myBlock);
 
