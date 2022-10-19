@@ -129,25 +129,36 @@ classdef liquid < neurostim.plugins.feedback
             makeSticky(o,'jackpotDur');
             makeSticky(o,'jackpotPerc');
             % Currently this only works for a single liquid reward item.
-            if o.nItems==1
-                o.item1duration = parms.Duration;
-                makeSticky(o,'item1duration');
-            else
-                writeToFeed(o,'Ignoring duration setting')
-            end
-            %Something like this could work for multiple items, but the edit box would
-            %have to be text (to allow vectors). It may be better to add numeric boxes
-            %for multiple items' duration in specific cases.
-            %             for i=1:o.nItems
-            %                o.(['item', num2str(i) 'duration']) = durations(min(i,numel(durations)));
-            %                makeSticky(o,['item', num2str(i) 'duration']);
-            %             end
+            % This function is called before the experiment file starts so
+            % the item has not been defined yet.  The user has to use the 
+            % output of nsGui.parse to set the value in the experiment
+            % file.
         end
     end
     
     
     methods (Static)
-        
+        function valueChangedCb(h,event)    
+            if isfield(h.Parent.UserData,'plugin')
+                plg = h.Parent.UserData.plugin;
+                switch (h.Tag)
+                    case 'Duration'
+                        % If we change the value in the gui we presumably
+                        % intend for this to stick  (jackpot is sticky
+                        % already as it is defined before experiment
+                        % starrt).
+                        makeSticky(plg,'item1duration');            
+                         plg.item1duration = event.Value;
+                    case 'JackpotDur'                        
+                        plg.jackpotDur  = event.Value;                        
+                    case 'JackpotPerc'
+                        plg.jackpotPerc  = event.Value;                        
+                    otherwise
+                        
+                end
+            end
+        end
+
         function guiLayout(p)
             % Add plugin specific elements
             % The Tags chosen here must match the field names used in guiSet
@@ -162,17 +173,19 @@ classdef liquid < neurostim.plugins.feedback
             h = uieditfield(p, 'numeric','Tag','Duration'); % Must be text to allow vectors.
             h.Position = [100 17 50 22];
             h.Value= 200;
-            
+            h.ValueChangedFcn = @neurostim.plugins.liquid.valueChangedCb;
+
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
             h.Position = [155 39 50 22];
             h.Text = 'Jackpot';
-            
+            h.ValueChangedFcn = @neurostim.plugins.liquid.valueChangedCb;
+
             h = uieditfield(p, 'numeric','Tag','JackpotDur');
             h.Value = 1000;
             h.Position = [155 17 50 22];
-            
+            h.ValueChangedFcn = @neurostim.plugins.liquid.valueChangedCb;
             
             
             h = uilabel(p);

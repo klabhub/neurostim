@@ -113,7 +113,7 @@ blk = block('block',d);
 blk.nrRepeats = 10;
 
 % now run the experiment...
-% c.order('texture');
+% c.setPluginOrder('texture');
 c.subject = 'demo';
 c.paradigm = 'textureDemo';
 c.run(blk);
