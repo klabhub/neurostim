@@ -114,11 +114,17 @@ classdef (Abstract) adaptive < neurostim.plugin
     methods
 
         
-        function o = adaptive(c,funStr)
+        function o = adaptive(c,funStr,requiredBehaviors)
             % c= handle to CIC
             % fun = function string that evaluates to the outcome of the
             % trial (correct/incorrect).
-            
+            % requiredBehaviors = Cell array of names of behaviors that
+            % must be completed successfully before the adaptive parameter
+            % can be updated (e.g. 'fixation')
+            %            
+            if nargin <3
+                requiredBehaviors = '';
+            end
             % Create a name based on the child class and a unique ID.
             u =randi(2^53-1);
             s = dbstack;
@@ -130,6 +136,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             o.addProperty('conditions',[]);% The condition that this adaptive parameter belongs to. Will be set by design.m
             o.addProperty('design',''); % This parm belongs to paramters in this design. (Set by design.m)
             o.addProperty('ignoreN',0); % Used to ignore the first N trials (set to 1 to ignroe the first, often missed trial)
+            o.addProperty('requiredBehaviors',requiredBehaviors); % These have to be successful for any update to occur
             o.uid = u;
             o.trialOutcome = funStr;
             
@@ -139,6 +146,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             if ~isempty(o.design) && ~strcmpi(o.design,dsgn)
                 error('Not sure this works... one adaptive parm belongs to two designs?');
             end
+            assert(isnumeric(cond),'Conditions should be listed as numbers');
             o.design = dsgn;
             o.conditions = unique(cat(1,o.conditions,cond));
         end
@@ -159,7 +167,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             
         end
         
-        function o= duplicate(o1,nm)
+        function o = duplicate(o1,nm)
             % Duplicate an adaptive parm ; requires setting a new unique
             % id. Note that if you ask for more than one duplicate, the
             % first element in the array of duplicates will be the
@@ -209,15 +217,17 @@ classdef (Abstract) adaptive < neurostim.plugin
             % Adaptive parameters defined as part of a design only get
             % updated when "their" condition/design is the currently active
             % one.
+            % In an experiment with required behaviors, outcomes are skipped
+            % for trials in which the behavior is not complete (i.e. success= false) 
+           
             if isempty(o.design) || (strcmpi(o.cic.design,o.design) && ismember(o.cic.condition,o.conditions))% Check that this adaptive belongs to the current condition
-               if o.cic.trial > o.ignoreN 
+               if o.cic.trial > o.ignoreN  && trialSuccess(o.cic,o.requiredBehaviors)                   
                     % Evaluate the function that the user provided (returning correct/incorrect) and store it.
                     %We'll use it to update the adaptive value in beforeTrial()
                     o.lastOutcome = o.trialOutcome;
                     if numel(o.lastOutcome)>1 
                         error(['Your ''trialOutcome'' function in the adaptive parameter ' o.name ' does not evaluate to true or false']);
-                    end
-                    
+                    end                    
                     %Also store the value used
                     o.lastValue = o.getValue;
                else
@@ -226,7 +236,7 @@ classdef (Abstract) adaptive < neurostim.plugin
             end
         end 
         
-        function beforeTrial(o)
+        function v = updateValue(o)
 
             if ~isempty(o.lastOutcome)
                 % Allow the derived class to update (based on lastValue and lastOutcome)
@@ -235,8 +245,10 @@ classdef (Abstract) adaptive < neurostim.plugin
                 o.lastValue = []; 
             end
             
-            %Reset the overruled value.
+            % Reset the overruled value.
             o.overruleValue = [];
+
+            v = getValue(o);
         end
     end
 end % classdef

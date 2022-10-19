@@ -72,6 +72,7 @@ classdef mcc < neurostim.plugins.daq
             %   m = plugins.mcc(c,'serialNumber','01BE9719')
             p = inputParser();
             p.addParameter('serialNumber','');
+            p.addParameter('DDir',[1 0]);%direction of digital outputs (default: portA-input, portB-output)
             p.parse(varargin{:})
             args = p.Results;
  
@@ -105,8 +106,8 @@ classdef mcc < neurostim.plugins.daq
                error('MCC plugin added but no device could be found.'); 
             end
             
-            err = DaqDConfigPort(o.daq,0,1); % configure digital port A for input
-            err = DaqDConfigPort(o.daq,1,0); % configure digital port B for output
+            err = DaqDConfigPort(o.daq,0, args.DDir(1)); % configure digital port A
+            err = DaqDConfigPort(o.daq,1, args.DDir(2)); % configure digital port B
         end
         
         function beforeExperiment(o)
@@ -137,14 +138,13 @@ classdef mcc < neurostim.plugins.daq
                 current = DaqDIn(o.daq);
                 port = (channel>8)+1; %Determine which port the bit number belongs to.
                 current = current(port); %Retrieve current value of the port 
-                newValue = bitset(current,mod(channel,8),value); 
-                DaqDOut(o.daq,port-1,newValue);
-                
+                newValue = bitset(current,mod(channel-1,8)+1,value); 
+                DaqDOut(o.daq,port-1,newValue);                
                 if size(varargin) == 1 
                     duration = varargin{1};
                     % timer function may override other functions when time is met
                     % and could cause problems for time-critical tasks
-                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current)); %#ok<CPROPLC>
+                    o.timer = timer('StartDelay',duration/1000,'TimerFcn',@(~,~) outputToggle(o,channel,current)); 
                     start(o.timer);
                 end
             else
