@@ -162,7 +162,7 @@ classdef liquid < neurostim.plugins.feedback
         function guiLayout(p)
             % Add plugin specific elements
             % The Tags chosen here must match the field names used in guiSet
-            
+        
             h = uilabel(p);
             h.HorizontalAlignment = 'left';
             h.VerticalAlignment = 'bottom';
@@ -180,8 +180,7 @@ classdef liquid < neurostim.plugins.feedback
             h.VerticalAlignment = 'bottom';
             h.Position = [155 39 50 22];
             h.Text = 'Jackpot';
-            h.ValueChangedFcn = @neurostim.plugins.liquid.valueChangedCb;
-
+           
             h = uieditfield(p, 'numeric','Tag','JackpotDur');
             h.Value = 1000;
             h.Position = [155 17 50 22];
@@ -196,6 +195,8 @@ classdef liquid < neurostim.plugins.feedback
             h = uieditfield(p, 'numeric','Tag','JackpotPerc');
             h.Value = 0.01;
             h.Position = [210 17 50 22];
+            h.ValueChangedFcn = @neurostim.plugins.liquid.valueChangedCb;
+
             
         end
         
