@@ -118,7 +118,7 @@ classdef openEphys < neurostim.plugins.ePhys
 
             sendMessage(o,'StopRecord');
                        
-            sendMessage(o,'StopAcquisition');
+            %sendMessage(o,'StopAcquisition');
             
 %            zeroMQrr('CloseAll'); %closes all open sockets and queue thread...closes connection
 %            before queue has been processed 
