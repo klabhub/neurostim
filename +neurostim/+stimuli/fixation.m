@@ -26,17 +26,8 @@ classdef fixation < neurostim.stimulus
         function beforeFrame(o)
             locSize = o.size; % Local copy, to prevent repeated expensive "getting" of NS param          
             switch upper(o.shape)
-                 case 'ABC' % ABC fixation point from https://doi.org/10.1016/j.visres.2012.10.012
-                            % size = 0.6; size2 = 0.2 are values from paper                            
-                    color1 = o.color;
-                    color2 = o.color2;
-                    tinySize = o.size2;
-                    w = o.window;
-            
-                    Screen('FillOval', w, color1,[-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]);
-                    Screen('FillRect', w, color2, [-(tinySize/2) -(locSize/2) (tinySize/2) (locSize/2)]);
-                    Screen('FillRect', w, color2, [-(locSize/2) -(tinySize/2) (locSize/2) (tinySize/2)]);
-                    Screen('FillOval', w, color1,[-(tinySize/2) -(tinySize/2) (tinySize/2) (tinySize/2)]);
+                 case 'CIRC' % Circle
+                    Screen('FillOval', o.window,o.color,[-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]); % With antialiasing.     
                  case 'FRAME' % Rectangle 
                     locSize2 = o.size2;
                     color1 = o.color;
@@ -52,8 +43,6 @@ classdef fixation < neurostim.stimulus
                 case 'RECT' % Rectangle 
                     locSize2 = o.size2;
                     Screen('FillRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                    
-                case 'CIRC' % Circle
-                    Screen('FillOval', o.window,o.color,[-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]); % With antialiasing.                    
                 case 'DONUT' % DONUT
                     locSize2 = o.size2;
                     w = o.window;
@@ -79,7 +68,17 @@ classdef fixation < neurostim.stimulus
                     x = cosd(anglesDeg).*radiustot;
                     y = sind(anglesDeg).*radiustot;
                     Screen('FillPoly',o.window, o.color, [x;y]', 0);
-
+                case 'ABC' % ABC fixation point from https://doi.org/10.1016/j.visres.2012.10.012
+                            % size = 0.6; size2 = 0.2 are values from paper                            
+                    color1 = o.color;
+                    color2 = o.color2;
+                    tinySize = o.size2;
+                    w = o.window;
+            
+                    Screen('FillOval', w, color1,[-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]);
+                    Screen('FillRect', w, color2, [-(tinySize/2) -(locSize/2) (tinySize/2) (locSize/2)]);
+                    Screen('FillRect', w, color2, [-(locSize/2) -(tinySize/2) (locSize/2) (tinySize/2)]);
+                    Screen('FillOval', w, color1,[-(tinySize/2) -(tinySize/2) (tinySize/2) (tinySize/2)]);
             end
         end
         
