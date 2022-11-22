@@ -23,6 +23,43 @@ classdef Experiment  < dj.Manual
         function v = file(tbl)
             v = string(fetchn(tbl ,'file'));
         end
+        function obj = open(tbl,varargin)
+            % Read the experiment files and return an array of Neurostim CIC objects.
+            % For standard Neurostim PTB experiments the data are stored as
+            % a single c variable in a .mat file. This is loaded using
+            % the Matlab buitlin load()
+            % By passing a 'fun', (a function that takes a filename and
+            % returns an object) the data can be read differently, or
+            % preprocessed.             
+            p=inputParser;
+            p.addParameter('fun',@(x)(ns.Experiment.load(x)))
+            p.addParameter('mapRoot',{},@iscellstr);
+            p.addParameter('perFile',true,@islogical);
+            p.parse(varargin{:});
+            obj=[];
+            if p.Results.perFile
+                % Load each file separately and return a vector of objects
+            for key=tbl.fetch('file')'
+                if ~isempty(p.Results.mapRoot)
+                    thisFile = replace(key.file,p.Results.mapRoot{:});
+                else
+                    thisFile = key.file;
+                end
+                obj = [obj; p.Results.fun(thisFile)]; %#ok<AGROW> 
+            end
+            else
+                % Load all files at once (only works if the 'fun' passed
+                % here can handle that).
+                keys = tbl.fetch('file');
+                files= {keys.file};
+                if ~isempty(p.Results.mapRoot)
+                    thisFile = replace(files,p.Results.mapRoot{:});
+                else
+                    thisFile = files;
+                end
+                obj = p.Results.fun(thisFile);
+            end
+        end
         function [out,filename] = get(tbl,plg)
             % function [out,filename] = get(o,plg)
             % Retrieve all information on a specific plugin in an experiment
@@ -151,7 +188,7 @@ classdef Experiment  < dj.Manual
                 file = fetch1(tbl & oldKey, 'file');
             end
             lastwarn(''); % Reset
-            load(file,'c');
+            c  = ns.Experiment.load(file);
             if contains(lastwarn,'Cannot load an object of class')
                 fprintf(2,'Please add the path to all Neurostim classes to your path.\n')
                 fprintf(2,'Skipping %s\n',file)
@@ -194,5 +231,12 @@ classdef Experiment  < dj.Manual
         end
 
     end
-
+    methods (Static)
+        function o = load(filename)
+            % Default method to open a Neurostim data file (a .mat file
+            % containing a CIC class object in the variable 'c'
+            s  = load(filename,'c');
+            o=s.c;
+        end
+    end
 end
