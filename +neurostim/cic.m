@@ -132,7 +132,7 @@ classdef cic < neurostim.plugin
 
 
     end
-    properties (SetAccess= private)
+    properties (SetAccess= {?neurostim.plugin}) 
         used =false; % Flag to make sure a user cannot reuse a cic object.
         loadedFromFile = false; % Flag set by loadobj - primarily used to avoid initializing things that are only relevant during the experiment.
     end

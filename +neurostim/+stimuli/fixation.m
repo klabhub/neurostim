@@ -17,7 +17,7 @@ classdef fixation < neurostim.stimulus
             o.addProperty('size',15,'validate',@isnumeric);
             o.addProperty('size2',5,'validate',@isnumeric);
             o.addProperty('color2',[0 0 0],'validate',@isnumeric);
-            o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR','FRAME'}))) ;               
+            o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR','FRAME','ABC'}))) ;               
             
             o.on = 0;
         end
@@ -25,26 +25,29 @@ classdef fixation < neurostim.stimulus
         
         function beforeFrame(o)
             locSize = o.size; % Local copy, to prevent repeated expensive "getting" of NS param          
-            switch upper(o.shape)  
+            switch upper(o.shape)
+                 case 'CIRC' % Circle
+                    Screen('FillOval', o.window,o.color,[-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]); % With antialiasing.     
                  case 'FRAME' % Rectangle 
                     locSize2 = o.size2;
+                    color1 = o.color;
+                    w = o.window;
                     % This draws a frame using lines. The FrameRect command
                     % (below) did not work on our vPixx monitor. Don't
                     % understand why, but this works .
-                    Screen('DrawLine', o.window,o.color, -(locSize/2),-(locSize2/2),-(locSize/2),+(locSize2/2));
-                    Screen('DrawLine', o.window,o.color, -(locSize/2),+(locSize2/2),+(locSize/2),+(locSize2/2));
-                    Screen('DrawLine', o.window,o.color, +(locSize/2),+(locSize2/2),+(locSize/2),-(locSize2/2));
-                    Screen('DrawLine', o.window,o.color, +(locSize/2),-(locSize2/2),-(locSize/2),-(locSize2/2));
+                    Screen('DrawLine', w, color1, -(locSize/2),-(locSize2/2),-(locSize/2),+(locSize2/2));
+                    Screen('DrawLine', w, color1, -(locSize/2),+(locSize2/2),+(locSize/2),+(locSize2/2));
+                    Screen('DrawLine', w, color1, +(locSize/2),+(locSize2/2),+(locSize/2),-(locSize2/2));
+                    Screen('DrawLine', w, color1, +(locSize/2),-(locSize2/2),-(locSize/2),-(locSize2/2));
                     %Screen('FrameRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                                 
                 case 'RECT' % Rectangle 
                     locSize2 = o.size2;
                     Screen('FillRect', o.window, o.color,[-(locSize/2) -(locSize2/2) (locSize/2) (locSize2/2)]);                    
-                case 'CIRC' % Circle
-                    Screen('FillOval', o.window,o.color,[-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]); % With antialiasing.                    
                 case 'DONUT' % DONUT
                     locSize2 = o.size2;
-                    Screen('FillOval', o.window,o.color, [-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]);  
-                    Screen('FillOval', o.window,o.color2, [-(locSize2/2) -(locSize2/2) (locSize2/2) (locSize2/2)]);                                
+                    w = o.window;
+                    Screen('FillOval', w, o.color, [-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]);  
+                    Screen('FillOval', w, o.color2, [-(locSize2/2) -(locSize2/2) (locSize2/2) (locSize2/2)]);                                
                 case 'TRIA'  %Oriented triangle                 
                     % This rotation does not work: (it rotates the o.Y
                     % too...)
@@ -65,7 +68,17 @@ classdef fixation < neurostim.stimulus
                     x = cosd(anglesDeg).*radiustot;
                     y = sind(anglesDeg).*radiustot;
                     Screen('FillPoly',o.window, o.color, [x;y]', 0);
-
+                case 'ABC' % ABC fixation point from https://doi.org/10.1016/j.visres.2012.10.012
+                            % size = 0.6; size2 = 0.2 are values from paper                            
+                    color1 = o.color;
+                    color2 = o.color2;
+                    tinySize = o.size2;
+                    w = o.window;
+            
+                    Screen('FillOval', w, color1,[-(locSize/2) -(locSize/2) (locSize/2) (locSize/2)]);
+                    Screen('FillRect', w, color2, [-(tinySize/2) -(locSize/2) (tinySize/2) (locSize/2)]);
+                    Screen('FillRect', w, color2, [-(locSize/2) -(tinySize/2) (locSize/2) (tinySize/2)]);
+                    Screen('FillOval', w, color1,[-(tinySize/2) -(tinySize/2) (tinySize/2) (tinySize/2)]);
             end
         end
         
