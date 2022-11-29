@@ -1264,7 +1264,7 @@ classdef cic < neurostim.plugin
 
 
                     c.frame = c.frame+1;
-                    if c.screen.maxPriorityPerTrial
+                    if c.hardware.maxPriorityPerTrial
                         % request 'normal' priority for the ITI
                         Priority(0);
                     end
