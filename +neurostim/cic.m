@@ -51,7 +51,9 @@ classdef cic < neurostim.plugin
 
         hardware                = struct('sound',struct('device',-1,'latencyClass',1) ... % Sound hardware settings (device = index of audio device to use, see plugins.sound
             ,'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
-            ,'textEcho',false ... % ECho drawFormattedText to the command line.
+            ,'textEcho',false ... % Echo drawFormattedText to the command line.
+            ,'maxPriorityPerTrial',true ... % request max priority before/after each trial (as opposed to before/after the experiment)
+            ,'busyWaitITI',true ... % add busy work in the ITI to prevent the sceduler demoting us
             ); % Place to store hardware default settings that can then be specified in a script like myRig.
 
         flipCallbacks={}; %List of stimuli that have requested to be to called immediately after the flip, each as s.postFlip(flipTime).
@@ -1006,6 +1008,10 @@ classdef cic < neurostim.plugin
             WHEN            = 0; % Always flip on the next VBL
             DONTCLEAR       = 1;
 
+            if ~c.hardware.maxPriorityPerTrial
+                % request max priority for the whole experiment (NOT per trial)
+                Priority(MaxPriority(c.mainWindow));
+            end
 
             if ~c.hardware.keyEcho
                 ListenChar(-1);
@@ -1038,17 +1044,26 @@ classdef cic < neurostim.plugin
                             if locHAVEOVERLAY
                                 clearOverlay(c,c.itiClear);
                             end
-                            %Sitting idle in 'flip' during ITI seems to cause
-                            %unwanted behaviour when the trials starts, and for several frames into it.
-                            %at least on some Windows machines. e.g. the time to complete a call to rand()
-                            %was hugely variable and with occasional extreme lags.
-                            %Performance was improved massively if we add load here, to prevent the OS from releasing priority.
-                            %Here, we make an arbitrary assignment as a temporary fix. There would certainly be a
-                            %better way, but the obvious solution of not downgrading our Priority() in the
-                            %ITI didn't fix the problem. This did.
-                            postITIflip = GetSecs;
-                            while GetSecs-postITIflip < 0.6*FRAMEDURATION
-                                dummyAssignment=1; %#ok<NASGU>
+
+                            if c.hardware.busyWaitITI
+                                % Sitting idle in 'flip' during the ITI seems to cause
+                                % unwanted behaviour when the trial starts, and for
+                                % several frames into it. At least on some Windows
+                                % machines. For example, the time to complete a call to
+                                % rand() was hugely variable and with occasional extreme
+                                % lags. Performance was improved massively by adding
+                                % load here to prevent the OS from releasing priority.
+                                %
+                                % Here, we make an arbitrary assignment as a temporary
+                                % fix. There would certainly be a better way.
+                                %
+                                % Note that *not* downgrading our Priority() in the
+                                % ITI (e.g., maxPriorityPerTrial == False) didn't fix
+                                % the problem, busyWaitITI == True did.
+                                postITIflip = GetSecs;
+                                while GetSecs-postITIflip < 0.6*FRAMEDURATION
+                                    dummyAssignment = 1; %#ok<NASGU>
+                                end
                             end
                         end
                     else
@@ -1057,11 +1072,14 @@ classdef cic < neurostim.plugin
                     end
                     predictedVbl = ptbVbl+FRAMEDURATION; % Predict upcoming
 
-
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush',kbDeviceIndices);
-                    Priority(MaxPriority(c.mainWindow));
+
+                    if c.hardware.maxPriorityPerTrial
+                        % request max priority for this trial
+                        Priority(MaxPriority(c.mainWindow));
+                    end
 
                     % Timing the draw : commented out. See drawingFinished code below
                     % draw = nan(1,1000);
@@ -1246,9 +1264,10 @@ classdef cic < neurostim.plugin
 
 
                     c.frame = c.frame+1;
-
-                    Priority(0);
-
+                    if c.hardware.maxPriorityPerTrial
+                        % request 'normal' priority for the ITI
+                        Priority(0);
+                    end
                     afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
 
                     %Exit experiment or block if requested
