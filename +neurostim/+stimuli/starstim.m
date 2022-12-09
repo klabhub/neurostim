@@ -131,7 +131,7 @@ classdef starstim < neurostim.stimulus
         eegInit= false; % Set to true to initialize eeg stream before experiment (and do not wait until the first trial with non empty o.eegChannels)
     end
 
-    properties (SetAccess=protected,GetAccess=public)
+    properties (SetAccess={?neurostim.plugin},GetAccess=public)
         NICVersion;
         matNICVersion;               
     end
@@ -142,7 +142,7 @@ classdef starstim < neurostim.stimulus
     end
 
     % Public Get, but set through functions or internally
-    properties (Transient, SetAccess=protected, GetAccess= public)
+    properties (Transient, SetAccess={?neurostim.plugin}, GetAccess= public)
         sock;               % Socket for communication with the host.
         markerStream;       % LSL stream to write markers in NIC
 
