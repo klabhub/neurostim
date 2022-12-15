@@ -22,7 +22,9 @@ commandwindow;
 %% ========= Specify rig configuration  =========
 
 %Create a Command and Intelligence Centre object (the central controller for everything). Here a cic is returned with some default settings for this computer, if it is recognized.
-c = myRig;
+% c = myRig;
+c = marmolab.rigcfg('debug',true); % set to false to save githash at start of each experiment!
+
 screenW = c.screen.width;
 % c.screen.colorMode = 'XYL'; % Tell PTB that we will use xyL to specify color
 % c.screen.color.text = [0.33 0.33 1]; % TODO: Text does not seem to work in xyL
