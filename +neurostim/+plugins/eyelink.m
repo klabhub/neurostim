@@ -67,7 +67,8 @@ classdef eyelink < neurostim.plugins.eyetracker
     properties
         el; %@struct;  % Information structure to communicate with Eyelink host
         commands = {'link_sample_data = GAZE'};
-        edfFile = 'test.edf';
+        edfFile = '';
+        edfFileRemote = '';
         getSamples =true;
         getEvents =false;
         nTransferAttempts = 5;
@@ -117,6 +118,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('F9PassThrough',true); % simulate F9 press on Eyelink host to do quick drift correct
             o.addProperty('transferFile',true); % afterExperiment - transfer file from the Host to here. (Only set to false in debugging to speed things  up)
             o.addProperty('fake',false);            
+            o.addProperty('volume',1); % Scale calibration output sound volume by this number.
         end
         
         function beforeExperiment(o)
@@ -180,10 +182,14 @@ classdef eyelink < neurostim.plugins.eyetracker
             Eyelink('command', 'sample_rate = %d',o.sampleRate);
             
             
-            % open file to record data to (will be renamed on copy)
+            % Create a temporary file anme to use on Eyelink remote PC
+            % side. Will be renamed to default ns format on transfer
+            % afterExperiment
             [~,tmpFile] = fileparts(tempname);
-            o.edfFile= [tmpFile(end-7:end) '.edf']; %8 character limit
-            Eyelink('Openfile', o.edfFile);
+            o.edfFileRemote = [tmpFile(end-7:end) '.edf']; %8 character limit in Eyelink software
+            
+            % open file to record data to (will be renamed on copy)
+            Eyelink('Openfile', o.edfFileRemote);
             
             switch upper(o.eye)
                 case 'LEFT'
@@ -280,6 +286,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.el.callback  = o.callbackFun;
             o.el.hPlugin   = o; % Store a handle to the Eyelink plugin so that the callback handler functionc can use it
             o.el.window  = o.cic.mainWindow; % Always main window
+            o.el.volume  = o.volume;  % Allow user to scale output volume of calibration tones.
             EyelinkUpdateDefaults(o.el); % Store as persistent variables in callbackFun
         end
         
@@ -294,19 +301,19 @@ classdef eyelink < neurostim.plugins.eyetracker
                 try
                     newFileName = [o.cic.fullFile '.edf'];
                     for i=1:o.nTransferAttempts
-                        status=Eyelink('ReceiveFile',o.edfFile,newFileName); %change to OUTPUT dir
+                        status=Eyelink('ReceiveFile',o.edfFileRemote,newFileName); %change to OUTPUT dir
                         if status>0
                             o.edfFile = newFileName;
                             writeToFeed(o,['Success: transferred ' num2str(status) ' bytes']);
                             break
                         else
                             o.nTransferAttempts = o.nTransferAttempts - 1;
-                            writeToFeed(o,['Fail: EDF file (' o.edfFile ')  did not transfer ' num2str(status)]);
+                            writeToFeed(o,['Fail: EDF file (' o.edfFileRemote ')  did not transfer ' num2str(status)]);
                             writeToFeed(o,['Retrying. ' num2str(o.nTransferAttempts) ' attempts remaining.']);
                         end
                     end
                 catch
-                    error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFile));
+                    error(horzcat('Eyelink file transfer failed. Saved on Eyelink PC as ',o.edfFileRemote));
                 end
             end
             Eyelink('Shutdown');

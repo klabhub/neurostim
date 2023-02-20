@@ -51,7 +51,9 @@ classdef cic < neurostim.plugin
 
         hardware                = struct('sound',struct('device',-1,'latencyClass',1) ... % Sound hardware settings (device = index of audio device to use, see plugins.sound
             ,'keyEcho',false... % Echo key presses to the command line (listenChar(-1))
-            ,'textEcho',false ... % ECho drawFormattedText to the command line.
+            ,'textEcho',false ... % Echo drawFormattedText to the command line.
+            ,'maxPriorityPerTrial',true ... % request max priority before/after each trial (as opposed to before/after the experiment)
+            ,'busyWaitITI',true ... % add busy work in the ITI to prevent the sceduler demoting us
             ); % Place to store hardware default settings that can then be specified in a script like myRig.
 
         flipCallbacks={}; %List of stimuli that have requested to be to called immediately after the flip, each as s.postFlip(flipTime).
@@ -130,7 +132,7 @@ classdef cic < neurostim.plugin
 
 
     end
-    properties (SetAccess= private)
+    properties (SetAccess= {?neurostim.plugin}) 
         used =false; % Flag to make sure a user cannot reuse a cic object.
         loadedFromFile = false; % Flag set by loadobj - primarily used to avoid initializing things that are only relevant during the experiment.
     end
@@ -301,7 +303,7 @@ classdef cic < neurostim.plugin
                 c.screen.height = c.screen.ypixels;
             end
             if ~isequal(round(c.screen.xpixels/c.screen.ypixels,2),round(c.screen.width/c.screen.height,2))
-                warning('Physical aspect ratio and Pixel aspect ration are  not the same...');
+                warning('Physical aspect ratio and Pixel aspect ratio are not the same...');
             end
         end
 
@@ -579,13 +581,21 @@ classdef cic < neurostim.plugin
 
 
 
-
-
-        function newOrder = order(c,varargin)
-            % pluginOrder = c.order([plugin1] [,plugin2] [,...])
-            % Returns pluginOrder when no input is given.
-            % Inputs: lists name of plugins in the order they are requested
-            % to be executed in.
+        function newOrder = setPluginOrder(c,varargin)
+            % Set and return pluginOrder.
+            %
+            %   pluginOrder = c.setPluginOrder([plugin1] [,plugin2] [,...])
+            %
+            % Inputs:
+            %   A list of plugin names in the order they are requested to
+            %   be executed in.
+            %
+            %   If called with no arguments, the plugin order will be reset
+            %   to the default order, i.e., the order in which plugins were
+            %   added to cic.
+            %
+            % Output:
+            %   A list of plugin names reflecting the new plugin order.
 
             %If there is an existing order, preserve it, unless an empty
             %vector has been supplied (to clear it back to default order)
@@ -803,6 +813,10 @@ classdef cic < neurostim.plugin
 
         function afterBlock(c)
 
+            % Calls afterBlock on all plugins, in pluginOrder.
+            base(c.pluginOrder,neurostim.stages.AFTERBLOCK,c);
+
+            % now show message/wait for key if requested.
             waitforkey = false;
             if isa(c.blocks(c.block).afterMessage,'function_handle')
                 msg = c.blocks(c.block).afterMessage(c);
@@ -950,8 +964,14 @@ classdef cic < neurostim.plugin
             end
 
             %% Set up order and blocks
-            order(c,c.pluginOrder);
+            setPluginOrder(c,c.pluginOrder);
             setupExperiment(c,block1,varargin{:});
+
+            % Force adaptive plugins assigned directly to parameters into
+            % the block design object(s) instead. This ensures the adaptive
+            % plugins are updated correctly (by the block object(s)).
+            handleAdaptives(c)
+
             %%Setup PTB imaging pipeline and keyboard handling
             PsychImaging(c);
             checkFrameRate(c);
@@ -988,6 +1008,10 @@ classdef cic < neurostim.plugin
             WHEN            = 0; % Always flip on the next VBL
             DONTCLEAR       = 1;
 
+            if ~c.hardware.maxPriorityPerTrial
+                % request max priority for the whole experiment (NOT per trial)
+                Priority(MaxPriority(c.mainWindow));
+            end
 
             if ~c.hardware.keyEcho
                 ListenChar(-1);
@@ -1020,17 +1044,26 @@ classdef cic < neurostim.plugin
                             if locHAVEOVERLAY
                                 clearOverlay(c,c.itiClear);
                             end
-                            %Sitting idle in 'flip' during ITI seems to cause
-                            %unwanted behaviour when the trials starts, and for several frames into it.
-                            %at least on some Windows machines. e.g. the time to complete a call to rand()
-                            %was hugely variable and with occasional extreme lags.
-                            %Performance was improved massively if we add load here, to prevent the OS from releasing priority.
-                            %Here, we make an arbitrary assignment as a temporary fix. There would certainly be a
-                            %better way, but the obvious solution of not downgrading our Priority() in the
-                            %ITI didn't fix the problem. This did.
-                            postITIflip = GetSecs;
-                            while GetSecs-postITIflip < 0.6*FRAMEDURATION
-                                dummyAssignment=1; %#ok<NASGU>
+
+                            if c.hardware.busyWaitITI
+                                % Sitting idle in 'flip' during the ITI seems to cause
+                                % unwanted behaviour when the trial starts, and for
+                                % several frames into it. At least on some Windows
+                                % machines. For example, the time to complete a call to
+                                % rand() was hugely variable and with occasional extreme
+                                % lags. Performance was improved massively by adding
+                                % load here to prevent the OS from releasing priority.
+                                %
+                                % Here, we make an arbitrary assignment as a temporary
+                                % fix. There would certainly be a better way.
+                                %
+                                % Note that *not* downgrading our Priority() in the
+                                % ITI (e.g., maxPriorityPerTrial == False) didn't fix
+                                % the problem, busyWaitITI == True did.
+                                postITIflip = GetSecs;
+                                while GetSecs-postITIflip < 0.6*FRAMEDURATION
+                                    dummyAssignment = 1; %#ok<NASGU>
+                                end
                             end
                         end
                     else
@@ -1039,11 +1072,14 @@ classdef cic < neurostim.plugin
                     end
                     predictedVbl = ptbVbl+FRAMEDURATION; % Predict upcoming
 
-
                     c.frame=0;
                     c.flags.trial = true;
                     PsychHID('KbQueueFlush',kbDeviceIndices);
-                    Priority(MaxPriority(c.mainWindow));
+
+                    if c.hardware.maxPriorityPerTrial
+                        % request max priority for this trial
+                        Priority(MaxPriority(c.mainWindow));
+                    end
 
                     % Timing the draw : commented out. See drawingFinished code below
                     % draw = nan(1,1000);
@@ -1228,21 +1264,21 @@ classdef cic < neurostim.plugin
 
 
                     c.frame = c.frame+1;
-
-                    Priority(0);
-
+                    if c.hardware.maxPriorityPerTrial
+                        % request 'normal' priority for the ITI
+                        Priority(0);
+                    end
                     afterTrial(c); %Run afterTrial routines in all plugins, including logging stimulus offsets if they were still on at the end of the trial.
 
-                    %Exit experiment if requested
+                    %Exit experiment or block if requested
                     if ~c.flags.experiment || ~ c.flags.block ;break;end
                 end % one block
 
                 Screen('glLoadIdentity', c.mainWindow);
-                if ~c.flags.experiment;break;end
-
-                %% Perform afterBlock message/function
-
+                % Perform afterBlock message/function
                 afterBlock(c);
+                % Exit experiment if requested 
+                if ~c.flags.experiment;break;end
             end %blocks
             c.stage = neurostim.cic.POST;
             c.stopTime = now;
@@ -1775,9 +1811,31 @@ classdef cic < neurostim.plugin
             fprintf(1,'%s --> ', c.pluginOrder.name)
             disp('Parameter plugins should depend only on plugins with earlier execution (i.e. to the left)');
         end
+            
+        function handleAdaptives(c)
+            % Force adaptive plugins assigned directly to parameters into
+            % the block design object(s) instead. This ensures the adaptive
+            % plugins are updated correctly (by the block object(s)).
+           
+            plgs = {c.pluginOrder.name}; % *all* plugins
+            for ii = 1:numel(plgs)
+              plg = plgs{ii};
+              prms = prmsByClass(c.(plg),'neurostim.plugins.adaptive');
+              if isempty(prms)
+                % no adaptive plugins/parameters
+                continue
+              end
 
-
-
+              for jj = 1:numel(prms)
+                prm = prms{jj};
+                obj = c.(plg).(prm);
+                c.(plg).(prm) = obj.getAdaptValue(); % default value?
+ 
+                % loop over blocks, adding plg.prm = obj
+                arrayfun(@(x) addAdaptive(x,plg,prm,obj),c.blocks);
+              end
+            end
+        end
         %% PTB Imaging Pipeline Setup
         function PsychImaging(c)
             % Tthis initializes the
@@ -1799,14 +1857,13 @@ classdef cic < neurostim.plugin
             %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
             switch upper(c.screen.type)
                 case 'GENERIC'
-                    % Generic monitor.
+                    % Generic monitor.              
                 case 'VPIXX-M16'
                     % The VPIXX monitor in Monochrome 16 bit mode.
                     % Set up your vpixx once, using
                     % BitsPlusImagingPipelineTest(screenID);
                     % BitsPlusIdentityClutTest(screenID,1); this will
                     % create correct identity cluts.
-
                     PsychImaging('AddTask', 'General', 'UseDataPixx');
                     PsychImaging('AddTask', 'General', 'EnableDataPixxM16OutputWithOverlay');
                     % After upgrading to Win10 we seem to need this.

@@ -29,6 +29,7 @@ classdef soundFeedback < neurostim.plugins.feedback
             p=inputParser;  
             p.StructExpand = true; % The parent class passes as a struct
             p.addParameter('waveform',[],@(x) isnumeric(x) || ischar(x));     %Waveform data, filename (wav), or label for known (built-in) file (e.g. 'correct')
+            p.addParameter('volume',1,@(x) (validateattributes(x,{'double'},{'>=',0,'<=',1,'scalar'}))); % Scale the volume of the audio waveform 
             p.parse(varargin{:});
             if ischar(p.Results.waveform)
                 % Look in the sound path (unless a full path has been
@@ -58,8 +59,8 @@ classdef soundFeedback < neurostim.plugins.feedback
             else 
                 wave = p.Results.waveform; % Presumably the waveform itself
             end
-            %Store the waveform
-            o.waveform{o.nItems} = wave;
+            %Store the waveform , scaled by the volume setting
+            o.waveform{o.nItems} = p.Results.volume.*wave;
         end
     end
     

@@ -57,6 +57,7 @@ classdef openEphys < neurostim.plugins.ePhys
             pin.addParameter('RecDir', '', @ischar); % save path on the open ephys computer
             pin.addParameter('PrependText', '', @ischar); 
             pin.addParameter('AppendText', '', @ischar);
+            pin.addParameter('startDelay',0, @isnumeric);
             
             pin.parse(varargin{:});
             
@@ -73,6 +74,7 @@ classdef openEphys < neurostim.plugins.ePhys
             o.addProperty('recDir',args.RecDir,'validate',@ischar); 
             o.addProperty('prependText',args.PrependText,'validate',@ischar); 
             o.addProperty('appendText',args.AppendText,'validate',@ischar);                                   
+            o.addProperty('startDelay',args.startDelay,'validate',@isnumeric);
         end
         
         function sendMessage(o,msg)
@@ -94,6 +96,10 @@ classdef openEphys < neurostim.plugins.ePhys
             
             sendMessage(o,'StartAcquisition');
             o.connectionStatus = true; % <-- FIXME: is this used/useful for anything?
+            
+            if o.startDelay>0
+                pause(o.startDelay);
+            end
             
             % Generate command string that is used to initiate recording and specify save information  
             request = sprintf('StartRecord CreateNewDir=%i RecDir=%s PrependText=%s AppendText=%s', ...
