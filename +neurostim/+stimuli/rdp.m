@@ -139,6 +139,11 @@ classdef rdp < neurostim.stimulus
         function initialiseDots(o,pos)
             % initialises dots in the array positions given by logical
             % array pos.
+            
+            if ~isempty(o.rngSeed)
+                rng(o.rngSeed);%reset random number generator 
+            end
+            
             nnzpos=nnz(pos);
             o.framesLeft(pos,1) = o.lifetime;
             o.radius(pos,1) = sqrt(rand(nnzpos,1).*o.maxRadius.*o.maxRadius);
