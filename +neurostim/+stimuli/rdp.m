@@ -63,7 +63,7 @@ classdef rdp < neurostim.stimulus
             o.addProperty('noiseDist',0,'validate',@(x)x==0||x==1);       % gaussian, uniform
             o.addProperty('noiseWidth',50,'validate',@isnumeric);
             o.addProperty('truncateGauss',-1,'validate',@isnumeric);
-            o.addProperty('tngSeed',[]);
+            o.addProperty('rngSeed',[]);
         end
         
         
