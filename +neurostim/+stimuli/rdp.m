@@ -68,6 +68,10 @@ classdef rdp < neurostim.stimulus
         
         function beforeTrial(o)
             
+            if ~isempty(o.rngSeed)
+                rng(o.rngSeed);%reset random number generator 
+            end 
+            
             % overrule one of the velocity vectors based on coord system
             if o.coordSystem == 1
                 [o.direction, o.speed] = cart2pol(o.xspeed, o.yspeed);
