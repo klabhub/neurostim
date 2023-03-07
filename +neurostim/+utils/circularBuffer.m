@@ -126,7 +126,7 @@ classdef circularBuffer < double
                     end
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 objDouble(ind{:}) = input;
-                obj = circularBuffer(objDouble);
+                obj = neurostim.utils.circularBuffer(objDouble);
                otherwise
                    error(['Error(circularBuffer): Use bracket always... Currently used ',s(1).type,' !!!']);
            end
