@@ -2,7 +2,7 @@ classdef mdaq <  neurostim.plugin
     % Neurostim plugin class that uses the Matlab Data Acquisition Toolbox
     % to generate digital/analog output signals and/or record such signals
     % on the hardware of your choice.
-    
+
     % It is called mdaq to distinguish it from the neurstim.plugins.daq
     % which does not need the Data Acquisition Toolbox
     %
@@ -18,6 +18,7 @@ classdef mdaq <  neurostim.plugin
         inputMap  % Map from named channels to daq input channel properties
         outputMap % Map from named channels to daq output channel properties
         triggerTime  % Time when data acquisition was triggered (time zero)
+        nrTimeStampsWritten;
     end
     properties (Transient)
         hDaq;           % Handle to the daq object.
@@ -27,7 +28,7 @@ classdef mdaq <  neurostim.plugin
         bufferIx;       % Current end of data in circular buffer.
         previousBufferIx;  % For graphical updates
         FID;            % FID for temporary file storage
-        nrTimeStampsWritten;
+
         isInput;        % Logical address of input channels
         ax =[];         % Handle to the nsGui Axes.
     end
@@ -47,6 +48,60 @@ classdef mdaq <  neurostim.plugin
     end
 
     methods
+        function plot(o,digEvent, pv)
+            arguments
+                o (1,1) neurostim.plugins.mdaq
+                digEvent (1,1) {mustBeTextScalar}
+                pv.folderMap (1,2) cell = {}
+                pv.trials (1,:) = [1 inf]
+                pv.slack (1,1) = seconds(10)
+            end
+            if ~isempty(pv.folderMap)
+                filename = strrep(o.outputFile,pv.folderMap{:});
+            else
+                filename = o.outputFile;
+            end
+           T = readBin(o,filename);
+            [~,trial,~,time] = get(o.cic.prms.trial);
+            time = seconds(time/1000);
+            digOnset = find([false; diff(T.(digEvent))>0.5]);
+            digOnsetNsTime = T.nsTime(digOnset)';
+            digOnsetClockTime = T.clockTime(digOnset)';
+            
+            nrDigOnsetsTotal = numel(digOnsetNsTime)
+            startTime = time(find(trial>= pv.trials(1),1,'first'));
+            stopTime  = time(find(trial<= pv.trials(end),1,'last'));
+           
+            keepTrial = time >=startTime-pv.slack & time <= stopTime+pv.slack;
+            keepOnset = digOnsetNsTime >=startTime-pv.slack &  digOnsetNsTime <=stopTime+pv.slack;
+            time=time(keepTrial);
+            trial =trial(keepTrial);
+            digOnsetNsTime = digOnsetNsTime(keepOnset);
+            nrDigOnsets = numel(digOnsetNsTime);
+            nrTrials = numel(trial);
+            plot([time';time'],repmat([0;1],[1 nrTrials]),'k','LineWidth',2)
+            
+            hold on
+            for tr= 1:numel(trial)
+                text(time(tr),0.9,num2str(trial(tr)))
+            end
+            plot([digOnsetNsTime;digOnsetNsTime],repmat([0;.5],[1 nrDigOnsets]),'r')
+         
+            [~,~,~,time] = get(o.prms.startDaq,'withData',true);
+            time = seconds(time/1000);
+            if time > startTime && time<stopTime
+                plot([time;time],[0;1],'m','LineWidth',2)
+            end
+
+            [~,~,~,time] = get(o.prms.startDaq,'withData',true);
+            time = seconds(time/1000);
+            if time > startTime && time<stopTime
+                plot([time;time],[0;1],'m','LineWidth',2)
+            end
+
+xlim([startTime-pv.slack stopTime+pv.slack])
+        end
+
         function o = mdaq(c)
             if isempty(which('daq'))
                 error('The daq plugin relies on the Data Acquisition Toolbox. Please install it first.')
@@ -137,7 +192,7 @@ classdef mdaq <  neurostim.plugin
                 o.pool =backgroundPool;
             end
 
-            % Open a file to store acquired data          
+            % Open a file to store acquired data
             o.outputFile= [o.cic.fullFile '.bin'];
             [o.FID,msg] = fopen(o.outputFile,'w'); % Bin file for easy append during the experiment.
             if o.FID==-1
@@ -169,7 +224,7 @@ classdef mdaq <  neurostim.plugin
         end
         function draw(o)
             % Draw the input channel data
-             if o.fake;return;end
+            if o.fake;return;end
             if ~isempty(o.ax) && o.previousBufferIx ~= o.bufferIx
                 nrSamplesToShow =o.bufferSize*o.hDaq.Rate-1;
                 stay = (o.bufferIx-nrSamplesToShow):o.bufferIx;
@@ -194,7 +249,7 @@ classdef mdaq <  neurostim.plugin
                     end
                 end
                 xlim(o.ax,o.timeBuffer(o.bufferIx)-[o.bufferSize 0]) % Show one full bufferSize in seconds.
-                ylim(o.ax, [0  size(y,2)+1])    % Show all signals           
+                ylim(o.ax, [0  size(y,2)+1])    % Show all signals
                 drawnow limitrate
             end
         end
@@ -205,11 +260,11 @@ classdef mdaq <  neurostim.plugin
                 stop(o.hDaq)
                 flush(o.hDaq)
                 pause(1);
-                removechannel(o.hDaq,1:numel(o.hDaq.Channels)); % Free 
+                removechannel(o.hDaq,1:numel(o.hDaq.Channels)); % Free
             end
             fclose(o.FID);
             o.writeToFeed(sprintf('DAQ data saved to %s', strrep(o.outputFile,'\','/')));
-            delete(o.hDaq);            
+            delete(o.hDaq);
             o.hDaq= [];
         end
 
@@ -220,11 +275,12 @@ classdef mdaq <  neurostim.plugin
                 o (1,1) neurostim.plugins.mdaq
                 filename {mustBeTextScalar} = o.outputFile;  %
             end
+            if ~exist(filename,"file")
+                error('Bin file %s does not exist \n',filename);
+            end
             fid = fopen(filename,'r'); % Read time stamps plus input channels
             [data] = fread(fid, [o.nrInputChannels+1,inf],['*' o.precision]);
             fclose(fid);
-            [~,nrRows]  = size(data);
-            assert(nrRows==o.nrTimeStampsWritten,'The timestamps in the bin file (%d) do not match the number (%d) written during the experiment.',nrRows,o.nrTimeStampsWritten);
             % Make a timetable
             timestamps  = double(data(1,:)');
             clockTime = seconds(timestamps) + o.triggerTime;
@@ -271,14 +327,14 @@ classdef mdaq <  neurostim.plugin
 
         function scansAvailableCallback(o,src,event)
             % Callback function that is called whenever new scans are
-            % available from the device. It logs the data to 
+            % available from the device. It logs the data to
             % file, and fills the circular buffer for display.
             try
                 [data,timestamp,tTrigger] = read(src,src.ScansAvailableFcnCount,"OutputFormat","Matrix");
                 %% Log to file
-                fwrite(o.FID, [timestamp data]', o.precision);                
+                fwrite(o.FID, [timestamp data]', o.precision);
                 if timestamp(1)==0
-                    o.triggerTime = datetime(tTrigger,'convertFrom','datenum');                   
+                    o.triggerTime = datetime(tTrigger,'convertFrom','datenum');
                 end
                 %% Put in circular buffer
                 [nrTimeStamps, ~] =size(data);
@@ -355,7 +411,7 @@ classdef mdaq <  neurostim.plugin
                 afterTrial(o);
                 toc
             end
-            afterExperiment(o); 
+            afterExperiment(o);
         end
 
     end
