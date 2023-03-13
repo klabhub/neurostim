@@ -16,7 +16,7 @@ classdef scanbox <  neurostim.plugin
     end
 
     methods
-
+       
         function delete(o)
             % Make sure the port is released
             o.hUdp =[]; % Remove the ref deletes it.
@@ -32,6 +32,11 @@ classdef scanbox <  neurostim.plugin
             o.addProperty('root',''); % Root folder on the ScanBox
             o.addProperty('blankITI',false); % Set to true to stop the laser during the ITI.
             o.addProperty('grab',true); % Set to false to not grab (i.e. save) on scanbox.
+            o.addProperty('waitTime',2); % Seconds to wait after sending a command to scanbox (Except Blank command)
+            % Properties used to log events
+            o.addProperty('file',[]); 
+            o.addProperty('grabbing',[]); 
+            o.addProperty('blank',[]); 
             if isempty(which('udpport'))
                 error('The scanbox plugin relies on the Instrument Control Toolbox for its udpport function. Please install it first.')
             end
@@ -72,20 +77,26 @@ classdef scanbox <  neurostim.plugin
             send(o,'A',fldr); % A is the animal ID : ScanBox creates a folder per animal.
             send(o,'U',fName); % Somewhat of a duplication, but not sure that SB can handle an empty
             send(o,'E','1');  % If left empty, scanbox will add _nan. Adding _1 instead
+            o.file = true;
+            pause(o.waitTime);
         end
 
         function beforeTrial(o)
             if  o.cic.trial ==1 && o.grab
                 send(o,'G'); % Start grabbing
+                o.grabbing = true;
+                pause(o.waitTime);
             end
             if o.blankITI
                 send(o,'L','1'); % Laser on
+                o.blank = false;
             end
         end
 
         function afterTrial(o)
             if o.blankITI
                 send(o,'L','0'); % Laser off
+                o.blank = true;
             end
         end
 
@@ -94,6 +105,8 @@ classdef scanbox <  neurostim.plugin
             % Stop
            if o.grab 
                send(o,'S'); % Stop grabbing
+               o.grabbing = false;
+               pause(o.waitTime);
            end
             close(o);
         end
