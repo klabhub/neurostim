@@ -157,7 +157,10 @@ xlim([startTime-pv.slack stopTime+pv.slack])
 
             % Connect to the hardware
             % daqreset;  % Problematic if other daq usage has started already?
+            o.writeToFeed('Querying daq vendor list');
+            tic
             list = daqvendorlist; % First time this can take a while.
+            o.writeToFeed(sprintf('Done in %4.0f s',toc));
             if ~ismember(o.vendor,list.ID)
                 fprintf(2,'Please install the hardware support package for vendor %s first (see doc daq.m)\n',o.vendor);
                 error(['Unknown vendor ' o.vendor]);
@@ -213,6 +216,7 @@ xlim([startTime-pv.slack stopTime+pv.slack])
             % Start acquiring.
             start(o.hDaq,"continuous");
             o.startDaq = datetime('now');
+            o.writeToFeed('DAQ Running... ');
         end
 
         function beforeFrame(o)

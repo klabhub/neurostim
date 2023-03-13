@@ -712,6 +712,7 @@ classdef stg < neurostim.stimulus
                 error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
             end 
             % Define the values of the stimulus
+            syncSent = false;
             for thisChannel = o.channel                
                 [signal,thisDuration,thisNrRepeats] = stimulusForDownload(o,thisChannel);
                 %% Add ramp if requested
@@ -778,11 +779,18 @@ classdef stg < neurostim.stimulus
                     % Clear channel and send stimulus data to device
                     amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
                     durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
+                    o.writeToFeed(sprintf('Sending channel %d data (~ %4.0f kB) to STG',thisChannel-1,numel(duration)*8/1000));
+                    tic;
                     o.device.PrepareAndSendData( uint32(thisChannel-1), amplitudeNet, durationNet,valueCode);
+                    o.writeToFeed(sprintf('Done in %4.0f s',toc));
                     % Add the syncout
-                    if ~isempty(o.syncOutChannel)
+                    if ~isempty(o.syncOutChannel) && ~syncSent
                         amplitudeNet = NET.convertArray(int32(syncValue), 'System.Int32');
+                        o.writeToFeed(sprintf('Sending sync channel %d data to STG',o.syncOutChannel-1));
+                        tic
                         o.device.PrepareAndSendData(uint32(o.syncOutChannel-1),amplitudeNet,durationNet,Mcs.Usb.STG_DestinationEnumNet.syncoutdata);
+                        syncSent = true;
+                        o.writeToFeed(sprintf('Done in %4.0f s',toc));
                     end
                 end
 
