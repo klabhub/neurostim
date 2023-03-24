@@ -66,7 +66,7 @@ classdef eyelink < neurostim.plugins.eyetracker
     % TK, BK,  2016,2017
     properties
         el; %@struct;  % Information structure to communicate with Eyelink host
-        commands = {'link_sample_data = GAZE, HTARGET'}; % Remove HTARGET for non-remote mode
+        commands = {'link_sample_data = GAZE'}; % Remove HTARGET for non-remote mode
         edfFile = '';
         edfFileRemote = '';
         getSamples =true;
