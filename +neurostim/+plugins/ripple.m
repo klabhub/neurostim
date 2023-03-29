@@ -42,7 +42,7 @@ classdef ripple < neurostim.plugin
         availableStreams = upper({'raw','stim','hi-res','lfp','spk','spkfilt','1ksps','30ksps'});
         availablePorts ='ABCD';
         % Array types are used by the ripple.connect function to store what
-        % kind of harward in/on the head a front end is connected to. This
+        % kind of hardware in/on the head a front end is connected to. This
         % is mainly used in the analysis.
         % XXX-1 means connected to the first array of type xxx (where first
         % identifies a specific piece of hardware in/on the head). For
@@ -466,6 +466,8 @@ classdef ripple < neurostim.plugin
                                     case "EEG"
                                         % EEG, turn on hi-res only.
                                         streamsOn = {'hi-res'};
+                                    case "3D"
+                                        streamsOn = {'lfp'};
                                 end
                             end
                         else

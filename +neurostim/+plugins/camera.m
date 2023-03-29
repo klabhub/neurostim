@@ -496,6 +496,7 @@ classdef camera < neurostim.plugin
 
         function pos = waitForRoi(hROI,hFig)
             % Used to adjust the ROI interactively on the preview window.
+
             l = addlistener(hROI,'ROIClicked',@(x,e)neurostim.plugins.camera.clickCallback(hFig,e));
             % Block program execution            
             uiwait(hFig);
@@ -561,6 +562,7 @@ classdef camera < neurostim.plugin
 
             o.outputFormat='MPEG-4';
             
+
             o.fileMode = 'perExperiment';
             o.outputMode ='saveDuringTrial';
             o.nrWorkers = 1;

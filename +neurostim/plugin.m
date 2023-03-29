@@ -177,11 +177,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         function prms = prmsByClass(o,cls)
-          % return the names of the ns parameters that are
-          % instances of the class specified by cls
-          prms = fieldnames(o.prms);
-          ix = cellfun(@(x) isa(o.(x),cls),prms);
-          prms(~ix) = [];
+            % return the names of the ns parameters that are
+            % instances of the class specified by cls
+            prms = fieldnames(o.prms);
+            ix = cellfun(@(x) isa(o.(x),cls),prms);
+            prms(~ix) = [];
         end
         
         
@@ -823,8 +823,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
     end
     
     methods (Static)
-                     
-          function fromCurrentClassdef = updateClassDef(fromFile,fromCurrentClassdef)                    
+        
+        function fromCurrentClassdef = updateClassDef(fromFile,fromCurrentClassdef)
             % This function is called from a loadobj function in a plugins
             % derived class to resolve backward compatibility
             % fromFile    - the struct that was loaded from file (this plugin's properties
@@ -844,25 +844,27 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % protected, use SetAccess={!neurostim.plugin}, which gives the
             % neurostim.plugin class access. Not ideal but afaik Matlab does not
             % have a way to allow only parent classes tohave SetAccess.
-            % 
+            % BK noticed that trying to update protected members (i.e. without the 
+            % SetAccess given to neurostim.plugin Matlab can crash.)
+            %
             % Note that this also deals with the problem (first noted in
             % R2020a) that dynamicproperties saved to disk are not restored
-            % properly. 
+            % properly.
             %
             % Note that for most plugins saved versions still match the
             % classdef; they won't have a loadobj  function.
             % Once a plugin needs a loadobj, it should create its own
             % function (where a new, empty object with the curent
-            % classdef can be constructe, do any derived class specific changes, 
+            % classdef can be constructe, do any derived class specific changes,
             % and then call this plugin.loadobj. For examples see cic.m ad
-            % stimuli.starstim.m                        
+            % stimuli.starstim.m
             %
             % BK - Sept 2021
             
-                         
+            
             m= metaclass(fromCurrentClassdef);
             dependent = [m.PropertyList.Dependent];
-            % Find properties that we can set now (based on the stored fromFile object)            
+            % Find properties that we can set now (based on the stored fromFile object)
             storedFn = fieldnames(fromFile);
             missingInSaved  = strcat(setdiff({m.PropertyList(~dependent).Name},storedFn),' / ');
             missingInCurrent  = strcat(setdiff(storedFn,{m.PropertyList(~dependent).Name}),' / ');
@@ -879,16 +881,22 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                 fprintf('\n');
             end
             for i=1:numel(toCopy)
-                try
-                    fromCurrentClassdef.(toCopy{i}) = fromFile.(toCopy{i});
-                catch me
-                    fprintf('\t Failed to set %s(will get current default value): %s\n', toCopy{i},me.message)
+                %skip readonly
+                this = strcmp({m.PropertyList.Name},toCopy{i});
+                if any(strcmpi({'none'},m.PropertyList(this).SetAccess))
+                    fprintf('\t Cannot set %s (will get current default value)\n', toCopy{i})
+                else
+                    try
+                        fromCurrentClassdef.(toCopy{i}) = fromFile.(toCopy{i});
+                    catch me
+                        fprintf(2,'\t Failed to set %s. Please use SetAccess={?neurostim.plugin} for this property. (without this, it will get current default value , but this is known to cause Matlab crashes): %s\n', toCopy{i})
+                    end
                 end
             end
             
             
             % Restore dynamic properties which appear to be lost (probably
-            % because a struct (old) cannot have dynprops            
+            % because a struct (old) cannot have dynprops
             prmsNames= fieldnames(fromCurrentClassdef.prms);
             for p=1:numel(prmsNames)
                 hDynProp = findprop(fromCurrentClassdef,prmsNames{p});
@@ -920,10 +928,10 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     % warning. Instead delete it explicitly here, and hide the warning
                     % to avoid confusion
                     warning('off','MATLAB:class:DestructorError')
-                     delete(fromCurrentClassdef.prms.(prmsNames{p}).plg);
-                    warning('on','MATLAB:class:DestructorError')                    
+                    delete(fromCurrentClassdef.prms.(prmsNames{p}).plg);
+                    warning('on','MATLAB:class:DestructorError')
                 end
-                fromCurrentClassdef.prms.(prmsNames{p}).plg = fromCurrentClassdef;                
+                fromCurrentClassdef.prms.(prmsNames{p}).plg = fromCurrentClassdef;
             end
         end
     end
