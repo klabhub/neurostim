@@ -40,7 +40,7 @@ function [M,R] = ballatsq(N)
 %     randomization
 
 
-if nargin ~= 1 || ~isnumeric(N) || numel(N)~=1 || N<2 || rem(N,2) || fix(N)~=N,
+if nargin ~= 1 || ~isnumeric(N) || numel(N)~=1 || N<2 || fix(N)~=N,
     error('Single argument should be a positive even integer') ;
 end
 
@@ -54,6 +54,10 @@ for i=2:N,
     % every column contains the numbers 1 to N shifted circularly according
     % to CSI  
     M(:,i) =  rem(V(:)+CSI(i-1)+(N-1),N) + 1 ;
+end
+
+if rem(N,2)
+    M = [M; fliplr(M)];
 end
 
 if nargout==2,
