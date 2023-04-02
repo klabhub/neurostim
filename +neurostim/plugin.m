@@ -928,7 +928,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     % warning. Instead delete it explicitly here, and hide the warning
                     % to avoid confusion
                     warning('off','MATLAB:class:DestructorError')
-                    delete(fromCurrentClassdef.prms.(prmsNames{p}).plg);
+                    try
+                        delete(fromCurrentClassdef.prms.(prmsNames{p}).plg);
+                    catch 
+                        
+                    end
                     warning('on','MATLAB:class:DestructorError')
                 end
                 fromCurrentClassdef.prms.(prmsNames{p}).plg = fromCurrentClassdef;
