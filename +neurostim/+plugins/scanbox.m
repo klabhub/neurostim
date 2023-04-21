@@ -13,6 +13,7 @@ classdef scanbox <  neurostim.plugin
 
     properties  (Transient)
         hUdp =[];  % Handle to the udpport object.
+        shutdownDaq;  % Function called after grabbing stops
     end
 
     methods
@@ -31,7 +32,7 @@ classdef scanbox <  neurostim.plugin
             o.addProperty('timeout',10); % 10 s
             o.addProperty('root',''); % Root folder on the ScanBox
             o.addProperty('blankITI',false); % Set to true to stop the laser during the ITI.
-            o.addProperty('grab',true); % Set to false to not grab (i.e. save) on scanbox.
+            o.addProperty('grab',true,'sticky',true); % Set to false to not grab (i.e. save) on scanbox.
             o.addProperty('waitTime',2); % Seconds to wait after sending a command to scanbox (Except Blank command)
             % Properties used to log events
             o.addProperty('file',[]); 
@@ -108,7 +109,10 @@ classdef scanbox <  neurostim.plugin
                o.grabbing = false;
                pause(o.waitTime);
            end
-            close(o);
+           close(o);
+           if ~isempty(o.shutdownDaq)
+               o.shutdownDaq; % Call the shutdown function.
+           end
         end
 
         function [rt,fldr,fname] = namingConvention(o)

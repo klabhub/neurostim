@@ -25,6 +25,13 @@ classdef mdaq <  neurostim.plugin
     %   diary      - Set this to true to keep an outptut diary on the data
     %                   acquisition worker for troubleshooting purposes
     %                   [false].
+    % keepAliveAfterExperimet - Set this to true to skip shutdown in
+    % afterExperiment. The user is then responsible for calling this at the
+    % right time (this is a hack to allow the scanbox to stop its grabbing
+    % first, and only then shutdown mdaq. In other words this allows a
+    % different order at beginExperiment (mdaq starts first) compared to
+    % afterExperiment (scanbox shuts down first).
+    % 
     % Read only properties
     %  outputFile - Name of output file (assigned by neurostim) where the acquired data are saved.
     %               Use mdaq.readBin to read the contents of this file as a
@@ -165,6 +172,7 @@ classdef mdaq <  neurostim.plugin
             o.addProperty('samplerate',1000);
             o.addProperty('startDaq',[],'sticky',true);
             o.addProperty('diary',false); % Debug parallel.
+            o.addProperty('keepAliveAfterExperiment',false); 
             % Setup mapping
             o.inputMap = containers.Map('KeyType','char','ValueType','any');
             o.outputMap = containers.Map('KeyType','char','ValueType','any');
@@ -371,6 +379,8 @@ classdef mdaq <  neurostim.plugin
         function afterExperiment(o)
             % Stop, flush, save, delete.
             if o.fake;return;end
+            if o.keepAliveAfterExperiment;return;end
+                            
             if o.useWorker
                 sendToWorker(o,"SHUTDOWN");
             else
