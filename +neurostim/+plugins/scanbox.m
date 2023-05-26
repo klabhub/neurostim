@@ -13,7 +13,7 @@ classdef scanbox <  neurostim.plugin
 
     properties  (Transient)
         hUdp =[];  % Handle to the udpport object.
-        shutdownDaq;  % Function called after grabbing stops
+        shutdownDaq;  % Flag to shutdown mdaq afterExperiment
     end
 
     methods
@@ -110,8 +110,8 @@ classdef scanbox <  neurostim.plugin
                pause(o.waitTime);
            end
            close(o);
-           if ~isempty(o.shutdownDaq)
-               shutdown(o.cic.mdaq); % Call the shutdown function.
+           if o.shutdownDaq 
+               shutdown(o.cic.mdaq); % Call the shutdown function.               
            end
         end
 
