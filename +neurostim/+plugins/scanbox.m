@@ -111,7 +111,7 @@ classdef scanbox <  neurostim.plugin
            end
            close(o);
            if ~isempty(o.shutdownDaq)
-               o.shutdownDaq; % Call the shutdown function.
+               shutdown(o.cic.mdaq); % Call the shutdown function.
            end
         end
 

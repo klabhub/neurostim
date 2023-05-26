@@ -31,7 +31,7 @@ classdef mdaq <  neurostim.plugin
     % first, and only then shutdown mdaq. In other words this allows a
     % different order at beginExperiment (mdaq starts first) compared to
     % afterExperiment (scanbox shuts down first).
-    % 
+    %
     % Read only properties
     %  outputFile - Name of output file (assigned by neurostim) where the acquired data are saved.
     %               Use mdaq.readBin to read the contents of this file as a
@@ -118,9 +118,9 @@ classdef mdaq <  neurostim.plugin
             time = seconds(time/1000);
             digOnset = find([false; diff(T.(digEvent))>0.5]);
             digOnsetNsTime = T.nsTime(digOnset)';
-            digOnsetClockTime = T.clockTime(digOnset)';
+            digOnsetClockTime = T.clockTime(digOnset)'; %#ok<NASGU> 
 
-            nrDigOnsetsTotal = numel(digOnsetNsTime)
+            nrDigOnsetsTotal = numel(digOnsetNsTime); %#ok<NASGU> 
             startTime = time(find(trial>= pv.trials(1),1,'first'));
             stopTime  = time(find(trial<= pv.trials(end),1,'last'));
 
@@ -172,7 +172,7 @@ classdef mdaq <  neurostim.plugin
             o.addProperty('samplerate',1000);
             o.addProperty('startDaq',[],'sticky',true);
             o.addProperty('diary',false); % Debug parallel.
-            o.addProperty('keepAliveAfterExperiment',false); 
+            o.addProperty('keepAliveAfterExperiment',false);
             % Setup mapping
             o.inputMap = containers.Map('KeyType','char','ValueType','any');
             o.outputMap = containers.Map('KeyType','char','ValueType','any');
@@ -233,7 +233,7 @@ classdef mdaq <  neurostim.plugin
         function start(o)
             % Open a file to store acquired data
 
-            [o.FID,msg] = fopen(o.outputFile,'w') % Bin file for easy append during the experiment.
+            [o.FID,msg] = fopen(o.outputFile,'w'); % Bin file for easy append during the experiment.
             if o.FID==-1
                 o.cic.error('STOPEXPERIMENT',sprintf('Could not create file %s (msg: %s)',o.outputFile,msg));
             end
@@ -244,7 +244,7 @@ classdef mdaq <  neurostim.plugin
                 o.hDaq.ScansAvailableFcn = @(src,event) scansAvailableCallback(o, src, event);
             end
 
-            
+
 
 
             % Initialize the circular data buffer.
@@ -254,8 +254,7 @@ classdef mdaq <  neurostim.plugin
             o.previousBufferIx =0;
             % Start acquiring.
             start(o.hDaq,"continuous");
-
-            o.hDaq
+            
         end
 
         function createMMap(o,pv)
@@ -284,7 +283,6 @@ classdef mdaq <  neurostim.plugin
             % Data.acq respectively.
 
             o.mmap = memmapfile(o.mmapFile,'Repeat',1,'Format',{o.precision [nrSamplesToShow 1] 't'; o.precision, [nrSamplesToShow pv.nrInputChannels], 'acq'},'Offset',0,'Writable',pv.writable);
-            a=o.mmap
         end
 
         function beforeExperiment(o)
@@ -380,11 +378,11 @@ classdef mdaq <  neurostim.plugin
             % Stop, flush, save, delete.
             if o.fake;return;end
             if o.keepAliveAfterExperiment;return;end
-                            
+
             if o.useWorker
                 sendToWorker(o,"SHUTDOWN");
             else
-                shutdown(o)
+                shutdown(o);
             end
             o.writeToFeed(sprintf('DAQ data saved to %s', strrep(o.outputFile,'\','/')));
         end
@@ -461,7 +459,7 @@ classdef mdaq <  neurostim.plugin
             send(o.sendQueue,code);
             [fromWorker,ok] = poll(o.receiveQueue, 15);
             if ok
-                fromWorker
+                %fromWorker
             else
                 cancel(o.future)
             end
@@ -510,7 +508,7 @@ classdef mdaq <  neurostim.plugin
             % Runs on the worker if useWorker =true
             % In parallle mode, changes to o in this function are not
             % saved.
-            src.ScansAvailableFcnCount
+           
             try
                 [data,timestamp,tTrigger] = read(src,src.ScansAvailableFcnCount,"OutputFormat","Matrix");
                 %% Log to file
@@ -627,31 +625,31 @@ classdef mdaq <  neurostim.plugin
 
             switch (mode)
                 case 'DS'
-            % This would be setup in the run/experiment file (once)
-            o.vendor = 'directsound'; % Use the soundcard
-            addChannel(o,"mic","input","Audio2",1,"audio")
-            o.useWorker = true;
-            o.diary = true;
-            % Simulate what would happen in an experiment
+                    % This would be setup in the run/experiment file (once)
+                    o.vendor = 'directsound'; % Use the soundcard
+                    addChannel(o,"mic","input","Audio2",1,"audio")
+                    o.useWorker = true;
+                    o.diary = true;
+                    % Simulate what would happen in an experiment
                 case 'MCC'
                     o.vendor = 'MCC';
                     addChannel(o,"portA","input","")
-            beforeExperiment(o); % Setup connection with DAQ
-            for trial=1:20
-                beforeTrial(o);
-                trial
-                tic;
-                for j=1:30
-                    beforeFrame(o) ;
-                    pause(0.01);
-                end
-                afterTrial(o);
-                toc
+                    beforeExperiment(o); % Setup connection with DAQ
+                    for trial=1:20
+                        beforeTrial(o);
+                        trial %#ok<NOPRT> 
+                        tic;
+                        for j=1:30
+                            beforeFrame(o) ;
+                            pause(0.01);
+                        end
+                        afterTrial(o);
+                        toc
+                    end
+                    afterExperiment(o);
             end
-            afterExperiment(o);
+
         end
 
     end
-
-    end
-end 
+end
