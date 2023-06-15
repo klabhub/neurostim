@@ -82,6 +82,7 @@ classdef mcc < neurostim.plugins.daq
             o.addProperty('aInData',[]);
             o.addProperty('aInStartTime',[]);
             o.addProperty('aInTimeOut',1); % Timeout for Analaog In in seconds.
+            o.addProperty('digitalPortDir',args.DDir);
             
             % check what is there...
             o.devices = PsychHID('Devices');
@@ -106,11 +107,12 @@ classdef mcc < neurostim.plugins.daq
                error('MCC plugin added but no device could be found.'); 
             end
             
-            err = DaqDConfigPort(o.daq,0, args.DDir(1)); % configure digital port A
-            err = DaqDConfigPort(o.daq,1, args.DDir(2)); % configure digital port B
+           
         end
         
         function beforeExperiment(o)
+            err = DaqDConfigPort(o.daq,0, o.digitalPortDir(1)); % configure digital port A
+            err = DaqDConfigPort(o.daq,1, o.digitalPortDir(2)); % configure digital port B
             if o.aIn               
                 % Setup scanning of analog input                
                 DaqAInScanBegin(o.daq,o.aInOptions); % Not storing parms return to make sure data and parms always match                               
