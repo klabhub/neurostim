@@ -55,7 +55,7 @@ classdef pupilLabs < neurostim.plugin
         end
                
         function afterExperiment(o)
-            r=pupil_labs_realtime_api('Command','save','URLhost',o.URLhost); % start recording
+            r=pupil_labs_realtime_api('Command','save','URLhost',o.URLhost); % stop/save recording
         end
     
         function beforeTrial(o)
