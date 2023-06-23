@@ -61,7 +61,7 @@ classdef pupilLabs < neurostim.plugin
         function beforeTrial(o)
             % send text with current trial + time
             % need to work out how to timestamp things precisely
-            txt = fprintf('TRIALID %d-%d', o.cic.condition, o.cic.trial);
+            txt = sprintf('TRIALID %d-%d', o.cic.condition, o.cic.trial);
             r=pupil_labs_realtime_api('Command','event','EventName',txt,'URLhost',o.URLhost); % send event
         end
     end
