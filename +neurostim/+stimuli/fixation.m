@@ -7,7 +7,8 @@ classdef fixation < neurostim.stimulus
     %   color2 - color of inner donut.
     %   shape - one of CIRC, RECT, TRIA, DONUT, OVAL, STAR
     
-    properties
+    properties (Access=private)
+        valid_shapes={'CIRC','RECT','TRIA','DONUT','OVAL','STAR','FRAME','ABC'};
     end
     
 
@@ -17,8 +18,7 @@ classdef fixation < neurostim.stimulus
             o.addProperty('size',15,'validate',@isnumeric);
             o.addProperty('size2',5,'validate',@isnumeric);
             o.addProperty('color2',[0 0 0],'validate',@isnumeric);
-            o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),{'CIRC','RECT','TRIA','DONUT','OVAL','STAR','FRAME','ABC'}))) ;               
-            
+            o.addProperty('shape','CIRC','validate',@(x)(ismember(upper(x),O.valid_shapes))) ;                          
             o.on = 0;
         end
         
@@ -79,6 +79,8 @@ classdef fixation < neurostim.stimulus
                     Screen('FillRect', w, color2, [-(tinySize/2) -(locSize/2) (tinySize/2) (locSize/2)]);
                     Screen('FillRect', w, color2, [-(locSize/2) -(tinySize/2) (locSize/2) (tinySize/2)]);
                     Screen('FillOval', w, color1,[-(tinySize/2) -(tinySize/2) (tinySize/2) (tinySize/2)]);
+                otherwise
+                    error('Unknown shape: "%s", valid shapes are:\n%s',o.shape,sprintf(' - %s\n',o.valid_shapes{:}))
             end
         end
         
