@@ -1879,6 +1879,9 @@ classdef cic < neurostim.plugin
                     % Magic software overlay... replicates (in software) the
                     % dual CLUT overlay of the VPixx M16 mode. See below
                     % for more details.
+                case 'TENBITMONITOR'
+                    PsychImaging('AddTask', 'General', 'FloatingPoint32BitIfPossible');
+                    PsychImaging('AddTask', 'General', 'EnableNative10BitFramebuffer' ,1);
                 otherwise
                     error(['Unknown screen type : ' c.screen.type]);
             end
@@ -1925,6 +1928,8 @@ classdef cic < neurostim.plugin
             switch upper(c.screen.type)
                 case 'GENERIC'
                     % nothing to do
+                case 'TENBITMONITOR'
+                    % Behave like generic
                 case 'VPIXX-M16'
                     if (all(round(c.screen.color.background) == c.screen.color.background))
                         % The BitsPlusPlus code thinks that any luminance
