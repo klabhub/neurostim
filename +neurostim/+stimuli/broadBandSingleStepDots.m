@@ -2,21 +2,25 @@ classdef broadBandSingleStepDots < neurostim.stimulus
 
     properties (Access=protected)
         steppers;
+        dotTypeNr; % see Screen('DrawDots?')
     end
 
+    properties (Constant)
+        dotTypeStrs={'square','round_performance','round_quality','round_ptb'};
+    end
     methods (Access=public)
         function o=broadBandSingleStepDots(c,name)
             o=o@neurostim.stimulus(c,name);
             o.addProperty('ndots',1000,'validate',@(x)~isempty(x)&&isnumeric(x)&&round(x)==x&&x>=0);
             o.addProperty('dotDiamPx',5,'validate',@(x)~isempty(x)&&isnumeric(x));
-            o.addProperty('width',10,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>0); % units of space
-            o.addProperty('height',10,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>0); % units of space
-            o.addProperty('speed',5,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>=0); % units of space per second
+            o.addProperty('width',10,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>0); % in whatever unit screen width is specified in
+            o.addProperty('height',10,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>0); % IWUSWISI
+            o.addProperty('speed',5,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>=0); % IWUSWISI per second. Only positive speed allow to simplify boundary checks in beforeFrameStepperUpdate
             o.addProperty('coherence',1,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>=0&&x<=1);
             o.addProperty('delaysFr',2:5,'validate',@(x)~isempty(x)&&isnumeric(x)&&all(round(x)==x)&&all(x>0)&&isrow(x));
-            o.addProperty('dotType',1,'validate',@(x)~isempty(x)&&any(x==0:4));
-            o.addProperty('roundAperture',true,'validate',@(x)islogical);
-            % tip: use superclass parameter "angle" to specify the direction 
+            o.addProperty('dotType','round_quality','validate',@(x)any(strcmpi(x,o.dotTypeStrs))); % round_ptb is the default because it's definition
+            o.addProperty('roundAperture',true,'validate',@(x)islogical); % if true, width is the diameter of the aperture
+            % Tip: use superclass parameter "angle" to specify the direction 
         end
 
         function beforeTrial(o)
@@ -29,6 +33,9 @@ classdef broadBandSingleStepDots < neurostim.stimulus
                 end
                 o.ndots=o.ndots*sqrt(2);
             end
+
+            % Convert dotType string to number to use as dot_type argument to Screen('DrawDots')
+            o.dotTypeNr=find(strcmpi(o.dotType,o.dotTypeStrs))-1;
             
             % Divide the total number of dots in signal and noise dots
             n_signal_dots=round(o.ndots*o.coherence);
@@ -36,7 +43,7 @@ classdef broadBandSingleStepDots < neurostim.stimulus
 
             % The noise dots are always visible, they are born again on every frame. The first stepper is for
             % the noise dots.
-            o.steppers=o.initStepper(0,n_noise_dots,o.width,o.height,nan);          
+            o.steppers=o.initStepper(0,n_noise_dots,o.width,o.height,0);          
             
             % The dots of each signal stepper are visible once per delay. So correct the total number of dots so
             % that the specified ndots is visible on each frame
@@ -56,7 +63,6 @@ classdef broadBandSingleStepDots < neurostim.stimulus
         end
 
         function beforeFrame(o)
-            ndots_drawn=[];
             for i=1:numel(o.steppers)
                 o.steppers(i)=o.beforeFrameStepperUpdate(o.steppers(i));
                 todraw=o.steppers(i).age==0 | o.steppers(i).age==o.steppers(i).delay;
@@ -68,12 +74,9 @@ classdef broadBandSingleStepDots < neurostim.stimulus
                     y(outside)=[];
                 end
                 if ~isempty(x)
-                    Screen('DrawDots',o.window, [x;y], o.dotDiamPx, o.color, [0 0], o.dotType);
+                    Screen('DrawDots',o.window, [x;y], o.dotDiamPx, o.color, [0 0], o.dotTypeNr);
                 end
-                ndots_drawn(i)=numel(x);
             end
-           % fprintf('%s0= %d\n',sprintf('%d+',ndots_drawn),sum(ndots_drawn));
-
         end
 
         function afterFrame(o)
@@ -102,12 +105,16 @@ classdef broadBandSingleStepDots < neurostim.stimulus
         end
 
         function s=beforeFrameStepperUpdate(s)
-            s.x(s.age==s.delay)=s.x(s.age==s.delay)+s.dx;
-            s.x(s.x>s.wid/2)=s.x(s.x>s.wid/2)-s.wid;
+            if s.delay>0 % delay==0 means noise-field
+                s.x(s.age==s.delay)=s.x(s.age==s.delay)+s.dx;
+                s.x(s.x>s.wid/2)=s.x(s.x>s.wid/2)-s.wid;
+            end
         end
 
         function s=afterFrameStepperUpdate(s)
-            s.age=mod(s.age+1,s.delay*2);
+            if s.delay>0 % delay==0 means noise-field
+                s.age=mod(s.age+1,s.delay*2);
+            end
             s.x(s.age==0)=(rand(1,sum(s.age==0))-0.5)*s.wid;
             s.y(s.age==0)=(rand(1,sum(s.age==0))-0.5)*s.hei;
         end
