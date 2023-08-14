@@ -18,7 +18,7 @@ classdef broadBandSingleStepDots < neurostim.stimulus
             o.addProperty('speed',5,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>=0); % IWUSWISI per second. Only positive speed allow to simplify boundary checks in beforeFrameStepperUpdate
             o.addProperty('coherence',1,'validate',@(x)~isempty(x)&&isnumeric(x)&&x>=0&&x<=1);
             o.addProperty('delaysFr',2:5,'validate',@(x)~isempty(x)&&isnumeric(x)&&all(round(x)==x)&&all(x>0)&&isrow(x));
-            o.addProperty('dotType','round_quality','validate',@(x)any(strcmpi(x,o.dotTypeStrs))); % round_ptb is the default because it's definition
+            o.addProperty('dotType','round_quality','validate',@(x)ischar(x)&&any(strcmpi(x,o.dotTypeStrs))); % round_ptb is the default because it's definition
             o.addProperty('roundAperture',true,'validate',@(x)islogical); % if true, width is the diameter of the aperture
             % Tip: use superclass parameter "angle" to specify the direction 
         end
@@ -36,6 +36,9 @@ classdef broadBandSingleStepDots < neurostim.stimulus
 
             % Convert dotType string to number to use as dot_type argument to Screen('DrawDots')
             o.dotTypeNr=find(strcmpi(o.dotType,o.dotTypeStrs))-1;
+            if isempty(o.dotTypeNr)
+                error('dotType is %s, but it must be any of:\n%s',string(o.dotType),sprintf(' - ''%s''\n',o.dotTypeStrs{:}));
+            end
             
             % Divide the total number of dots in signal and noise dots
             n_signal_dots=round(o.ndots*o.coherence);
