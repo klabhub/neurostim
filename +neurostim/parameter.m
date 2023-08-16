@@ -556,7 +556,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             if nargout >4 || p.Results.struct
                 % User asked for block information
-                block= get(o.plg.cic.prms.block,'atTrialTime',Inf,'matrixIfPossible',false); % Blck at end of trial
+                block= get(o.plg.cic.prms.block,'atTrialTime',0,'matrixIfPossible',false); % Blck at end of trial
                 block = [block{trial}]'; % Match other info that is returned. Make it a column vector to match other data/trial info.
             end
             

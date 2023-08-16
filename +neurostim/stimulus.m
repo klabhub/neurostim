@@ -195,6 +195,16 @@ classdef stimulus < neurostim.plugin
             p.addParameter('isi',0,@(x) isnumeric(x) & x >= 0);
             p.addParameter('log',false,@islogical);
             p.parse(design,varargin{:});
+
+            for spec = design.factorSpecs(:)'
+                if isempty(spec{1}), continue; end
+
+                if any(~strcmp(spec{1}(:,1),s.name))
+                    error('Design object ''%s'' assigned to the rsvp of ''%s'' cannot contain factor specs that modify other plugins.', ...
+                        design.name,s.name)
+                end
+            end
+
             flds = fieldnames(p.Results);
             for i=1:numel(flds)
                 s.rsvp.(flds{i}) = p.Results.(flds{i});
