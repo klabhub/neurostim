@@ -105,7 +105,10 @@ classdef sound < neurostim.plugin
         function beep(o,frequency,duration,volume)       
             % Create and immediately play a beep of given sound and
             % duration.  This is used for feedback by the Eyelink dispatch
-            % callback. Note that this is not meant for low-latency timing.            
+            % callback. Note that this is not meant for low-latency timing.        
+            if nargin <4   
+                volume =1;
+            end
             volume = max(min(volume,1),0);
             w = volume.*MakeBeep(frequency,duration,o.sampleRate); % Use PTB function
             hBuffer = o.createBuffer(w);
