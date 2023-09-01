@@ -527,13 +527,13 @@ classdef stg < neurostim.stimulus
                 end
 
                 for chan=0:o.nrChannels-1
-                    [o.vResolution(chan+1),o.iResolution(chan+1)]  = o.device.GetAnalogResolution(chan);
-                    [o.vRange(chan+1),o.iRange(chan+1)]  = o.device.GetAnalogRanges(chan);
+                    % Retrieve and convert to mA and mV
+                    o.vResolution(chan+1) = o.device.GetVoltageResolutionInMicroVolt(chan)/1e3;
+                    o.iResolution(chan+1)  = o.device.GetCurrentResolutionInNanoAmp(chan)/1e6;
+                    o.vRange(chan+1) = o.device.GetCurrentRangeInNanoAmp(chan)/1e6;
+                    o.iRange(chan+1)  = o.device.GetVoltageRangeInMicroVolt(chan)/1e3;
                 end
 
-                % Conver A to mA. voltage is already in mV.
-                o.iResolution = o.iResolution/1000;
-                o.iRange = o.iRange/1000;
                 setupTriggers(o); % Map triggers to channels 1->1 , 2->2
                 
             end
