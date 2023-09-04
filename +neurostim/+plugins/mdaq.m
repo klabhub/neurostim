@@ -58,6 +58,11 @@ classdef mdaq <  neurostim.plugin
     % The GUI shows the contents of a circular buffer, this is in-memory normally,
     % but shared via a memory mapped file when running on a separate worker.
     %
+    % The first time you setup new hardware you probably want to use
+    % list = daqlist(vendorName) to see what is conneceted, and then 
+    % list.DeviceInfo to get more detailed information on your device
+    % (inlcuding the names and measurement types each port supports).
+    %
     % See also DAQ
     %
     %
@@ -222,7 +227,7 @@ classdef mdaq <  neurostim.plugin
             ks = keys(o.outputMap);
             for k=1:numel(ks)
                 vals = o.outputMap(ks{k});
-                addinput(o,vals{:})
+                addoutput(o,vals{:})
             end
             o.samplerate = o.hDaq.Rate; % Some cards reset to an allowed value
             o.outputFile= [o.cic.fullFile '.bin'];
@@ -230,6 +235,7 @@ classdef mdaq <  neurostim.plugin
             props.samplerate = o.samplerate;
             props.nrInputChannels = o.nrInputChannels;
         end
+
         function start(o)
             % Open a file to store acquired data
 
@@ -243,8 +249,6 @@ classdef mdaq <  neurostim.plugin
             if ~isempty(o.hDaq.Channels)
                 o.hDaq.ScansAvailableFcn = @(src,event) scansAvailableCallback(o, src, event);
             end
-
-
 
 
             % Initialize the circular data buffer.
@@ -283,6 +287,31 @@ classdef mdaq <  neurostim.plugin
             % Data.acq respectively.
 
             o.mmap = memmapfile(o.mmapFile,'Repeat',1,'Format',{o.precision [nrSamplesToShow 1] 't'; o.precision, [nrSamplesToShow pv.nrInputChannels], 'acq'},'Offset',0,'Writable',pv.writable);
+        end
+
+        function digout(o,name,value,duration)
+            % Set a named digital output channel to the specified value
+            % (true/false), and (optionally) toggle it back after duration
+            % ms. 
+            arguments
+                o (1,1) neurostim.pokugins.mdaq
+                name (1,1) string 
+                value (1,1) logical 
+                duration (1,1) double = 0
+            end
+
+             % Create a signal with the appropriate duration 
+                if duration>0
+                    nrSamples= round(duration * samplingRate);
+                    signal = [value*ones(nrSamples,1);~value];
+                else
+                    signal= value;
+                end
+                % Write it to the relevant port 
+                write(o.h)
+
+            
+            
         end
 
         function beforeExperiment(o)
@@ -481,7 +510,7 @@ classdef mdaq <  neurostim.plugin
                 channel  (1,1)                  % Name or number of the channel
                 type {mustBeTextScalar}         % Type (voltage)
             end
-            [~,ix] = addinput(o.hDaq,device,channel,type);
+            [~,ix] = addoutput(o.hDaq,device,channel,type);
             o.isInput(ix) = false;
             o.nrOutputChannels = o.nrOutputChannels +1;
         end
@@ -647,6 +676,10 @@ classdef mdaq <  neurostim.plugin
                         toc
                     end
                     afterExperiment(o);
+                case 'NI'
+                    o.vendor = 'NI';
+                    addChannel(o,"trialstart","output","Dev1","port0/line0","OutputOnly")
+                    beforeExperiment(o); % Setup connection with DAQ
             end
 
         end
