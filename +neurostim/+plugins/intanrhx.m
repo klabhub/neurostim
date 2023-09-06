@@ -39,9 +39,11 @@ classdef intanrhx < neurostim.plugin
     % The default values (Traditional/Highest/999) work fine for BK's
     % intended use (low channel count recording, no data streaming).
     %
-    % The plugin tells RHX to save files to the same folder and using the
-    % same prefix (subject.paradigm.starttime) used for Neurostim files.
-    % RHX then only adds its file extensions. No new folders are created. 
+    % The plugin tells RHX to create a new folder for each experiment. This
+    % folder will have a name that matches the neurostim file, but with a timestamp
+    % attached. The main reason for a subfolder is to allow RHX to save its
+    % settings.xml file in there (which could be different for each
+    % experiment in a session). 
     % 
     % If your Neurostim computer saves to a different drive, you use
     %   'drive'    - Map a drive on the neurostim ccomputer to a different
@@ -89,7 +91,7 @@ classdef intanrhx < neurostim.plugin
     % type =intanGet(rhx,'Type')
     % BK - Sept 2023.
     
-   
+       
     methods (Access=public)
         
         function o = intanrhx(c)
@@ -109,16 +111,22 @@ classdef intanrhx < neurostim.plugin
             o.addProperty('fileFormat','Traditional'); % "Traditional, OneFilePerSignalType, OneFilePerChannel
             o.addProperty('writeToDiskLatency','Highest'); % Highest, High, Medium,Low,Lowest
             o.addProperty('newSaveFilePeriodMinutes',999); % 
-          
+            
+            o.addProperty('trialStart',NaN);
+            o.addProperty('trialStop',NaN);
             o.addProperty('startSave',NaN);
             o.addProperty('stopSave',NaN);
             o.addProperty('drive',{}); % Optional - change output drive on the Intan machine {'Z:\','C:\'} will change the Z:\ in the neurostim file to C:\ 
-            o.addProperty('fake',false);            
+            o.addProperty('fake',false);       
+            o.addProperty('useMDaq',true); 
         end
         
               
         function beforeExperiment(o)
             if o.fake; return;end
+            if o.useMDaq && ~hasPlugin(o.cic,'mdaq')
+                error('IntanRhx set to use mdaq, but mdaq plugin is not loaded')
+            end
             
             % Try to connect. Will throw an error if it fails.            
             intanExecute(o,'clearalldataoutputs')
@@ -140,9 +148,11 @@ classdef intanrhx < neurostim.plugin
             intanSet(o,'writeToDiskLatency',o.writeToDiskLatency);
             intanSet(o,'newSaveFilePeriodMinutes',num2str(o.newSaveFilePeriodMinutes));
 
-            % Everything will be saved to the same folder. (file names are
-            % unique)
-            intanSet(o,'createNewDirectory','False');
+            % Setup the file name. RHX will save to a subfolder named after
+            % the neurostim file, with a timestamp (_date_time ) attached.
+            % This is done to keep settings.xml files for each experiment
+            % with the data. 
+            intanSet(o,'createNewDirectory','True');
             if isempty(o.drive)
                 % Save to the "same" location as Neurostim
                 pth  = fileparts(o.cic.fullFile);
@@ -154,52 +164,29 @@ classdef intanrhx < neurostim.plugin
             intanSet(o,'Filename.Path',pth); 
             
             % Start recording
-            intanSet(o,'runMode','run')
-            % try
-            %     tryXippmex(o,'trial','recording',filename,0,0);
-            % catch
-            %     o.cic.error('STOPEXPERIMENT',['Failed to start recording on Trellis. Probably the path to the file does not exist on the Trellis machine: ' o.cic.fullPath]);
-            %     return; % No stat if error
-            % end
-            % tic;
-            % while(~strcmpi(o.status,'recording'))
-            %     pause (1);
-            %     if toc > 5 % 5 s timeout to stop
-            %         o.cic.error('STOPEXPERIMENT','Failed to start recording on Trellis. Is ''remote control''  enabled in the Trellis GUI?');
-            %     end
-            % end
-            % o.startSave = o.nipTime;
-            % o.writeToFeed(['Trellis is now recording to ' o.cic.fullFile]);
+            intanSet(o,'runMode','record')            
         end
         function afterExperiment(o)
-            if o.fake; return;end
-           
-            intanSet(o,'runMode','stop')
-            
-            % while(~strcmpi(o.status,'stopped'))
-            %     pause (1);
-            %     o.cic.error('STOPEXPERIMENT','Stop recording on Trellis failed...?');
-            % end
-            % o.stopSave = o.nipTime;
-            % connect again. Maybe use a persistent (or global?) 
+            if o.fake; return;end           
+            intanSet(o,'runMode','stop')                      
             o.writeToFeed('Intan RHX has stopped recording.');
         end
         
         function beforeTrial(o)
             if o.fake; return;end
             % Set trial bit
-            % if ~isempty(o.trialBit)
-            %     digout(o,o.trialBit,true);
-            % end
-            % o.trialStart = o.nipTime; % Store nip time
+            if o.useMDaq
+                digitalOut(o.cic.mdaq,"trial",true);
+            end
+            o.trialStart = intanGet(o,'CurrentTimeSeconds'); % Store time on Intan (poor resolution due to USB)            
         end
         function afterTrial(o)
             if o.fake; return;end
-            % % unset trial bit
-            % if ~isempty(o.trialBit)
-            %     digout(o,o.trialBit,false);
-            % end
-            % o.trialStop = o.nipTime; % Store niptime
+            % unset trial bit
+            if o.useMDaq
+                digitalOut(o.cic.mdaq,"trial",false);
+            end
+            o.trialStop = intanGet(o,'CurrentTimeSeconds'); % Store time on Intan (poor resolution due to USB)            
         end
         
         function intanSend(o,cmnds)
