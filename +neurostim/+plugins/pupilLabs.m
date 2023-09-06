@@ -42,7 +42,7 @@ classdef pupilLabs < neurostim.plugin
             o = o@neurostim.plugin(c,'pupilLabs');
             
             % add properties (these are logged!):
-            o.addProperty('URLhost','49.127.42.4:8080/','validate',@ischar);
+            o.addProperty('URLhost','49.127.55.24:8080/','validate',@ischar);
         end
         
         function beforeExperiment(o)
