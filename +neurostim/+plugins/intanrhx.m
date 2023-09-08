@@ -91,17 +91,27 @@ classdef intanrhx < neurostim.plugin
     % type =intanGet(rhx,'Type')
     % BK - Sept 2023.
     
-       
+   properties  (SetAccess  = protected)
+       % Set by the constructor
+       host (1,1) string 
+       port (1,1) double 
+   end
     methods (Access=public)
         
-        function o = intanrhx(c)
+        function o = intanrhx(c,hst,prt)
+            arguments
+                c (1,1) neurostim.cic
+                hst (1,1) string = 'localhost'
+                prt (1,1) double = 5000
+            end
+           
             % Construct a intanrhx plugin
             o = o@neurostim.plugin(c,'intanrhx');
-            o.addProperty('host','localhost');
-            o.addProperty('port',5000);
+
             o.addProperty('secondsBetweenWrites',0.01);  % Allow the RHX to handle the message for at least this many seconds, before sending the next.
             o.addProperty('secondsBeforeRead',0.05) % When sending a GET, wait at least this long before collecting the response.
-            
+            o.addProperty('timeout',2); % Timeout in seconds (waiting on a Intan response to a get).
+
             % Properties that are read from the RHX
             o.addProperty('sampleRateHertz',[]);
             o.addProperty('version',[]);
@@ -119,6 +129,21 @@ classdef intanrhx < neurostim.plugin
             o.addProperty('drive',{}); % Optional - change output drive on the Intan machine {'Z:\','C:\'} will change the Z:\ in the neurostim file to C:\ 
             o.addProperty('fake',false);       
             o.addProperty('useMDaq',true); 
+            
+            o.host = hst;
+            o.port = prt;
+            
+            % Try to connect. Will throw an error if it fails.            
+           tp = intanGet(o,'type');
+            rm = intanGet(o,'runmode');
+            o.writeToFeed(sprintf('Connected to %s:%d (Type: %s, RunMode: %s)',o.host,o.port,tp,rm));
+            
+            if ~strcmpi(rm,'Stop')
+                 warning('RHX was still recording .. stopping it now');
+                 intanSet(o,'runmode','Stop');
+                 pause(1);
+            end     
+
         end
         
               
@@ -127,18 +152,6 @@ classdef intanrhx < neurostim.plugin
             if o.useMDaq && ~hasPlugin(o.cic,'mdaq')
                 error('IntanRhx set to use mdaq, but mdaq plugin is not loaded')
             end
-            
-            % Try to connect. Will throw an error if it fails.            
-            intanExecute(o,'clearalldataoutputs')
-            tp = intanGet(o,'type');
-            rm = intanGet(o,'runmode');
-            o.writeToFeed(sprintf('Connected to %s:%d (Type: %s, RunMode: %s)',o.host,o.port,tp,rm));
-            
-            if ~strcmpi(rm,'Stop')
-                 warning('RHX was still recording when this experiment started');
-                 intanSet(o,'runmode','Stop');
-                 pause(1);
-            end            
             
             o.sampleRateHertz   = intanGet(o,'SampleRateHertz');
             o.version           = intanGet(o,'Version');
@@ -230,15 +243,18 @@ classdef intanrhx < neurostim.plugin
                     if ok
                         connect =false;
                     else
-                        % This cannot happen..
+                        % This cannot really happen..
                         error('Connected to a different host???  %s ~= %s',hIntanCommand.Address,o.host)
                     end
                 catch
                     % Connection broken. Reestablish
                     connect = true;
+                    
                 end                
             end
             if connect
+                clear hIntanCommand;
+                global hIntanCommand
                 o.writeToFeed(sprintf('Trying to connect to the Intan RHX (%s : %s)',o.host,o.port));
                 hIntanCommand = tcpclient(o.host,o.port,"ConnectTimeout",30,"EnableTransferDelay",false);
                 o.writeToFeed("Connected.");
@@ -282,8 +298,10 @@ classdef intanrhx < neurostim.plugin
             h= hCommand(o);
             while h.BytesAvailable == 0
                 elapsedTime = toc;
-                if elapsedTime > 10
-                    error('Reading command timed out');
+                if elapsedTime > o.timeout
+                    % Clear the tcp connection to restablish
+                    clear global hIntanCommand
+                    error('Reading command timed out. Restart RHX?');
                 end
                 pause(0.01)
             end
@@ -310,6 +328,8 @@ classdef intanrhx < neurostim.plugin
             %
             o.fake = strcmpi(parms.onOffFakeKnob,'fake');            
         end
+
+
                        
     end
         

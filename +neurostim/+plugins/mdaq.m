@@ -376,10 +376,15 @@ classdef mdaq <  neurostim.plugin
                 o.cic.error('STOPEXPERIMENT',sprintf('The worker failed (msg: %s)',o.future.Error));
                 return
             end
-            if ~o.outputOnly
+            if o.outputOnly
+                if ~isempty(o.ax)
+                delete(o.ax)
+                end
+            else
                 draw(o)
             end
         end
+        
         function draw(o)
             % Draw the input channel data
             if o.fake;return;end
