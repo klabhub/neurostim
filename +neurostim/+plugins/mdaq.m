@@ -483,11 +483,15 @@ classdef mdaq <  neurostim.plugin
         end
 
 
-        function  T =readBin(o,filename)
+        function  T =readBin(o,filename,pv)
             % Read the binary data file and return as a timetable
             arguments
                 o (1,1) neurostim.plugins.mdaq
                 filename {mustBeTextScalar} = o.outputFile;  %
+                pv.drive (1,:) = {}
+            end
+            if ~isempty(pv.drive)
+                filename =strrep(filename,pv.drive{1},pv.drive{2});
             end
             if ~exist(filename,"file")
                 error('Bin file %s does not exist \n',filename);
