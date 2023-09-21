@@ -15,7 +15,7 @@ classdef mdaq <  neurostim.plugin
     %  useWorker - Set this to true to perform acquisition and saving on a
     %               a paralllel worker.
     %  bufferSize - Seconds of data to show in the nsGUI [10]
-    %  precision  - Precision to use for storing acquired date ['double']
+    %  precision  - Precision to use for storing acquired data ['double']
     %  fake       - Set to true to run in fake mode for debugging [false]
     %  vendor     - which hardware vendor to use. Run daqvendorlist to get
     %               a list of options. Note that each may require a
@@ -65,8 +65,16 @@ classdef mdaq <  neurostim.plugin
     %
     % See also DAQ
     %
+    % If the raw data acquired from the daq are not that informative, you
+    % can defined a o,postproces function handle that takes the raw data
+    % time stamps and the mdaq plugin and returns processed data and timestamps for display
+    % in the gui. Note that only the raw data are saved to disk.
     %
     % BK -  Jan 2022.
+
+    properties 
+        postprocess function_handle 
+    end
     properties (SetAccess = protected)
         inputMap  % Map from named channels to daq input channel properties
         outputMap % Map from named channels to daq output channel properties
@@ -192,7 +200,7 @@ classdef mdaq <  neurostim.plugin
         end
 
 
-        function addChannel(o,name,inputOrOutput,device, channel,type)
+        function addChannel(o,name,inputOrOutput,device, channel,type,pvPairs)
             % Function the user uses to add channels to the acquisition.
             %
             arguments
@@ -202,11 +210,12 @@ classdef mdaq <  neurostim.plugin
                 device (1,1) {mustBeTextScalar} % Device name
                 channel (1,1)                   % Channel name or number
                 type (1,1) {mustBeTextScalar}   % Channel type
+                pvPairs (1,:) cell = {}         % Channel properties (e.g., {'TerminalConfig','SingleEnded', 'Range',[-10 10]}
             end
             if inputOrOutput =="input"
-                o.inputMap(name) = {device,channel,type};
+                o.inputMap(name) = {device,channel,type,pvPairs};
             else
-                o.outputMap(name) ={device,channel,type};
+                o.outputMap(name) ={device,channel,type,pvPairs};
             end
         end
 
@@ -230,12 +239,12 @@ classdef mdaq <  neurostim.plugin
             ks = keys(o.inputMap);
             for k=1:numel(ks)
                 vals = o.inputMap(ks{k});
-                addinput(o,vals{:})
+                 addinput(o,vals{:});                
             end
             ks = keys(o.outputMap);
             for k=1:numel(ks)
                 vals = o.outputMap(ks{k});
-                addoutput(o,vals{:})                 
+                addoutput(o,vals{:});                 
             end
 
             % Initialize output to 0            
@@ -451,8 +460,11 @@ classdef mdaq <  neurostim.plugin
                 pause(1);
                 removechannel(o.hDaq,1:numel(o.hDaq.Channels)); % Free
             end
-            if ~isempty(o.FID)
+            if ~isempty(o.FID) && o.FID ~=-1
+                try
                 fclose(o.FID);
+                catch
+                end
             end
             delete(o.hDaq);
             o.hDaq= [];
@@ -534,28 +546,50 @@ classdef mdaq <  neurostim.plugin
             end
         end
 
-        function addoutput(o,device,channel,type)
+        function ix= addoutput(o,device,channel,type,settings)
             % Add output channels
             arguments
                 o (1,1) neurostim.plugins.mdaq  % The daq plugin
                 device (1,1) {mustBeTextScalar}  % Name of the device
                 channel  (1,1)                  % Name or number of the channel
-                type {mustBeTextScalar}         % Type (voltage)               
+                type {mustBeTextScalar}         % Type (voltage)       
+                settings (1,:) cell             % 
             end
-            addoutput(o.hDaq,device,channel,type);            
+            [ch,ix] = addoutput(o.hDaq,device,channel,type);         
+             if ~isempty(settings)
+                % I could not find a way to pass these settings (e.g.
+                % Range, TerminalConfig) to addinput, so we have to get the
+                % warnign first, then fix it afterwards.
+                 [~,id] = lastwarn;            
+                    if ismember(id,{'daq:Channel:closestRangeChosen','daqsdk:Internal:vendorDriverCommandFailed'})                       
+                        o.writeToFeed('The DAQ warnings above can be ignored, if your channel settings passed to addChannel correct these issues.')                        
+                    end
+                 set(ch,settings{:});
+            end           
             o.nrOutputChannels = o.nrOutputChannels +1;
         end
 
 
-        function addinput(o,device,channel,type)
+        function ix = addinput(o,device,channel,type,settings)
             % Add input channels
             arguments
                 o (1,1) neurostim.plugins.mdaq
                 device (1,1) {mustBeTextScalar}  % name of the device
                 channel  (1,1)                   % name/number of the channel
                 type {mustBeTextScalar}          % measurement type
-            end
-            addinput(o.hDaq,device,channel,type);            
+                settings (1,:) cell             % 
+            end            
+            [ch,ix] = addinput(o.hDaq,device,channel,type);        
+            if ~isempty(settings)
+                % I could not find a way to pass these settings (e.g.
+                % Range, TerminalConfig) to addinput, so we have to get the
+                % warnign first, then fix it afterwards.
+                 [~,id] = lastwarn;            
+                    if ismember(id,{'daq:Channel:closestRangeChosen','daqsdk:Internal:vendorDriverCommandFailed'})                        
+                        o.writeToFeed('The DAQ warnings above can be ignored, if your channel settings passed to addChannel correct these issues.')                        
+                    end
+                 set(ch,settings{:});
+            end           
             o.nrInputChannels = o.nrInputChannels +1;
         end
 
@@ -567,16 +601,17 @@ classdef mdaq <  neurostim.plugin
             % Runs on the worker if useWorker =true
             % In parallle mode, changes to o in this function are not
             % saved.
-           
+            % Note that the columns represent the input channels in
+            % alphabetiacl order (as in o.inputMap.keys)           
             try
-                [data,timestamp,tTrigger] = read(src,src.ScansAvailableFcnCount,"OutputFormat","Matrix");
+                [data,timestamp,tTrigger] = read(src,src.ScansAvailableFcnCount,"OutputFormat","Matrix");                
                 %% Log to file
                 fwrite(o.FID, [timestamp data]', o.precision);
                 if timestamp(1)==0
                     % Store the origin of the time axis
                     o.triggerTime = datetime(tTrigger,'convertFrom','datenum');
                 end
-                %% Update the circular buffer
+                %% Update the circular buffer                              
                 [nrTmStmps, ~] =size(data);
                 o.nrTimeStamps= o.nrTimeStamps + nrTmStmps;
                 bufferSamples= numel(o.timeBuffer);
@@ -587,6 +622,10 @@ classdef mdaq <  neurostim.plugin
                 end
                 o.dataBuffer(o.bufferIx + (1:nrTmStmps),:) = data;
                 o.timeBuffer(o.bufferIx + (1:nrTmStmps)) = timestamp;
+
+                if ~isempty(o.postprocess)
+                    o = o.postprocess(o); % Postprocess with a user-specified function for display
+                end   
                 o.bufferIx = o.bufferIx+nrTmStmps;
                 if o.useWorker
                     %% Copy to the mmap
