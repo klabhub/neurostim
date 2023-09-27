@@ -131,6 +131,9 @@ classdef camera < neurostim.plugin
         framerate;
     end
 
+    properties (Constant)
+        PAUSETIME = 0.01;
+    end
     methods
         function v = get.framerate(o)
             % Pull framerate from video source using a case insensitive
@@ -140,7 +143,7 @@ classdef camera < neurostim.plugin
             if any(ix) 
                 v = str2double(o.hSource.(fn{ix}));
             else
-                writeToFeed('No framerate property. Using default 30 fps');
+                writeToFeed(o,'No framerate property. Using default 30 fps');
                 v = 30;
             end
         end
@@ -359,13 +362,27 @@ classdef camera < neurostim.plugin
                         start(o.hVid);
                 end
                 % Make sure the videoinput is running and logging is off.
+                isWarned = false;
                 while ~isrunning(o.hVid)
-                    o.writeToFeed('Waiting for camera to start')
-                    pause(0.25);
+                    if ~isWarned
+                        o.writeToFeed('Waiting for camera to start');
+                        isWarned = true;
+                    end
+                    pause(o.PAUSETIME);
                 end
+                if isWarned 
+                        o.writeToFeed('Camera has started');
+                end
+                isWarned =false;
                 while islogging(o.hVid)
-                    pause(0.25)
-                    o.writeToFeed('Waiting for logging to finish')
+                    pause(o.PAUSETIME)
+                    if ~isWarned 
+                        o.writeToFeed('Waiting for logging to finish');
+                        isWarned = true;
+                    end
+                end
+                if isWarned
+                    o.writeToFeed('Logging finished.');
                 end
                 % Ready to go - Trigger recording
                 trigger(o.hVid);
@@ -386,14 +403,30 @@ classdef camera < neurostim.plugin
                     case 'SAVEDURINGTRIAL'
                         % Wait until all the specified frames have been
                         % collected
+                        isWarned  = false;
                         while (o.hVid.FramesAcquired < o.hVid.FramesPerTrigger)
-                            pause(0.25);
-                            o.writeToFeed(sprintf('Waiting for all (%d) camera frames ...please wait (%d)',o.hVid.FramesPerTrigger,o.hVid.FramesAcquired));
+                            pause(o.PAUSETIME);
+                            if ~isWarned
+                                o.writeToFeed(sprintf('Waiting for all (%d) camera frames ...please wait (%d)...',o.hVid.FramesPerTrigger,o.hVid.FramesAcquired));
+                                isWarned =true;
+                            end
                         end
+                        if isWarned
+                            o.writeToFeed(sprintf('All frames collected (%d)',o.hVid.FramesAcquired));
+                        end
+                        
                         % Wait until saving has caught up with acquiistion
+                        isWarned = false;                        
                         while (o.hVid.FramesAcquired ~= o.hVid.DiskLoggerFrameCount)
-                            pause(0.25);
-                            o.writeToFeed('Saving camera data...please wait')
+                            pause(o.PAUSETIME);
+                            if ~isWarned
+                                o.writeToFeed('Saving camera data...please wait');
+                                isWarned = true;
+                                tic;
+                            end
+                        end
+                         if isWarned
+                            o.writeToFeed(sprintf('All data saved (%.3f s)',toc));
                         end
                         % Store logging.
                         nrFrames =o.hVid.FramesAcquired;
