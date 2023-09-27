@@ -15,7 +15,7 @@ classdef mdaq <  neurostim.plugin
     %  useWorker - Set this to true to perform acquisition and saving on a
     %               a paralllel worker.
     %  bufferSize - Seconds of data to show in the nsGUI [10]
-    %  precision  - Precision to use for storing acquired date ['double']
+    %  precision  - Precision to use for storing acquired data ['double']
     %  fake       - Set to true to run in fake mode for debugging [false]
     %  vendor     - which hardware vendor to use. Run daqvendorlist to get
     %               a list of options. Note that each may require a
@@ -59,14 +59,22 @@ classdef mdaq <  neurostim.plugin
     % but shared via a memory mapped file when running on a separate worker.
     %
     % The first time you setup new hardware you probably want to use
-    % list = daqlist(vendorName) to see what is conneceted, and then 
+    % list = daqlist(vendorName) to see what is conneceted, and then
     % list.DeviceInfo to get more detailed information on your device
     % (inlcuding the names and measurement types each port supports).
     %
     % See also DAQ
     %
+    % If the raw data acquired from the daq are not that informative, you
+    % can defined a o,postproces function handle that takes the raw data
+    % time stamps and the mdaq plugin and returns processed data and timestamps for display
+    % in the gui. Note that only the raw data are saved to disk.
     %
     % BK -  Jan 2022.
+
+    properties
+        postprocess function_handle
+    end
     properties (SetAccess = protected)
         inputMap  % Map from named channels to daq input channel properties
         outputMap % Map from named channels to daq output channel properties
@@ -83,7 +91,7 @@ classdef mdaq <  neurostim.plugin
         previousBufferIx;  % For graphical updates
         FID;            % FID for temporary file storage
 
-         ax =[];         % Handle to the nsGui Axes.
+        ax =[];         % Handle to the nsGui Axes.
 
         % Properties used in useWorker = true (i.e., parallel data
         % acquisition) mode
@@ -106,7 +114,7 @@ classdef mdaq <  neurostim.plugin
         function v=  get.outputOnly(o)
             v = isempty(o.inputMap);
         end
-        
+
     end
 
     methods
@@ -128,9 +136,9 @@ classdef mdaq <  neurostim.plugin
             time = seconds(time/1000);
             digOnset = find([false; diff(T.(digEvent))>0.5]);
             digOnsetNsTime = T.nsTime(digOnset)';
-            digOnsetClockTime = T.clockTime(digOnset)'; %#ok<NASGU> 
+            digOnsetClockTime = T.clockTime(digOnset)'; %#ok<NASGU>
 
-            nrDigOnsetsTotal = numel(digOnsetNsTime); %#ok<NASGU> 
+            nrDigOnsetsTotal = numel(digOnsetNsTime); %#ok<NASGU>
             startTime = time(find(trial>= pv.trials(1),1,'first'));
             stopTime  = time(find(trial<= pv.trials(end),1,'last'));
 
@@ -185,14 +193,14 @@ classdef mdaq <  neurostim.plugin
             o.addProperty('samplerate',1000);
             o.addProperty('startDaq',[],'sticky',true);
             o.addProperty('diary',false); % Debug parallel.
-            o.addProperty('keepAliveAfterExperiment',false);            
+            o.addProperty('keepAliveAfterExperiment',false);
             % Setup mapping
             o.inputMap = containers.Map('KeyType','char','ValueType','any');
             o.outputMap = containers.Map('KeyType','char','ValueType','any');
         end
 
 
-        function addChannel(o,name,inputOrOutput,device, channel,type)
+        function addChannel(o,name,inputOrOutput,device, channel,type,pvPairs)
             % Function the user uses to add channels to the acquisition.
             %
             arguments
@@ -202,11 +210,12 @@ classdef mdaq <  neurostim.plugin
                 device (1,1) {mustBeTextScalar} % Device name
                 channel (1,1)                   % Channel name or number
                 type (1,1) {mustBeTextScalar}   % Channel type
+                pvPairs (1,:) cell = {}         % Channel properties (e.g., {'TerminalConfig','SingleEnded', 'Range',[-10 10]}
             end
             if inputOrOutput =="input"
-                o.inputMap(name) = {device,channel,type};
+                o.inputMap(name) = {device,channel,type,pvPairs};
             else
-                o.outputMap(name) ={device,channel,type};
+                o.outputMap(name) ={device,channel,type,pvPairs};
             end
         end
 
@@ -230,16 +239,16 @@ classdef mdaq <  neurostim.plugin
             ks = keys(o.inputMap);
             for k=1:numel(ks)
                 vals = o.inputMap(ks{k});
-                addinput(o,vals{:})
+                addinput(o,vals{:});
             end
             ks = keys(o.outputMap);
             for k=1:numel(ks)
                 vals = o.outputMap(ks{k});
-                addoutput(o,vals{:})                 
+                addoutput(o,vals{:});
             end
 
-            % Initialize output to 0            
-            if o.nrOutputChannels>0 
+            % Initialize output to 0
+            if o.nrOutputChannels>0
                 write(o.hDaq,zeros(1,o.nrOutputChannels));
                 o.outputValue = zeros(1,o.nrOutputChannels);
             end
@@ -267,13 +276,13 @@ classdef mdaq <  neurostim.plugin
 
 
             % Initialize the circular data buffer.
-            o.dataBuffer = neurostim.utils.circularBuffer(zeros(o.bufferSize*o.hDaq.Rate,numel(o.hDaq.Channels)));
-            o.timeBuffer  = neurostim.utils.circularBuffer(zeros(o.bufferSize*o.hDaq.Rate,1));
+            o.dataBuffer = neurostim.utils.circularBuffer(nan(o.bufferSize*o.hDaq.Rate,numel(o.hDaq.Channels)));
+            o.timeBuffer  = neurostim.utils.circularBuffer(nan(o.bufferSize*o.hDaq.Rate,1));
             o.bufferIx = 0;
             o.previousBufferIx =0;
             % Start acquiring.
             start(o.hDaq,"continuous");
-            
+
         end
 
         function createMMap(o,pv)
@@ -310,8 +319,8 @@ classdef mdaq <  neurostim.plugin
             arguments
                 o (1,1) neurostim.plugins.mdaq
                 name (1,1) string
-                value (1,1) logical 
-             
+                value (1,1) logical
+
             end
             if o.fake; o.writeToFeed(sprintf('Digital out %s - %d\n',name,value));return;end
             % First map the name to a daq channel
@@ -328,7 +337,7 @@ classdef mdaq <  neurostim.plugin
             newOutput = o.outputValue;
             newOutput(ix) =value;
             write(o.hDaq,newOutput);
-            o.outputValue = newOutput;                                    
+            o.outputValue = newOutput;
         end
 
         function beforeExperiment(o)
@@ -348,22 +357,22 @@ classdef mdaq <  neurostim.plugin
                 configure(o);
             else
                 % Input
-            if o.useWorker
-                o.writeToFeed('Setting up the worker');
-                % Start the worker queue,
-                setupWorker(o);
-                % Configure on the worker, retrieve parms that may have
-                % changed
-                o.writeToFeed('Configuring DAQ on worker...')
-                parms = sendToWorker(o,"CONFIGURE");
-                o.writeToFeed('Setting up MMap on Client...')
-                createMMap(o,initialize= false,writable=false,filename=parms.filename , nrInputChannels=parms.nrInputChannels,samplerate=parms.samplerate);
-                o.writeToFeed('Starting DAQ ...')
-                sendToWorker(o,"START")
-            else
-                configure(o);
-                startInput(o);
-            end
+                if o.useWorker
+                    o.writeToFeed('Setting up the worker');
+                    % Start the worker queue,
+                    setupWorker(o);
+                    % Configure on the worker, retrieve parms that may have
+                    % changed
+                    o.writeToFeed('Configuring DAQ on worker...')
+                    parms = sendToWorker(o,"CONFIGURE");
+                    o.writeToFeed('Setting up MMap on Client...')
+                    createMMap(o,initialize= false,writable=false,filename=parms.filename , nrInputChannels=parms.nrInputChannels,samplerate=parms.samplerate);
+                    o.writeToFeed('Starting DAQ ...')
+                    sendToWorker(o,"START")
+                else
+                    configure(o);
+                    startInput(o);
+                end
             end
             o.startDaq = datetime('now'); % Log on the client
             o.writeToFeed(sprintf('Done in %4.0f s. DAQ Running ',toc));
@@ -378,13 +387,13 @@ classdef mdaq <  neurostim.plugin
             end
             if o.outputOnly
                 if ~isempty(o.ax)
-                delete(o.ax)
+                    delete(o.ax)
                 end
             else
                 draw(o)
             end
         end
-        
+
         function draw(o)
             % Draw the input channel data
             if o.fake;return;end
@@ -451,8 +460,11 @@ classdef mdaq <  neurostim.plugin
                 pause(1);
                 removechannel(o.hDaq,1:numel(o.hDaq.Channels)); % Free
             end
-            if ~isempty(o.FID)
-                fclose(o.FID);
+            if ~isempty(o.FID) && o.FID ~=-1
+                try
+                    fclose(o.FID);
+                catch
+                end
             end
             delete(o.hDaq);
             o.hDaq= [];
@@ -483,11 +495,15 @@ classdef mdaq <  neurostim.plugin
         end
 
 
-        function  T =readBin(o,filename)
+        function  T =readBin(o,filename,pv)
             % Read the binary data file and return as a timetable
             arguments
                 o (1,1) neurostim.plugins.mdaq
                 filename {mustBeTextScalar} = o.outputFile;  %
+                pv.drive (1,:) = {}
+            end
+            if ~isempty(pv.drive)
+                filename =strrep(filename,pv.drive{1},pv.drive{2});
             end
             if ~exist(filename,"file")
                 error('Bin file %s does not exist \n',filename);
@@ -530,28 +546,50 @@ classdef mdaq <  neurostim.plugin
             end
         end
 
-        function addoutput(o,device,channel,type)
+        function ix= addoutput(o,device,channel,type,settings)
             % Add output channels
             arguments
                 o (1,1) neurostim.plugins.mdaq  % The daq plugin
                 device (1,1) {mustBeTextScalar}  % Name of the device
                 channel  (1,1)                  % Name or number of the channel
-                type {mustBeTextScalar}         % Type (voltage)               
+                type {mustBeTextScalar}         % Type (voltage)
+                settings (1,:) cell             %
             end
-            addoutput(o.hDaq,device,channel,type);            
+            [ch,ix] = addoutput(o.hDaq,device,channel,type);
+            if ~isempty(settings)
+                % I could not find a way to pass these settings (e.g.
+                % Range, TerminalConfig) to addinput, so we have to get the
+                % warnign first, then fix it afterwards.
+                [~,id] = lastwarn;
+                if ismember(id,{'daq:Channel:closestRangeChosen','daqsdk:Internal:vendorDriverCommandFailed'})
+                    o.writeToFeed('The DAQ warnings above can be ignored, if your channel settings passed to addChannel correct these issues.')
+                end
+                set(ch,settings{:});
+            end
             o.nrOutputChannels = o.nrOutputChannels +1;
         end
 
 
-        function addinput(o,device,channel,type)
+        function ix = addinput(o,device,channel,type,settings)
             % Add input channels
             arguments
                 o (1,1) neurostim.plugins.mdaq
                 device (1,1) {mustBeTextScalar}  % name of the device
                 channel  (1,1)                   % name/number of the channel
                 type {mustBeTextScalar}          % measurement type
+                settings (1,:) cell             %
             end
-            addinput(o.hDaq,device,channel,type);            
+            [ch,ix] = addinput(o.hDaq,device,channel,type);
+            if ~isempty(settings)
+                % I could not find a way to pass these settings (e.g.
+                % Range, TerminalConfig) to addinput, so we have to get the
+                % warnign first, then fix it afterwards.
+                [~,id] = lastwarn;
+                if ismember(id,{'daq:Channel:closestRangeChosen','daqsdk:Internal:vendorDriverCommandFailed'})
+                    o.writeToFeed('The DAQ warnings above can be ignored, if your channel settings passed to addChannel correct these issues.')
+                end
+                set(ch,settings{:});
+            end
             o.nrInputChannels = o.nrInputChannels +1;
         end
 
@@ -563,7 +601,8 @@ classdef mdaq <  neurostim.plugin
             % Runs on the worker if useWorker =true
             % In parallle mode, changes to o in this function are not
             % saved.
-           
+            % Note that the columns represent the input channels in
+            % alphabetiacl order (as in o.inputMap.keys)
             try
                 [data,timestamp,tTrigger] = read(src,src.ScansAvailableFcnCount,"OutputFormat","Matrix");
                 %% Log to file
@@ -573,6 +612,9 @@ classdef mdaq <  neurostim.plugin
                     o.triggerTime = datetime(tTrigger,'convertFrom','datenum');
                 end
                 %% Update the circular buffer
+                if ~isempty(o.postprocess)
+                    [data,timestamp] = o.postprocess(data,timestamp,o); % Postprocess with a user-specified function for display
+                end
                 [nrTmStmps, ~] =size(data);
                 o.nrTimeStamps= o.nrTimeStamps + nrTmStmps;
                 bufferSamples= numel(o.timeBuffer);
@@ -583,6 +625,8 @@ classdef mdaq <  neurostim.plugin
                 end
                 o.dataBuffer(o.bufferIx + (1:nrTmStmps),:) = data;
                 o.timeBuffer(o.bufferIx + (1:nrTmStmps)) = timestamp;
+
+               
                 o.bufferIx = o.bufferIx+nrTmStmps;
                 if o.useWorker
                     %% Copy to the mmap
@@ -659,10 +703,10 @@ classdef mdaq <  neurostim.plugin
                 diary off
             end
         end
-        
+
 
         function guiLayout(pnl)
-            % Add plugin specific elements            
+            % Add plugin specific elements
             pnl.Position(4) =250;
             h = uiaxes(pnl,"Tag","ax");
             h.Position = [60 10 530 220];
@@ -693,7 +737,7 @@ classdef mdaq <  neurostim.plugin
                     beforeExperiment(o); % Setup connection with DAQ
                     for trial=1:20
                         beforeTrial(o);
-                        trial %#ok<NOPRT> 
+                        trial %#ok<NOPRT>
                         tic;
                         for j=1:30
                             beforeFrame(o) ;
