@@ -324,7 +324,7 @@ classdef mdaq <  neurostim.plugin
                 value (1,1) logical
 
             end
-
+            if o.fake; o.writeToFeed(sprintf('Digital out %s - %d\n',name,value));return;end
             % First map the name to a daq channel
             if ~isKey(o.outputMap,name)
                 error('No output channel named %s',name)
