@@ -105,6 +105,7 @@ classdef mdaq <  neurostim.plugin
     properties (Dependent)
         isRunning;
         outputOnly;
+        outputFile;
     end
 
     methods
@@ -114,7 +115,9 @@ classdef mdaq <  neurostim.plugin
         function v=  get.outputOnly(o)
             v = isempty(o.inputMap);
         end
-
+        function v = get.outputFile(o)
+            v = [o.cic.fullFile '.bin'];
+        end
     end
 
     methods
@@ -184,8 +187,7 @@ classdef mdaq <  neurostim.plugin
             o=o@neurostim.plugin(c,name);
             o.addProperty('useWorker',false);
             o.addProperty('bufferSize',10); % in seconds.
-            o.addProperty('precision','double');
-            o.addProperty('outputFile','');
+            o.addProperty('precision','double');            
             o.addProperty('fake',false);
             o.addProperty('nrInputChannels',0);
             o.addProperty('nrOutputChannels',0);
@@ -253,7 +255,7 @@ classdef mdaq <  neurostim.plugin
                 o.outputValue = zeros(1,o.nrOutputChannels);
             end
             o.samplerate = o.hDaq.Rate; % Some cards reset to an allowed value
-            o.outputFile= [o.cic.fullFile '.bin'];
+            
 
             props.samplerate = o.samplerate;
             props.nrInputChannels = o.nrInputChannels;
@@ -495,13 +497,13 @@ classdef mdaq <  neurostim.plugin
         end
 
 
-        function  T =readBin(o,filename,pv)
+        function  T =readBin(o,pv)
             % Read the binary data file and return as a timetable
             arguments
-                o (1,1) neurostim.plugins.mdaq
-                filename {mustBeTextScalar} = o.outputFile;  %
+                o (1,1) neurostim.plugins.mdaq                
                 pv.drive (1,:) = {}
             end
+            filename = o.outputFile;
             if ~isempty(pv.drive)
                 filename =strrep(filename,pv.drive{1},pv.drive{2});
             end
