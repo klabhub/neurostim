@@ -33,7 +33,7 @@ classdef mdaq <  neurostim.plugin
     % afterExperiment (scanbox shuts down first).
     %
     % Read only properties
-    %  outputFile - Name of output file (assigned by neurostim) where the acquired data are saved.
+    %  dataFile - Name of output file (assigned by neurostim) where the acquired data are saved.
     %               Use mdaq.readBin to read the contents of this file as a
     %               timetable.
     % nrInputChannels  - Number of input channels
@@ -105,7 +105,7 @@ classdef mdaq <  neurostim.plugin
     properties (Dependent)
         isRunning;
         outputOnly;
-        outputFile;
+        dataFile;
     end
 
     methods
@@ -115,7 +115,7 @@ classdef mdaq <  neurostim.plugin
         function v=  get.outputOnly(o)
             v = isempty(o.inputMap);
         end
-        function v = get.outputFile(o)
+        function v = get.dataFile(o)
             v = [o.cic.fullFile '.bin'];
         end
     end
@@ -130,9 +130,9 @@ classdef mdaq <  neurostim.plugin
                 pv.slack (1,1) = seconds(10)
             end
             if ~isempty(pv.folderMap)
-                filename = strrep(o.outputFile,pv.folderMap{:});
+                filename = strrep(o.dataFile,pv.folderMap{:});
             else
-                filename = o.outputFile;
+                filename = o.dataFile;
             end
             T = readBin(o,filename);
             [~,trial,~,time] = get(o.cic.prms.trial);
@@ -265,9 +265,9 @@ classdef mdaq <  neurostim.plugin
         function startInput(o)
             % Open a file to store acquired data
 
-            [o.FID,msg] = fopen(o.outputFile,'w'); % Bin file for easy append during the experiment.
+            [o.FID,msg] = fopen(o.dataFile,'w'); % Bin file for easy append during the experiment.
             if o.FID==-1
-                o.cic.error('STOPEXPERIMENT',sprintf('Could not create file %s (msg: %s)',o.outputFile,msg));
+                o.cic.error('STOPEXPERIMENT',sprintf('Could not create file %s (msg: %s)',o.dataFile,msg));
             end
             o.nrTimeStamps = 0;
 
@@ -452,7 +452,7 @@ classdef mdaq <  neurostim.plugin
             else
                 shutdown(o);
             end
-            o.writeToFeed(sprintf('DAQ data saved to %s', strrep(o.outputFile,'\','/')));
+            o.writeToFeed(sprintf('DAQ data saved to %s', strrep(o.dataFile,'\','/')));
         end
 
         function shutdown(o)
@@ -503,7 +503,7 @@ classdef mdaq <  neurostim.plugin
                 o (1,1) neurostim.plugins.mdaq                
                 pv.drive (1,:) = {}
             end
-            filename = o.outputFile;
+            filename = o.dataFile;
             if ~isempty(pv.drive)
                 filename =strrep(filename,pv.drive{1},pv.drive{2});
             end
