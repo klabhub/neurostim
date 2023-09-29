@@ -129,12 +129,8 @@ classdef mdaq <  neurostim.plugin
                 pv.trials (1,:) = [1 inf]
                 pv.slack (1,1) = seconds(10)
             end
-            if ~isempty(pv.folderMap)
-                filename = strrep(o.dataFile,pv.folderMap{:});
-            else
-                filename = o.dataFile;
-            end
-            T = readBin(o,filename);
+            
+            T = readBin(o,drive=pv.folderMap);
             [~,trial,~,time] = get(o.cic.prms.trial);
             time = seconds(time/1000);
             digOnset = find([false; diff(T.(digEvent))>0.5]);
