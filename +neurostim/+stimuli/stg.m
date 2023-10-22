@@ -760,7 +760,7 @@ classdef stg < neurostim.stimulus
                 end
 
                 step= 1./o.outputRate;
-                if ischar(o.fun) &&  strcmpi(o.fun,'tDCS')
+                if false &&  ischar(o.fun) &&  strcmpi(o.fun,'tDCS')
                     % Special mode for tDCS to circumvent a likely bug with
                     % the compressed specification in the else condition
                     % below. 
@@ -779,8 +779,7 @@ classdef stg < neurostim.stimulus
                     duration = [duration rampStepDuration*ones(1,nrDownRamp)]; %#ok<AGROW>    
                     values  = scale*values;  % mA to nA for transmission to STG
                     syncValue = ones(size(values));
-                    duration = 1e3*duration; %ms to mus                    
-                    figure;plot(cumsum(duration)/1e6,values)
+                    duration = 1e3*duration; %ms to mus                                        
                 elseif o.sham
                     %Up and immediately down
                     values =    [scale*rampUpSignal          scale*rampDownSignal];
