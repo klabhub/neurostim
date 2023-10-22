@@ -38,10 +38,13 @@ function [M,R] = ballatsq(N)
 % 2.1 (sep 2006) can now also return a randomize balanced latin square
 % 2.2 (mar 2009) added internal comments, changed variable names, improved
 %     randomization
+% AS (2023) added odd N by mirroring the square; each condition will occur
+% twice (per column) but the one-back balancing is maintained (but requires
+% running twice as many subjects).
 
 
-if nargin ~= 1 || ~isnumeric(N) || numel(N)~=1 || N<2 || rem(N,2) || fix(N)~=N,
-    error('Single argument should be a positive even integer') ;
+if nargin ~= 1 || ~isnumeric(N) || numel(N)~=1 || N<2 || fix(N)~=N
+    error('Single argument should be a positive integer') ;
 end
 
 V = 1:N ;        % values in each column
@@ -50,13 +53,17 @@ M = zeros(N) ;   % pre-allocation
 
 % the first colum just contains the numbers 1 to N
 M(:,1) = V(:) ;
-for i=2:N,
+for i=2:N
     % every column contains the numbers 1 to N shifted circularly according
     % to CSI  
     M(:,i) =  rem(V(:)+CSI(i-1)+(N-1),N) + 1 ;
 end
 
-if nargout==2,
+if rem(N,2) % Odd number; add the reverse-order to balance
+    M = [M; fliplr(M)];
+end
+
+if nargout==2
     % randomize the values 1:N
     rN = randperm(N) ;
     R = rN(M) ;

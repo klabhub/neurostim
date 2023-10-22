@@ -2255,7 +2255,7 @@ classdef cic < neurostim.plugin
                 current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
                 % And upgrade the one that was stored using the plugin
                 % static member.
-                c = neurostim.plugin.updateClassDef(o,current);
+                c = neurostim.plugin.updateClassDef(o,current);                
             else
                 % No need to call the plugin.loadobj
                 c = o;

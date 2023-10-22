@@ -62,8 +62,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             p.addParameter('unitsMu','deg');
             p.addParameter('unitsSigma','deg');
             p.addParameter('unitsLambda','');
-            p.addParameter('unitsPsychoFun',{'Normal'});
-            
+            p.addParameter('unitsPsychoFun',{'Normal'});              
             % Refractory time before presenting same stimulus again
             p.addParameter('refTime',0);            % Expected number of trials (geometric distribution)
             p.addParameter('refRadius',0);           % Refractory radius around stimulus (in x units)
@@ -117,7 +116,13 @@ classdef psyBayes < neurostim.plugins.adaptive
             end
         end
         
-       
+        function continuePsy(o,psy)
+            % Continue estimation from a previously estimated psy struct.
+            o(1).writeToFeed('Continuing psy estimation')
+            for i=1:numel(o)                
+                o(i).psy = psy(i);
+            end
+        end
         
         function [m,sd,hdr,threshold,thresholdHdr]= posterior(oo,alpha,plotIt,theta)
             % function [m,sd,hdr]= posterior(oo,alpha,plotIt)
@@ -150,6 +155,8 @@ classdef psyBayes < neurostim.plugins.adaptive
             for j=1:nrO
                 try
                     for i=find(oo(j).vars)
+                        %1:numel(oo(j).vars) would also show an estimate of
+                        %vars that weren't selectd in .vars. Not
                         other = setdiff(1:3,i);
                         y = neurostim.plugins.psyBayes.marginalpost(oo(j).psy.post,oo(j).psy.psychopost,other);
                         N=100;
@@ -181,17 +188,7 @@ classdef psyBayes < neurostim.plugins.adaptive
                         end                                                               
                     end
                     
-                    % Fill in the priors for the vars we did not estimate.
-                    priors = {oo(j).psy.mu, oo(j).psy.sigma, oo(j).psy.lambda};
-                    for i=1:3
-                        if oo(j).vars(i)==0
-                        % Not estimated - use prior
-                        m(i,j)= priors{i};
-                        sd(i,j) = 0;
-                        hdr(i,j,:) = priors{i};
-                        end
-                    end
-                    
+                  
                     if nargout >3 && ~isempty(strfind(oo(j).psy.psychofun,'psyfun_yesno')) && ~isempty(strfind(oo(j).psy.psychofun,'psynormcdf'))
                         % Yes no function uses the cumulative normal, which we can
                         % invert to find the threshold at an arbitrary level:
@@ -218,8 +215,7 @@ classdef psyBayes < neurostim.plugins.adaptive
                             else % Contiguous HDR
                                 thresholdHdr(1,j) = x(find(ix==1,1,'first'));
                                 thresholdHdr(2,j) = x(find(ix==1,1,'last'));
-                            end
-                            
+                            end                            
                         end
                     end
                     
@@ -238,13 +234,10 @@ classdef psyBayes < neurostim.plugins.adaptive
                     h.FaceColor = 'w';
                     errorbar((1:size(m,2))',m(i,:)',squeeze(hdr(i,1,:))-m(i,:)',squeeze(hdr(i,2,:))-m(i,:)','*')
                     ylabel (parms{i})
-                    xlabel 'Psy'
-                    
+                    xlabel 'Psy'                    
                     set(gca,'XTick',1:size(m,2),'XTickLabel',conditionLabel)
                 end
-            end
-            
-            
+            end            
         end
         
         function afterExperiment(o)

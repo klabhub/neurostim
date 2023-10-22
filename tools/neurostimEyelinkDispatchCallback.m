@@ -440,7 +440,9 @@ switch(s)
 end
 
 if doBeep==1
-    el.hPlugin.cic.sound.beep(f,d); % Volume is ignored
+    % Scale teh volume of the beep by the global volume parameter
+    % then pass to the sound plugin
+    el.hPlugin.cic.sound.beep(f,d,el.volume.*v); 
 end
 
 function EyelinkDrawCalibrationTarget(eyewin, el, calxy)

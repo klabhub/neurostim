@@ -699,11 +699,21 @@ classdef parameter < handle & matlab.mixin.Copyable
             isStructNoFields =  @(x) (isstruct(x) && numel(fieldnames(x))==0);
             if iscell(data) && any(diff(cellfun(isStructNoFields,data))~=0); return;end
             
+            % Special case
+            if iscell(data)  && all(cellfun(isStructNoFields,data))
+                % Replace a struct with no fields with a logical
+                    data  = true(size(data));
+            end
             % First check whether this conversion could work (same size ,
             % same type)            
-            if iscell(data) && ~isempty(data) && ~iscellstr(data) && ~isa(data{1},'function_handle') ...               
-                && (all(cellfun(@(x) (strcmpi(class(data{1}),class(x))),data)) || all(cellfun(@(x) (isnumeric(x) || islogical(x)),data)))...
-                && all(cellfun(@(x) isequal(size(data{1}),size(x)),data))
+            if iscell(data) && ...        %  Only convert cell arrays to matrix
+                    ~isempty(data) && ... % Skip empty
+                    ~iscellstr(data) && ... % Skip cellstring
+                    ~isa(data{1},'function_handle') && ...   % Keep arrays of function handles as cell
+                    (all(cellfun(@(x) (strcmpi(class(data{1}),class(x))),data)) || all(cellfun(@(x) (isnumeric(x) || islogical(x)),data))) && ...  % Same class (or mixed numeric andlogical)
+                    all(cellfun(@(x) isequal(size(data{1}),size(x)),data))  % All same size %#ok<ISCLSTR> 
+                
+                
                 %Look for a singleton dimension
                 sz = size(data{1});
                 catDim = find(sz==1,1,'first');
@@ -713,9 +723,8 @@ classdef parameter < handle & matlab.mixin.Copyable
                 end
                 
                 %Convert to matrix
-                if all(cellfun(isStructNoFields,data))
-                    % Replace a struct with no fields with a logical
-                    data  = true(size(data));
+                if isstruct(data{1})
+                    neurostim.utils.catstruct(catDim,data{:}); % Use a special function to concatenate structs with potentially mismatching fields
                 else
                     data = cat(catDim,data{:});                     
                 end

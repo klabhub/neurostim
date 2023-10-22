@@ -527,13 +527,13 @@ classdef stg < neurostim.stimulus
                 end
 
                 for chan=0:o.nrChannels-1
-                    [o.vResolution(chan+1),o.iResolution(chan+1)]  = o.device.GetAnalogResolution(chan);
-                    [o.vRange(chan+1),o.iRange(chan+1)]  = o.device.GetAnalogRanges(chan);
+                    % Retrieve and convert to mA and mV
+                    o.vResolution(chan+1) = o.device.GetVoltageResolutionInMicroVolt(chan)/1e3;
+                    o.iResolution(chan+1)  = o.device.GetCurrentResolutionInNanoAmp(chan)/1e6;
+                    o.vRange(chan+1) = o.device.GetCurrentRangeInNanoAmp(chan)/1e6;
+                    o.iRange(chan+1)  = o.device.GetVoltageRangeInMicroVolt(chan)/1e3;
                 end
 
-                % Conver A to mA. voltage is already in mV.
-                o.iResolution = o.iResolution/1000;
-                o.iRange = o.iRange/1000;
                 setupTriggers(o); % Map triggers to channels 1->1 , 2->2
                 
             end
@@ -712,6 +712,7 @@ classdef stg < neurostim.stimulus
                 error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
             end 
             % Define the values of the stimulus
+            syncSent = false;
             for thisChannel = o.channel                
                 [signal,thisDuration,thisNrRepeats] = stimulusForDownload(o,thisChannel);
                 %% Add ramp if requested
@@ -759,12 +760,42 @@ classdef stg < neurostim.stimulus
                 end
 
                 step= 1./o.outputRate;
-                if o.sham
+                if false &&  ischar(o.fun) &&  strcmpi(o.fun,'tDCS')
+                    % Special mode for tDCS to circumvent a likely bug with
+                    % the compressed specification in the else condition
+                    % below. 
+                    maxVal = max(signal); % The intended level
+                    rampStepDuration =5; % Step in ms.
+                    maxValDuration = thisNrRepeats*thisDuration; % Stim duration in ms.
+                    nrDownRamp = o.rampDown/rampStepDuration;
+                    nrUpRamp = o.rampUp/rampStepDuration;
+                    values   = linspace(0,maxVal,nrUpRamp);
+                    duration = rampStepDuration*ones(1,nrUpRamp); 
+                    if ~o.sham
+                         values = [values maxVal]; %#ok<AGROW>
+                         duration = [duration maxValDuration]; %#ok<AGROW>
+                    end
+                    values = [values linspace(maxVal,0,nrDownRamp)];%#ok<AGROW>
+                    duration = [duration rampStepDuration*ones(1,nrDownRamp)]; %#ok<AGROW>    
+                    values  = scale*values;  % mA to nA for transmission to STG
+                    syncValue = ones(size(values));
+                    duration = 1e3*duration; %ms to mus                                        
+                elseif o.sham
                     %Up and immediately down
                     values =    [scale*rampUpSignal          scale*rampDownSignal];
                     duration  = [ones(1,numel(rampUpSignal)),ones(1,numel(rampDownSignal))]*(step/1e-6);
                     syncValue = [ones(1,numel(rampUpSignal)),ones(1,numel(rampDownSignal))];
                 else
+                    % In some of our early experimets we noticed that this
+                    % compression scheme does not work for long durations. 
+                    % For 15 minutes duration, the duration was off by a factor of 20. 
+                    % While that looks to be a unit error (i.e. time in
+                    % samples, not in mus), that does not match the result
+                    % for a 2 s duration, which was exactly 2s. 
+                    % It is not clear why this happens. 
+                    % But for tDCS we started useing the simpler call above. 
+                    % For tACS we will have to reconsider...
+                    fprintf(2,' *************\n This compression scheme does not work properly for long duration stimulation. \n Ignore this message at your own risk. \n ************\n')                    
                     % A block that starts with 0 amplitude and 0 duration and
                     % ends with n ampltidude and 0 duration is repeated n
                     % times. This is used to repeat sines, or to create a long
@@ -778,11 +809,18 @@ classdef stg < neurostim.stimulus
                     % Clear channel and send stimulus data to device
                     amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
                     durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
+                    o.writeToFeed(sprintf('Sending channel %d data (~ %4.0f kB) to STG',thisChannel-1,numel(duration)*8/1000));
+                    tic;
                     o.device.PrepareAndSendData( uint32(thisChannel-1), amplitudeNet, durationNet,valueCode);
+                    o.writeToFeed(sprintf('Done in %4.0f s',toc));
                     % Add the syncout
-                    if ~isempty(o.syncOutChannel)
+                    if ~isempty(o.syncOutChannel) && ~syncSent
                         amplitudeNet = NET.convertArray(int32(syncValue), 'System.Int32');
+                        o.writeToFeed(sprintf('Sending sync channel %d data to STG',o.syncOutChannel-1));
+                        tic
                         o.device.PrepareAndSendData(uint32(o.syncOutChannel-1),amplitudeNet,durationNet,Mcs.Usb.STG_DestinationEnumNet.syncoutdata);
+                        syncSent = true;
+                        o.writeToFeed(sprintf('Done in %4.0f s',toc));
                     end
                 end
 

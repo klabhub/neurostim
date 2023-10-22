@@ -118,6 +118,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.addProperty('F9PassThrough',true); % simulate F9 press on Eyelink host to do quick drift correct
             o.addProperty('transferFile',true); % afterExperiment - transfer file from the Host to here. (Only set to false in debugging to speed things  up)
             o.addProperty('fake',false);            
+            o.addProperty('volume',1); % Scale calibration output sound volume by this number.
         end
         
         function beforeExperiment(o)
@@ -285,6 +286,7 @@ classdef eyelink < neurostim.plugins.eyetracker
             o.el.callback  = o.callbackFun;
             o.el.hPlugin   = o; % Store a handle to the Eyelink plugin so that the callback handler functionc can use it
             o.el.window  = o.cic.mainWindow; % Always main window
+            o.el.volume  = o.volume;  % Allow user to scale output volume of calibration tones.
             EyelinkUpdateDefaults(o.el); % Store as persistent variables in callbackFun
         end
         
