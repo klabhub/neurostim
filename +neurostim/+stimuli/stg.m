@@ -743,7 +743,7 @@ classdef stg < neurostim.stimulus
                 % Convert to DAC values
                 if o.currentMode
                     % Need amplitude in nA
-                    scale = 1e5;  % Convert specified mA to nA
+                    scale = 1e6;  % Convert specified mA to nA
                     if o.fake
                         valueCode = 1;
                     else
@@ -760,7 +760,7 @@ classdef stg < neurostim.stimulus
                 end
 
                 step= 1./o.outputRate;
-                if false &&  ischar(o.fun) &&  strcmpi(o.fun,'tDCS')
+                if  ischar(o.fun) &&  strcmpi(o.fun,'tDCS')
                     % Special mode for tDCS to circumvent a likely bug with
                     % the compressed specification in the else condition
                     % below. 
