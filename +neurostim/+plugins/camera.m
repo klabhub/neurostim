@@ -591,18 +591,18 @@ classdef camera < neurostim.plugin
         
       
             o.deviceID =1;
-            o.format='MJPG_1280x720';
+           o.format='RGB32_640x480';
 
-            o.outputFormat='MPEG-4';
+            o.outputFormat='Motion JPEG 2000';
             
 
             o.fileMode = 'perExperiment';
             o.outputMode ='saveDuringTrial';
             o.nrWorkers = 1;
             o.beforeExperimentPreview = true;
-            o.duringExperimentPreview = false;
-            o.properties = {'Brightness',64,'BacklightCompensation','off'};
-            o.ROI = [500 250 251 251];
+            o.duringExperimentPreview = true;
+           % o.properties = {'Brightness',64,'BacklightCompensation','off'};
+            
             o.beforeExperiment;
 
             for i=1:3

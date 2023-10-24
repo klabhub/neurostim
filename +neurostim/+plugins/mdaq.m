@@ -32,6 +32,25 @@ classdef mdaq <  neurostim.plugin
     % different order at beginExperiment (mdaq starts first) compared to
     % afterExperiment (scanbox shuts down first).
     %
+    % Some cheaper DAQ devices cannot read/write digital data in the
+    % background. You will see the warning "Added channel does not support clocked sampling".
+    % In that case you can only read/write the digital input on demand (by calling read, whcih will read
+    % the current value. Possibly one coudl use a Matlab timer to call read
+    % repeatedly at some sampling rate, but that could interfere with other
+    % processes needed to rung the experiment). One solution is to buy more
+    % expensive hardware, the other is to record the digital inputs on an
+    % analog channel (and, if needed, threshold them to make the values logical).
+    %
+    % If you are also using digital output then the DAQ will still complain
+    % (once you've added one non-clockable channel, using start() is no
+    % longer allowed). For this reason, I create two daq objects, one for
+    % clocked (hDaqClocked) and one for onDemand (hDaqOnDemand).
+    % By default all input is handled by the clocked object and the output by the onDemand.
+    % but this can be adjusted in the call to addChannel.
+    %
+    % If your hardware can clock everything, set .allClocked = true to
+    % create only a single interface.
+    %
     % Read only properties
     %  outputFile - Name of output file (assigned by neurostim) where the acquired data are saved.
     %               Use mdaq.readBin to read the contents of this file as a
@@ -83,7 +102,8 @@ classdef mdaq <  neurostim.plugin
         outputValue;  % Last set values for outputs
     end
     properties (Transient)
-        hDaq;           % Handle to the daq object.
+        hDaqClocked;    % Handle to the daq object that acquires data continusously. Only channels that support hardware timed acquisition can be added here.
+        hDaqOnDemand;    % Handle to a second daq object pointing to the same device, that writes output on demand
         pool;           % The pool of workers.
         dataBuffer;     % Circular buffer
         timeBuffer;     % Circular buffer for timestamps
@@ -105,16 +125,27 @@ classdef mdaq <  neurostim.plugin
     properties (Dependent)
         isRunning;
         outputOnly;
+        hasClocked;
+        hasOnDemand;
     end
 
     methods
         function v= get.isRunning(o)
-            v= ~isempty(o.hDaq) && o.hDaq.Running;
+            v= ~isempty(o.hDaqClocked) && o.hDaqClocked.Running;
         end
         function v=  get.outputOnly(o)
             v = isempty(o.inputMap);
         end
-
+        function v =get.hasClocked(o)
+            list=  cat(2,o.inputMap.values,o.outputMap.values);
+            isClocked = cellfun(@(x)(x{4}==1),list,'uniform',true);
+            v =any(isClocked);
+        end
+        function v =get.hasOnDemand(o)
+            list=  cat(2,o.inputMap.values,o.outputMap.values);
+            isOnDemand= cellfun(@(x)(x{4}==0),list,'uniform',true);
+            v =any(isOnDemand);
+        end
     end
 
     methods
@@ -122,7 +153,8 @@ classdef mdaq <  neurostim.plugin
             arguments
                 o (1,1) neurostim.plugins.mdaq
                 digEvent (1,1) {mustBeTextScalar}
-                pv.folderMap (1,2) cell = {}
+                pv.threshold (1,1) double = .5;
+                pv.folderMap (1,:) cell = {}
                 pv.trials (1,:) = [1 inf]
                 pv.slack (1,1) = seconds(10)
             end
@@ -134,7 +166,7 @@ classdef mdaq <  neurostim.plugin
             T = readBin(o,filename);
             [~,trial,~,time] = get(o.cic.prms.trial);
             time = seconds(time/1000);
-            digOnset = find([false; diff(T.(digEvent))>0.5]);
+            digOnset = find([false; diff(T.(digEvent))>pv.threshold]);
             digOnsetNsTime = T.nsTime(digOnset)';
             digOnsetClockTime = T.clockTime(digOnset)'; %#ok<NASGU>
 
@@ -194,13 +226,14 @@ classdef mdaq <  neurostim.plugin
             o.addProperty('startDaq',[],'sticky',true);
             o.addProperty('diary',false); % Debug parallel.
             o.addProperty('keepAliveAfterExperiment',false);
+            o.addProperty('allClocked',false);
             % Setup mapping
             o.inputMap = containers.Map('KeyType','char','ValueType','any');
             o.outputMap = containers.Map('KeyType','char','ValueType','any');
         end
 
 
-        function addChannel(o,name,inputOrOutput,device, channel,type,pvPairs)
+        function addChannel(o,name,inputOrOutput,device, channel,type,clocked,pvPairs)
             % Function the user uses to add channels to the acquisition.
             %
             arguments
@@ -210,18 +243,21 @@ classdef mdaq <  neurostim.plugin
                 device (1,1) {mustBeTextScalar} % Device name
                 channel (1,1)                   % Channel name or number
                 type (1,1) {mustBeTextScalar}   % Channel type
+                clocked (1,1)  = NaN             % 1: add to hDaqClocked, 0->add to hDaqOnDemand, NaN-> add input to clocked, output to onDemand.
                 pvPairs (1,:) cell = {}         % Channel properties (e.g., {'TerminalConfig','SingleEnded', 'Range',[-10 10]}
             end
+
             if inputOrOutput =="input"
-                o.inputMap(name) = {device,channel,type,pvPairs};
+                if isnan(clocked); clocked = 1;end
+                o.inputMap(name) = {device,channel,type,clocked,pvPairs};
             else
-                o.outputMap(name) ={device,channel,type,pvPairs};
+                if isnan(clocked); clocked = 0;end
+                o.outputMap(name) ={device,channel,type,clocked,pvPairs};
             end
         end
 
         function props = configure(o)
             % Connect to the hardware (on worker)
-
             % daqreset;  % Problematic if other daq usage has started already?
             list = daqvendorlist; % First time this can take a while.
             if ~ismember(upper(o.vendor),upper(list.ID))
@@ -229,12 +265,22 @@ classdef mdaq <  neurostim.plugin
                 error(['Unknown vendor ' o.vendor]);
             else
                 try
-                    o.hDaq = daq(o.vendor);
+                    if o.hasClocked
+                        o.writeToFeed('Setting up clocked acquisition\n')
+                        o.hDaqClocked = daq(o.vendor);
+                    end
+                    if o.hasOnDemand
+                        o.writeToFeed('Setting up OnDemand acquisition\n')
+                        o.hDaqOnDemand = daq(o.vendor);
+                    end
+                    if o.allClocked
+                        o.hDaqOnDemand = o.hDaqClocked;
+                    end
                 catch me
                     error(['Failed to connect to DAQ ' o.vendor ' ( ' me.message ')']);
                 end
             end
-            o.hDaq.Rate = o.samplerate;  % Try to use this
+            o.hDaqClocked.Rate = o.samplerate;  % Try to use this
             % Add input and output channels to the hDaq.
             ks = keys(o.inputMap);
             for k=1:numel(ks)
@@ -249,10 +295,10 @@ classdef mdaq <  neurostim.plugin
 
             % Initialize output to 0
             if o.nrOutputChannels>0
-                write(o.hDaq,zeros(1,o.nrOutputChannels));
+                write(o.hDaqOnDemand,zeros(1,o.nrOutputChannels));
                 o.outputValue = zeros(1,o.nrOutputChannels);
             end
-            o.samplerate = o.hDaq.Rate; % Some cards reset to an allowed value
+            o.samplerate = o.hDaqClocked.Rate; % Some cards reset to an allowed value
             o.outputFile= [o.cic.fullFile '.bin'];
 
             props.samplerate = o.samplerate;
@@ -269,20 +315,19 @@ classdef mdaq <  neurostim.plugin
             end
             o.nrTimeStamps = 0;
 
-            % Configure ScansAvailableFcn callback
-            if ~isempty(o.hDaq.Channels)
-                o.hDaq.ScansAvailableFcn = @(src,event) scansAvailableCallback(o, src, event);
+            if ~isempty(o.hDaqClocked.Channels)
+                % Using hardware timed acquisition
+                % Configure ScansAvailableFcn callback
+                o.hDaqClocked.ScansAvailableFcn = @(src,event) scansAvailableCallback(o, src, event);
             end
 
-
             % Initialize the circular data buffer.
-            o.dataBuffer = neurostim.utils.circularBuffer(nan(o.bufferSize*o.hDaq.Rate,numel(o.hDaq.Channels)));
-            o.timeBuffer  = neurostim.utils.circularBuffer(nan(o.bufferSize*o.hDaq.Rate,1));
+            o.dataBuffer = neurostim.utils.circularBuffer(nan(o.bufferSize*o.hDaqClocked.Rate,numel(o.hDaqClocked.Channels)));
+            o.timeBuffer  = neurostim.utils.circularBuffer(nan(o.bufferSize*o.hDaqClocked.Rate,1));
             o.bufferIx = 0;
             o.previousBufferIx =0;
             % Start acquiring.
-            start(o.hDaq,"continuous");
-
+            start(o.hDaqClocked,"continuous");
         end
 
         function createMMap(o,pv)
@@ -330,13 +375,13 @@ classdef mdaq <  neurostim.plugin
 
             prms = o.outputMap(name);
             channelName = prms{1} + "_" + prms{2}; % e.g. "Dev1_port0/line0";
-            [tf,ix]= ismember(channelName,{o.hDaq.Channels.Name});
+            [tf,ix]= ismember(channelName,{o.hDaqOnDemand.Channels.Name});
             if ~tf
                 error('Output channel %s has not yet been setup on the DAQ (%s)',name,channelName)
             end
             newOutput = o.outputValue;
             newOutput(ix) =value;
-            write(o.hDaq,newOutput);
+            write(o.hDaqOnDemand,newOutput);
             o.outputValue = newOutput;
         end
 
@@ -408,36 +453,40 @@ classdef mdaq <  neurostim.plugin
                     end
                 else
                     % Read from the circular buffer directly
-                    nrSamplesToShow =o.bufferSize*o.hDaq.Rate-1;
+                    nrSamplesToShow =o.bufferSize*o.hDaqClocked.Rate-1;
                     stay = (o.bufferIx-nrSamplesToShow):o.bufferIx;
                     y = o.dataBuffer(stay,:);
                     t = o.timeBuffer(stay);
                 end
 
 
-                % Scale each channel to its abs max
-                y = y./max(y,[],"ComparisonMethod","abs");
-                % Then add 1:N to each channel to space them vertically
-                % (flip to match the order of the legend).
-                y = y + fliplr(1:size(y,2));
+                if ~isempty(y)
+                    % Scale each channel to its abs max
+                    y = y./max(y,[],"ComparisonMethod","abs");
+                    % Then add 1:N to each channel to space them vertically
+                    % (flip to match the order of the legend).
+                    y = y + fliplr(1:size(y,2));
 
-                ks = keys(o.inputMap);
-                if isempty(o.ax.Children)
-                    % First time, draw
-                    h = plot(o.ax,t,y);
-                    [h.Tag] = deal(ks{:});
-                    title(o.ax,sprintf('%s (%.1fkHz) - %d in, %d out',o.vendor,o.samplerate/1000,o.nrInputChannels,o.nrOutputChannels))
-                    legend(h,ks)
-                else
-                    % Updates, only change x/y data. Supposedly faster?
-                    for i=1:numel(ks)
-                        set(findobj(o.ax.Children,"Tag",ks{i}),'XData',t,'YData',y(:,i));
+                    ks = keys(o.inputMap);
+                    if isempty(o.ax.Children)
+                        % First time, draw
+                        h = plot(o.ax,t,y);
+                        [h.Tag] = deal(ks{:});
+                        title(o.ax,sprintf('%s (%.1fkHz) - %d in, %d out',o.vendor,o.samplerate/1000,o.nrInputChannels,o.nrOutputChannels))
+                        legend(h,ks)
+                    else
+                        % Updates, only change x/y data. Supposedly faster?
+                        for i=1:numel(ks)
+                            set(findobj(o.ax.Children,"Tag",ks{i}),'XData',t,'YData',y(:,i));
+                        end
+                        title(o.ax,sprintf('%s (%.1fkHz) - %d in, %d out',o.vendor,o.samplerate/1000,o.nrInputChannels,o.nrOutputChannels))
                     end
-                    title(o.ax,sprintf('%s (%.1fkHz) - %d in, %d out',o.vendor,o.samplerate/1000,o.nrInputChannels,o.nrOutputChannels))
+                    if ~isnan(t(end))
+                        xlim(o.ax,t(end)-[o.bufferSize 0]) % Show one full bufferSize in seconds.
+                    end
+                    ylim(o.ax, [0  size(y,2)+1])    % Show all signals
+                    drawnow limitrate
                 end
-                xlim(o.ax,t(end)-[o.bufferSize 0]) % Show one full bufferSize in seconds.
-                ylim(o.ax, [0  size(y,2)+1])    % Show all signals
-                drawnow limitrate
             end
         end
         function afterExperiment(o)
@@ -455,10 +504,10 @@ classdef mdaq <  neurostim.plugin
 
         function shutdown(o)
             if o.isRunning
-                stop(o.hDaq)
-                flush(o.hDaq)
+                stop(o.hDaqClocked)
+                flush(o.hDaqClocked)
                 pause(1);
-                removechannel(o.hDaq,1:numel(o.hDaq.Channels)); % Free
+                removechannel(o.hDaqClocked,1:numel(o.hDaqClocked.Channels)); % Free
             end
             if ~isempty(o.FID) && o.FID ~=-1
                 try
@@ -466,8 +515,16 @@ classdef mdaq <  neurostim.plugin
                 catch
                 end
             end
-            delete(o.hDaq);
-            o.hDaq= [];
+            delete(o.hDaqClocked);
+            o.hDaqClocked= [];
+
+            if ~isempty(o.hDaqOnDemand)
+                flush(o.hDaqOnDemand);
+                pause(1);
+                removechannel(o.hDaqOnDemand,1:numel(o.hDaqOnDemand.Channels)); % Free
+                delete(o.hDaqOnDemand);
+                o.hDaqOnDemand =[];
+            end
         end
 
         function setupWorker(o)
@@ -546,16 +603,24 @@ classdef mdaq <  neurostim.plugin
             end
         end
 
-        function ix= addoutput(o,device,channel,type,settings)
+        function ix= addoutput(o,device,channel,type,clocked,settings)
             % Add output channels
             arguments
                 o (1,1) neurostim.plugins.mdaq  % The daq plugin
                 device (1,1) {mustBeTextScalar}  % Name of the device
                 channel  (1,1)                  % Name or number of the channel
                 type {mustBeTextScalar}         % Type (voltage)
+                clocked (1,1)                 % Add to clocked or onDemand
                 settings (1,:) cell             %
             end
-            [ch,ix] = addoutput(o.hDaq,device,channel,type);
+            stts = warning;
+            if clocked
+                trgDaq =  o.hDaqClocked;                
+            else
+                trgDaq = o.hDaqOnDemand;
+                warning('off','daq:Session:onDemandOnlyChannelsAdded')               
+            end
+            [ch,ix] = addoutput(trgDaq,device,channel,type);
             if ~isempty(settings)
                 % I could not find a way to pass these settings (e.g.
                 % Range, TerminalConfig) to addinput, so we have to get the
@@ -567,19 +632,26 @@ classdef mdaq <  neurostim.plugin
                 set(ch,settings{:});
             end
             o.nrOutputChannels = o.nrOutputChannels +1;
+            warning(stts);%Restore
         end
 
 
-        function ix = addinput(o,device,channel,type,settings)
+        function ix = addinput(o,device,channel,type,clocked,settings)
             % Add input channels
             arguments
                 o (1,1) neurostim.plugins.mdaq
                 device (1,1) {mustBeTextScalar}  % name of the device
                 channel  (1,1)                   % name/number of the channel
                 type {mustBeTextScalar}          % measurement type
+                clocked (1,1)                    % Add to clocked or onDemand
                 settings (1,:) cell             %
             end
-            [ch,ix] = addinput(o.hDaq,device,channel,type);
+            if clocked
+                trgDaq =  o.hDaqClocked;
+            else
+                trgDaq = o.hDaqOnDemand;
+            end
+            [ch,ix] = addinput(trgDaq,device,channel,type);
             if ~isempty(settings)
                 % I could not find a way to pass these settings (e.g.
                 % Range, TerminalConfig) to addinput, so we have to get the
@@ -605,44 +677,51 @@ classdef mdaq <  neurostim.plugin
             % alphabetiacl order (as in o.inputMap.keys)
             try
                 [data,timestamp,tTrigger] = read(src,src.ScansAvailableFcnCount,"OutputFormat","Matrix");
-                %% Log to file
-                fwrite(o.FID, [timestamp data]', o.precision);
-                if timestamp(1)==0
-                    % Store the origin of the time axis
-                    o.triggerTime = datetime(tTrigger,'convertFrom','datenum');
-                end
-                %% Update the circular buffer
-                if ~isempty(o.postprocess)
-                    [data,timestamp] = o.postprocess(data,timestamp,o); % Postprocess with a user-specified function for display
-                end
-                [nrTmStmps, ~] =size(data);
-                o.nrTimeStamps= o.nrTimeStamps + nrTmStmps;
-                bufferSamples= numel(o.timeBuffer);
-                if nrTmStmps>bufferSamples
-                    data = data((end-bufferSamples+1):end);
-                    timestamp = timestamp((end-bufferSamples+1):end);
-                    nrTmStmps= bufferSamples;
-                end
-                o.dataBuffer(o.bufferIx + (1:nrTmStmps),:) = data;
-                o.timeBuffer(o.bufferIx + (1:nrTmStmps)) = timestamp;
-
-               
-                o.bufferIx = o.bufferIx+nrTmStmps;
-                if o.useWorker
-                    %% Copy to the mmap
-                    % We're runnning on the worker: save the circular
-                    % buffer to the mmap.
-                    o.mmap
-                    nrSamplesToShow =o.bufferSize*o.hDaq.Rate-1;
-                    ix = (o.bufferIx-nrSamplesToShow):o.bufferIx;
-                    o.mmap.Data.t   = o.timeBuffer(ix);
-                    o.mmap.Data.acq  = o.dataBuffer(ix,:);
-                end
+                logToFile(o,data,timestamp,tTrigger);
             catch me
                 % If anything fails here just stop acquisition. (Otherwise
                 % the errors keep piling up in the command window)
                 shutdown(o);
                 o.cic.error('STOPEXPERIMENT',sprintf('Failure in callback: %s',me.message))
+            end
+        end
+
+
+        function logToFile(o,data,timestamp,tTrigger)
+            %% Log to the open output file
+            % Called from scansAvailableCallback or from afterTrial (in
+            % onDemand mode)
+            fwrite(o.FID, [timestamp data]', o.precision);
+            if timestamp(1)==0
+                % Store the origin of the time axis
+                o.triggerTime = datetime(tTrigger,'convertFrom','datenum');
+            end
+            %% Update the circular buffer
+            if ~isempty(o.postprocess)
+                [data,timestamp] = o.postprocess(data,timestamp,o); % Postprocess with a user-specified function for display
+            end
+            [nrTmStmps, ~] =size(data);
+            o.nrTimeStamps= o.nrTimeStamps + nrTmStmps;
+            bufferSamples= numel(o.timeBuffer);
+            if nrTmStmps>bufferSamples
+                data = data((end-bufferSamples+1):end);
+                timestamp = timestamp((end-bufferSamples+1):end);
+                nrTmStmps= bufferSamples;
+            end
+            o.dataBuffer(o.bufferIx + (1:nrTmStmps),:) = data;
+            o.timeBuffer(o.bufferIx + (1:nrTmStmps)) = timestamp;
+
+
+            o.bufferIx = o.bufferIx+nrTmStmps;
+            if o.useWorker
+                %% Copy to the mmap
+                % We're runnning on the worker: save the circular
+                % buffer to the mmap.
+                o.mmap
+                nrSamplesToShow =o.bufferSize*o.hDaqClocked.Rate-1;
+                ix = (o.bufferIx-nrSamplesToShow):o.bufferIx;
+                o.mmap.Data.t   = o.timeBuffer(ix);
+                o.mmap.Data.acq  = o.dataBuffer(ix,:);
             end
         end
     end
