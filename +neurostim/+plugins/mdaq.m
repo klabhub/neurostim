@@ -127,6 +127,8 @@ classdef mdaq <  neurostim.plugin
         outputOnly;
         hasClocked;
         hasOnDemand;
+        clockedInputKeys; 
+        nrOutputChannelsOnDemand;       
     end
 
     methods
@@ -136,14 +138,26 @@ classdef mdaq <  neurostim.plugin
         function v=  get.outputOnly(o)
             v = isempty(o.inputMap);
         end
-        function v =get.hasClocked(o)
+
+        function v = get.nrOutputChannelsOnDemand(o)            
+            isOnDemand= cellfun(@(x)(x{4}=="onDemand"),o.outputMap.values,'uniform',true);
+            v =sum(isOnDemand);
+        end
+
+
+        function v =get.clockedInputKeys(o)
             list=  cat(2,o.inputMap.values,o.outputMap.values);
-            isClocked = cellfun(@(x)(x{4}==1),list,'uniform',true);
-            v =any(isClocked);
+            isClocked = cellfun(@(x)(x{4}=="clocked"),list,'uniform',true);
+            ks =cat(2,o.inputMap.keys,o.outputMap.keys);
+            v = ks(isClocked);
+        end
+
+        function v =get.hasClocked(o)
+           v = ~isempty(o.clockedInputKeys);
         end
         function v =get.hasOnDemand(o)
             list=  cat(2,o.inputMap.values,o.outputMap.values);
-            isOnDemand= cellfun(@(x)(x{4}==0),list,'uniform',true);
+            isOnDemand= cellfun(@(x)(x{4}=="onDemand"),list,'uniform',true);
             v =any(isOnDemand);
         end
     end
@@ -233,7 +247,7 @@ classdef mdaq <  neurostim.plugin
         end
 
 
-        function addChannel(o,name,inputOrOutput,device, channel,type,clocked,pvPairs)
+        function addChannel(o,name,inputOrOutput,device, channel,type,subDaq,pvPairs)
             % Function the user uses to add channels to the acquisition.
             %
             arguments
@@ -243,16 +257,16 @@ classdef mdaq <  neurostim.plugin
                 device (1,1) {mustBeTextScalar} % Device name
                 channel (1,1)                   % Channel name or number
                 type (1,1) {mustBeTextScalar}   % Channel type
-                clocked (1,1)  = NaN             % 1: add to hDaqClocked, 0->add to hDaqOnDemand, NaN-> add input to clocked, output to onDemand.
+                subDaq (1,1)  {mustBeTextScalar,mustBeMember(subDaq,["clocked" "onDemand" "auto"])} ="auto" % add to hDaqClocked, add to hDaqOnDemand, "auto" -> add input to clocked, output to onDemand.
                 pvPairs (1,:) cell = {}         % Channel properties (e.g., {'TerminalConfig','SingleEnded', 'Range',[-10 10]}
             end
 
             if inputOrOutput =="input"
-                if isnan(clocked); clocked = 1;end
-                o.inputMap(name) = {device,channel,type,clocked,pvPairs};
+                if subDaq=="auto"; subDaq = "clocked";end
+                o.inputMap(name) = {device,channel,type,subDaq,pvPairs};
             else
-                if isnan(clocked); clocked = 0;end
-                o.outputMap(name) ={device,channel,type,clocked,pvPairs};
+                if subDaq=="auto"; subDaq = "onDemand";end
+                o.outputMap(name) ={device,channel,type,subDaq,pvPairs};
             end
         end
 
@@ -294,9 +308,9 @@ classdef mdaq <  neurostim.plugin
             end
 
             % Initialize output to 0
-            if o.nrOutputChannels>0
-                write(o.hDaqOnDemand,zeros(1,o.nrOutputChannels));
-                o.outputValue = zeros(1,o.nrOutputChannels);
+            if o.nrOutputChannelsOnDemand>0
+                write(o.hDaqOnDemand,zeros(1,o.nrOutputChannelsOnDemand));
+                o.outputValue = zeros(1,o.nrOutputChannelsOnDemand);
             end
             o.samplerate = o.hDaqClocked.Rate; % Some cards reset to an allowed value
             o.outputFile= [o.cic.fullFile '.bin'];
@@ -467,7 +481,7 @@ classdef mdaq <  neurostim.plugin
                     % (flip to match the order of the legend).
                     y = y + fliplr(1:size(y,2));
 
-                    ks = keys(o.inputMap);
+                    ks = o.clockedInputKeys;
                     if isempty(o.ax.Children)
                         % First time, draw
                         h = plot(o.ax,t,y);
@@ -603,18 +617,18 @@ classdef mdaq <  neurostim.plugin
             end
         end
 
-        function ix= addoutput(o,device,channel,type,clocked,settings)
+        function ix= addoutput(o,device,channel,type,subDaq,settings)
             % Add output channels
             arguments
                 o (1,1) neurostim.plugins.mdaq  % The daq plugin
                 device (1,1) {mustBeTextScalar}  % Name of the device
                 channel  (1,1)                  % Name or number of the channel
                 type {mustBeTextScalar}         % Type (voltage)
-                clocked (1,1)                 % Add to clocked or onDemand
+                subDaq (1,1)                 % Add to clocked or onDemand
                 settings (1,:) cell             %
             end
             stts = warning;
-            if clocked
+            if subDaq=="clocked"
                 trgDaq =  o.hDaqClocked;                
             else
                 trgDaq = o.hDaqOnDemand;
@@ -630,23 +644,23 @@ classdef mdaq <  neurostim.plugin
                     o.writeToFeed('The DAQ warnings above can be ignored, if your channel settings passed to addChannel correct these issues.')
                 end
                 set(ch,settings{:});
-            end
+            end           
             o.nrOutputChannels = o.nrOutputChannels +1;
             warning(stts);%Restore
         end
 
 
-        function ix = addinput(o,device,channel,type,clocked,settings)
+        function ix = addinput(o,device,channel,type,subDaq,settings)
             % Add input channels
             arguments
                 o (1,1) neurostim.plugins.mdaq
                 device (1,1) {mustBeTextScalar}  % name of the device
                 channel  (1,1)                   % name/number of the channel
                 type {mustBeTextScalar}          % measurement type
-                clocked (1,1)                    % Add to clocked or onDemand
+                subDaq (1,1) string                   % Add to clocked or onDemand
                 settings (1,:) cell             %
             end
-            if clocked
+            if subDaq=="clocked"
                 trgDaq =  o.hDaqClocked;
             else
                 trgDaq = o.hDaqOnDemand;
@@ -661,7 +675,7 @@ classdef mdaq <  neurostim.plugin
                     o.writeToFeed('The DAQ warnings above can be ignored, if your channel settings passed to addChannel correct these issues.')
                 end
                 set(ch,settings{:});
-            end
+            end            
             o.nrInputChannels = o.nrInputChannels +1;
         end
 
