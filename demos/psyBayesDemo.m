@@ -132,6 +132,6 @@ psy = [adpt.psy]; % store their psy structs in the persistent variable.
 %% Do some analysis on the data
 figure;
 % Show the posterior estimates with high-density regions as error bars
-posterior(adpt)
+posterior(adpt,0.25,true)
 
 end
