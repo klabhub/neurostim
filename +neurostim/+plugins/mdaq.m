@@ -566,13 +566,21 @@ classdef mdaq <  neurostim.plugin
 
         function  T =readBin(o,pv)
             % Read the binary data file and return as a timetable
+            % use 'root' to remap  the root ( {'c:\','d:\'} for a recording
+            % that saved to c:\ but the data are now stored on d:\/
+            % Or use file to specify a complete file name.
             arguments
                 o (1,1) neurostim.plugins.mdaq                
-                pv.drive (1,:) = {}
+                pv.root (1,:) = {}
+                pv.file (1,1) string =""
             end
-            filename = o.dataFile;
-            if ~isempty(pv.drive)
-                filename =strrep(filename,pv.drive{1},pv.drive{2});
+            if pv.file==""
+                filename = o.dataFile;
+                if ~isempty(pv.root)
+                    filename =strrep(filename,pv.root{1},pv.root{2});
+                end
+            else
+                filename = pv.file;
             end
             if ~exist(filename,"file")
                 error('Bin file %s does not exist \n',filename);
@@ -756,6 +764,7 @@ classdef mdaq <  neurostim.plugin
 
     methods (Static)
 
+        
         % This function sets up data acquisition and writing on a parallel worker
         % The client (i.e. the mdaq plugin on the main Matlab) sends it messages
         function acquireAndSaveOnWorker(receiveQueue,sendQueue,o)
