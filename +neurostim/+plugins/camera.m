@@ -40,6 +40,10 @@ classdef camera < neurostim.plugin
     %                       camera image with an adjustable ROI. Drag/reshape the rectangle then
     %                       double click it to finish the preview. Only pixels within the ROI
     %                       will be saved to disk (and shown in the preview).
+    %                       Pressing the I key during this preview will
+    %                       open a (clunky) interactive interface to set
+    %                       camera properties (with instructions). 
+    %
     % duringExperimentPreview - Keep the preview running during the
     %                       experiment. This will slow everything down and likely cause framedrops...
     %
@@ -758,7 +762,7 @@ classdef camera < neurostim.plugin
             % good properties for a camera under the conditions of the
             % experiment. Settings are applied immediately.
             switch upper(evt.Key)
-                case 'M'
+                case 'I'
                 pInfo = propinfo(o.hSource);
                 props = fieldnames(pInfo);
                 nr = (1:numel(props))';
