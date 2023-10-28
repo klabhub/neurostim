@@ -775,8 +775,10 @@ classdef camera < neurostim.plugin
                     end
                     if pNr==0
                         break;
-                    elseif pNr <=numel(props)                        
-                        fprintf('***%s*** has the following properties: \n',props{pNr})
+                    elseif pNr <=numel(props)                                                
+                        fprintf('***%s*** currently has value: ', props{pNr});
+                        get(o.hSource,props{pNr})
+                        fprintf ('\n and the following properties: \n')
                         propinfo(o.hSource,props{pNr})
                         answer = input('Enter your value: \n');
                         try
@@ -787,7 +789,7 @@ classdef camera < neurostim.plugin
                         pNr = pNr+1;
                     end
                 end
-                fprintf('Exiting interactice configuration. Double click the preview FOV to accept and continue.')
+                fprintf('Exiting interactive configuration. Double click the preview FOV to accept and continue.\n')
             end            
         end
         function sendToWorker(o,code)

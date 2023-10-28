@@ -176,7 +176,7 @@ classdef mdaq <  neurostim.plugin
                 pv.slack (1,1) = seconds(10)
             end
             
-            T = readBin(o,drive=pv.folderMap);
+            T = readBin(o,root=pv.folderMap);
             [~,trial,~,time] = get(o.cic.prms.trial);
             time = seconds(time/1000);
             digOnset = find([false; diff(T.(digEvent))>pv.threshold]);
