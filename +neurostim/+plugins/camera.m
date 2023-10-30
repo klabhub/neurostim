@@ -232,6 +232,7 @@ classdef camera < neurostim.plugin
             if ~ismember(o.adaptorName,cat(2,o.hwInfo.InstalledAdaptors))
                 error('The %s adaptor is not supported. Install a hardware support package? See imaqhwinfo for installed hardware.',o.adaptorName)
             end
+         
 
             %% Show a preview window and allow setting an ROI.
             if o.beforeExperimentPreview
@@ -239,7 +240,7 @@ classdef camera < neurostim.plugin
                 p = propinfo(o.hVid,'VideoResolution');
                 o.hVid.ROIPosition = [0 0 p.DefaultValue];
                 h = preview(o.hVid);
-
+                
                 
                 % If nsGui is running the preview window does not respond to the mouse
                 % This hack fixes that by "clicking" on nsGui and then on
@@ -768,6 +769,7 @@ classdef camera < neurostim.plugin
 
 
         end
+        
     end
 
     methods (Access=protected)
@@ -789,10 +791,8 @@ classdef camera < neurostim.plugin
                     end
                     if pNr==0
                         break;
-                    elseif pNr <=numel(props)                                                
-                        fprintf('***%s*** currently has value: ', props{pNr});
-                        get(o.hSource,props{pNr})
-                        fprintf ('\n and the following properties: \n')
+                    elseif pNr <=numel(props)                        
+                        fprintf('***%s*** has the following properties: \n',props{pNr})
                         propinfo(o.hSource,props{pNr})
                         answer = input('Enter your value: \n');
                         try
@@ -803,7 +803,7 @@ classdef camera < neurostim.plugin
                         pNr = pNr+1;
                     end
                 end
-                fprintf('Exiting interactive configuration. Double click the preview FOV to accept and continue.\n')
+                fprintf('Exiting interactice configuration. Double click the preview FOV to accept and continue.')
             end            
         end
         function sendToWorker(o,code)

@@ -33,7 +33,7 @@ classdef mdaq <  neurostim.plugin
     % afterExperiment (scanbox shuts down first).
     %
     % Read only properties
-    %  outputFile - Name of output file (assigned by neurostim) where the acquired data are saved.
+    %  dataFile - Name of output file (assigned by neurostim) where the acquired data are saved.
     %               Use mdaq.readBin to read the contents of this file as a
     %               timetable.
     % nrInputChannels  - Number of input channels
@@ -105,6 +105,7 @@ classdef mdaq <  neurostim.plugin
     properties (Dependent)
         isRunning;
         outputOnly;
+        dataFile;
     end
 
     methods
@@ -114,7 +115,9 @@ classdef mdaq <  neurostim.plugin
         function v=  get.outputOnly(o)
             v = isempty(o.inputMap);
         end
-
+        function v = get.dataFile(o)
+            v = [o.cic.fullFile '.bin'];
+        end
     end
 
     methods
@@ -126,12 +129,8 @@ classdef mdaq <  neurostim.plugin
                 pv.trials (1,:) = [1 inf]
                 pv.slack (1,1) = seconds(10)
             end
-            if ~isempty(pv.folderMap)
-                filename = strrep(o.outputFile,pv.folderMap{:});
-            else
-                filename = o.outputFile;
-            end
-            T = readBin(o,filename);
+            
+            T = readBin(o,drive=pv.folderMap);
             [~,trial,~,time] = get(o.cic.prms.trial);
             time = seconds(time/1000);
             digOnset = find([false; diff(T.(digEvent))>0.5]);
@@ -184,8 +183,7 @@ classdef mdaq <  neurostim.plugin
             o=o@neurostim.plugin(c,name);
             o.addProperty('useWorker',false);
             o.addProperty('bufferSize',10); % in seconds.
-            o.addProperty('precision','double');
-            o.addProperty('outputFile','');
+            o.addProperty('precision','double');            
             o.addProperty('fake',false);
             o.addProperty('nrInputChannels',0);
             o.addProperty('nrOutputChannels',0);
@@ -253,7 +251,7 @@ classdef mdaq <  neurostim.plugin
                 o.outputValue = zeros(1,o.nrOutputChannels);
             end
             o.samplerate = o.hDaq.Rate; % Some cards reset to an allowed value
-            o.outputFile= [o.cic.fullFile '.bin'];
+            
 
             props.samplerate = o.samplerate;
             props.nrInputChannels = o.nrInputChannels;
@@ -263,9 +261,9 @@ classdef mdaq <  neurostim.plugin
         function startInput(o)
             % Open a file to store acquired data
 
-            [o.FID,msg] = fopen(o.outputFile,'w'); % Bin file for easy append during the experiment.
+            [o.FID,msg] = fopen(o.dataFile,'w'); % Bin file for easy append during the experiment.
             if o.FID==-1
-                o.cic.error('STOPEXPERIMENT',sprintf('Could not create file %s (msg: %s)',o.outputFile,msg));
+                o.cic.error('STOPEXPERIMENT',sprintf('Could not create file %s (msg: %s)',o.dataFile,msg));
             end
             o.nrTimeStamps = 0;
 
@@ -450,7 +448,7 @@ classdef mdaq <  neurostim.plugin
             else
                 shutdown(o);
             end
-            o.writeToFeed(sprintf('DAQ data saved to %s', strrep(o.outputFile,'\','/')));
+            o.writeToFeed(sprintf('DAQ data saved to %s', strrep(o.dataFile,'\','/')));
         end
 
         function shutdown(o)
@@ -495,15 +493,23 @@ classdef mdaq <  neurostim.plugin
         end
 
 
-        function  T =readBin(o,filename,pv)
+        function  T =readBin(o,pv)
             % Read the binary data file and return as a timetable
+            % use 'root' to remap  the root ( {'c:\','d:\'} for a recording
+            % that saved to c:\ but the data are now stored on d:\/
+            % Or use file to specify a complete file name.
             arguments
-                o (1,1) neurostim.plugins.mdaq
-                filename {mustBeTextScalar} = o.outputFile;  %
-                pv.drive (1,:) = {}
+                o (1,1) neurostim.plugins.mdaq                
+                pv.root (1,:) = {}
+                pv.file (1,1) string =""
             end
-            if ~isempty(pv.drive)
-                filename =strrep(filename,pv.drive{1},pv.drive{2});
+            if pv.file==""
+                filename = o.dataFile;
+                if ~isempty(pv.root)
+                    filename =strrep(filename,pv.root{1},pv.root{2});
+                end
+            else
+                filename = pv.file;
             end
             if ~exist(filename,"file")
                 error('Bin file %s does not exist \n',filename);
@@ -665,6 +671,7 @@ classdef mdaq <  neurostim.plugin
 
     methods (Static)
 
+        
         % This function sets up data acquisition and writing on a parallel worker
         % The client (i.e. the mdaq plugin on the main Matlab) sends it messages
         function acquireAndSaveOnWorker(receiveQueue,sendQueue,o)

@@ -40,7 +40,7 @@ classdef psyBayes < neurostim.plugins.adaptive
             % estimates. This computation adds to the minimum duration of the
             % intertrialinterval.
             %
-            
+                        
             if exist('psybayes.m','file') ~=2
                 error('Could not find the psybayes toolbox. Clone it from github (https://github.com/lacerbi/psybayes.git) and add it to your path before using neurostim.plugins.psyBayes');
             end
@@ -62,39 +62,48 @@ classdef psyBayes < neurostim.plugins.adaptive
             p.addParameter('unitsMu','deg');
             p.addParameter('unitsSigma','deg');
             p.addParameter('unitsLambda','');
-            p.addParameter('unitsPsychoFun',{'Normal'});
-            
+            p.addParameter('unitsPsychoFun',{'Normal'});              
             % Refractory time before presenting same stimulus again
             p.addParameter('refTime',0);            % Expected number of trials (geometric distribution)
             p.addParameter('refRadius',0);           % Refractory radius around stimulus (in x units)
             p.parse(varargin{:});
             
             % Initialize the object
-            o = o@neurostim.plugins.adaptive(c,trialResult);
-            
+            o = o@neurostim.plugins.adaptive(c,trialResult);            
+          
             o.method = p.Results.method;
             o.vars = p.Results.vars;
             
             % Copy the parameter settings to a struct.
-            psy = [];
-            psy.gamma = p.Results.gamma;
-            psy.psychofun = p.Results.psychofun;
-            psy.x = p.Results.x;
-            psy.range.mu = p.Results.rangeMu;     % Psychometric function mean
-            psy.range.sigma = p.Results.rangeSigma;
-            psy.range.lambda = p.Results.rangeLambda;
-            psy.priors.mu = p.Results.priorsMu;
-            psy.priors.logsigma = p.Results.priorsLogSigma;
-            psy.priors.lambda = p.Results.priorsLambda;
-            psy.units.x = p.Results.unitsX;
-            psy.units.mu = p.Results.unitsMu;
-            psy.units.sigma = p.Results.unitsSigma;
-            psy.units.lambda =p.Results.unitsLambda;
-            psy.units.psychofun = p.Results.unitsPsychoFun;
-            psy.reftime = p.Results.refTime;
-            psy.refradius = p.Results.refRadius;
-            o.psy = psy;
+            ps = [];
+            ps.gamma = p.Results.gamma;
+            ps.psychofun = p.Results.psychofun;
+            ps.x = p.Results.x;
+            ps.range.mu = p.Results.rangeMu;     % Psychometric function mean
+            ps.range.sigma = p.Results.rangeSigma;
+            ps.range.lambda = p.Results.rangeLambda;
+            ps.priors.mu = p.Results.priorsMu;
+            ps.priors.logsigma = p.Results.priorsLogSigma;
+            ps.priors.lambda = p.Results.priorsLambda;
+            ps.units.x = p.Results.unitsX;
+            ps.units.mu = p.Results.unitsMu;
+            ps.units.sigma = p.Results.unitsSigma;
+            ps.units.lambda =p.Results.unitsLambda;
+            ps.units.psychofun = p.Results.unitsPsychoFun;
+            ps.reftime = p.Results.refTime;
+            ps.refradius = p.Results.refRadius;
             
+            % Store starting values as properties for easy reference in analysis (not used
+            % in the code at runtime).
+            addProperty(o,'psyGamma',ps.gamma);            
+            addProperty(o,'psyPriors',[ps.priors.mu; ps.priors.logsigma;ps.priors.lambda]);
+            addProperty(o,'psyRange',[ps.range.mu; ps.range.sigma;ps.range.lambda]);
+            addProperty(o,'psyReftime',ps.reftime);
+            addProperty(o,'psyRefradius',ps.refradius);
+
+
+            o.psy =ps; % This is the struct that the Acerbi package will update. It contains the full history/probability space so it can be large and should not be saved with every change.
+
         end
         
         function update(o)
@@ -117,7 +126,13 @@ classdef psyBayes < neurostim.plugins.adaptive
             end
         end
         
-       
+        function continuePsy(o,psy)
+            % Continue estimation from a previously estimated psy struct.
+            o(1).writeToFeed('Continuing psy estimation')
+            for i=1:numel(o)                
+                o(i).psy = psy(i);
+            end
+        end
         
         function [m,sd,hdr,threshold,thresholdHdr]= posterior(oo,alpha,plotIt,theta)
             % function [m,sd,hdr]= posterior(oo,alpha,plotIt)
@@ -150,6 +165,8 @@ classdef psyBayes < neurostim.plugins.adaptive
             for j=1:nrO
                 try
                     for i=find(oo(j).vars)
+                        %1:numel(oo(j).vars) would also show an estimate of
+                        %vars that weren't selectd in .vars. Not
                         other = setdiff(1:3,i);
                         y = neurostim.plugins.psyBayes.marginalpost(oo(j).psy.post,oo(j).psy.psychopost,other);
                         N=100;
@@ -181,17 +198,7 @@ classdef psyBayes < neurostim.plugins.adaptive
                         end                                                               
                     end
                     
-                    % Fill in the priors for the vars we did not estimate.
-                    priors = {oo(j).psy.mu, oo(j).psy.sigma, oo(j).psy.lambda};
-                    for i=1:3
-                        if oo(j).vars(i)==0
-                        % Not estimated - use prior
-                        m(i,j)= priors{i};
-                        sd(i,j) = 0;
-                        hdr(i,j,:) = priors{i};
-                        end
-                    end
-                    
+                  
                     if nargout >3 && ~isempty(strfind(oo(j).psy.psychofun,'psyfun_yesno')) && ~isempty(strfind(oo(j).psy.psychofun,'psynormcdf'))
                         % Yes no function uses the cumulative normal, which we can
                         % invert to find the threshold at an arbitrary level:
@@ -218,8 +225,7 @@ classdef psyBayes < neurostim.plugins.adaptive
                             else % Contiguous HDR
                                 thresholdHdr(1,j) = x(find(ix==1,1,'first'));
                                 thresholdHdr(2,j) = x(find(ix==1,1,'last'));
-                            end
-                            
+                            end                            
                         end
                     end
                     
@@ -238,13 +244,10 @@ classdef psyBayes < neurostim.plugins.adaptive
                     h.FaceColor = 'w';
                     errorbar((1:size(m,2))',m(i,:)',squeeze(hdr(i,1,:))-m(i,:)',squeeze(hdr(i,2,:))-m(i,:)','*')
                     ylabel (parms{i})
-                    xlabel 'Psy'
-                    
+                    xlabel 'Psy'                    
                     set(gca,'XTick',1:size(m,2),'XTickLabel',conditionLabel)
                 end
-            end
-            
-            
+            end            
         end
         
         function afterExperiment(o)

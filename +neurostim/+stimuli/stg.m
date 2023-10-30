@@ -743,7 +743,7 @@ classdef stg < neurostim.stimulus
                 % Convert to DAC values
                 if o.currentMode
                     % Need amplitude in nA
-                    scale = 1e5;  % Convert specified mA to nA
+                    scale = 1e6;  % Convert specified mA to nA
                     if o.fake
                         valueCode = 1;
                     else
@@ -760,12 +760,42 @@ classdef stg < neurostim.stimulus
                 end
 
                 step= 1./o.outputRate;
-                if o.sham
+                if  ischar(o.fun) &&  strcmpi(o.fun,'tDCS')
+                    % Special mode for tDCS to circumvent a likely bug with
+                    % the compressed specification in the else condition
+                    % below. 
+                    maxVal = max(signal); % The intended level
+                    rampStepDuration =5; % Step in ms.
+                    maxValDuration = thisNrRepeats*thisDuration; % Stim duration in ms.
+                    nrDownRamp = o.rampDown/rampStepDuration;
+                    nrUpRamp = o.rampUp/rampStepDuration;
+                    values   = linspace(0,maxVal,nrUpRamp);
+                    duration = rampStepDuration*ones(1,nrUpRamp); 
+                    if ~o.sham
+                         values = [values maxVal]; %#ok<AGROW>
+                         duration = [duration maxValDuration]; %#ok<AGROW>
+                    end
+                    values = [values linspace(maxVal,0,nrDownRamp)];%#ok<AGROW>
+                    duration = [duration rampStepDuration*ones(1,nrDownRamp)]; %#ok<AGROW>    
+                    values  = scale*values;  % mA to nA for transmission to STG
+                    syncValue = ones(size(values));
+                    duration = 1e3*duration; %ms to mus                                        
+                elseif o.sham
                     %Up and immediately down
                     values =    [scale*rampUpSignal          scale*rampDownSignal];
                     duration  = [ones(1,numel(rampUpSignal)),ones(1,numel(rampDownSignal))]*(step/1e-6);
                     syncValue = [ones(1,numel(rampUpSignal)),ones(1,numel(rampDownSignal))];
                 else
+                    % In some of our early experimets we noticed that this
+                    % compression scheme does not work for long durations. 
+                    % For 15 minutes duration, the duration was off by a factor of 20. 
+                    % While that looks to be a unit error (i.e. time in
+                    % samples, not in mus), that does not match the result
+                    % for a 2 s duration, which was exactly 2s. 
+                    % It is not clear why this happens. 
+                    % But for tDCS we started useing the simpler call above. 
+                    % For tACS we will have to reconsider...
+                    fprintf(2,' *************\n This compression scheme does not work properly for long duration stimulation. \n Ignore this message at your own risk. \n ************\n')                    
                     % A block that starts with 0 amplitude and 0 duration and
                     % ends with n ampltidude and 0 duration is repeated n
                     % times. This is used to repeat sines, or to create a long
