@@ -40,6 +40,10 @@ classdef camera < neurostim.plugin
     %                       camera image with an adjustable ROI. Drag/reshape the rectangle then
     %                       double click it to finish the preview. Only pixels within the ROI
     %                       will be saved to disk (and shown in the preview).
+    %                       Pressing the I key during this preview will
+    %                       open a (clunky) interactive interface to set
+    %                       camera properties (with instructions). 
+    %
     % duringExperimentPreview - Keep the preview running during the
     %                       experiment. This will slow everything down and likely cause framedrops...
     %
@@ -198,7 +202,7 @@ classdef camera < neurostim.plugin
             o.addProperty('fileMode','perExperiment'); % 'perExperiment' , 'perTrial'
             o.addProperty('nrWorkers',0); % Set to 1 to use parfeval to save in the background (perTrial/afterTrial modes only).
             o.addProperty('properties',{});  % Parm/value pairs applied to the source input object. e,g, {'framerate',30} .
-           
+            o.addProperty('videoProperties',{}); % This is set once, after the experiment, to reflect all the properties of the video source as used during the experiment
             %%
             o.addProperty('fake',false);  % Fake video for debugging
             o.addProperty('diary',false); % Set to true to create a diary output on the worker
@@ -226,7 +230,7 @@ classdef camera < neurostim.plugin
                 return
             end
             if ~ismember(o.adaptorName,cat(2,o.hwInfo.InstalledAdaptors))
-                error('The %s adaptor is not supported. Install a hardware support package? See imaqhwinfo for installed hardware.')
+                error('The %s adaptor is not supported. Install a hardware support package? See imaqhwinfo for installed hardware.',o.adaptorName)
             end
 
             %% Show a preview window and allow setting an ROI.
@@ -235,6 +239,20 @@ classdef camera < neurostim.plugin
                 p = propinfo(o.hVid,'VideoResolution');
                 o.hVid.ROIPosition = [0 0 p.DefaultValue];
                 h = preview(o.hVid);
+
+                
+                % If nsGui is running the preview window does not respond to the mouse
+                % This hack fixes that by "clicking" on nsGui and then on
+                % the preview window. Weird but it works.                
+                set(groot,'ShowHiddenHandles','on');
+                hNsGui = findobj(groot().Children,'type','figure','name','Neurostim');
+                if ~isempty(hNsGui)
+                    figure(hNsGui);
+                end
+                set(groot,'ShowHiddenHandles','off')
+                figure(ancestor(h,'Figure')) % Bring preview to the front
+                
+    
 
                 % Show a rectangle on the preview to select an ROI.
                 ax = ancestor(h,'Axes');
@@ -245,12 +263,14 @@ classdef camera < neurostim.plugin
                 end
                 hRoi = drawrectangle(ax,'Position',roi,'Deletable',false);
                 hFig = ancestor(h,'Figure');
+                hFig.KeyPressFcn = @(x1,x2) o.interactiveSetProperties(x1,x2);
+                
                 roi = neurostim.plugins.camera.waitForRoi(hRoi,hFig);
                 % Use even number of pixels (necessary for MPEG-4) and make
                 % sure that the ROI is inside the bounds of the camera
                 % image.
                 wh = roi(3:4);
-                wh = ceil(wh/2)*2;
+                wh =  ceil(wh/2)*2;
                 xy = floor(roi(1:2));
                 roi = [xy wh];
                 outOfBounds = (xy+wh)>p.DefaultValue;
@@ -375,6 +395,7 @@ classdef camera < neurostim.plugin
                 end
                 isWarned =false;
                 while islogging(o.hVid)
+                    tic
                     pause(o.PAUSETIME)
                     if ~isWarned 
                         o.writeToFeed('Waiting for logging to finish');
@@ -382,7 +403,7 @@ classdef camera < neurostim.plugin
                     end
                 end
                 if isWarned
-                    o.writeToFeed('Logging finished.');
+                    o.writeToFeed(sprintf('Logging finished. (waited %s)',seconds(toc)));
                 end
                 % Ready to go - Trigger recording
                 trigger(o.hVid);
@@ -404,29 +425,30 @@ classdef camera < neurostim.plugin
                         % Wait until all the specified frames have been
                         % collected
                         isWarned  = false;
-                        while (o.hVid.FramesAcquired < o.hVid.FramesPerTrigger)
+                        tic                        
+                        while (o.hVid.FramesAcquired < o.hVid.TriggersExecuted*o.hVid.FramesPerTrigger)
                             pause(o.PAUSETIME);
                             if ~isWarned
-                                o.writeToFeed(sprintf('Waiting for all (%d) camera frames ...please wait (%d)...',o.hVid.FramesPerTrigger,o.hVid.FramesAcquired));
+                                o.writeToFeed(sprintf('Waiting for %d camera frames  (out of %d)', o.hVid.TriggersExecuted*o.hVid.FramesPerTrigger- o.hVid.FramesAcquired,o.hVid.FramesPerTrigger));
                                 isWarned =true;
                             end
                         end
                         if isWarned
-                            o.writeToFeed(sprintf('All frames collected (%d)',o.hVid.FramesAcquired));
+                            o.writeToFeed(sprintf('All frames collected (waited %s)',seconds(toc)));
                         end
                         
                         % Wait until saving has caught up with acquiistion
                         isWarned = false;                        
+                        tic;
                         while (o.hVid.FramesAcquired ~= o.hVid.DiskLoggerFrameCount)
                             pause(o.PAUSETIME);
                             if ~isWarned
                                 o.writeToFeed('Saving camera data...please wait');
-                                isWarned = true;
-                                tic;
+                                isWarned = true;                               
                             end
                         end
                          if isWarned
-                            o.writeToFeed(sprintf('All data saved (%.3f s)',toc));
+                            o.writeToFeed(sprintf('All data saved (waited %s)',seconds(toc)));
                         end
                         % Store logging.
                         nrFrames =o.hVid.FramesAcquired;
@@ -480,7 +502,7 @@ classdef camera < neurostim.plugin
                 o.writeToFeed('Fake camera input from %s. afterExperiment')
                 return
             end
-
+            o.storeVideoProperties;
             % Cleanup
             if o.allOnWorker
                 sendToWorker(o,0);
@@ -500,6 +522,13 @@ classdef camera < neurostim.plugin
             close(o)
         end
 
+        function storeVideoProperties(o)
+             pInfo = propinfo(o.hSource);
+             props = fieldnames(pInfo);
+             props = setdiff(props,{'Parent','Type'});
+             vals = get(o.hSource,props)';             
+             o.videoProperties = cell2struct(vals,props);
+        end
         function storeInLog(o,propertyName,clockTime,data)
             % Store the data in the property at a time corresponding to the
             % clockTime. (i.e. backdating the event to when it occurred).
@@ -742,6 +771,41 @@ classdef camera < neurostim.plugin
     end
 
     methods (Access=protected)
+        function interactiveSetProperties(o,src,evt)
+            % Pressing M on the preview goes into this Q&A to try to find
+            % good properties for a camera under the conditions of the
+            % experiment. Settings are applied immediately.
+            switch upper(evt.Key)
+                case 'I'
+                pInfo = propinfo(o.hSource);
+                props = fieldnames(pInfo);
+                nr = (1:numel(props))';
+                tmp = strcat(cellstr(num2str(nr)),') ', props,'\n');                
+                pNr =1;
+                while true
+                    answer = input(sprintf(['These are the camera properties. Show details for [%d], select one, or 0 to quit.\n' [tmp{:}]],pNr));
+                    if ~isempty(answer)                        
+                        pNr = answer; 
+                    end
+                    if pNr==0
+                        break;
+                    elseif pNr <=numel(props)                                                
+                        fprintf('***%s*** currently has value: ', props{pNr});
+                        get(o.hSource,props{pNr})
+                        fprintf ('\n and the following properties: \n')
+                        propinfo(o.hSource,props{pNr})
+                        answer = input('Enter your value: \n');
+                        try
+                            set(o.hSource,props{pNr},answer)
+                        catch me
+                            fprintf(2,"That failed (%s). Lets try again.\n",me.message)
+                        end
+                        pNr = pNr+1;
+                    end
+                end
+                fprintf('Exiting interactive configuration. Double click the preview FOV to accept and continue.\n')
+            end            
+        end
         function sendToWorker(o,code)
             send(o.queue,code);
             if ~isempty(o.future.Error)
@@ -774,11 +838,11 @@ classdef camera < neurostim.plugin
                 try
                     set(o.hSource,o.properties{i},o.properties{i+1});
                 catch
-                    fprintf(2,'The ***%s*** property has the following constraints:\n',o.properties{i})
+                    fprintf(2,'The ***%s*** property could not be set: it has the following constraints:\n',o.properties{i})
                     propinfo(o.hSource,o.properties{i})
                     error('Could not set %s',o.properties{i})
                 end
-            end
+            end            
         end
 
         function setupWorker(o)
