@@ -241,6 +241,20 @@ classdef camera < neurostim.plugin
                 o.hVid.ROIPosition = [0 0 p.DefaultValue];
                 h = preview(o.hVid);
                 
+                
+                % If nsGui is running the preview window does not respond to the mouse
+                % This hack fixes that by "clicking" on nsGui and then on
+                % the preview window. Weird but it works.                
+                set(groot,'ShowHiddenHandles','on');
+                hNsGui = findobj(groot().Children,'type','figure','name','Neurostim');
+                if ~isempty(hNsGui)
+                    figure(hNsGui);
+                end
+                set(groot,'ShowHiddenHandles','off')
+                figure(ancestor(h,'Figure')) % Bring preview to the front
+                
+    
+
                 % Show a rectangle on the preview to select an ROI.
                 ax = ancestor(h,'Axes');
                 if isempty(o.ROI)
@@ -257,7 +271,7 @@ classdef camera < neurostim.plugin
                 % sure that the ROI is inside the bounds of the camera
                 % image.
                 wh = roi(3:4);
-                wh = ceil(wh/2)*2;
+                wh =  ceil(wh/2)*2;
                 xy = floor(roi(1:2));
                 roi = [xy wh];
                 outOfBounds = (xy+wh)>p.DefaultValue;
@@ -382,6 +396,7 @@ classdef camera < neurostim.plugin
                 end
                 isWarned =false;
                 while islogging(o.hVid)
+                    tic
                     pause(o.PAUSETIME)
                     if ~isWarned 
                         o.writeToFeed('Waiting for logging to finish');
@@ -389,7 +404,7 @@ classdef camera < neurostim.plugin
                     end
                 end
                 if isWarned
-                    o.writeToFeed('Logging finished.');
+                    o.writeToFeed(sprintf('Logging finished. (waited %s)',seconds(toc)));
                 end
                 % Ready to go - Trigger recording
                 trigger(o.hVid);
@@ -411,29 +426,30 @@ classdef camera < neurostim.plugin
                         % Wait until all the specified frames have been
                         % collected
                         isWarned  = false;
-                        while (o.hVid.FramesAcquired < o.hVid.FramesPerTrigger)
+                        tic                        
+                        while (o.hVid.FramesAcquired < o.hVid.TriggersExecuted*o.hVid.FramesPerTrigger)
                             pause(o.PAUSETIME);
                             if ~isWarned
-                                o.writeToFeed(sprintf('Waiting for all (%d) camera frames ...please wait (%d)...',o.hVid.FramesPerTrigger,o.hVid.FramesAcquired));
+                                o.writeToFeed(sprintf('Waiting for %d camera frames  (out of %d)', o.hVid.TriggersExecuted*o.hVid.FramesPerTrigger- o.hVid.FramesAcquired,o.hVid.FramesPerTrigger));
                                 isWarned =true;
                             end
                         end
                         if isWarned
-                            o.writeToFeed(sprintf('All frames collected (%d)',o.hVid.FramesAcquired));
+                            o.writeToFeed(sprintf('All frames collected (waited %s)',seconds(toc)));
                         end
                         
                         % Wait until saving has caught up with acquiistion
                         isWarned = false;                        
+                        tic;
                         while (o.hVid.FramesAcquired ~= o.hVid.DiskLoggerFrameCount)
                             pause(o.PAUSETIME);
                             if ~isWarned
                                 o.writeToFeed('Saving camera data...please wait');
-                                isWarned = true;
-                                tic;
+                                isWarned = true;                               
                             end
                         end
                          if isWarned
-                            o.writeToFeed(sprintf('All data saved (%.3f s)',toc));
+                            o.writeToFeed(sprintf('All data saved (waited %s)',seconds(toc)));
                         end
                         % Store logging.
                         nrFrames =o.hVid.FramesAcquired;
@@ -824,11 +840,11 @@ classdef camera < neurostim.plugin
                 try
                     set(o.hSource,o.properties{i},o.properties{i+1});
                 catch
-                    fprintf(2,'The ***%s*** property has the following constraints:\n',o.properties{i})
+                    fprintf(2,'The ***%s*** property could not be set: it has the following constraints:\n',o.properties{i})
                     propinfo(o.hSource,o.properties{i})
                     error('Could not set %s',o.properties{i})
                 end
-            end
+            end            
         end
 
         function setupWorker(o)
