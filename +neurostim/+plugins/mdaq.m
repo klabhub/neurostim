@@ -51,6 +51,18 @@ classdef mdaq <  neurostim.plugin
     % If your hardware can clock everything, set .allClocked = true to
     % create only a single interface.
     %
+    % Sometimes you want to read an input that is a TTL [0 5V] on an
+    % analog input channel (for instance, to use hardware clocking on
+    % cheaper hardware). To avoid the unncessarily large data files that would
+    % result from saving each sample of those digital inputs, you can set
+    % saveTTLChangeOnly to true. That will save only the changes in the
+    % state of the input (i.e. any of the input channels changes from a
+    % value below 3.3V to a value above, or vice versa) to file. The output file
+    % will be much smaller and the readBin function will return a much reduced table of values 
+    %  (with associated time stamps) from the saved file. Doing this only
+    %  makes sense if ALL channels read by analog inputs are actual digital
+    %  inputs.
+    %
     % Read only properties
     %  dataFile - Name of output file (assigned by neurostim) where the acquired data are saved.
     %               Use mdaq.readBin to read the contents of this file as a
@@ -85,9 +97,10 @@ classdef mdaq <  neurostim.plugin
     % See also DAQ
     %
     % If the raw data acquired from the daq are not that informative, you
-    % can defined a o,postproces function handle that takes the raw data
+    % can defined a o.postproces function handle that takes the raw data
     % time stamps and the mdaq plugin and returns processed data and timestamps for display
-    % in the gui. Note that only the raw data are saved to disk.
+    % in the gui. Note that even with this postprocessing, the raw acquired 
+    % data are saved to disk.
     %
     % BK -  Jan 2022.
 
@@ -240,6 +253,7 @@ classdef mdaq <  neurostim.plugin
             o.addProperty('keepAliveAfterExperiment',false);
             o.addProperty('allClocked',false);
             o.addProperty('updateRate',0.5); % how often to call scansAvailable (save data and update the display)
+            o.addProperty('saveTTLChangeOnly',false); % If true, the output file only saves timestamps with state changes (across any of the channels). This only makes sense if all the channels are actually TTL inputs.
             % Setup mapping
             o.inputMap = containers.Map('KeyType','char','ValueType','any');
             o.outputMap = containers.Map('KeyType','char','ValueType','any');
@@ -722,7 +736,25 @@ classdef mdaq <  neurostim.plugin
             %% Log to the open output file
             % Called from scansAvailableCallback or from afterTrial (in
             % onDemand mode)
-            fwrite(o.FID, [timestamp data]', o.precision);
+            persistent previousState 
+            if o.saveTTLChangeOnly                
+                 THRESH= 3.3;
+                 ttl = data>THRESH;                 
+                 if o.nrTimeStamps ==0
+                     % First save; the first sample is always a state
+                     % change
+                     isStateChange = [true;any(diff(ttl) ~=0,2)];                     
+                 else
+                     isStateChange = any(diff([previousState;ttl])~=0,2);
+                 end
+                 if any(isStateChange)
+                    previousState = ttl(find(isStateChange,1,'last'),:);                   
+                    fwrite(o.FID, [timestamp(isStateChange) ttl(isStateChange,:)]', o.precision);            
+                 end
+            else
+                % Regular saving of all samples
+                fwrite(o.FID, [timestamp data]', o.precision);            
+            end
             if timestamp(1)==0
                 % Store the origin of the time axis
                 o.triggerTime = datetime(tTrigger,'convertFrom','datenum');
