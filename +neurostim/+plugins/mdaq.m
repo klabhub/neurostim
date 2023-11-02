@@ -239,6 +239,7 @@ classdef mdaq <  neurostim.plugin
             o.addProperty('diary',false); % Debug parallel.
             o.addProperty('keepAliveAfterExperiment',false);
             o.addProperty('allClocked',false);
+            o.addProperty('updateRate',0.5); % how often to call scansAvailable (save data and update the display)
             % Setup mapping
             o.inputMap = containers.Map('KeyType','char','ValueType','any');
             o.outputMap = containers.Map('KeyType','char','ValueType','any');
@@ -312,7 +313,7 @@ classdef mdaq <  neurostim.plugin
             end
             o.samplerate = o.hDaqClocked.Rate; % Some cards reset to an allowed value
             
-
+            o.hDaqClocked.ScansAvailableFcnCount = o.hDaqClocked.Rate/o.updateRate;
             props.samplerate = o.samplerate;
             props.nrInputChannels = o.nrInputChannels;
             props.nrOutputChannels = o.nrOutputChannels;
@@ -474,18 +475,30 @@ classdef mdaq <  neurostim.plugin
 
                 if ~isempty(y)
                     % Scale each channel to its abs max
-                    y = y./max(y,[],"ComparisonMethod","abs");
+                    y = 0.45*y./max(y,[],"ComparisonMethod","abs");
                     % Then add 1:N to each channel to space them vertically
                     % (flip to match the order of the legend).
-                    y = y + fliplr(1:size(y,2));
-
                     ks = o.clockedInputKeys;
-                    if isempty(o.ax.Children)
+                    nrChannels = size(y,2);
+                    channels  =1:nrChannels;                    
+                    y = y + channels;
+                    o.ax.YTick = channels;
+                    o.ax.YTickLabels = ks;
+                    %o.ax.YGrid = 'on';
+                    if ~isnan(t(end))
+                        xlim(o.ax,t(end)-[o.bufferSize 0]) % Show one full bufferSize in seconds.
+                    end                 
+                    o.ax.YLim = [0 max(channels)+1];                    
+                    o.ax.ColorOrderIndex = 1;
+                    plot(o.ax,repmat(t,[1 nrChannels]),repmat(channels,[numel(t) 1]),'LineWidth',1,'LineStyle',':')
+                    o.ax.NextPlot ='add';
+                    o.ax.ColorOrderIndex = 1;
+                    if isempty(findobj(o.ax.Children,"Tag",ks{1}))
                         % First time, draw
-                        h = plot(o.ax,t,y);
+                        h = plot(o.ax,t,y,'LineStyle','-','LineWidth',2);
                         [h.Tag] = deal(ks{:});
                         title(o.ax,sprintf('%s (%.1fkHz) - %d in, %d out',o.vendor,o.samplerate/1000,o.nrInputChannels,o.nrOutputChannels))
-                        legend(h,ks)
+                        %legend(h,ks)
                     else
                         % Updates, only change x/y data. Supposedly faster?
                         for i=1:numel(ks)
@@ -493,11 +506,9 @@ classdef mdaq <  neurostim.plugin
                         end
                         title(o.ax,sprintf('%s (%.1fkHz) - %d in, %d out',o.vendor,o.samplerate/1000,o.nrInputChannels,o.nrOutputChannels))
                     end
-                    if ~isnan(t(end))
-                        xlim(o.ax,t(end)-[o.bufferSize 0]) % Show one full bufferSize in seconds.
-                    end
-                    ylim(o.ax, [0  size(y,2)+1])    % Show all signals
+                    %o.ax.ColorIndex =1;                    
                     drawnow limitrate
+                    o.ax.NextPlot ='replacechildren';
                 end
             end
         end
@@ -695,7 +706,7 @@ classdef mdaq <  neurostim.plugin
             % saved.
             % Note that the columns represent the input channels in
             % alphabetiacl order (as in o.inputMap.keys)
-            try
+            try                
                 [data,timestamp,tTrigger] = read(src,src.ScansAvailableFcnCount,"OutputFormat","Matrix");
                 logToFile(o,data,timestamp,tTrigger);
             catch me

@@ -132,7 +132,7 @@ classdef cic < neurostim.plugin
 
 
     end
-    properties (SetAccess= {?neurostim.plugin}) 
+    properties (SetAccess= {?neurostim.plugin})
         used =false; % Flag to make sure a user cannot reuse a cic object.
         loadedFromFile = false; % Flag set by loadobj - primarily used to avoid initializing things that are only relevant during the experiment.
     end
@@ -345,30 +345,35 @@ classdef cic < neurostim.plugin
         % Collect information about (user specified) properties and display
         % these on the command line feed.
         function collectPropMessage(c)
-            msg =cell(1,numel(c.propsToInform));
-            for i=1:numel(c.propsToInform)
-                str=strsplit(c.propsToInform{i},'/');
-                val = cell(1,numel(str));
-                for j=1:numel(str)
-                    val{j} = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
-                    if isnumeric(val{j})
-                        val{j} = num2str(val{j});
-                    elseif islogical(val{j})
-                        if (val{j})
-                            val{j} = 'true';
-                        else
-                            val{j}='false';
+            if ~isempty(c.propsToInform{1})
+                nrProps =numel(c.propsToInform);
+                if nrProps>0
+                    msg =cell(1,nrProps);
+                    for i=1:numel(c.propsToInform)
+                        str=strsplit(c.propsToInform{i},'/');
+                        val = cell(1,numel(str));
+                        for j=1:numel(str)
+                            val{j} = getProp(c,str{j}); % getProp allows calls like c.(stim.value)
+                            if isnumeric(val{j})
+                                val{j} = num2str(val{j});
+                            elseif islogical(val{j})
+                                if (val{j})
+                                    val{j} = 'true';
+                                else
+                                    val{j}='false';
+                                end
+                            end
+                            if isa(val{j},'function_handle')
+                                val{j} = func2str(val{j});
+                            end
+                            val{j} = val{j}(:)';
                         end
+                        msg{i} = sprintf('%s: %s/%s',c.propsToInform{i},val{:});
+                        if strcmpi(msg{i}(end),'/');msg{i}(end) ='';end
                     end
-                    if isa(val{j},'function_handle')
-                        val{j} = func2str(val{j});
-                    end
-                    val{j} = val{j}(:)';
+                    c.writeToFeed(msg);
                 end
-                msg{i} = sprintf('%s: %s/%s',c.propsToInform{i},val{:});
-                if strcmpi(msg{i}(end),'/');msg{i}(end) ='';end
             end
-            c.writeToFeed(msg);
         end
     end
 
@@ -1277,7 +1282,7 @@ classdef cic < neurostim.plugin
                 Screen('glLoadIdentity', c.mainWindow);
                 % Perform afterBlock message/function
                 afterBlock(c);
-                % Exit experiment if requested 
+                % Exit experiment if requested
                 if ~c.flags.experiment;break;end
             end %blocks
             c.stage = neurostim.cic.POST;
@@ -1811,29 +1816,29 @@ classdef cic < neurostim.plugin
             fprintf(1,'%s --> ', c.pluginOrder.name)
             disp('Parameter plugins should depend only on plugins with earlier execution (i.e. to the left)');
         end
-            
+
         function handleAdaptives(c)
             % Force adaptive plugins assigned directly to parameters into
             % the block design object(s) instead. This ensures the adaptive
             % plugins are updated correctly (by the block object(s)).
-           
+
             plgs = {c.pluginOrder.name}; % *all* plugins
             for ii = 1:numel(plgs)
-              plg = plgs{ii};
-              prms = prmsByClass(c.(plg),'neurostim.plugins.adaptive');
-              if isempty(prms)
-                % no adaptive plugins/parameters
-                continue
-              end
+                plg = plgs{ii};
+                prms = prmsByClass(c.(plg),'neurostim.plugins.adaptive');
+                if isempty(prms)
+                    % no adaptive plugins/parameters
+                    continue
+                end
 
-              for jj = 1:numel(prms)
-                prm = prms{jj};
-                obj = c.(plg).(prm);
-                c.(plg).(prm) = obj.getAdaptValue(); % default value?
- 
-                % loop over blocks, adding plg.prm = obj
-                arrayfun(@(x) addAdaptive(x,plg,prm,obj),c.blocks);
-              end
+                for jj = 1:numel(prms)
+                    prm = prms{jj};
+                    obj = c.(plg).(prm);
+                    c.(plg).(prm) = obj.getAdaptValue(); % default value?
+
+                    % loop over blocks, adding plg.prm = obj
+                    arrayfun(@(x) addAdaptive(x,plg,prm,obj),c.blocks);
+                end
             end
         end
         %% PTB Imaging Pipeline Setup
@@ -1857,7 +1862,7 @@ classdef cic < neurostim.plugin
             %% Setup pipeline for use of special monitors like the ViewPixx or CRS Bits++
             switch upper(c.screen.type)
                 case 'GENERIC'
-                    % Generic monitor.              
+                    % Generic monitor.
                 case 'VPIXX-M16'
                     % The VPIXX monitor in Monochrome 16 bit mode.
                     % Set up your vpixx once, using
@@ -2137,7 +2142,7 @@ classdef cic < neurostim.plugin
                         c.screen.calibration.gammaTable = tbl;
                     elseif ~isempty(c.screen.calFile) && ~isempty(c.screen.calibration.gammaTable)
                         error('Both a gamma table and a gamma table file (%s) were specified. Please pick one.',c.screen.calFile);
-                    else 
+                    else
                         % c.screen.calibration.gammatable specified
                         % somehow- nothing to do, it will be used.
                     end
@@ -2255,7 +2260,7 @@ classdef cic < neurostim.plugin
                 current = neurostim.cic('fromFile',true); % Create an empty cic of current classdef that does not need PTB (loadedFromFile =true)
                 % And upgrade the one that was stored using the plugin
                 % static member.
-                c = neurostim.plugin.updateClassDef(o,current);                
+                c = neurostim.plugin.updateClassDef(o,current);
             else
                 % No need to call the plugin.loadobj
                 c = o;
