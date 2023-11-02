@@ -311,9 +311,9 @@ classdef mdaq <  neurostim.plugin
                 write(o.hDaqOnDemand,zeros(1,o.nrOutputChannelsOnDemand));
                 o.outputValue = zeros(1,o.nrOutputChannelsOnDemand);
             end
-            o.samplerate = o.hDaqClocked.Rate; % Some cards reset to an allowed value
+            o.samplerate = round(o.hDaqClocked.Rate); % Some cards reset to an allowed value
             
-            o.hDaqClocked.ScansAvailableFcnCount = o.hDaqClocked.Rate/o.updateRate;
+            o.hDaqClocked.ScansAvailableFcnCount = round(o.samplerate/o.updateRate);
             props.samplerate = o.samplerate;
             props.nrInputChannels = o.nrInputChannels;
             props.nrOutputChannels = o.nrOutputChannels;
@@ -335,8 +335,8 @@ classdef mdaq <  neurostim.plugin
             end
 
             % Initialize the circular data buffer.
-            o.dataBuffer = neurostim.utils.circularBuffer(nan(o.bufferSize*o.hDaqClocked.Rate,numel(o.hDaqClocked.Channels)));
-            o.timeBuffer  = neurostim.utils.circularBuffer(nan(o.bufferSize*o.hDaqClocked.Rate,1));
+            o.dataBuffer = neurostim.utils.circularBuffer(nan(o.bufferSize*o.samplerate,numel(o.hDaqClocked.Channels)));
+            o.timeBuffer  = neurostim.utils.circularBuffer(nan(o.bufferSize*o.samplerate,1));
             o.bufferIx = 0;
             o.previousBufferIx =0;
             % Start acquiring.
@@ -466,7 +466,7 @@ classdef mdaq <  neurostim.plugin
                     end
                 else
                     % Read from the circular buffer directly
-                    nrSamplesToShow =o.bufferSize*o.hDaqClocked.Rate-1;
+                    nrSamplesToShow =o.bufferSize*o.samplerate-1;
                     stay = (o.bufferIx-nrSamplesToShow):o.bufferIx;
                     y = o.dataBuffer(stay,:);
                     t = o.timeBuffer(stay);
@@ -749,7 +749,7 @@ classdef mdaq <  neurostim.plugin
                 % We're runnning on the worker: save the circular
                 % buffer to the mmap.
                 o.mmap
-                nrSamplesToShow =o.bufferSize*o.hDaqClocked.Rate-1;
+                nrSamplesToShow =o.bufferSize*o.samplerate-1;
                 ix = (o.bufferIx-nrSamplesToShow):o.bufferIx;
                 o.mmap.Data.t   = o.timeBuffer(ix);
                 o.mmap.Data.acq  = o.dataBuffer(ix,:);
