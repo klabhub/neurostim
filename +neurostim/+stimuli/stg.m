@@ -91,7 +91,7 @@ classdef stg < neurostim.stimulus
         
     properties (Constant)
         streamingBufferThreshold = 50; % refill the PC buffer when it drops below 50%.
-        outputRate = 50e3; % 50 Khz is fixed
+        outputRate = 50e3; % 50 Khz is fixed        
         LOOPPAUSE = 1; % wait one second when starting/stopping hte streaming loop
     end
 
@@ -200,11 +200,11 @@ classdef stg < neurostim.stimulus
             o.addProperty('streamingLatency',100); % Allowable latency in streaming mode
             o.addProperty('enabled',true);
             o.addProperty('mode','TRIAL');%,@(x) (ischar(x) && ismember(upper(x),{'TRIAL','BLOCK','TIMED'})));
+            o.addProperty('sampleRate',o.outputRate); 
 
             % Stimulation properties
             o.addProperty('fun','tDCS','validate',@(x) (isa(x,'function_handle') || (ischar(x) && ismember(x,{'tDCS','tACS','tRNS'}))));
             o.addProperty('channel',[]);
-            o.addProperty('streamingChannels',[]);
             o.addProperty('mean',0);
             o.addProperty('frequency',0);
             o.addProperty('amplitude',0);
@@ -276,7 +276,9 @@ classdef stg < neurostim.stimulus
 
             if o.isStreaming
                 % Start the loop before the first trial
-                o.device.StartLoop;                
+                o.device.StartLoop;   
+                stts= o.device.GetStatusOfLastCommand
+                stts= o.device.GetStatus
                 pause(o.LOOPPAUSE);  
             end
         end
@@ -401,11 +403,12 @@ classdef stg < neurostim.stimulus
                      end
                 else
                     o.forceDownRampFrom = o.chunkStartTime;                   
-                    while ~o.rampDownComplete
-                        pause(.5);
+                   % while ~o.rampDownComplete
+                        %pause(.5);
                         fprintf('Waiting for ramp down\n')
-                    end
+                    %end
                     pause(o.streamingLatency/1000);
+                    o.device.StopLoop();
                  end               
             end
             o.triggerSent = false;
@@ -416,6 +419,7 @@ classdef stg < neurostim.stimulus
             % STG.
             switch upper(key)
                 case 'T'
+                    fprintf('AAAA')
                     for c=o.channel
                         streamingDataHandler(o,c-1); % Fake a call from STG (base-0)
                     end
@@ -450,13 +454,15 @@ classdef stg < neurostim.stimulus
                     [thisChunk,isFinalRamp] = stimulusForStream(o,thisChannel);
                 end
               
-                if o.currentMode
-                    thisChunk = (2^15-1)*thisChunk/o.iRange(thisChannel);
+                if o.currentMode   
+                    scale = 1e6;  % Convert specified mA to nA               
+                    thisChunk = (2^15-1)*scale*thisChunk/o.iRange(thisChannel);                    
                 else
-                    thisChunk = (2^15-1)*thisChunk/o.vRange(thisChannel);
+                   scale = 1e3;  % Convert specified mV to muV               
+                    thisChunk = (2^15-1)*scale*thisChunk/o.vRange(thisChannel);
                 end
                 data = NET.convertArray(thisChunk, 'System.Int16');
-                nrQueued = o.device.EnqueueData(thisChannel-1, data);
+                nrQueued = o.device.EnqueueData(uint32(thisChannel-1), data);
                 if isFinalRamp 
                     % Wait until the samples that were left pluse the new
                     % chunk (which inlcudes the final ramp) are done.
@@ -488,11 +494,12 @@ classdef stg < neurostim.stimulus
                     % calculated - for some reason the .Net routines
                     % allocate 1 less than what is specified here).
                     if o.debugStream
-                        o.device  = Mcs.Usb.CStg200xStreamingNet(o.pcBufferBytes+1);
-                        addKey(o,'t','Trigger data handler',false);
+                        o.device  = Mcs.Usb.CStg200xStreamingNet(10000+1);
+                        addKey(o,'t','Trigger data handler',true);
                     else
-                        o.device  = Mcs.Usb.CStg200xStreamingNet(o.pcBufferBytes+1,@o.streamingDataHandler,@o.streamingErrorHandler); % Use streaming mode
+                        o.device  = Mcs.Usb.CStg200xStreamingNet(o.pcBufferBytes+1,@dataHandler,@dataHandler); % Use streaming mode
                     end
+                    
                 end
                 % With the lockMask set to 0, crashes in NS allow
                 % reconnection later. (Couldn't find documentation to
@@ -514,9 +521,11 @@ classdef stg < neurostim.stimulus
                     o.device.DisableMultiFileMode();
                 else
                     % Set some streaming options
-                    o.device.DisableContinousMode; % when running out of data (but at 0 v/a output; no need to retrigger)
-                    nrTriggers = o.device.GetNumberOfTriggerInputs;  % obtain number of triggers in this STG
-                    triggerCapacity=uint32(o.chunkBytes*ones(1,nrTriggers)+1); % 1 chunk  of bytes (2*nrSamples) each
+                    o.device.EnableContinousMode; % when running out of data (but at 0 v/a output; no need to retrigger)
+                    totMem = double(o.device.GetTotalMemory);
+                    totMem = 10000;
+                    nrTriggers = double(o.device.GetNumberOfTriggerInputs);  % obtain number of triggers in this STG
+                    triggerCapacity=uint32(totMem/nrTriggers*ones(1,nrTriggers)+1); % 1 chunk  of bytes (2*nrSamples) each
                     o.device.SetCapacity(NET.convertArray(triggerCapacity,'System.UInt32'))
                 end
 
@@ -528,10 +537,10 @@ classdef stg < neurostim.stimulus
 
                 for chan=0:o.nrChannels-1
                     % Retrieve and convert to mA and mV
-                    o.vResolution(chan+1) = o.device.GetVoltageResolutionInMicroVolt(chan)/1e3;
-                    o.iResolution(chan+1)  = o.device.GetCurrentResolutionInNanoAmp(chan)/1e6;
-                    o.vRange(chan+1) = o.device.GetCurrentRangeInNanoAmp(chan)/1e6;
-                    o.iRange(chan+1)  = o.device.GetVoltageRangeInMicroVolt(chan)/1e3;
+                    o.vResolution(chan+1) = double(o.device.GetVoltageResolutionInMicroVolt(chan))/1e3;
+                    o.iResolution(chan+1)  = double(o.device.GetCurrentResolutionInNanoAmp(chan))/1e6;
+                    o.iRange(chan+1) = double(o.device.GetCurrentRangeInNanoAmp(chan))/1e6;
+                    o.vRange(chan+1)  = double(o.device.GetVoltageRangeInMicroVolt(chan))/1e3;
                 end
 
                 setupTriggers(o); % Map triggers to channels 1->1 , 2->2
@@ -550,9 +559,13 @@ classdef stg < neurostim.stimulus
         end
 
 
-        function setupTriggers(o)
+        function setupTriggers(o,nrRepeats)
             % Map triggers to channels: trigger 1 starts channel 1 etc.
             %
+            if nargin<2
+                nrRepeats =1;
+            end
+
             if o.fake
                 o.writeToFeed('SetupTriggers STG');
                 return
@@ -573,7 +586,7 @@ classdef stg < neurostim.stimulus
 
             syncoutMap = NET.convertArray(chan2mask(o,o.syncOutChannel)*ones(1,nrTriggers,'uint32'),'System.UInt32');           
             if o.isDownload
-                repeatMap  = NET.convertArray(ones(1,o.nrChannels,'uint32'),'System.UInt32', nrTriggers);
+                repeatMap  = NET.convertArray(nrRepeats*ones(1,o.nrChannels,'uint32'),'System.UInt32', nrTriggers);
                 % The repeats are defined in downloadStimulus. This should
                 % be just 1 for each trigger/channel
                 % Assign these mappings starting from trigger 0 to : STG is base-0
@@ -581,9 +594,9 @@ classdef stg < neurostim.stimulus
             else
                 % Set the callback threshold for all triggers/channels.
                 digoutMap = NET.convertArray(zeros(1,nrTriggers,'uint32'),'System.UInt32'); % Not clear what this is, but zeros seems to work
-                autostart = NET.convertArray(zeros(1,nrTriggers,'uint32'),'System.UInt32'); % Not clear what this is, but zeros seems to work
+                autostart = NET.convertArray(zeros(1,nrTriggers,'uint32'),'System.UInt32'); % Not clear what this is
                 callbackThreshold = zeros(1,nrTriggers);
-                callbackThreshold(ismember(1:o.nrChannels,o.streamingChannels)) = o.streamingBufferThreshold;
+                callbackThreshold(ismember(1:o.nrChannels,o.channel)) = o.streamingBufferThreshold;
                 callbackThreshold =NET.convertArray(callbackThreshold,'System.UInt32');
                 o.device.SetupTrigger(channelMap, syncoutMap, digoutMap, autostart, callbackThreshold);
                 o.nrRefills  = zeros(1,o.nrChannels);
@@ -634,13 +647,13 @@ classdef stg < neurostim.stimulus
             v = ones(size(t));
             inRampUp = t<o.rampUp/1000;
             v(inRampUp) = t(inRampUp)*changePerSecond;
-            if isfinite(o.forceDownRampFrom(channel))
-                % Early end of stimulation
-                downStart=min(totalDuration,o.forceDownRampFrom(channel)/1000);
-            else
+            % if isfinite(o.forceDownRampFrom(channel))
+            %     % Early end of stimulation
+            %     downStart=min(totalDuration,o.forceDownRampFrom(channel)/1000);
+            % else
                 % Regular stimulation
                 downStart=(totalDuration-o.rampDown/1000);
-            end
+         %   end
             inRampDown = t>=downStart;
             v(inRampDown) = 1-min(1,(t(inRampDown)-downStart)*changePerSecond);
             isFinalRamp = to>= (downStart+o.rampDown/1000);
@@ -703,6 +716,27 @@ classdef stg < neurostim.stimulus
             end
         end
 
+        function [compressed,durationInSamples] = compress(o,signal, nrRepeats)
+            % Take a signal, decimate it to the o.samplerate, and then
+            % remove samples with a value that the daq will convert to the
+            % same value anyway (and replace them with a single sample with a longer duration).
+            if o.currentMode
+                MINSTEP = unique(o.iResolution);
+            else
+                MINSTEP = unique(o.vResolution);
+            end            
+            signal = repmat(signal,[1 nrRepeats]);
+            nrBefore = numel(signal);
+            R= ceil(o.outputRate/o.sampleRate);
+            signal  = decimate(signal,R);      
+            nrAfterDecimate = numel(signal);
+            ixChangePoint =find([true abs(diff(signal))>MINSTEP]);
+            compressed = signal(ixChangePoint);
+            durationInSamples  = R*[diff(ixChangePoint) numel(signal)-ixChangePoint(end)+1];            
+            nrAfterCompress = numel(compressed);
+            fprintf('Compression: decimate to %.0fHz: %.0f%%, remove redundancy:  %.0f%%\n',o.sampleRate, 100-100*nrAfterDecimate/nrBefore,100-100*nrAfterCompress/nrAfterDecimate)
+        end
+
         function downloadStimulus(o)
             % The function that sends channel and syncout data to the
             % device in download mode. It is called before each block or trial.
@@ -715,6 +749,8 @@ classdef stg < neurostim.stimulus
             syncSent = false;
             for thisChannel = o.channel                
                 [signal,thisDuration,thisNrRepeats] = stimulusForDownload(o,thisChannel);
+                step= 1./o.outputRate;
+          
                 %% Add ramp if requested
                 if o.rampUp>0
                     nrRepeatsInRamp = ceil(o.rampUp/thisDuration);
@@ -723,10 +759,13 @@ classdef stg < neurostim.stimulus
                     end
                     fullSignalForRamp =  repmat(signal,[1 nrRepeatsInRamp]);
                     rampUpSignal = linspace(0,1,numel(fullSignalForRamp)).*fullSignalForRamp;
+                    R = ceil(o.outputRate/o.sampleRate);
+                    rampUpSignal = decimate(rampUpSignal,R);
+                    rampUpSamples = R*ones(size(rampUpSignal));
                 else
                     rampUpSignal = [];
                 end
-
+                
                 if o.rampDown>0
                     nrRepeatsInRamp = ceil(o.rampDown/thisDuration);
                     if nrRepeatsInRamp ~= o.rampDown/thisDuration
@@ -734,13 +773,25 @@ classdef stg < neurostim.stimulus
                     end
                     fullSignalForRamp =  repmat(signal,[1 nrRepeatsInRamp]);
                     rampDownSignal = linspace(1,0,numel(fullSignalForRamp)).*fullSignalForRamp;
+                    R = ceil(o.outputRate/o.sampleRate);
+                    rampDownSignal = decimate(rampDownSignal,R);
+                    rampDownSamples = R*ones(size(rampDownSignal));
                 else
                     rampDownSignal = [];
                 end
 
+                % Construct the full signal  (compress if possible)
+                if o.sham                        
+                    values =  [rampUpSignal rampDownSignal];
+                    durationInSamples  = [rampUpSamples,rampDownSamples];                 
+                else
+                    [signal,signalSamples] = compress(o,signal,thisNrRepeats);
+                    values= [rampUpSignal signal rampDownSignal];
+                    durationInSamples  = [rampUpSamples,signalSamples, rampUpSamples];                 
+                end
+                syncValue = ones(size(values));
 
-                %%  Code the signal
-                % Convert to DAC values
+                % Convert to daq units
                 if o.currentMode
                     % Need amplitude in nA
                     scale = 1e6;  % Convert specified mA to nA
@@ -758,58 +809,15 @@ classdef stg < neurostim.stimulus
                         valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_voltage;
                     end
                 end
-
-                step= 1./o.outputRate;
-                if  ischar(o.fun) &&  strcmpi(o.fun,'tDCS')
-                    % Special mode for tDCS to circumvent a likely bug with
-                    % the compressed specification in the else condition
-                    % below. 
-                    maxVal = max(signal); % The intended level
-                    rampStepDuration =5; % Step in ms.
-                    maxValDuration = thisNrRepeats*thisDuration; % Stim duration in ms.
-                    nrDownRamp = o.rampDown/rampStepDuration;
-                    nrUpRamp = o.rampUp/rampStepDuration;
-                    values   = linspace(0,maxVal,nrUpRamp);
-                    duration = rampStepDuration*ones(1,nrUpRamp); 
-                    if ~o.sham
-                         values = [values maxVal]; %#ok<AGROW>
-                         duration = [duration maxValDuration]; %#ok<AGROW>
-                    end
-                    values = [values linspace(maxVal,0,nrDownRamp)];%#ok<AGROW>
-                    duration = [duration rampStepDuration*ones(1,nrDownRamp)]; %#ok<AGROW>    
-                    values  = scale*values;  % mA to nA for transmission to STG
-                    syncValue = ones(size(values));
-                    duration = 1e3*duration; %ms to mus                                        
-                elseif o.sham
-                    %Up and immediately down
-                    values =    [scale*rampUpSignal          scale*rampDownSignal];
-                    duration  = [ones(1,numel(rampUpSignal)),ones(1,numel(rampDownSignal))]*(step/1e-6);
-                    syncValue = [ones(1,numel(rampUpSignal)),ones(1,numel(rampDownSignal))];
-                else
-                    % In some of our early experimets we noticed that this
-                    % compression scheme does not work for long durations. 
-                    % For 15 minutes duration, the duration was off by a factor of 20. 
-                    % While that looks to be a unit error (i.e. time in
-                    % samples, not in mus), that does not match the result
-                    % for a 2 s duration, which was exactly 2s. 
-                    % It is not clear why this happens. 
-                    % But for tDCS we started useing the simpler call above. 
-                    % For tACS we will have to reconsider...
-                    fprintf(2,' *************\n This compression scheme does not work properly for long duration stimulation. \n Ignore this message at your own risk. \n ************\n')                    
-                    % A block that starts with 0 amplitude and 0 duration and
-                    % ends with n ampltidude and 0 duration is repeated n
-                    % times. This is used to repeat sines, or to create a long
-                    % duration constant stimulus.
-                    values =    [scale*rampUpSignal           0,    scale*signal,               thisNrRepeats,   scale*rampDownSignal];
-                    duration  = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      0,             ones(1,numel(rampDownSignal))]*(step/1e-6);
-                    syncValue = [ones(1,numel(rampUpSignal)), 0,    ones(1,numel(signal)),      thisNrRepeats,   ones(1,numel(rampDownSignal))];
-                end
-
+                values= values*scale;  % nA or muV
+                duration =durationInSamples*step*1e6; %mus                                    
+            
+                 % Send to STG
                 if ~o.fake
                     % Clear channel and send stimulus data to device
                     amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
                     durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
-                    o.writeToFeed(sprintf('Sending channel %d data (~ %4.0f kB) to STG',thisChannel-1,numel(duration)*8/1000));
+                    o.writeToFeed(sprintf('Sending channel %d data (~ %4.0f kB) to STG',thisChannel-1,numel(durationInSamples)*8/1000));
                     tic;
                     o.device.PrepareAndSendData( uint32(thisChannel-1), amplitudeNet, durationNet,valueCode);
                     o.writeToFeed(sprintf('Done in %4.0f s',toc));
@@ -821,7 +829,7 @@ classdef stg < neurostim.stimulus
                         o.device.PrepareAndSendData(uint32(o.syncOutChannel-1),amplitudeNet,durationNet,Mcs.Usb.STG_DestinationEnumNet.syncoutdata);
                         syncSent = true;
                         o.writeToFeed(sprintf('Done in %4.0f s',toc));
-                    end
+                    end                                         
                 end
 
             end
@@ -862,6 +870,29 @@ classdef stg < neurostim.stimulus
             % Add plugin specific elements
         end
 
+
+        function debug()
+                o = neurostim.stimuli.stg(neurostim.cic);
+                o.fun             = 'tDCS';
+                o.mode              = 'BLOCK';
+                o.rampUp            = 100;
+                o.rampDown          = 100;
+                o.duration        = 5000; % 1 ms duration  (duration is abritrary for tDCS; the real duration is set by nrRepeats*duration)
+                o.channel         = [1 2 3 4]; % 
+                o.currentMode     = true;
+                o.amplitude       = 0;
+                o.mean            = 1;
+                o.downloadMode =  false;
+                o.debugStream = true;
+
+                o.beforeExperiment
+                
+                prepareStimulus(o);
+                start(o);
+                pause(5)
+                stop(o);
+                disconnect(o)
+        end
     end
 
     %% GUI Functions

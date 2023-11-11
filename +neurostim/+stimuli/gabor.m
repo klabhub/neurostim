@@ -23,7 +23,8 @@ classdef gabor < neurostim.stimulus
     %                   Michelson contrasts of the sine changes
     %                   (~contrast(1+sin(t)))
     % flickerFrequency = in Hz
-    % flickerPhaseOffset = starting  phase of the flicker modulation.
+    % flickerPhaseOffset = starting  phase of the flicker modulation (in
+    %                       radians!)
     %
     %
     %  This stimulus can also draw the sum of multiple gabors. You can
@@ -48,21 +49,11 @@ classdef gabor < neurostim.stimulus
         texture;
         shader;
         textureRect;
-        flickerPhase=0; % frame-by-frame , current phase: not logged explicitly
-        spatialPhase=0; % frame-by-frame , current phase: not logged explicitly
+        flickerPhase=0; % frame-by-frame , current phase in radians: not logged explicitly
+        spatialPhase=0; % frame-by-frame , current phase in degrees: not logged explicitly
     end
    
-    
-    methods (Static)
-        function v = tfToPhaseSpeed(tf,framerate)
-            % Convert temporal frequency in Hz to appropriate phase speed.
-            v = 2*pi*framerate*tf;
-        end
-        function v = phaseSpeedToTf(sp)
-            v = sp/(2*pi*framerate);
-        end        
-    end
-    
+     
     methods
         function o =gabor(c,name)
             o = o@neurostim.stimulus(c,name);
@@ -84,12 +75,12 @@ classdef gabor < neurostim.stimulus
             o.addProperty('mask','Gauss','validate',@(x)(ismember(neurostim.stimuli.gabor.maskTypes,upper(x))));
             
             %% Motion
-            o.addProperty('phaseSpeed',0);
+            o.addProperty('phaseSpeed',0); % In degrees
             
             %% Flicker 
             o.addProperty('flickerMode','NONE','validate',@(x)(ismember(neurostim.stimuli.gabor.flickerTypes,upper(x))));            
             o.addProperty('flickerFrequency',0,'validate',@isnumeric);
-            o.addProperty('flickerPhaseOffset',0,'validate',@isnumeric);
+            o.addProperty('flickerPhaseOffset',0,'validate',@isnumeric); % Note that this is in radians not degrees.
             
             %% Special use
             % Set o.multiGaborsN to n>1 to create a sum of Gabors masking stimulus
@@ -164,8 +155,7 @@ classdef gabor < neurostim.stimulus
                                             
             % Draw the Gabor using the GLSL shader            
             aux = [+o.spatialPhase, +o.frequency, oSigma; +o.contrast +o.flickerPhase 0 0]';    
-            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, +o.orientation, filterMode, globalAlpha, oColor , textureShader,specialFlags, aux);            
-       
+            Screen('DrawTexture', o.window, o.texture, sourceRect, o.textureRect, +o.orientation, filterMode, globalAlpha, oColor , textureShader,specialFlags, aux);                   
         end
         
         function afterFrame(o)
@@ -185,7 +175,7 @@ classdef gabor < neurostim.stimulus
             % Copied from PTB
             debuglevel = 0;
             % Global GL struct: Will be initialized in the LoadGLSLProgramFromFiles
-            global GL;
+            global GL; %#ok<GVMIS>
             % Make sure we have support for shaders, abort otherwise:
             AssertGLSL;
             % Load shader

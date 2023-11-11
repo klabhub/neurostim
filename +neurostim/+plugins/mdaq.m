@@ -133,7 +133,11 @@ classdef mdaq <  neurostim.plugin
         future;         % The future for the process acquiring and saving data on the worker.
         mmap;           % memory mapped file to transfer circular buffer from worker to client.
         mmapFile;       % Filename
-    end
+
+        reporter  = []; % A function that will be called from teh draw function with time and all channel data as input.
+                         % For instance, this could be used to provide some
+                         % command line information onthe data acqusition.
+     end
 
     properties (Dependent)
         isRunning;
@@ -488,10 +492,12 @@ classdef mdaq <  neurostim.plugin
 
 
                 if ~isempty(y)
-                    % Scale each channel to its abs max
-                    y = 0.45*y./max(y,[],"ComparisonMethod","abs");
-                    % Then add 1:N to each channel to space them vertically
-                    % (flip to match the order of the legend).
+                    % Scale channels to the abs max
+                    if ~isempty(o.reporter)  && isa(o.reporter,'function_handle')
+                        o.reporter(t,y); %  Pass time and data to the user function 
+                    end
+                    y = 0.45*y./max(y(:),[],"ComparisonMethod","abs");
+                    % Then add 1:N to each channel to space them vertically                  
                     ks = o.clockedInputKeys;
                     nrChannels = size(y,2);
                     channels  =1:nrChannels;                    
