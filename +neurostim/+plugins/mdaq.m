@@ -123,7 +123,7 @@ classdef mdaq <  neurostim.plugin
         bufferIx;       % Current end of data in circular buffer.
         previousBufferIx;  % For graphical updates
         FID;            % FID for temporary file storage
-
+        closingDown     % Flag to indicate whether shutDown was just called.
         ax =[];         % Handle to the nsGui Axes.
 
         % Properties used in useWorker = true (i.e., parallel data
@@ -547,9 +547,10 @@ classdef mdaq <  neurostim.plugin
 
         function shutdown(o)
             if o.isRunning
+                o.closingDown = true;
+                pause(1/o.updateRate); % make sure one more call to scansavailable
                 stop(o.hDaqClocked)
                 flush(o.hDaqClocked)
-                pause(1);
                 removechannel(o.hDaqClocked,1:numel(o.hDaqClocked.Channels)); % Free
             end
             if ~isempty(o.FID) && o.FID ~=-1
@@ -756,6 +757,9 @@ classdef mdaq <  neurostim.plugin
                  if any(isStateChange)
                     previousState = ttl(find(isStateChange,1,'last'),:);                   
                     fwrite(o.FID, [timestamp(isStateChange) ttl(isStateChange,:)]', o.precision);            
+                 end
+                 if o.closingDown % Always write the last state
+                     fwrite(o.FID, [timestamp(end) ttl(end,:)]', o.precision);   
                  end
             else
                 % Regular saving of all samples
