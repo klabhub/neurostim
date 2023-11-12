@@ -496,7 +496,7 @@ classdef mdaq <  neurostim.plugin
                     if ~isempty(o.reporter)  && isa(o.reporter,'function_handle')
                         o.reporter(t,y); %  Pass time and data to the user function 
                     end
-                    y = 0.45*y./max(y(:),[],"ComparisonMethod","abs");
+                    y = 0.45*y./abs(max(y,[],"ComparisonMethod","abs"));
                     % Then add 1:N to each channel to space them vertically                  
                     ks = o.clockedInputKeys;
                     nrChannels = size(y,2);

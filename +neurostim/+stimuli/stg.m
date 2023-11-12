@@ -764,6 +764,7 @@ classdef stg < neurostim.stimulus
                     rampUpSamples = R*ones(size(rampUpSignal));
                 else
                     rampUpSignal = [];
+                    rampUpSamples =[];
                 end
                 
                 if o.rampDown>0
@@ -778,6 +779,7 @@ classdef stg < neurostim.stimulus
                     rampDownSamples = R*ones(size(rampDownSignal));
                 else
                     rampDownSignal = [];
+                    rampDownSamples =[];
                 end
 
                 % Construct the full signal  (compress if possible)
