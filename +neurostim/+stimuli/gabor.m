@@ -108,7 +108,8 @@ classdef gabor < neurostim.stimulus
         function beforeTrial(o)
             
             o.spatialPhase = o.phase; % user-defined initial phase
-
+            o.flickerPhase = o.flickerPhaseOffset;
+            
             if o.multiGaborsN~=0              
                 if o.multiGaborsN>10
                     error('Max 10 gabors in a multi gabor');
