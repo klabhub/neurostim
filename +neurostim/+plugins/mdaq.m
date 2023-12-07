@@ -123,7 +123,7 @@ classdef mdaq <  neurostim.plugin
         bufferIx;       % Current end of data in circular buffer.
         previousBufferIx;  % For graphical updates
         FID;            % FID for temporary file storage
-
+        closingDown     % Flag to indicate whether shutDown was just called.
         ax =[];         % Handle to the nsGui Axes.
 
         % Properties used in useWorker = true (i.e., parallel data
@@ -549,9 +549,10 @@ classdef mdaq <  neurostim.plugin
 
         function shutdown(o)
             if o.isRunning
+                o.closingDown = true;
+                pause(1/o.updateRate); % make sure one more call to scansavailable
                 stop(o.hDaqClocked)
                 flush(o.hDaqClocked)
-                pause(1);
                 removechannel(o.hDaqClocked,1:numel(o.hDaqClocked.Channels)); % Free
             end
             if ~isempty(o.FID) && o.FID ~=-1
@@ -602,10 +603,43 @@ classdef mdaq <  neurostim.plugin
             % use 'root' to remap  the root ( {'c:\','d:\'} for a recording
             % that saved to c:\ but the data are now stored on d:\/
             % Or use file to specify a complete file name.
+            % 
+            % By default this assumes that the DAQ never dropped samples,
+            % and that the clock of the DAQ stayed in sync with the
+            % neurostim clock throughout the experiment. For lower quality
+            % DAQ devices this is unlikely to be true. 
+            % 
+            % The timeSync struct can be used to synchronize the neurostim
+            % clock based on events with a known neurostim time and a known
+            % transition in the daq input. A diode recording stimulus onset
+            % with the diodeFlasher is a good example. The timeSync struct
+            % should specify the following
+            % .plg - The name of the plugin/stimulus that generated the
+            %           event  (e.g. 'flash')
+            % .prm - The parameter in the plugin. Usually 'startTime'
+            % .channelName -  The name of the daq channel that recorded the
+            % transition (e.g. 'diode')
+            % .threshold - The value of the analog/digital input that can
+            % be used to detect changes in the state (e.g. 3.3 for a TTL
+            % input).
+            % .highToLow  - Set to true to identify transitions from high
+            % to low as the onset of the event, or false to use the
+            % low-to-high transition.
+            %  EXAMPLE:
+            %   timeSync = struct('channelName','diode',
+            %                       'threshold',3.3,
+            %                       'highToLow',true,
+            %                       'plg','flicker',
+            %                       'prm','startTime')
+            %  
+            % This synchronization code does not seem to work very well; in
+            % some cases the default alignment (i.e. assuming clocks remain
+            % synced works better). Check alignment carefully.
             arguments
                 o (1,1) neurostim.plugins.mdaq                
                 pv.root (1,:) = {}
                 pv.file (1,1) string =""
+                pv.timeSync struct = struct([])
             end
             if pv.file==""
                 filename = o.dataFile;
@@ -625,20 +659,77 @@ classdef mdaq <  neurostim.plugin
             timestamps  = double(data(1,:)');
             clockTime = seconds(timestamps) + o.triggerTime;
             % Use the startDaq event to determine the neurostim experiment
-            % time for each sample.
+            % time for each sample. This assumes that there is no drift in
+            % the clocks of NS and the DAQ. 
             [daqTriggerTime,~,~,exptTime]=get(o.prms.startDaq,'withdata',true);
             nsTime = timestamps + seconds(o.triggerTime-daqTriggerTime)+exptTime/1000;
             data = num2cell(data(2:end,:)',1);
             names = keys(o.inputMap);
             T = timetable(clockTime,seconds(nsTime),data{:},'VariableNames',cat(2,'nsTime',names));
+            
+            if  ~isempty(pv.timeSync)
+                % Use events with known co-ocurrence to sync the clocks.
+                fprintf(2,'Synchronizing NS and DAQ clocks. Careful this is known to have problems. Check alignment! \n')
+                % Extract the time in seconds, on the neurostim clock, when sync event occurred .
+                plg = o.cic.(pv.timeSync.plg);
+                [~,~,~,syncNsTime]= get(plg.prms.(pv.timeSync.prm),'atTrialTime',inf);
+                syncNsTime = syncNsTime(~isinf(syncNsTime))/1000;
+                if  isempty(syncNsTime)
+                    fprintf('No synchronization events found for %s <-> %s. Using native DAQ timing.\n',plg.name,pv.timeSync.in)
+                    return 
+                end                 
+                % Find the corresponding transition in the bin data                
+                isHigh  = T.(pv.timeSync.channelName)>pv.timeSync.threshold;
+                if pv.timeSync.highToLow
+                    % High to low
+                    isTransition = [false; diff(isHigh)<0];
+                else % low to high
+                    isTransition = [false; diff(isHigh)>0];
+                end
+                % Convert to seconds
+                tTransition = convertTo(clockTime(isTransition),'posixtime');
+               
+                % Check that the number events matches
+                dN = (numel(tTransition)-numel(syncNsTime));
+                if dN~=0
+                if dN >0 
+                    fprintf(2,'Mismatch (%d) in the number of synchronizing events. Tyring to fix by removing events from DAQ\n',dN)
+                    [X,lags] = xcorr(diff(tTransition),diff(syncNsTime),abs(dN),'none');%#ok<ASGLU>
+                    if X(1) > X(end)
+                        tTransition = tTransition(1+dN:end);
+                    else
+                        tTransition = tTransition(1:end-dN);
+                    end
+                else 
+                    error('Not enough synchronizing events (%d  detected by DAQ, %d generated by NS)',numel(tTransition),numel(syncNsTime))
+                end
+                end
+
+                % Sync the clocks by fitting the DAQ to the neurostim clock
+                x = syncNsTime;
+                mx= mean(x);
+                y = tTransition;
+                my = mean(y);
+                clockParms =  polyfit(x-mx,y-my,1); % Fit a line to translate nsTim to daq time  (assuming nsTime is more accurate)
+                resid = polyval(clockParms,(x-mx))-(y-my);
+                slope = clockParms(1);
+                fprintf('Clock residuals: %3.3f ms +/- %3.3f ms, drift %3.3f ms/ms\n',1000*mean(resid),1000*std(resid),slope-1);
+                if (abs((slope-1))>0.5e-3)
+                    error('Neurostim-DAQ Clock skew larger than 0.5 ms/s detected');
+                end
+                % Convert sample time to neurostim time (in seconds)
+                invParms = [1 -clockParms(2)]./clockParms(1);
+                newNsTime  = polyval(invParms,convertTo(clockTime,'posixtime')-my) +mx;
+                % Recreate the table with these new ns times.
+                T = timetable(clockTime,seconds(newNsTime),data{:},'VariableNames',cat(2,'nsTime',names));        
+            end
+           
         end
     end
 
 
     methods (Access=protected)
         function out = sendToWorker(o,code)
-
-
             send(o.sendQueue,code);
             [fromWorker,ok] = poll(o.receiveQueue, 15);
             if ok
@@ -758,6 +849,9 @@ classdef mdaq <  neurostim.plugin
                  if any(isStateChange)
                     previousState = ttl(find(isStateChange,1,'last'),:);                   
                     fwrite(o.FID, [timestamp(isStateChange) ttl(isStateChange,:)]', o.precision);            
+                 end
+                 if o.closingDown % Always write the last state
+                     fwrite(o.FID, [timestamp(end) ttl(end,:)]', o.precision);   
                  end
             else
                 % Regular saving of all samples
