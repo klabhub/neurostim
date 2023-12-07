@@ -394,26 +394,28 @@ classdef mdaq <  neurostim.plugin
             % (true/false)
             arguments
                 o (1,1) neurostim.plugins.mdaq
-                name (1,1) string
+                name (1,:) string
                 value (1,1) logical
 
             end
-            if o.fake; o.writeToFeed(sprintf('Digital out %s - %d\n',name,value));return;end
+            for thisName = name
+            if o.fake; o.writeToFeed(sprintf('Digital out %s - %d\n',thisName,value));return;end
             % First map the name to a daq channel
-            if ~isKey(o.outputMap,name)
-                error('No output channel named %s',name)
+            if ~isKey(o.outputMap,thisName)
+                error('No output channel named %s',thisName)
             end
 
-            prms = o.outputMap(name);
+            prms = o.outputMap(thisName);
             channelName = prms{1} + "_" + prms{2}; % e.g. "Dev1_port0/line0";
             [tf,ix]= ismember(channelName,{o.hDaqOnDemand.Channels.Name});
             if ~tf
-                error('Output channel %s has not yet been setup on the DAQ (%s)',name,channelName)
+                error('Output channel %s has not yet been setup on the DAQ (%s)',thisName,channelName)
             end
             newOutput = o.outputValue;
             newOutput(ix) =value;
             write(o.hDaqOnDemand,newOutput);
             o.outputValue = newOutput;
+            end
         end
 
         function beforeExperiment(o)
