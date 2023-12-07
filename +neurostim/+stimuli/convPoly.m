@@ -39,15 +39,17 @@ classdef convPoly < neurostim.stimulus
             o.addProperty('vy',[],'validate',@isnumeric);
             
             %Properties for flickering the stimulus
+            o.addProperty('flickerMode',"NONE"); %"NONE", "MULT" (amplitude is used as a contrast :o.color*(1+amplitude),"ADD" (amplitude is used as o.color + amplitude)
             o.addProperty('frequency',0,'validate',@isnumeric); % Hz
             o.addProperty('phase',0,'validate',@isnumeric); % degrees
             o.addProperty('amplitude',0,'validate',@isnumeric); %o.color is the mean,
+            o.addProperty('flashFrames',0,'validate',@isnumeric);
             o.addProperty('preCalc',false);
         end
         
         function beforeTrial(o)
             if o.preCalc  
-                if o.frequency ==0
+                if o.flickerMode =="NONE"
                     o.nrFramesPreCalc =1;
                 else
                     o.nrFramesPreCalc=  round(o.cic.screen.frameRate/o.frequency);
@@ -55,8 +57,20 @@ classdef convPoly < neurostim.stimulus
                         writeToFeed(o,sprintf('ConvPoly: flicker frequency %f does not quite fit...rounding artefacts?',o.frequency));
                     end
                 end
-                 t = repmat((0:(o.nrFramesPreCalc-1))'/o.cic.screen.frameRate,[1 size(o.color,2)]);                
-                o.colorPerFrame =  repmat(o.color,[size(t,1) 1]) .* (1+o.amplitude.*sind(o.phase + 360*t*o.frequency));                
+                 t = repmat((0:(o.nrFramesPreCalc-1))'/o.cic.screen.frameRate,[1 size(o.color,2)]);     
+                if o.flashFrames>0
+                    flash = (t<=o.flashFrames/o.cic.screen.frameRate);
+                else
+                    flash =1;
+                end
+                o.colorPerFrame =  repmat(o.color,[size(t,1) 1]); % Background
+                if o.flickerMode =="MULT"
+                    o.colorPerFrame =  o.colorPerFrame.* (1+flash*o.amplitude.*sind(o.phase + 360*t*o.frequency));                                
+                elseif o.flickerMode =="ADD"
+                    o.colorPerFrame =   o.colorPerFrame + (flash*o.amplitude.*sind(o.phase + 360*t*o.frequency));                                
+                else 
+                    error("Unknown flicker mode %s\n",o.flickerMode)
+                end
             end
         end
         
@@ -72,13 +86,24 @@ classdef convPoly < neurostim.stimulus
                 vy = o.vy;
             end
             
-            if o.amplitude>0
+            if o.flickerMode ~="NONE"
                 % Use sinusoidal flicker
                 if o.preCalc
                     ix = mod(o.frame-1,o.nrFramesPreCalc)+1;
                     thisColor = o.colorPerFrame(ix,:);
                 else
-                    thisColor  = o.color * (1+o.amplitude*sind(o.phase + 360*o.time*(o.frequency/1000)));
+                    if o.flashFrames>0
+                        flash = (o.frame <=o.flashFrames);
+                    else
+                        flash =1;
+                    end
+                    if o.flickerMode =="MULT"
+                        thisColor  = o.color * (1+flash*o.amplitude*sind(o.phase + 360*o.time*(o.frequency/1000)));                    
+                    elseif o.flickerMode == "ADD"
+                        thisColor  = o.color +flash*o.amplitude*sind(o.phase + 360*o.time*(o.frequency/1000));                    
+                    else
+                         error("Unknown flicker mode %s\n",o.flickerMode);
+                    end
                 end
             else
                 thisColor = o.color;
