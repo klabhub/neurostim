@@ -68,7 +68,9 @@ classdef convPoly < neurostim.stimulus
                     o.colorPerFrame =  o.colorPerFrame.* (1+flash*o.amplitude.*sind(o.phase + 360*t*o.frequency));                                
                 elseif o.flickerMode =="ADD"
                     o.colorPerFrame =   o.colorPerFrame + (flash*o.amplitude.*sind(o.phase + 360*t*o.frequency));                                
-                else 
+                elseif o.flickerMode =="NONE" 
+                    % Nothing to do
+                else
                     error("Unknown flicker mode %s\n",o.flickerMode)
                 end
             end
