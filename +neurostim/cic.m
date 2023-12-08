@@ -155,7 +155,8 @@ classdef cic < neurostim.plugin
         startTimeStr;  % Start time as a HH:MM:SS string
         blockName;      % Name of the current block
         trialTime;      % Time elapsed (ms) since the start of the trial
-        nrTrialsTotal;   % Number of trials total (all blocks)
+        nrTrialsTotal;   % Number of trials total (all blocks) - this includes planned trials
+        nrTrialsCompleted; % Current number 
         date;           % Date of the experiment.
         blockDone;      % Is the current block done?
         hasValidWindow; % Is the Main Window valid?
@@ -175,7 +176,11 @@ classdef cic < neurostim.plugin
         function v=get.nrTrialsTotal(c)
             v= sum([c.blocks(c.blockFlow.list).nrPlannedTrials]) + sum([c.blocks.nrRetried]);
         end
-
+        
+        function v = get.nrTrialsCompleted(c)
+            v = c.prms.trial.value;
+        end
+           
         function v= get.nrStimuli(c)
             v= length(c.stimuli);
         end
