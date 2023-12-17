@@ -222,7 +222,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             %                   (c.blocks.design, or c.blocks,
             %                   respectively)
             %
-            % Example (From experiments/bart/cardgame)
+            % notDefined - logical/index to indicate rows in the table in
+            % which these properties are not meaningful. Rather than
+            % putting these values in the table, they are replaced with NaN
+            % or n/a to avoid confusion down the line. (This happens for
+            % instance if there are trials in which one stimulus is not
+            % enabled; parameters of that stimulus are not "meaningful).
+            %
+            %
+            % Example (From cardgame)
             % tbl = getBIDSTable(c); % Setuo the basic sturcture (trials,
             % blocks etc)
             %  Cardgame Parameters
@@ -255,6 +263,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('atTrialTime',Inf,@isnumeric);
             p.addParameter('alignTime',[]);
             p.addParameter('trial_type',{},@(x) (ischar(x) && ismember(upper(x),{'BLOCKS'})) || iscell(x)); %
+            p.addParameter('notDefined',[],@islogical); % Rows in which these properties should be set to Nan.
             p.parse(varargin{:});
             tbl = p.Results.tbl;
             
@@ -381,6 +390,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             for i= 1:numel(p.Results.properties)
                 [v] = get(o.prms.(p.Results.properties{i}),'atTrialTime',p.Results.atTrialTime);
                 
+               
                 % If a parm is a vector in some trials but a scalar NaN in
                 % other trials, we make sure to create a matching vector of
                 % NaNs. (Otherwise the table will hae missing values, and
@@ -400,7 +410,22 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                     fun = p.Results.propertyProcessing(p.Results.properties{i});
                     v= fun(v);
                 end
-                
+                % If some properties are not defined in some trials,
+                % replace the values with n/a or NaN
+                 if ~isempty(p.Results.notDefined)
+                    if isstring(v)
+                        v(p.Results.notDefined,:) = "n/a";
+                    elseif iscellstr(v)
+                        [v{p.Results.notDefined}] = deal('n/a');
+                    elseif iscell(v)
+                        [v{p.Results.notDefined}] = deal(NaN);
+                    elseif isnumeric(v)                        
+                        v(p.Results.notDefined,:) =NaN;
+                    elseif islogical(v)
+                        v=double(v);
+                        v(p.Results.notDefined,:) =NaN;
+                    end
+                end
                 
                 if isKey(p.Results.propertyNames,p.Results.properties{i})
                     thisName = p.Results.propertyNames(p.Results.properties{i});
