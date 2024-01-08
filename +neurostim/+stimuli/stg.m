@@ -224,7 +224,12 @@ classdef stg < neurostim.stimulus
 
         function beforeExperiment(o)
             tic
-            if o.fake;return;end
+            if o.fake
+                o.nrChannels = 8;
+                o.iResolution = 200/1e6*ones(1,o.nrChannels); %200nA in mA
+                o.vResolution = 1*ones(1,o.nrChannels); % 1mV
+                return;
+            end
             %% Load the relevant NET assembly if necessary
             asm = System.AppDomain.CurrentDomain.GetAssemblies;
             assemblyIsLoaded = any(arrayfun(@(n) strncmpi(char(asm.Get(n-1).FullName), 'McsUsbNet', length('McsUsbNet')), 1:asm.Length));
@@ -479,11 +484,7 @@ classdef stg < neurostim.stimulus
         end
 
         function connect(o)
-            % Connect to the device and setup the devic
-            if o.fake
-                o.writeToFeed('Connect to STG');
-                return
-            end
+            % Connect to the device and setup the device 
             if ~o.isConnected
                 if o.isDownload
                     % Use download mode
@@ -710,6 +711,7 @@ classdef stg < neurostim.stimulus
         end
 
         function clearDownloadStimulus(o)
+            if o.fake;return;end
             for i=1:o.nrChannels
                 o.device.ClearChannelData(uint32(i-1));
                 o.device.ClearSyncData(uint32(i-1));
