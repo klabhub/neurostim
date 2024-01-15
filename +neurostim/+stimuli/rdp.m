@@ -63,10 +63,15 @@ classdef rdp < neurostim.stimulus
             o.addProperty('noiseDist',0,'validate',@(x)x==0||x==1);       % gaussian, uniform
             o.addProperty('noiseWidth',50,'validate',@isnumeric);
             o.addProperty('truncateGauss',-1,'validate',@isnumeric);
+            o.addProperty('rngSeed',[]);
         end
         
         
         function beforeTrial(o)
+            
+            if ~isempty(o.rngSeed)
+                rng(o.rngSeed);%reset random number generator 
+            end 
             
             % overrule one of the velocity vectors based on coord system
             if o.coordSystem == 1
@@ -134,6 +139,11 @@ classdef rdp < neurostim.stimulus
         function initialiseDots(o,pos)
             % initialises dots in the array positions given by logical
             % array pos.
+            
+            if ~isempty(o.rngSeed)
+                rng(o.rngSeed);%reset random number generator 
+            end
+            
             nnzpos=nnz(pos);
             o.framesLeft(pos,1) = o.lifetime;
             o.radius(pos,1) = sqrt(rand(nnzpos,1).*o.maxRadius.*o.maxRadius);
