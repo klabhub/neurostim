@@ -747,6 +747,7 @@ classdef stg < neurostim.stimulus
             end 
             % Define the values of the stimulus
             syncSent = false;
+            R = ceil(o.outputRate/o.sampleRate);
             for thisChannel = o.channel                
                 [signal,thisDuration,thisNrRepeats] = stimulusForDownload(o,thisChannel);
                 step= 1./o.outputRate;
@@ -759,7 +760,7 @@ classdef stg < neurostim.stimulus
                     end
                     fullSignalForRamp =  repmat(signal,[1 nrRepeatsInRamp]);
                     rampUpSignal = linspace(0,1,numel(fullSignalForRamp)).*fullSignalForRamp;
-                    R = ceil(o.outputRate/o.sampleRate);
+                    
                     rampUpSignal = decimate(rampUpSignal,R);
                     rampUpSamples = R*ones(size(rampUpSignal));
                 else
@@ -774,7 +775,6 @@ classdef stg < neurostim.stimulus
                     end
                     fullSignalForRamp =  repmat(signal,[1 nrRepeatsInRamp]);
                     rampDownSignal = linspace(1,0,numel(fullSignalForRamp)).*fullSignalForRamp;
-                    R = ceil(o.outputRate/o.sampleRate);
                     rampDownSignal = decimate(rampDownSignal,R);
                     rampDownSamples = R*ones(size(rampDownSignal));
                 else
@@ -786,8 +786,13 @@ classdef stg < neurostim.stimulus
                 if o.sham                        
                     values =  [rampUpSignal rampDownSignal];
                     durationInSamples  = [rampUpSamples,rampDownSamples];                 
-                else
+                elseif strcmpi(o.fun,'tDCS')
                     [signal,signalSamples] = compress(o,signal,thisNrRepeats);
+                    values= [rampUpSignal signal rampDownSignal];
+                    durationInSamples  = [rampUpSamples,signalSamples, rampUpSamples];                 
+                else %Uncompressed
+                    signal = repmat(signal,[1 thisNrRepeats]);
+                    signalSamples = R*ones(size(signal));
                     values= [rampUpSignal signal rampDownSignal];
                     durationInSamples  = [rampUpSamples,signalSamples, rampUpSamples];                 
                 end
