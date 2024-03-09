@@ -386,7 +386,7 @@ classdef stg < neurostim.stimulus
                 if o.fake
                     o.writeToFeed('Start Stimulation');
                 else
-                    o.device.SendStart(chan2mask(o,o.channel)); % Trigger channels                
+                    o.device.SendStart(chan2mask(o,1:o.nrChannels)); % Trigger channels                
                 end                
                 o.triggerTime = o.cic.clockTime;    
             end    
@@ -747,9 +747,29 @@ classdef stg < neurostim.stimulus
             elseif ~o.isConnected
                 error(o.cic,'STOPEXPERIMENT','Could not set the stimulation stimulus - device disconnected');
             end 
+            
+            if o.currentMode
+                    % Need amplitude in nA
+                    daqScale = 1e6;  % Convert specified mA to nA
+                    if o.fake
+                        valueCode = 1;
+                    else
+                        valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_current;
+                    end
+                else
+                    %  Need amplitude in muV
+                    daqScale = 1e3;  % Convert mV to muV
+                    if o.fake
+                        valueCode =1;
+                    else
+                        valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_voltage;
+                    end
+                end
+
             % Define the values of the stimulus
             syncSent = false;
             R = ceil(o.outputRate/o.sampleRate);
+            maxDurationAcrossChannels = 0;
             for thisChannel = o.channel                
                 [signal,thisDuration,thisNrRepeats] = stimulusForDownload(o,thisChannel);
                 step= 1./o.outputRate;
@@ -800,27 +820,10 @@ classdef stg < neurostim.stimulus
                 end
                 syncValue = ones(size(values));
 
-                % Convert to daq units
-                if o.currentMode
-                    % Need amplitude in nA
-                    scale = 1e6;  % Convert specified mA to nA
-                    if o.fake
-                        valueCode = 1;
-                    else
-                        valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_current;
-                    end
-                else
-                    %  Need amplitude in muV
-                    scale = 1e3;  % Convert mV to muV
-                    if o.fake
-                        valueCode =1;
-                    else
-                        valueCode = Mcs.Usb.STG_DestinationEnumNet.channeldata_voltage;
-                    end
-                end
-                values= values*scale;  % nA or muV
+                % Convert to daq units              
+                values= values*daqScale;  % nA or muV
                 duration =durationInSamples*step*1e6; %mus                                    
-            
+                maxDurationAcrossChannels = max(maxDurationAcrossChannels,duration);
                  % Send to STG
                 if ~o.fake
                     % Clear channel and send stimulus data to device
@@ -841,6 +844,21 @@ classdef stg < neurostim.stimulus
                     end                                         
                 end
 
+            end
+
+             for thisChannel = setdiff(1:o.nrChannels,o.channel)                                
+                values= 0;  % nA or muV
+                duration =maxDurationAcrossChannels;
+                % Send to STG
+                if ~o.fake
+                    % Clear channel and send stimulus data to device
+                    amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
+                    durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
+                    o.writeToFeed(sprintf('Sending 0 to channel %d ',thisChannel-1));
+                    tic;
+                    o.device.PrepareAndSendData( uint32(thisChannel-1), amplitudeNet, durationNet,valueCode);
+                    o.writeToFeed(sprintf('Done in %4.0f s',toc));                                                         
+                end
             end
         end
 
