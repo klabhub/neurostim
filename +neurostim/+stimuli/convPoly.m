@@ -49,7 +49,7 @@ classdef convPoly < neurostim.stimulus
         
         function beforeTrial(o)
             if o.preCalc  
-                if o.flickerMode =="NONE"
+                if o.flickerMode =="NONE" || o.frequency==0
                     o.nrFramesPreCalc =1;
                 else
                     o.nrFramesPreCalc=  round(o.cic.screen.frameRate/o.frequency);
