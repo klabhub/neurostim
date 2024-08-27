@@ -55,7 +55,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force,plg)
+        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force,plg,logKeyPress)
             %  addKey(o,key,keyHelp,isSubject,fun)
             % Runs a function in response to a specific key press.
             % key - a single key (string)
@@ -69,25 +69,40 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % force - set to true to force adding this key (and thereby
             % taking it away from anihter plugin). This only makes sense if
             % you restore it soon after, using the returned keyInfo.
+            % logKeyPress - set to true to log every key press
+
             nin =nargin;
-            if nin <7
-                plg = o;
-                if nin <6
-                    force =false;
-                    if nin<5
-                        fun =[];
-                        if nin < 4
-                            isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
-                            if nin <3
-                                keyHelp = '?';
+            if nin < 8
+                logKeyPress = false
+                if nin <7
+                    plg = o;
+                    if nin <6
+                        force =false;
+                        if nin<5
+                            fun =[];
+                            if nin < 4
+                                isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
+                                if nin <3
+                                    keyHelp = '?';
+                                end
                             end
                         end
                     end
                 end
-            end
-            oldKey = addKeyStroke(o.cic,key,keyHelp,plg,isSubject,fun,force);
+            oldKey = addKeyStroke(o.cic,key,keyHelp,plg,isSubject,fun,force,logKeyPress);
         end
         
+        function logKey(o, key, isSubject)
+            % Public convenience function to turn on logging for a particular key without any callback
+            % key - a single key (string)
+            % isSubject - bool to indicate whether this is a key press on the subject side (true) or experimenter (false) 
+
+            if nin < 3
+                isSubject = false
+                
+            do_nothing = @() []
+            o.addKey(o,key,"",isSubject,do_nothing,false,o,true)
+
         % Convenience wrapper; just passed to CIC
         function endTrial(o)
             % Move to the next trial
