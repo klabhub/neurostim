@@ -78,6 +78,7 @@ classdef cic < neurostim.plugin
             'subject',{[]},... % The keyboard that will handle keys for which isSubect is true (=by default stimuli)
             'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
             'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
+            'logKeyPress', {logical([])},...% Should we log the key press (as [GetSecs, key])?
             'activeKb',{[]});  % Indices of keyboard that have keys associated with them. Set and used internally)
 
         %% Git version tracking
@@ -439,6 +440,7 @@ classdef cic < neurostim.plugin
             c.addProperty('matlabVersion', []); %Log MATLAB version used to run this experiment - set at runtime
             c.addProperty('ptbVersion',[]); % Log PTB Version used to run this experiment - set at runtime
             c.addProperty('repoVersion',[]); % Information on the git version/hash. - set at runtime
+            c.addProperty('pressedKey',[]); % Used to log key presses
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
 
 
@@ -1340,7 +1342,7 @@ classdef cic < neurostim.plugin
         end
 
         %% Keyboard handling routines
-        function oldKey = addKeyStroke(c,key,keyHelp,plg,isSubject,fun,force)
+        function oldKey = addKeyStroke(c,key,keyHelp,plg,isSubject,fun,force,logKeyPress)
             if c.loadedFromFile
                 % When loading fro file, PTB may not be installed and none
                 % of the "online/intractive" funcationality is relevant.
@@ -1365,6 +1367,7 @@ classdef cic < neurostim.plugin
                     oldKey.plg = c.kbInfo.plugin{ix};
                     oldKey.isSubject  = c.kbInfo.isSubject(ix);
                     oldKey.fun  = c.kbInfo.fun{ix};
+                    oldKey.fun  = c.kbInfo.logKeyPress{ix};
                 end
             else
                 oldKey = [];
@@ -1375,6 +1378,7 @@ classdef cic < neurostim.plugin
             c.kbInfo.plugin{ix} = plg; % Handle to plugin to call keyboard()
             c.kbInfo.isSubject(ix) = isSubject;
             c.kbInfo.fun{ix} = fun;
+            c.kbInfo.logKeyPress{ix} = logKeyPress
         end
 
         function removeKeyStroke(c,key)
@@ -1394,6 +1398,7 @@ classdef cic < neurostim.plugin
                 c.kbInfo.plugin(out) = [];
                 c.kbInfo.isSubject(out) = [];
                 c.kbInfo.fun(out) =[];
+                c.kbInfo.logKeyPress(out) =[];
             end
         end
 
@@ -1638,13 +1643,16 @@ classdef cic < neurostim.plugin
                     ks = find(firstPress);
                     for k=ks
                         ix = find(c.kbInfo.keys==k);% should be only one.
-                        if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
+                        keyName = KbName(k)
+                        if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' keyName '??']);end
+                        if c.kbInfo.logKeyPress{ix}
+                            c.pressedKey = [GetSecs, keyName]
                         if isempty(c.kbInfo.fun{ix})
                             % Use the plugin's keyboard function
-                            keyboard(c.kbInfo.plugin{ix},KbName(k));%,firstPress(k));
+                            keyboard(c.kbInfo.plugin{ix},keyName);%,firstPress(k));
                         else
                             % Use the specified function
-                            c.kbInfo.fun{ix}(c.kbInfo.plugin{ix},KbName(k));%,firstPress(k));
+                            c.kbInfo.fun{ix}(c.kbInfo.plugin{ix},keyName);%,firstPress(k));
                         end
                     end
                 end
