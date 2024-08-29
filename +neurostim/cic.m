@@ -410,9 +410,7 @@ classdef cic < neurostim.plugin
 
             % Some very basic PTB settings that are enforced for all
             c.loadedFromFile  =p.fromFile;
-            if ~c.loadedFromFile
-                KbName('UnifyKeyNames'); % Same key names across OS.
-            end
+           
             c.cursor = p.cursor;
 
             c.stage  = neurostim.cic.SETUP;
@@ -427,11 +425,7 @@ classdef cic < neurostim.plugin
             c.dirs.root     = p.rootDir;
             c.dirs.output   = p.outputDir;
 
-            % Setup the keyboard handling
-            % Keys handled by CIC
-            c.addKey('ESCAPE','Quit');
-            c.addKey('n','Next Trial');
-            c.addKey('F1','Toggle Cursor');
+            
 
             c.addProperty('trial',0); % Should be the first property added (it is used to log the others).
             c.addProperty('frameDrop',[NaN NaN]);
@@ -918,11 +912,20 @@ classdef cic < neurostim.plugin
 
             assert(~c.used,'CIC objects are single-use only. Please create a new one to start this experiment!');
             c.used  = true;
-
+           
             % Make sure openGL is working properly.
             InitializeMatlabOpenGL;
             AssertOpenGL;
             sca; % Close any open PTB windows.
+
+            % Setup the keyboard handling
+             if ~c.loadedFromFile
+                KbName('UnifyKeyNames'); % Same key names across OS.
+            end
+            % Keys handled by CIC
+            c.addKey('ESCAPE','Quit');
+            c.addKey('n','Next Trial');
+            c.addKey('F1','Toggle Cursor');
 
             % Version tracking  at run time.
             c.matlabVersion = version;
