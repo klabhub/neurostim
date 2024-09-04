@@ -374,14 +374,27 @@ classdef parameter < handle & matlab.mixin.Copyable
             p.addParameter('dataIsMember',{});  %Only when data is a member of the list
             p.addParameter('dataIsNotNan',false,@islogical);%Only when data is not nan.
             p.addParameter('matrixIfPossible',true); % Convert to a [NRTRIALS N] matrix if possible
+            p.addParameter('cellstrAsString',false); % Convert a cellstrto a string array
+            p.addParameter('removeFirstEmpty',false); %Remove the first entry if it is empty and a new value is set before the first triaal
             p.addParameter('struct',false,@islogical); % Pack the output arguments into a structure.
+
             p.addParameter('first',inf); % Return the first N (defaults to all =inf)            
             p.parse(varargin{:});
             returnMatrixIfPossible = p.Results.matrixIfPossible;
             
             %% Extract the raw data from the log. All as single column.
             data = o.log(1:o.cntr)';
-            time = o.time(1:o.cntr)'; % Force a column for consistency.           
+            time = o.time(1:o.cntr)'; % Force a column for consistency.  
+            if p.Results.removeFirstEmpty    
+            % Ifa proprty is initialized emptyin the source code, but set
+            % to a value at runtime, the collction of values cannot be
+            % converted to a vector. If that  empty value is replaced
+            % before the start of the first trial,then we can remove it.
+                if numel(data)>1 && isempty(data{1}) && time(2) < min(o.plg.cic.prms.blockTrial.time([o.plg.cic.prms.blockTrial.log{:}]==1))
+                    data(1) =[];
+                    time(1)=[];
+                end
+            end
             [trialTime, trial] = o.eTime2TrialTime(time);
             
             %% Correct times
@@ -551,7 +564,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             
             
             if returnMatrixIfPossible 
-                data=  neurostim.parameter.matrixIfPossible(data);
+                data=  neurostim.parameter.matrixIfPossible(data,p.Results.cellstrAsString);
             end
             
             if nargout >4 || p.Results.struct
@@ -689,13 +702,22 @@ classdef parameter < handle & matlab.mixin.Copyable
     end
     
     methods (Static)
-        function data = matrixIfPossible(data)
+        function data = matrixIfPossible(data,cellstrAsString)
             % Try to convert to a matrix 
             % cellstr conversion to a char array can lead to weird
-            % reshaping;  excluded
+            % reshaping;  excluded -but you can set cellstrAsString to true 
+            % to convert all cellstr to string
             % Some properties are initial as an empty struct with not
             % fields, but get fields at some point in the trial. Cannot
             % concatenate those; so exclude.
+            if nargin<2
+                cellstrAsString= false;%Backwardcompat.
+            end
+            if cellstrAsString
+                if iscellstr(data) %#ok<ISCLSTR>
+                    data = string(data);
+                end
+            end
             isStructNoFields =  @(x) (isstruct(x) && numel(fieldnames(x))==0);
             if iscell(data) && any(diff(cellfun(isStructNoFields,data))~=0); return;end
             
@@ -711,7 +733,7 @@ classdef parameter < handle & matlab.mixin.Copyable
                     ~iscellstr(data) && ... % Skip cellstring
                     ~isa(data{1},'function_handle') && ...   % Keep arrays of function handles as cell
                     (all(cellfun(@(x) (strcmpi(class(data{1}),class(x))),data)) || all(cellfun(@(x) (isnumeric(x) || islogical(x)),data))) && ...  % Same class (or mixed numeric andlogical)
-                    all(cellfun(@(x) isequal(size(data{1}),size(x)),data))  % All same size %#ok<ISCLSTR> 
+                    all(cellfun(@(x) isequal(size(data{1}),size(x)),data))  %#ok<ISCLSTR> % All same size %#ok<ISCLSTR> 
                 
                 
                 %Look for a singleton dimension
