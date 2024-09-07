@@ -281,12 +281,11 @@ classdef stimulus < neurostim.plugin
             end
             
             %Blank now if it's time to do so.
-            isOn = itemFrame < durationInFrames;
-            s.flags.on = isOn;  % Blank during rsvp isi 
+            s.flags.on = itemFrame < durationInFrames;  % Blank during rsvp isi 
             if s.rsvp.log
-                if isOn
+                if itemFrame == 0
                     s.rsvpIsi = 0;
-                else
+                elseif itemFrame == durationInFrames
                     s.rsvpIsi = 1;
                 end
             end
