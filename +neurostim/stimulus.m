@@ -277,7 +277,7 @@ classdef stimulus < neurostim.plugin
                 for sp=1:size(specs,1)
                     s.(specs{sp,2}) = specs{sp,3};
                 end
-                 localizeParms(s,true);  % Update those loc parameters that change within a trial
+                localizeParms(s,true);  % Update those loc parameters that change within a trial
             end
             
             %Blank now if it's time to do so.
