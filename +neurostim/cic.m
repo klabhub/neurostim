@@ -1378,7 +1378,7 @@ classdef cic < neurostim.plugin
             c.kbInfo.plugin{ix} = plg; % Handle to plugin to call keyboard()
             c.kbInfo.isSubject(ix) = isSubject;
             c.kbInfo.fun{ix} = fun;
-            c.kbInfo.logKeyPress{ix} = logKeyPress
+            c.kbInfo.logKeyPress{ix} = logKeyPress;
         end
 
         function removeKeyStroke(c,key)
@@ -1646,7 +1646,7 @@ classdef cic < neurostim.plugin
                         keyName = KbName(k);
                         if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' keyName '??']);end
                         if c.kbInfo.logKeyPress{ix}
-                            c.pressedKey = {GetSecs, keyName};
+                            c.pressedKey = {keyName}; %cell arrays are always logged, even if same value inside
                         end
                         if isempty(c.kbInfo.fun{ix})
                             % Use the plugin's keyboard function
