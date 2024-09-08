@@ -104,6 +104,7 @@ classdef messenger < handle
                 data.command = 'CLOSE';
                 sendCommand(o,data);
             end
+            printCache(o)
         end
         
         function disp(o)
