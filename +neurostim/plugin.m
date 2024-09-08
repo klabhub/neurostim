@@ -73,7 +73,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
 
             nin =nargin;
             if nin < 8
-                logKeyPress = false
+                logKeyPress = false;
                 if nin <7
                     plg = o;
                     if nin <6
@@ -89,6 +89,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                         end
                     end
                 end
+            end
             oldKey = addKeyStroke(o.cic,key,keyHelp,plg,isSubject,fun,force,logKeyPress);
         end
         
@@ -97,12 +98,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % key - a single key (string)
             % isSubject - bool to indicate whether this is a key press on the subject side (true) or experimenter (false) 
 
-            if nin < 3
-                isSubject = false
-                
-            do_nothing = @() []
-            o.addKey(o,key,"",isSubject,do_nothing,false,o,true)
-
+            if nargin < 3
+                isSubject = false;
+            end
+            do_nothing = @(o,key) [];
+            addKey(o,key,"",isSubject,do_nothing,false,o,true)
+        end
+        
         % Convenience wrapper; just passed to CIC
         function endTrial(o)
             % Move to the next trial

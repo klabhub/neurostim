@@ -1643,10 +1643,11 @@ classdef cic < neurostim.plugin
                     ks = find(firstPress);
                     for k=ks
                         ix = find(c.kbInfo.keys==k);% should be only one.
-                        keyName = KbName(k)
+                        keyName = KbName(k);
                         if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' keyName '??']);end
                         if c.kbInfo.logKeyPress{ix}
-                            c.pressedKey = [GetSecs, keyName]
+                            c.pressedKey = {GetSecs, keyName};
+                        end
                         if isempty(c.kbInfo.fun{ix})
                             % Use the plugin's keyboard function
                             keyboard(c.kbInfo.plugin{ix},keyName);%,firstPress(k));
