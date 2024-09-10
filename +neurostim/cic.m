@@ -440,7 +440,6 @@ classdef cic < neurostim.plugin
             c.addProperty('matlabVersion', []); %Log MATLAB version used to run this experiment - set at runtime
             c.addProperty('ptbVersion',[]); % Log PTB Version used to run this experiment - set at runtime
             c.addProperty('repoVersion',[]); % Information on the git version/hash. - set at runtime
-            c.addProperty('pressedKey',[]); % Used to log key presses
             c.feedStyle = '*[0.9294    0.6941    0.1255]'; % CIC messages in bold orange
 
 
@@ -1379,6 +1378,9 @@ classdef cic < neurostim.plugin
             c.kbInfo.isSubject(ix) = isSubject;
             c.kbInfo.fun{ix} = fun;
             c.kbInfo.logKeyPress{ix} = logKeyPress;
+            if logKeyPress
+              plg.addProperty('pressedKey',[],'logAll',true); % Used to log key presses
+            end
         end
 
         function removeKeyStroke(c,key)
@@ -1641,12 +1643,12 @@ classdef cic < neurostim.plugin
                     %                 lastPress(out) =[];
                     %                 lastRelease(out)=[];
                     ks = find(firstPress);
-                    for k=ks
+                    for k = ks
                         ix = find(c.kbInfo.keys==k);% should be only one.
                         keyName = KbName(k);
                         if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' keyName '??']);end
                         if c.kbInfo.logKeyPress{ix}
-                            c.pressedKey = {keyName}; %cell arrays are always logged, even if same value inside
+                            c.kbInfo.plugin{ix}.pressedKey = keyName;
                         end
                         if isempty(c.kbInfo.fun{ix})
                             % Use the plugin's keyboard function

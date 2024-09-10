@@ -146,6 +146,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('SetAccess','public');
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);
+            p.addParameter('logAll',false,@islogical);
             p.addParameter('sticky',false,@islogical);
             p.addParameter('changesInTrial',false,@islogical); % Indicate that this is a variable that gets new values assiged inthe beforeFrame/afterFrame user code.
             p.parse(varargin{:});

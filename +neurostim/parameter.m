@@ -42,6 +42,10 @@ classdef parameter < handle & matlab.mixin.Copyable
     
     properties (Constant)
         BLOCKSIZE = 500; % Logs are incremented with this number of values.
+        
+        LOGNOTHING = 0;
+        LOGCHANGES = 1; % this is the default behaviour
+        LOGALLVALS = 2;
     end
     
     properties (SetAccess= {?neurostim.plugin}, GetAccess=  public)
@@ -70,7 +74,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         time;                       % Time at which previous values were set
         cntr=0;                     % Counter to store where in the log we are.
         capacity=0;                 % Capacity to store in log
-        noLog;                      % Set this to true to skip logging
+        logMode;                    % one of LOGNOTHING, LOGCHANGES or LOGALLVALS
         fun =[];                    % Function to allow across parameter dependencies
         funPrms;
         funStr = '';                % The neurostim function string
@@ -107,7 +111,13 @@ classdef parameter < handle & matlab.mixin.Copyable
             o.plg = p; % Handle to the plugin
             o.hDynProp  = h; % Handle to the dynamic property
             o.validate = options.validate;
-            o.noLog = options.noLog;
+            o.logMode = o.LOGCHANGES;
+            if options.logAll
+              o.logMode = o.LOGALLVALS;
+            end
+            if options.noLog
+              o.logMode = o.LOGNOTHING;
+            end
             o.sticky = options.sticky;
             o.changesInTrial = options.changesInTrial;
             o.hasLocalized = checkLocalized(o.plg,nm);
@@ -130,13 +140,14 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function stopLog(o)
-            o.noLog =true;
+            o.logMode = o.LOGNOTHING;
         end
         
-        function startLog(o)
-            o.noLog =false;
+        function startLog(o, mode)
+            if nargin < 2, mode = o.LOGCHANGES; end
+            o.logMode = mode;
         end
-        
+                
         function setupDynProp(o,options)
             % Set the properties of the dynprop that corresponds to this
             % parm
@@ -174,7 +185,8 @@ classdef parameter < handle & matlab.mixin.Copyable
             % Check if the value changed and log only the changes.
             % (at some point this seemed to be slower than just logging everything.
             % but tests on July 1st 2017 showed that this was (no longer) correct.
-            if  (isnumeric(v) && numel(v)==numel(o.value) && isnumeric(o.value) && isequaln(v(:),o.value(:))) || (ischar(v) && ischar(o.value) && strcmp(v,o.value))
+            if o.logMode ~= o.LOGALLVALS && ...
+                ( (isnumeric(v) && numel(v)==numel(o.value) && isnumeric(o.value) && isequaln(v(:),o.value(:))) || (ischar(v) && ischar(o.value) && strcmp(v,o.value)) )
                 % No change, no logging.
                 return;
             end
@@ -183,7 +195,7 @@ classdef parameter < handle & matlab.mixin.Copyable
             % returned to the next getValue
             o.value = v;
             
-            if o.noLog
+            if o.logMode == o.LOGNOTHING
                 return
             end
             
