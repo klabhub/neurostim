@@ -1344,8 +1344,8 @@ classdef cic < neurostim.plugin
         %% Keyboard handling routines
         function oldKey = addKeyStroke(c,key,keyHelp,plg,isSubject,fun,force,logKeyPress)
             if c.loadedFromFile
-                % When loading fro file, PTB may not be installed and none
-                % of the "online/intractive" funcationality is relevant.
+                % When loading from file, PTB may not be installed and none
+                % of the "online/interactive" functionality is relevant.
                 oldKey = struct; % empty struct
                 return;
             end
@@ -1366,8 +1366,8 @@ classdef cic < neurostim.plugin
                     oldKey.help = c.kbInfo.help{ix};
                     oldKey.plg = c.kbInfo.plugin{ix};
                     oldKey.isSubject  = c.kbInfo.isSubject(ix);
-                    oldKey.fun  = c.kbInfo.fun{ix};
-                    oldKey.fun  = c.kbInfo.logKeyPress{ix};
+                    oldKey.fun = c.kbInfo.fun{ix};
+                    oldKey.logKeyPress = c.kbInfo.logKeyPress{ix};
                 end
             else
                 oldKey = [];
@@ -1394,11 +1394,11 @@ classdef cic < neurostim.plugin
             else
                 out = ismember(c.kbInfo.keys,key);
                 c.kbInfo.keys(out) = [];
-                c.kbInfo.help(out)  = [];
+                c.kbInfo.help(out) = [];
                 c.kbInfo.plugin(out) = [];
                 c.kbInfo.isSubject(out) = [];
-                c.kbInfo.fun(out) =[];
-                c.kbInfo.logKeyPress(out) =[];
+                c.kbInfo.fun(out) = [];
+                c.kbInfo.logKeyPress(out) = [];
             end
         end
 
