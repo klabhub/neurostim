@@ -74,7 +74,7 @@ classdef parameter < handle & matlab.mixin.Copyable
         time;                       % Time at which previous values were set
         cntr=0;                     % Counter to store where in the log we are.
         capacity=0;                 % Capacity to store in log
-        logMode;                    % one of LOGNOTHING, LOGCHANGES or LOGALLVALS
+        logMode;                    % One of LOGNOTHING, LOGCHANGES or LOGALLVALS
         fun =[];                    % Function to allow across parameter dependencies
         funPrms;
         funStr = '';                % The neurostim function string
@@ -746,12 +746,22 @@ classdef parameter < handle & matlab.mixin.Copyable
         end
         
         function o = loadobj(o)
-            %Parameters that were initialised to [] and remained empty were not logged properly
-            %on construction in old files. Fix it here
+            % Parameters that were initialised to [] and remained empty were
+            % not logged properly on construction in old files. Fix it here.
             if ~o.cntr
                 o.cntr = 1;
                 o.log{1} = [];
                 o.time = -Inf;
+            end
+            
+            % Not all logging modes were supported in old files. Fix it here.
+            if isfield(o,'noLog') && ~isfield(o,'logMode')
+              logMode = neurostim.parameter.LOGCHANGES;
+              if o.noLog
+                logMode = neurostim.parameter.LOGNOTHING;
+              end
+              o.logMode = logMode;
+              o = rmfield(o,'noLog')
             end
             
             o = neurostim.parameter(o);
