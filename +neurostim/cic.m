@@ -1379,7 +1379,7 @@ classdef cic < neurostim.plugin
             c.kbInfo.fun{ix} = fun;
             c.kbInfo.logKeyPress{ix} = logKeyPress;
             if logKeyPress
-              plg.addProperty('pressedKey',[],'logAll',true); % Used to log key presses
+              plg.addProperty('pressedKey',[],'logMode',neurostim.parameter.LOGALL); % Used to log key presses
             end
         end
 
