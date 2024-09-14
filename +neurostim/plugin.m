@@ -105,6 +105,11 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             addKey(o,key,"",isSubject,do_nothing,false,o,true)
         end
         
+        function removeKey(o,key)
+            % Users add and remove keys through plugins, not cic directly.
+            o.cic.removeKeyStroke(key)
+        end
+        
         % Convenience wrapper; just passed to CIC
         function endTrial(o)
             % Move to the next trial
