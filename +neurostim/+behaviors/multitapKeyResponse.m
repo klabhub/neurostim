@@ -1,7 +1,9 @@
 classdef multitapKeyResponse < neurostim.behaviors.keyResponse
-    % Behavior subclass for receiving keyboard responses. Derives fom the 
-    % (single)  keyResponse behavior and is used to receive multiple taps of a single key during the trial. 
-    % The final output is the answer counts to determine success or fail.
+    % Behavior subclass for receiving keyboard responses. 
+    % Derives fom the (single)  keyResponse behavior and is used to receive multiple taps of a single key during the trial. 
+    % The first press is used to determine correct/incorrect
+    % Only subsequent presses of the same key are counted within the time window specified by .maximumRT2
+    % final output is the answer counts to determine success or fail.
     % 
     %
     %% States:
@@ -10,12 +12,10 @@ classdef multitapKeyResponse < neurostim.behaviors.keyResponse
     %               ->CORRECT if the correct key is pressed 
     %               ->FAIL if no key is pressed at o.to or afterTrial
     %               
-    % CORRECT       ->INCORRECT if the wrong key is pressed.
-    %               ->SUCCESS if t> o.to
+    % CORRECT       ->SUCCESS if t> o.to
     %               ->SUCCES if afterTrial
     %
-    % INCORRECT      ->CORRECT if the correct key is pressed
-    %               ->FAIL if t>o.to or afterTrial
+    % INCORRECT     ->FAIL if t>o.to or afterTrial
     %                
     %
     %% Parameters: 
@@ -26,6 +26,10 @@ classdef multitapKeyResponse < neurostim.behaviors.keyResponse
     %
     % simWhen       - time when a simulated key press will be generated (Defaults  to empty; never)
     % simWhat       - simulated response (given at simWhen)
+    %
+    % keyCount      - number of times the key has been pressed (default NaN)
+    % maximumRT2    - time to collect keypresses after first press
+    %
     %
     % failEndsTrial  - set to true to end the trial immediately after an incorrect response
     % successEndsTrial - set to true to end the trial immediately after a correct response
@@ -73,8 +77,7 @@ classdef multitapKeyResponse < neurostim.behaviors.keyResponse
             if correct, o.keyCount = o.keyCount+1; end
             if done
                 transition(o,@o.success,e);
-%             elseif ~correct
-%                 transition(o,@o.incorrectAnswer,e);
+
             end            
         end
         
@@ -86,8 +89,6 @@ classdef multitapKeyResponse < neurostim.behaviors.keyResponse
             if ~correct, o.keyCount = o.keyCount+1; end
             if done
                 transition(o,@o.fail,e);
-%             elseif correct
-%                 transition(o,@o.correctAnswer,e);
             end
         end
     end
