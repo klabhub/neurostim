@@ -2173,8 +2173,8 @@ classdef cic < neurostim.plugin
             end
         end
 
-        function removeKeyStroke(c,key)
-            % removeKeyStrokes(c,key)
+        function deregisterKey(c,key)
+            % deregisterKey(c,key)
             % removes keys (cell array of strings) from cic. These keys are
             % no longer listened to.
             if ischar(key) || iscellstr(key) || isstring(key)
