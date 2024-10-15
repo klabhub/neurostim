@@ -78,7 +78,7 @@ classdef cic < neurostim.plugin
             'subject',{[]},... % The keyboard that will handle keys for which isSubect is true (=by default stimuli)
             'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
             'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
-            'logKeyPress', {logical([])},...% Should we log the key press?
+            'log', {logical([])},...% Should we log the key press?
             'activeKb',{[]});  % Indices of keyboard that have keys associated with them. Set and used internally)
 
         %% Git version tracking
@@ -1583,7 +1583,7 @@ classdef cic < neurostim.plugin
                         ix = find(c.kbInfo.keys==k);% should be only one.
                         keyName = KbName(k);
                         if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' keyName '??']);end
-                        if c.kbInfo.logKeyPress{ix}
+                        if c.kbInfo.log{ix}
                             c.kbInfo.plugin{ix}.pressedKey = keyName;
                         end
                         if isempty(c.kbInfo.fun{ix})
@@ -1632,7 +1632,9 @@ classdef cic < neurostim.plugin
                 end
             end
         end
-
+        function oldKey = addKeyStroke(c,key,keyHelp,plg,isSubject,fun,force,log)
+            c.error('STOPEXPERIMENT', "'addKeyStroke' has been deprecated. use 'addKey()'. see: neurostim.plugin.addKey'")
+        end
     end
 
     methods (Access=private)
@@ -2129,7 +2131,7 @@ classdef cic < neurostim.plugin
         % Note that addKeyStroke() and removeKeyStroke() were previously
         % public methods, moved here to make plugin.addKey() and
         % plugin.removeKey() the public methods to remove duplication
-        function oldKey = addKeyStroke(c,key,keyHelp,plg,isSubject,fun,force,logKeyPress)
+        function oldKey = registerKey(c,key,keyHelp,plg,isSubject,fun,force,log)
             if c.loadedFromFile
                 % When loading from file, PTB may not be installed and none
                 % of the "online/interactive" functionality is relevant.
@@ -2154,7 +2156,7 @@ classdef cic < neurostim.plugin
                     oldKey.plg = c.kbInfo.plugin{ix};
                     oldKey.isSubject  = c.kbInfo.isSubject(ix);
                     oldKey.fun = c.kbInfo.fun{ix};
-                    oldKey.logKeyPress = c.kbInfo.logKeyPress{ix};
+                    oldKey.log = c.kbInfo.log{ix};
                 end
             else
                 oldKey = [];
@@ -2165,8 +2167,8 @@ classdef cic < neurostim.plugin
             c.kbInfo.plugin{ix} = plg; % Handle to plugin to call keyboard()
             c.kbInfo.isSubject(ix) = isSubject;
             c.kbInfo.fun{ix} = fun;
-            c.kbInfo.logKeyPress{ix} = logKeyPress;
-            if logKeyPress
+            c.kbInfo.log{ix} = log;
+            if log
               plg.addProperty('pressedKey',[],'logMode',neurostim.parameter.LOGALL); % Used to log key presses
             end
         end
@@ -2188,7 +2190,7 @@ classdef cic < neurostim.plugin
                 c.kbInfo.plugin(out) = [];
                 c.kbInfo.isSubject(out) = [];
                 c.kbInfo.fun(out) = [];
-                c.kbInfo.logKeyPress(out) = [];
+                c.kbInfo.log(out) = [];
             end
         end
         

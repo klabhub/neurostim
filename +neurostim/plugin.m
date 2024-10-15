@@ -55,8 +55,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force,plg,logKeyPress)
-            %  addKey(o,key,keyHelp,isSubject,fun)
+        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force,plg,log)
+            %  addKey(o,key,keyHelp,isSubject,fun,force,plg,log)
             % Runs a function in response to a specific key press.
             % key - a single key (string)
             % keyHelp -  a string that explains what this key does
@@ -69,11 +69,13 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % force - set to true to force adding this key (and thereby
             % taking it away from anihter plugin). This only makes sense if
             % you restore it soon after, using the returned keyInfo.
-            % logKeyPress - set to true to log every key press
+            % plg - the plugin that should react to the key (defaults to
+            % self)
+            % log - set to true to log every key press
 
             nin =nargin;
             if nin < 8
-                logKeyPress = false;
+                log = false;
                 if nin <7
                     plg = o;
                     if nin <6
@@ -84,13 +86,16 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
                                 isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
                                 if nin <3
                                     keyHelp = '?';
+                                    if nin < 2
+                                        o.cic.error('STOPEXPERIMENT', "Must provide a key; e.g. 's'")
+                                    end
                                 end
                             end
                         end
                     end
                 end
             end
-            oldKey = addKeyStroke(o.cic,key,keyHelp,plg,isSubject,fun,force,logKeyPress);
+            oldKey = registerKey(o.cic,key,keyHelp,plg,isSubject,fun,force,log);
         end
         
         function logKey(o, key, isSubject)
@@ -101,8 +106,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             if nargin < 3
                 isSubject = false;
             end
-            do_nothing = @(o,key) [];
-            addKey(o,key,"",isSubject,do_nothing,false,o,true)
+
+            addKey(o,key,"",isSubject,[],false,o,true)
         end
         
         function removeKey(o,key)
