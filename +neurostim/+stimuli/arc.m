@@ -29,7 +29,7 @@ classdef arc < neurostim.stimulus
             if o.filled
                 Screen('FillArc',o.window, o.color,rect,o.startAngle, o.arcAngle);
             else
-                Screen('FrameArc',o.window, o.color,rect,o.startAngle, o.arcAngle);
+                Screen('FrameArc',o.window, o.color,rect,o.startAngle, o.arcAngle, o.linewidth, o.linewidth);
             end
             
         end
