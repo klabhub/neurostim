@@ -880,7 +880,7 @@ classdef cic < neurostim.plugin
 
         function error(c,command,msg)
             switch (command)
-                case 'STOPEXPERIMENT'
+                case 'STOPEXPERIMENT' & c.stage ~= neurostim.cic.SETUP
                     c.writeToFeed(msg,'style','red');
                     c.flags.experiment = false;
                 case 'CONTINUE'
@@ -1633,7 +1633,7 @@ classdef cic < neurostim.plugin
             end
         end
         function oldKey = addKeyStroke(c,key,keyHelp,plg,isSubject,fun,force,log)
-            c.error('STOPEXPERIMENT', "'addKeyStroke' has been deprecated. use 'addKey()'. see: neurostim.plugin.addKey'")
+            c.error('STOPEXPERIMENT', '''"addKeyStroke" has been deprecated. use "addKey()". see: neurostim.plugin.addKey''')
         end
     end
 
