@@ -99,15 +99,15 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         function logKey(o, key, isSubject)
-            % Public convenience function to turn on logging for a particular key without any callback
+            % Public convenience function to turn on logging for a key without any callback
             % key - a single key (string)
             % isSubject - bool to indicate whether this is a key press on the subject side (true) or experimenter (false) 
 
             if nargin < 3
-                isSubject = false;
+                isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
             end
-
-            addKey(o,key,"",isSubject,[],false,o,true)
+            do_nothing = @(o,key) [];
+            addKey(o,key,"",isSubject,do_nothing,false,o,true)
         end
         
         function removeKey(o,key)
