@@ -55,8 +55,8 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
         end
         
         
-        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force,plg)
-            %  addKey(o,key,keyHelp,isSubject,fun)
+        function oldKey = addKey(o,key,keyHelp,isSubject,fun,force,plg,log)
+            %  addKey(o,key,keyHelp,isSubject,fun,force,plg,log)
             % Runs a function in response to a specific key press.
             % key - a single key (string)
             % keyHelp -  a string that explains what this key does
@@ -69,23 +69,50 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             % force - set to true to force adding this key (and thereby
             % taking it away from anihter plugin). This only makes sense if
             % you restore it soon after, using the returned keyInfo.
+            % plg - the plugin that should react to the key (defaults to
+            % self)
+            % log - set to true to log every key press
+
             nin =nargin;
-            if nin <7
-                plg = o;
-                if nin <6
-                    force =false;
-                    if nin<5
-                        fun =[];
-                        if nin < 4
-                            isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
-                            if nin <3
-                                keyHelp = '?';
+            if nin < 8
+                log = false;
+                if nin <7
+                    plg = o;
+                    if nin <6
+                        force =false;
+                        if nin<5
+                            fun =[];
+                            if nin < 4
+                                isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
+                                if nin <3
+                                    keyHelp = '?';
+                                    if nin < 2
+                                        o.cic.error('STOPEXPERIMENT', "Must provide a key; e.g. 's'")
+                                    end
+                                end
                             end
                         end
                     end
                 end
             end
-            oldKey = addKeyStroke(o.cic,key,keyHelp,plg,isSubject,fun,force);
+            oldKey = registerKey(o.cic,key,keyHelp,plg,isSubject,fun,force,log);
+        end
+        
+        function logKey(o, key, isSubject)
+            % Public convenience function to turn on logging for a key without any callback
+            % key - a single key (string)
+            % isSubject - bool to indicate whether this is a key press on the subject side (true) or experimenter (false) 
+
+            if nargin < 3
+                isSubject = isa(o,'neurostim.stimulus') || isa(o,'neurostim.behavior');
+            end
+            do_nothing = @(o,key) [];
+            addKey(o,key,"",isSubject,do_nothing,false,o,true)
+        end
+        
+        function removeKey(o,key)
+            % Users add and remove keys through plugins, not cic directly.
+            o.cic.deregisterKey(key)
         end
         
         % Convenience wrapper; just passed to CIC
@@ -129,6 +156,7 @@ classdef plugin  < dynamicprops & matlab.mixin.Copyable & matlab.mixin.Heterogen
             p.addParameter('SetAccess','public');
             p.addParameter('GetAccess','public');
             p.addParameter('noLog',false,@islogical);
+            p.addParameter('logMode',neurostim.parameter.LOGCHANGES,@isnumeric);
             p.addParameter('sticky',false,@islogical);
             p.addParameter('changesInTrial',false,@islogical); % Indicate that this is a variable that gets new values assiged inthe beforeFrame/afterFrame user code.
             p.parse(varargin{:});

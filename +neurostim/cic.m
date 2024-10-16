@@ -78,6 +78,7 @@ classdef cic < neurostim.plugin
             'subject',{[]},... % The keyboard that will handle keys for which isSubect is true (=by default stimuli)
             'experimenter',{[]},...% The keyboard that will handle keys for which isSubject is false (plugins by default)
             'pressAnyKey',{-1},... % Keyboard for start experiment, block ,etc. -1 means any
+            'log', {logical([])},...% Should we log the key press?
             'activeKb',{[]});  % Indices of keyboard that have keys associated with them. Set and used internally)
 
         %% Git version tracking
@@ -879,7 +880,7 @@ classdef cic < neurostim.plugin
 
         function error(c,command,msg)
             switch (command)
-                case 'STOPEXPERIMENT'
+                case 'STOPEXPERIMENT' & c.stage ~= neurostim.cic.SETUP
                     c.writeToFeed(msg,'style','red');
                     c.flags.experiment = false;
                 case 'CONTINUE'
@@ -1339,64 +1340,6 @@ classdef cic < neurostim.plugin
             %Screen('CloseAll');
         end
 
-        %% Keyboard handling routines
-        function oldKey = addKeyStroke(c,key,keyHelp,plg,isSubject,fun,force)
-            if c.loadedFromFile
-                % When loading fro file, PTB may not be installed and none
-                % of the "online/intractive" funcationality is relevant.
-                oldKey = struct; % empty struct
-                return;
-            end
-            if ischar(key)
-                key = KbName(key);
-            end
-            if ~isnumeric(key) || key <1 || key>256
-                error('Please use KbName to add keys')
-            end
-            ix = ismember(c.kbInfo.keys,key);
-            if  any(ix)
-                if ~force
-                    error(['The ' key ' key is in use. You cannot add it again...']);
-                else
-                    % Forcing a replacement - return old key so that the
-                    % user can restore later.
-                    oldKey.key = c.kbInfo.keys(ix);
-                    oldKey.help = c.kbInfo.help{ix};
-                    oldKey.plg = c.kbInfo.plugin{ix};
-                    oldKey.isSubject  = c.kbInfo.isSubject(ix);
-                    oldKey.fun  = c.kbInfo.fun{ix};
-                end
-            else
-                oldKey = [];
-                ix = numel(c.kbInfo.keys)+1; % Add a new one
-            end
-            c.kbInfo.keys(ix)  = key;
-            c.kbInfo.help{ix} = keyHelp;
-            c.kbInfo.plugin{ix} = plg; % Handle to plugin to call keyboard()
-            c.kbInfo.isSubject(ix) = isSubject;
-            c.kbInfo.fun{ix} = fun;
-        end
-
-        function removeKeyStroke(c,key)
-            % removeKeyStrokes(c,key)
-            % removes keys (cell array of strings) from cic. These keys are
-            % no longer listened to.
-            if ischar(key) || iscellstr(key) || isstring(key)
-                key = KbName(key);
-            end
-            ix = ismember(key,c.kbInfo.keys);
-            if ~any(ix)
-                warning(['The ' key(~ix) ' key is not in use. You cannot remove it...??']);
-            else
-                out = ismember(c.kbInfo.keys,key);
-                c.kbInfo.keys(out) = [];
-                c.kbInfo.help(out)  = [];
-                c.kbInfo.plugin(out) = [];
-                c.kbInfo.isSubject(out) = [];
-                c.kbInfo.fun(out) =[];
-            end
-        end
-
         function [a,b] = pixel2Physical(c,x,y)
             % converts from pixel dimensions to physical ones.
             a = (x./c.screen.xpixels-0.5)*c.screen.width;
@@ -1636,15 +1579,19 @@ classdef cic < neurostim.plugin
                     %                 lastPress(out) =[];
                     %                 lastRelease(out)=[];
                     ks = find(firstPress);
-                    for k=ks
+                    for k = ks
                         ix = find(c.kbInfo.keys==k);% should be only one.
-                        if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' KbName(k) '??']);end
+                        keyName = KbName(k);
+                        if length(ix) >1;error(['More than one plugin (or derived class) is listening to  ' keyName '??']);end
+                        if c.kbInfo.log{ix}
+                            c.kbInfo.plugin{ix}.pressedKey = keyName;
+                        end
                         if isempty(c.kbInfo.fun{ix})
                             % Use the plugin's keyboard function
-                            keyboard(c.kbInfo.plugin{ix},KbName(k));%,firstPress(k));
+                            keyboard(c.kbInfo.plugin{ix},keyName);%,firstPress(k));
                         else
                             % Use the specified function
-                            c.kbInfo.fun{ix}(c.kbInfo.plugin{ix},KbName(k));%,firstPress(k));
+                            c.kbInfo.fun{ix}(c.kbInfo.plugin{ix},keyName);%,firstPress(k));
                         end
                     end
                 end
@@ -1685,7 +1632,9 @@ classdef cic < neurostim.plugin
                 end
             end
         end
-
+        function oldKey = addKeyStroke(c,key,keyHelp,plg,isSubject,fun,force,log)
+            c.error('STOPEXPERIMENT', '''"addKeyStroke" has been deprecated. use "addKey()". see: neurostim.plugin.addKey''')
+        end
     end
 
     methods (Access=private)
@@ -2178,7 +2127,73 @@ classdef cic < neurostim.plugin
     end
 
     methods (Access=?neurostim.plugin)
+        %% Keyboard handling routines
+        % Note that addKeyStroke() and removeKeyStroke() were previously
+        % public methods, moved here to make plugin.addKey() and
+        % plugin.removeKey() the public methods to remove duplication
+        function oldKey = registerKey(c,key,keyHelp,plg,isSubject,fun,force,log)
+            if c.loadedFromFile
+                % When loading from file, PTB may not be installed and none
+                % of the "online/interactive" functionality is relevant.
+                oldKey = struct; % empty struct
+                return;
+            end
+            if ischar(key)
+                key = KbName(key);
+            end
+            if ~isnumeric(key) || key <1 || key>256
+                error('Please use KbName to add keys')
+            end
+            ix = ismember(c.kbInfo.keys,key);
+            if  any(ix)
+                if ~force
+                    error(['The ' key ' key is in use. You cannot add it again...']);
+                else
+                    % Forcing a replacement - return old key so that the
+                    % user can restore later.
+                    oldKey.key = c.kbInfo.keys(ix);
+                    oldKey.help = c.kbInfo.help{ix};
+                    oldKey.plg = c.kbInfo.plugin{ix};
+                    oldKey.isSubject  = c.kbInfo.isSubject(ix);
+                    oldKey.fun = c.kbInfo.fun{ix};
+                    oldKey.log = c.kbInfo.log{ix};
+                end
+            else
+                oldKey = [];
+                ix = numel(c.kbInfo.keys)+1; % Add a new one
+            end
+            c.kbInfo.keys(ix)  = key;
+            c.kbInfo.help{ix} = keyHelp;
+            c.kbInfo.plugin{ix} = plg; % Handle to plugin to call keyboard()
+            c.kbInfo.isSubject(ix) = isSubject;
+            c.kbInfo.fun{ix} = fun;
+            c.kbInfo.log{ix} = log;
+            if log
+              plg.addProperty('pressedKey',[],'logMode',neurostim.parameter.LOGALL); % Used to log key presses
+            end
+        end
 
+        function deregisterKey(c,key)
+            % deregisterKey(c,key)
+            % removes keys (cell array of strings) from cic. These keys are
+            % no longer listened to.
+            if ischar(key) || iscellstr(key) || isstring(key)
+                key = KbName(key);
+            end
+            ix = ismember(key,c.kbInfo.keys);
+            if ~any(ix)
+                warning(['The ' key(~ix) ' key is not in use. You cannot remove it...??']);
+            else
+                out = ismember(c.kbInfo.keys,key);
+                c.kbInfo.keys(out) = [];
+                c.kbInfo.help(out) = [];
+                c.kbInfo.plugin(out) = [];
+                c.kbInfo.isSubject(out) = [];
+                c.kbInfo.fun(out) = [];
+                c.kbInfo.log(out) = [];
+            end
+        end
+        
         function rng = requestRNGstream(c,nStreams,makeItAGPUrng)
             %Plugins can request their own RNG stream. We created N (3) RNG
             %streams on construction of CIC, so allocate one of those now.
