@@ -154,7 +154,7 @@ classdef stimulus < neurostim.plugin
             s.addProperty('rx',0,'validate',@isnumeric);
             s.addProperty('ry',0,'validate',@isnumeric);
             s.addProperty('rz',1,'validate',@isnumeric);
-            s.addProperty('rsvpIsi',false,'validate',@islogical); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
+            s.addProperty('rsvpIsi',-1,'validate',@isnumeric); % Logs onset (1) and offset (0) of the RSVP "ISI" . But only if log is set to true in addRSVP.
             s.addProperty('disabled',false);            
             
             
@@ -286,12 +286,12 @@ classdef stimulus < neurostim.plugin
             end
             
             %Blank now if it's time to do so.
-            s.flags.on = itemFrame < durationInFrames;  % Blank during rsvp isi  (< because itemFrame is base-0)
+            s.flags.on = itemFrame < durationInFrames;  % Blank during rsvp isi 
             if s.rsvp.log
                 if itemFrame == 0
-                    s.rsvpIsi = false;
-                elseif itemFrame==startIsiFrame
-                    s.rsvpIsi = true;
+                    s.rsvpIsi = 0;
+                elseif itemFrame == durationInFrames
+                    s.rsvpIsi = 1;
                 end
             end
         end
