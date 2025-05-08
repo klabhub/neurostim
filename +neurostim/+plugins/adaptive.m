@@ -236,9 +236,12 @@ classdef (Abstract) adaptive < neurostim.plugin
             end
         end 
         
-        function v = updateValue(o)
-
-            if ~isempty(o.lastOutcome)
+        function v = updateValue(o, force)
+            if nargin<2
+                force = false;
+            end
+            
+            if ~isempty(o.lastOutcome) || force
                 % Allow the derived class to update (based on lastValue and lastOutcome)
                 update(o); 
                 o.lastOutcome = [];

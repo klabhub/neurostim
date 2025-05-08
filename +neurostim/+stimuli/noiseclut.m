@@ -48,8 +48,6 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
     %  TODO:
     %       (1) Allow a signal to be embedded (this has to happen in the shader used in gllutimage.m)
     %       (2) Add co-variance matrix, sz = [o.nRandels,o.nRandels], for presenting correlated noise.
-    %       (3) Provide a reconstruction tool for offline analysis
-    %       (4) This approach to rng is inefficient: it would be better to have a separate RNG stream for this stimulus. CIC would need to act as RNG server?
     
     properties (Access = private)
         initialised = false;
@@ -186,8 +184,8 @@ classdef (Abstract) noiseclut < neurostim.stimuli.clutImage
             p = p.Results;
             
             %Callback parameters
-            sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf);
-            prms = get(o.prms.parms,'trial',p.trial,'atTrialTime',Inf);
+            sFun = get(o.prms.sampleFun,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
+            prms = get(o.prms.parms,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
             bnds = get(o.prms.bounds,'trial',p.trial,'atTrialTime',Inf,'matrixIfPossible',false);
             rngSt = get(o.prms.rngState,'trial',p.trial,'atTrialTime',Inf);
             cbCtr = get(o.prms.callbackCounter,'trial',p.trial,'atTrialTime',Inf);

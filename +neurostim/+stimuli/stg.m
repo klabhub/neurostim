@@ -846,20 +846,20 @@ classdef stg < neurostim.stimulus
 
             end
 
-             for thisChannel = setdiff(1:o.nrChannels,o.channel)                                
-                values= 0;  % nA or muV
-                duration =maxDurationAcrossChannels;
-                % Send to STG
-                if ~o.fake
-                    % Clear channel and send stimulus data to device
-                    amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
-                    durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
-                    o.writeToFeed(sprintf('Sending 0 to channel %d ',thisChannel-1));
-                    tic;
-                    o.device.PrepareAndSendData( uint32(thisChannel-1), amplitudeNet, durationNet,valueCode);
-                    o.writeToFeed(sprintf('Done in %4.0f s',toc));                                                         
-                end
-            end
+%              for thisChannel = setdiff(1:o.nrChannels,o.channel)                                
+%                 values= 0;  % nA or muV
+%                 duration =maxDurationAcrossChannels;
+%                 % Send to STG
+%                 if ~o.fake
+%                     % Clear channel and send stimulus data to device
+%                     amplitudeNet = NET.convertArray(int32(values), 'System.Int32');
+%                     durationNet  = NET.convertArray(uint64(duration), 'System.UInt64');
+%                     o.writeToFeed(sprintf('Sending 0 to channel %d ',thisChannel-1));
+%                     tic;
+%                     o.device.PrepareAndSendData( uint32(thisChannel-1), amplitudeNet, durationNet,valueCode);
+%                     o.writeToFeed(sprintf('Done in %4.0f s',toc));                                                         
+%                 end
+%             end
         end
 
         function [thisDuration,thisAmplitude,thisFrequency,thisPhase,thisMean,thisFun,thisNrRepeats] = channelParms(o,channel)
