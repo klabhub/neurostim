@@ -21,9 +21,19 @@ classdef text < neurostim.stimulus
     
     methods
         function set.antialiasing(o,value)
-            if value ~= Screen('Preference','TextRenderer')
-                warning('Text antialiasing not set to screen antialiasing')
-            end
+            try
+                % Try-catch hack to allow loading files without PTB.
+                renderer= Screen('Preference','TextRenderer');
+                if value ~= renderer
+                    warning('Text antialiasing not set to screen antialiasing')
+                end
+            catch me
+                if contains(me.message,'Psychtoolbox Mex file')
+                    % Probably loading a file for analysis without PTB
+                    % installed. Ignore. If this is running an experiment
+                    % then Screen will be called again later and fail.
+                end
+            end            
             o.antialiasing = value;
         end
     end
