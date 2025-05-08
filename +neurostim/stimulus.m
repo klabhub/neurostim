@@ -275,8 +275,13 @@ classdef stimulus < neurostim.plugin
                 % Get current specs and apply
                 specs = s.rsvp.design.specs;
                 for sp=1:size(specs,1)
-                    s.(specs{sp,2}) = specs{sp,3};
-                end
+                    if isa(specs{sp,3},'neurostim.plugins.adaptive')
+                        value = updateValue(specs{sp,3}, true);
+                    else
+                        value = specs{sp,3};
+                    end
+                    s.(specs{sp,2}) = value;
+                end                
                 localizeParms(s,true);  % Update those loc parameters that change within a trial
             end
             
