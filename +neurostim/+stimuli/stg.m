@@ -201,6 +201,7 @@ classdef stg < neurostim.stimulus
             o.addProperty('enabled',true);
             o.addProperty('mode','TRIAL');%,@(x) (ischar(x) && ismember(upper(x),{'TRIAL','BLOCK','TIMED'})));
             o.addProperty('sampleRate',o.outputRate); 
+            o.addProperty('forceCompression',false); 
 
             % Stimulation properties
             o.addProperty('fun','tDCS','validate',@(x) (isa(x,'function_handle') || (ischar(x) && ismember(x,{'tDCS','tACS','tRNS'}))));
@@ -687,7 +688,7 @@ classdef stg < neurostim.stimulus
                 end
             elseif isa(thisFun,'function_handle')
                 % User-specified function handle.
-                signal = thisFun(time,o);
+                signal = thisFun(channel,o);
                 if numel(signal) ~=numel(time)
                     error(o.cic,'STOPEXPERIMENT','The stimulus function returns an incorrect number of time points');
                 end
@@ -808,7 +809,7 @@ classdef stg < neurostim.stimulus
                 if o.sham                        
                     values =  [rampUpSignal rampDownSignal];
                     durationInSamples  = [rampUpSamples,rampDownSamples];                 
-                elseif strcmpi(o.fun,'tDCS')
+                elseif strcmpi(o.fun,'tDCS') || o.forceCompression
                     [signal,signalSamples] = compress(o,signal,thisNrRepeats);
                     values= [rampUpSignal signal rampDownSignal];
                     durationInSamples  = [rampUpSamples,signalSamples, rampUpSamples];                 
