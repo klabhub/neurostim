@@ -145,11 +145,11 @@ classdef gabor < neurostim.stimulus
             
             %aux parameters need to have 4xn with n<=8 size
             oSigma  = +o.sigma;
-            if numel(oSigma)==1
+            if isscalar(oSigma)
                 oSigma =[oSigma 0];
             end
             oColor = +o.color;
-            if numel(oColor) ==1
+            if isscalar(oColor)
                 oColor = [oColor 0 0];% Luminance only spec (probably M16 mode)
             end
             

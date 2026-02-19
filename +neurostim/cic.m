@@ -150,6 +150,7 @@ classdef cic < neurostim.plugin
         nrTrials;       % The number of trials in the current block
         center;         % Where is the center of the display window.
         file;           % Target file name
+        fileWithExt;    % Target file name with extension .mat
         fullFile;       % Target file name including path
         fullPath;       % Target path name
         subject;   % Subject
@@ -226,8 +227,12 @@ classdef cic < neurostim.plugin
             v = datestr(c.startTime,'HH:MM:SS');
         end
         function v = get.file(c)
-            v = [c.subject '.' c.paradigm '.' datestr(c.startTime,'HHMMSS') ];
+            v = [c.subject '.' c.paradigm '.' datestr(c.startTime,'HHMMSS')];
         end
+        function v = get.fileWithExt(c)
+            v = [c.file '.mat'];
+        end
+        
         function v = get.fullPath(c)
             v = fullfile(c.dirs.output,datestr(c.startTime,'YYYY/mm/DD'));
         end
@@ -1598,7 +1603,7 @@ classdef cic < neurostim.plugin
                         end
                         if isempty(c.kbInfo.fun{ix})
                             % Use the plugin's keyboard function
-                            keyboard(c.kbInfo.plugin{ix},keyName);%,firstPress(k));
+                            keyboard(c.kbInfo.plugin{ix},keyName); %#ok<KEYBOARDFUN> %,firstPress(k));
                         else
                             % Use the specified function
                             c.kbInfo.fun{ix}(c.kbInfo.plugin{ix},keyName);%,firstPress(k));
