@@ -74,7 +74,7 @@ classdef egi < neurostim.plugin
                 duration = 1;
             end            
             % Correct the time for the known clockoffset (measured and then fixed per rig)
-            % Then send.  
+            % Then send.   
             [status,err] = NetStation('Event',code,(time+o.clockOffset)/1000,duration/1000,varargin{:},'TTIM',o.cic.trialTime);
             o.eventCode = code; % Log the generation of the event here.
             o.checkStatusOk(status,err);
@@ -228,10 +228,11 @@ classdef egi < neurostim.plugin
             % INPUT
             % s =  stimulus
             % startTime = flipTime in clocktime (i.e. not relative to the
-            % trial)                        
-            code = [s.name(1:min(numel(s.name),2)) 'ON']; % First 2 char of name plus 'ON'
+            % trial)
+            nm = char(s.name); % In case the name was a "" string
+            code = [nm(1:min(numel(nm),2)) 'ON']; % First 2 char of name plus 'ON'
             hEgi= s.cic.egi;            
-            thisE = {code,startTime,s.duration,'FLIP',startTime,'DESC',[s.name ' onset']};
+            thisE = {code,startTime,s.duration,'FLIP',startTime,'DESC',[nm ' onset']};
             hEgi.addToEventQueue(thisE);
         end
         function logOffset(s,stopTime)
@@ -244,13 +245,14 @@ classdef egi < neurostim.plugin
             % s =  stimulus
             % stopTime= flipTime in clocktime (i.e. not relative to the
             % trial)                        
-            code = [s.name(1:min(numel(s.name),2)) 'OF'];
+            nm = char(s.name); % In case the name was a "" string           
+            code = [nm(1:min(numel(nm),2)) 'OF'];
             hEgi= s.cic.egi;    
             % The stopTime tells us when the flip happened that *started*
             % the last frame for this stimulus. So the offset is one frame
             % later.
             stopTime  = stopTime + 1000/s.cic.screen.frameRate;
-            thisE = {code,stopTime,1,'FLIP',stopTime,'DESC',[s.name ' offset']};
+            thisE = {code,stopTime,1,'FLIP',stopTime,'DESC',[nm ' offset']};
             hEgi.addToEventQueue(thisE);
         end
     end
