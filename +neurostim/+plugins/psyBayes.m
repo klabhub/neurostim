@@ -164,9 +164,9 @@ classdef psyBayes < neurostim.plugins.adaptive
             conditionLabel = cell(1,nrO);
             for j=1:nrO
                 try
-                    for i=find(oo(j).vars)
-                        %1:numel(oo(j).vars) would also show an estimate of
-                        %vars that weren't selectd in .vars. Not
+                    for i=1:numel(oo(j).vars)
+                        % shows an estimate of all vars (Even if they
+                        % weren't optimized in the search procedure)                       
                         other = setdiff(1:3,i);
                         y = neurostim.plugins.psyBayes.marginalpost(oo(j).psy.post,oo(j).psy.psychopost,other);
                         N=100;
