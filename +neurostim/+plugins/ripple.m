@@ -154,10 +154,6 @@ classdef ripple < neurostim.plugin
 
 
 
-            pth = which('xippmex');
-            if isempty(pth)
-                error('The ripple plugin relies on xippmex, which could not be found. Please obtain it from your Trellis installation folder, and add it to the Matlab path');
-            end
 
             % Create a timer object for each digout channel
             for ch = 1:o.NRDIGOUT
@@ -240,6 +236,11 @@ classdef ripple < neurostim.plugin
 
         function beforeExperiment(o)
             if o.fake; return;end
+            
+            pth = which('xippmex');
+            if isempty(pth) && ~o.fake
+                error('The ripple plugin relies on xippmex, which could not be found. Please obtain it from your Trellis installation folder, and add it to the Matlab path');
+            end
 
             % This has to be done before any other commands are sent.
             xippmex(o.mode);  %Initialize
