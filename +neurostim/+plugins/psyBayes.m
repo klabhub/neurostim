@@ -199,14 +199,26 @@ classdef psyBayes < neurostim.plugins.adaptive
                     end
                     
                   
-                    if nargout >3 && ~isempty(strfind(oo(j).psy.psychofun,'psyfun_yesno')) && ~isempty(strfind(oo(j).psy.psychofun,'psynormcdf'))
-                        % Yes no function uses the cumulative normal, which we can
-                        % invert to find the threshold at an arbitrary level:
-                        thresholdFun = @(theta,mu,sigma,lambda)(mu+sqrt(2)*sigma.*erfinv(2*(theta-lambda/2)./(1-lambda)-1));                                              
-                        threshold(1,j) = thresholdFun(theta,m(1,j),m(2,j),m(3,j));
+                    isYesNo = ~isempty(strfind(oo(j).psy.psychofun,'psyfun_yesno'));
+                    isPCorrect = ~isempty(strfind(oo(j).psy.psychofun,'psyfun_pcorrect'));
+                    isNorm = ~isempty(strfind(oo(j).psy.psychofun,'psynormcdf'));
+                    if nargout >3 && isNorm && (isYesNo || isPCorrect)
+                        % psyfun_yesno and psyfun_pcorrect can use the cumulative normal,
+                        % which we can invert to find threshold at an arbitrary level.
+                        if isYesNo
+                            thresholdFun = @(theta,mu,sigma,lambda)(mu+sqrt(2)*sigma.*erfinv(2*(theta-lambda/2)./(1-lambda)-1));
+                            threshold(1,j) = thresholdFun(theta,m(1,j),m(2,j),m(3,j));
+                        else
+                            thresholdFun = @(theta,mu,sigma,lambda,gamma)(mu+sqrt(2)*sigma.*erfinv(2*(theta-gamma)./(1-gamma-lambda)-1));
+                            threshold(1,j) = thresholdFun(theta,m(1,j),m(2,j),m(3,j),oo(j).psy.gamma);
+                        end
                         if nargout>4
                             [M,S,L] = ndgrid(oo(j).psy.mu,oo(j).psy.sigma,oo(j).psy.lambda);
-                            x = thresholdFun(theta,M,S,L);
+                            if isYesNo
+                                x = thresholdFun(theta,M,S,L);
+                            else
+                                x = thresholdFun(theta,M,S,L,oo(j).psy.gamma);
+                            end
                             y = oo(j).psy.post{1};
                             x= x(:);
                             y = y(:);
