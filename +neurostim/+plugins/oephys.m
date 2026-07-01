@@ -134,19 +134,44 @@ classdef oephys < neurostim.plugins.ePhys
       %
       % To reverse this change for a fixed-ID rig, comment out this loop and
       % restore a direct PUT to /api/recording/<node_id>.
-      % This is Shaun's OG method too:
-      
+
+      %%%
+      % This is Shaun's OG method:
       %for nodeId = [r.record_nodes.node_id]
         %o.put({'recording',num2str(nodeId)},struct('parent_directory',o.recordDir));
       %end
+      %%%
 
+      %%% David Gill - 01/07/2026 Fix:
+      % Ensure Open Ephys is idle before changing recording paths/names.
+      % The REST API may ignore Record Node path/name updates while the GUI
+      % is already acquiring or recording.
+      o.put('status',struct('mode','IDLE'));
+
+      % Use Neurostim to define the full Open Ephys session folder name.
+      % This avoids Open Ephys reusing a stale GUI "main" field and creating
+      % experiment2/experiment3 inside the previous session folder.
+      %
+      % Expected folder:
+      %   <cic.file>_<yyyy-mm-dd_HH-MM-SS>
+      %
+      % This matches analysis expectations because oeLoad looks for:
+      %   <neurostim-file-basename>_*
+      config = struct( ...
+        'parent_directory',o.recordDir, ...
+        'base_text',o.prependText, ...
+        'prepend_text','', ...
+        'append_text','');
+
+      r = o.put('recording',config);
+
+      % Existing Record Nodes do not inherit parent_directory reliably from
+      % /api/recording, so update each active Record Node explicitly.
       for nodeId = [r.record_nodes.node_id]
         o.put({'recording',num2str(nodeId)}, ...
-          struct('parent_directory',o.recordDir, ...
-                 'prepend_state',2, ...
-                 'prepend_text',o.prependText, ...
-                 'append_text',o.appendText));
+          struct('parent_directory',o.recordDir));
       end
+      %%%
 
       % Old fixed-node workaround. Disabled because node_id 106 was not the
       % active Record Node on this rig.
