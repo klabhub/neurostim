@@ -166,11 +166,20 @@ classdef oephys < neurostim.plugins.ePhys
 
       fprintf('\nOEPhys recording config:\n');
       disp(config);
+
       % r = o.put('recording',config);
+
+      webwrite([o.hostAddr '/api/status'], ...
+        struct('mode','IDLE'), ...
+        weboptions('RequestMethod','put','MediaType','application/json'));
+
+
       r = webwrite([o.hostAddr '/api/recording'], config, ...
         weboptions('RequestMethod','put','MediaType','application/json'));
 
       % troubleshooting diagnostic ->
+      fprintf('\nOEPhys recording config sent with WEBWRITE:\n');
+      disp(config);
       check = webread([o.hostAddr '/api/recording']);
       fprintf('\nOEPhys recording state after config PUT:\n');
       disp(check);
