@@ -167,6 +167,9 @@ classdef oephys < neurostim.plugins.ePhys
       fprintf('\nOEPhys recording config:\n');
       disp(config);
       r = o.put('recording',config);
+      check = o.get('recording');
+      fprintf('\nOEPhys recording state after config PUT:\n');
+      disp(check);
 
       % Existing Record Nodes do not inherit parent_directory reliably from
       % /api/recording, so update each active Record Node explicitly.
