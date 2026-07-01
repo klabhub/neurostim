@@ -164,6 +164,8 @@ classdef oephys < neurostim.plugins.ePhys
         'prepend_text','', ...
         'append_text','');
 
+      fprintf('\nOEPhys recording config:\n');
+      disp(config);
       r = o.put('recording',config);
 
       % Existing Record Nodes do not inherit parent_directory reliably from
