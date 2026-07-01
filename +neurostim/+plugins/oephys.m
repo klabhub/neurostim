@@ -135,8 +135,17 @@ classdef oephys < neurostim.plugins.ePhys
       % To reverse this change for a fixed-ID rig, comment out this loop and
       % restore a direct PUT to /api/recording/<node_id>.
       % This is Shaun's OG method too:
+      
+      %for nodeId = [r.record_nodes.node_id]
+        %o.put({'recording',num2str(nodeId)},struct('parent_directory',o.recordDir));
+      %end
+
       for nodeId = [r.record_nodes.node_id]
-        o.put({'recording',num2str(nodeId)},struct('parent_directory',o.recordDir));
+        o.put({'recording',num2str(nodeId)}, ...
+          struct('parent_directory',o.recordDir, ...
+                 'prepend_state',2, ...
+                 'prepend_text',o.prependText, ...
+                 'append_text',o.appendText));
       end
 
       % Old fixed-node workaround. Disabled because node_id 106 was not the
