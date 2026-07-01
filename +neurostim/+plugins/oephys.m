@@ -142,61 +142,45 @@ classdef oephys < neurostim.plugins.ePhys
       %end
       %%%
 
-      %%% David Gill - 01/07/2026 Fix:
-      % Ensure Open Ephys is idle before changing recording paths/names.
-      % The REST API may ignore Record Node path/name updates while the GUI
-      % is already acquiring or recording.
-      o.put('status',struct('mode','IDLE'));
+      %%% DG/SLC Open Ephys REST recording setup
+      % Open Ephys v0.6+ REST API accepts custom base_text for the next
+      % recording directory, but silently ignores base_text values containing
+      % periods. Neurostim's file stem uses periods:
+      %   subject.paradigm.HHMMSS
+      % so we convert periods to underscores for the Open Ephys folder:
+      %   subject_paradigm_HHMMSS_yyyy-mm-dd_HH-MM-SS
+      %
+      % This avoids stale GUI base_text values causing subsequent recordings
+      % to be appended as experiment2/3/... inside the previous session folder.
+      % Downstream pairing must either rename the Open Ephys folder after copy
+      % or search for the underscore-safe equivalent of the Neurostim basename.
 
-      % Use Neurostim to define the full Open Ephys session folder name.
-      % This avoids Open Ephys reusing a stale GUI "main" field and creating
-      % experiment2/experiment3 inside the previous session folder.
-      %
-      % Expected folder:
-      %   <cic.file>_<yyyy-mm-dd_HH-MM-SS>
-      %
-      % This matches analysis expectations because oeLoad looks for:
-      %   <neurostim-file-basename>_*
+      opts = weboptions('RequestMethod','put','MediaType','application/json');
+
+      % Open Ephys may ignore recording config changes unless fully idle.
+      webwrite([o.hostAddr '/api/status'], struct('mode','IDLE'), opts);
+
+      safeBaseText = strrep(o.prependText,'.','_');
 
       config = struct( ...
         'parent_directory',o.recordDir, ...
-        'base_text',o.prependText, ...
+        'base_text',safeBaseText, ...
         'prepend_text','', ...
         'append_text','');
 
-      fprintf('\nOEPhys recording config:\n');
-      disp(config);
+      r = webwrite([o.hostAddr '/api/recording'], config, opts);
 
-      % r = o.put('recording',config);
-
-      webwrite([o.hostAddr '/api/status'], ...
-        struct('mode','IDLE'), ...
-        weboptions('RequestMethod','put','MediaType','application/json'));
-
-
-      r = webwrite([o.hostAddr '/api/recording'], config, ...
-        weboptions('RequestMethod','put','MediaType','application/json'));
-
-      % troubleshooting diagnostic ->
-      fprintf('\nOEPhys recording config sent with WEBWRITE:\n');
-      disp(config);
       check = webread([o.hostAddr '/api/recording']);
-      fprintf('\nOEPhys recording state after config PUT:\n');
-      disp(check);
+      assert(strcmp(check.base_text,safeBaseText), ...
+        'Open Ephys did not accept base_text update.');
 
-      % Existing Record Nodes do not inherit parent_directory reliably from
+      % Existing Record Nodes do not reliably inherit parent_directory from
       % /api/recording, so update each active Record Node explicitly.
-      % for nodeId = [r.record_nodes.node_id]
-      %   o.put({'recording',num2str(nodeId)}, ...
-      %     struct('parent_directory',o.recordDir));
-      % end
-
-      for nodeId = [r.record_nodes.node_id]
+      for nodeId = [check.record_nodes.node_id]
         webwrite([o.hostAddr '/api/recording/' num2str(nodeId)], ...
-          struct('parent_directory',o.recordDir), ...
-          weboptions('RequestMethod','put','MediaType','application/json'));
+          struct('parent_directory',o.recordDir), opts);
       end
-      %%%
+      %%% end DG/SLC Open Ephys REST recording setup
 
       % Old fixed-node workaround. Disabled because node_id 106 was not the
       % active Record Node on this rig.
