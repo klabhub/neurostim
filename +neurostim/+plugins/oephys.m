@@ -119,20 +119,36 @@ classdef oephys < neurostim.plugins.ePhys
       %        that is always determined by the .xml file (either AUTO or
       %        CUSTOM)
 
-      % Shaun's original code
-      % for nodeId = [r.record_nodes.node_id]
-      %   o.put({'recording',num2str(nodeId)},struct('parent_directory',o.recordDir));
-      % end
+%%%%%%%%%%%%
+      % Set the parent directory on each active Record Node returned by the
+      % Open Ephys REST API. The global /api/recording parent_directory does
+      % not reliably update Record Nodes that are already present in the
+      % signal chain; Open Ephys records to the per-node parent_directory.
+      %
+      % Previously this rig used a hard-coded endpoint:
+      %   /api/recording/106
+      % but Record Node IDs can change between signal chains/sessions. For
+      % example, on 2026-06-29 the active Record Node was 101, so data saved
+      % to D:\ instead of o.recordDir. This loop updates whatever Record
+      % Node ID(s) the GUI reports at runtime.
+      %
+      % To reverse this change for a fixed-ID rig, comment out this loop and
+      % restore a direct PUT to /api/recording/<node_id>.
+      % This is Shaun's OG method too:
+      for nodeId = [r.record_nodes.node_id]
+        o.put({'recording',num2str(nodeId)},struct('parent_directory',o.recordDir));
+      end
 
-% copied from https://open-ephys.github.io/gui-docs/User-Manual/Remote-control.html#remotecontrol
+      % Old fixed-node workaround. Disabled because node_id 106 was not the
+      % active Record Node on this rig.
+      % out = webwrite('http://130.194.192.3:37497/api/recording/106', struct('parent_directory',o.recordDir), ...
+      %     weboptions('RequestMethod','put','MediaType','application/json'));
 
-    % NP - these don't work, but 
-    out = webwrite('http://130.194.192.3:37497/api/recording/106', struct('parent_directory',o.recordDir), ...
-        weboptions('RequestMethod','put','MediaType','application/json'));
-
-% out = webwrite([o.hostAddr, '/api/recording'], struct('base_text',o.recordDir), ...
-%       weboptions('RequestMethod','put','MediaType','application/json'));
-
+      % This changes global recording settings only; it does not reliably
+      % update existing Record Nodes.
+      % out = webwrite([o.hostAddr, '/api/recording'], struct('base_text',o.recordDir), ...
+      %       weboptions('RequestMethod','put','MediaType','application/json'));
+%%%%%%%%%%%%
 
       [~,status] = o.put('status',struct('mode','RECORD')); %NP - this works
 
