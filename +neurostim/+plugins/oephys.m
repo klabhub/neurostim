@@ -166,23 +166,26 @@ classdef oephys < neurostim.plugins.ePhys
 
       fprintf('\nOEPhys recording config:\n');
       disp(config);
-      r = o.put('recording',config);
-    
-      fprintf('\nOEPhys recording config sent:\n');
-      disp(config);
-    
-      fprintf('\nOEPhys recording state returned by config PUT:\n');
-      disp(r);
-    
+      % r = o.put('recording',config);
+      r = webwrite([o.hostAddr '/api/recording'], config, ...
+        weboptions('RequestMethod','put','MediaType','application/json'));
+
+      % troubleshooting diagnostic ->
       check = webread([o.hostAddr '/api/recording']);
       fprintf('\nOEPhys recording state after config PUT:\n');
       disp(check);
 
       % Existing Record Nodes do not inherit parent_directory reliably from
       % /api/recording, so update each active Record Node explicitly.
+      % for nodeId = [r.record_nodes.node_id]
+      %   o.put({'recording',num2str(nodeId)}, ...
+      %     struct('parent_directory',o.recordDir));
+      % end
+
       for nodeId = [r.record_nodes.node_id]
-        o.put({'recording',num2str(nodeId)}, ...
-          struct('parent_directory',o.recordDir));
+        webwrite([o.hostAddr '/api/recording/' num2str(nodeId)], ...
+          struct('parent_directory',o.recordDir), ...
+          weboptions('RequestMethod','put','MediaType','application/json'));
       end
       %%%
 
